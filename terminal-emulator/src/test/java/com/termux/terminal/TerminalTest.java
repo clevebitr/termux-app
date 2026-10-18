@@ -356,18 +356,29 @@ public class TerminalTest extends TerminalTestCase {
 		colorScheme.updateWith(props);
 		assertEquals(0xffffffff, colorScheme.getExtraKeysForegroundColor());
 		assertEquals(0xff000000, colorScheme.getExtraKeysBackgroundColor());
-		assertEquals(0xffffffff, colorScheme.getExtraKeysActiveForegroundColor());
+		assertEquals(colorScheme.mDefaultColors[TextStyle.COLOR_INDEX_CURSOR], colorScheme.getExtraKeysActiveForegroundColor());
 		assertEquals(0xff3f3f3f, colorScheme.getExtraKeysActiveBackgroundColor());
 
-		// The extra keys colors must follow the color scheme set by Termux:Styling.
+		// The extra keys colors must follow the color scheme set by Termux:Styling. The active foreground
+		// color is derived from the cursor color, which is auto adjusted based on the perceived brightness
+		// of the background color, but that cannot be computed in unit tests since `android.graphics.Color`
+		// methods return default values, so its value is read from the color scheme instead of hardcoded.
 		props.clear();
 		props.setProperty("foreground", "#000000");
 		props.setProperty("background", "#ffffff");
 		colorScheme.updateWith(props);
 		assertEquals(0xff000000, colorScheme.getExtraKeysForegroundColor());
 		assertEquals(0xffffffff, colorScheme.getExtraKeysBackgroundColor());
-		assertEquals(0xff000000, colorScheme.getExtraKeysActiveForegroundColor());
+		assertEquals(colorScheme.mDefaultColors[TextStyle.COLOR_INDEX_CURSOR], colorScheme.getExtraKeysActiveForegroundColor());
 		assertEquals(0xffbfbfbf, colorScheme.getExtraKeysActiveBackgroundColor());
+
+		// The active foreground color must default to the color defined by the `cursor` color.
+		props.clear();
+		props.setProperty("foreground", "#000000");
+		props.setProperty("background", "#ffffff");
+		props.setProperty("cursor", "#abcdef");
+		colorScheme.updateWith(props);
+		assertEquals(0xffabcdef, colorScheme.getExtraKeysActiveForegroundColor());
 
 		// Explicitly defined extra keys colors must be used as is.
 		props.clear();
