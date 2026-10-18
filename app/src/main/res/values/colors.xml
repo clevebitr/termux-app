@@ -1,3 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- ColorPreference swatch borders -->
+    <color name="color_preference_swatch_border">#9E9E9E</color>
+    <color name="color_preference_swatch_border_selected">#58A6FF</color>
 </resources>

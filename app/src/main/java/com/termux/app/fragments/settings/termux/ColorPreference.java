@@ -16,6 +16,7 @@ import android.widget.Toast;
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.preference.Preference;
 
 import com.termux.R;
@@ -147,8 +148,8 @@ public class ColorPreference extends Preference {
         int selectedBorderWidth = Math.round(3 * density);
         int padding = Math.round(16 * density);
 
-        int selectedBorderColor = context.getResources().getColor(R.color.blue_link_dark);
-        int borderColor = context.getResources().getColor(R.color.grey_500);
+        int selectedBorderColor = ContextCompat.getColor(context, R.color.color_preference_swatch_border_selected);
+        int borderColor = ContextCompat.getColor(context, R.color.color_preference_swatch_border);
 
         GridLayout gridLayout = new GridLayout(context);
         gridLayout.setColumnCount(6);
