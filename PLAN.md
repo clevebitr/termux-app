@@ -19,4 +19,4 @@ auto-breakpoint: false
 ## Current: M3 — 设置页补齐开关（详见 #10-#11）
 
 goal: M3 完成标准：主题/全屏/工具栏/按键行为/鼠标点按唤键盘均有设置页开关且即时生效
-breakpoint: M3 断点：代码+文档已写完，待提交并跑 CI/真机验证
+breakpoint: M3 断点：CI 全绿+Release 已发，等真机验证后收尾（FORK.md §12.5）

@@ -161,6 +161,22 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private boolean mIsVisible;
 
     /**
+     * Whether a {@link TERMUX_ACTIVITY#ACTION_RELOAD_STYLE} broadcast was received while the activity
+     * was not visible, and its styling therefore still has to be reloaded. The settings activities are
+     * launched in front of this activity and change the termux properties while it is stopped, in which
+     * case the styling is reloaded in {@link #onStart()} instead, since reloading it while the activity
+     * is not visible is not safe.
+     */
+    private boolean mReloadActivityStylingOnStart;
+
+    /**
+     * Whether the activity must be recreated when {@link #mReloadActivityStylingOnStart} is handled,
+     * since some properties are only applied when the activity is created, like the `fullscreen` and
+     * `extra-keys-style` properties.
+     */
+    private boolean mRecreateActivityOnStart;
+
+    /**
      * If onResume() was called after onCreate().
      */
     private boolean mIsOnResumeAfterOnCreate = false;
@@ -259,6 +275,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         registerForContextMenu(mTerminalView);
 
+        // The receiver must be registered for the whole lifetime of the activity and not only while it
+        // is started, since the settings activities change termux properties while this activity is
+        // stopped, and the reload style broadcast that they send must not be lost.
+        registerTermuxActivityBroadcastReceiver();
+
         FileReceiverActivity.updateFileReceiverActivityComponentsState(this);
 
         try {
@@ -304,7 +325,15 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (mPreferences.isTerminalMarginAdjustmentEnabled())
             addTermuxActivityRootViewGlobalLayoutListener();
 
-        registerTermuxActivityBroadcastReceiver();
+        // Apply the styling reload requested by the settings activities while this activity was stopped.
+        if (mReloadActivityStylingOnStart) {
+            boolean recreateActivity = mRecreateActivityOnStart;
+            mReloadActivityStylingOnStart = false;
+            mRecreateActivityOnStart = false;
+
+            Logger.logDebug(LOG_TAG, "Applying activity styling reload requested while not visible");
+            reloadActivityStyling(recreateActivity);
+        }
     }
 
     @Override
@@ -346,7 +375,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         removeTermuxActivityRootViewGlobalLayoutListener();
 
-        unregisterTermuxActivityBroadcastReceiver();
         getDrawer().closeDrawers();
     }
 
@@ -357,6 +385,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         Logger.logDebug(LOG_TAG, "onDestroy");
 
         if (mIsInvalidState) return;
+
+        unregisterTermuxActivityBroadcastReceiver();
 
         if (mTermuxService != null) {
             // Do not leave service and session clients with references to activity.
@@ -1071,24 +1101,38 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         public void onReceive(Context context, Intent intent) {
             if (intent == null) return;
 
-            if (mIsVisible) {
+            // The settings activities change the termux properties while this activity is stopped, since
+            // they are launched in front of it, and the styling cannot be reloaded while the activity is
+            // not visible, so the reload is applied in onStart() instead of being lost.
+            if (!mIsVisible) {
                 fixTermuxActivityBroadcastReceiverIntent(intent);
 
-                switch (intent.getAction()) {
-                    case TERMUX_ACTIVITY.ACTION_NOTIFY_APP_CRASH:
-                        Logger.logDebug(LOG_TAG, "Received intent to notify app crash");
-                        TermuxCrashUtils.notifyAppCrashFromCrashLogFile(context, LOG_TAG);
-                        return;
-                    case TERMUX_ACTIVITY.ACTION_RELOAD_STYLE:
-                        Logger.logDebug(LOG_TAG, "Received intent to reload styling");
-                        reloadActivityStyling(intent.getBooleanExtra(TERMUX_ACTIVITY.EXTRA_RECREATE_ACTIVITY, true));
-                        return;
-                    case TERMUX_ACTIVITY.ACTION_REQUEST_PERMISSIONS:
-                        Logger.logDebug(LOG_TAG, "Received intent to request storage permissions");
-                        requestStoragePermission(false);
-                        return;
-                    default:
+                if (TERMUX_ACTIVITY.ACTION_RELOAD_STYLE.equals(intent.getAction())) {
+                    Logger.logDebug(LOG_TAG, "Received intent to reload styling while not visible");
+                    mReloadActivityStylingOnStart = true;
+                    mRecreateActivityOnStart = mRecreateActivityOnStart ||
+                        intent.getBooleanExtra(TERMUX_ACTIVITY.EXTRA_RECREATE_ACTIVITY, true);
                 }
+
+                return;
+            }
+
+            fixTermuxActivityBroadcastReceiverIntent(intent);
+
+            switch (intent.getAction()) {
+                case TERMUX_ACTIVITY.ACTION_NOTIFY_APP_CRASH:
+                    Logger.logDebug(LOG_TAG, "Received intent to notify app crash");
+                    TermuxCrashUtils.notifyAppCrashFromCrashLogFile(context, LOG_TAG);
+                    return;
+                case TERMUX_ACTIVITY.ACTION_RELOAD_STYLE:
+                    Logger.logDebug(LOG_TAG, "Received intent to reload styling");
+                    reloadActivityStyling(intent.getBooleanExtra(TERMUX_ACTIVITY.EXTRA_RECREATE_ACTIVITY, true));
+                    return;
+                case TERMUX_ACTIVITY.ACTION_REQUEST_PERMISSIONS:
+                    Logger.logDebug(LOG_TAG, "Received intent to request storage permissions");
+                    requestStoragePermission(false);
+                    return;
+                default:
             }
         }
     }

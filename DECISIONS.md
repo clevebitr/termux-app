@@ -63,3 +63,20 @@ i18n：新增 `values/arrays.xml` + `values-zh/arrays.xml`（5 组 entries/entry
 不要用 `Preference.setSummaryProvider()` 来显示滑条数值：其签名（`SummaryProvider<Preference>` 还是 raw）没能确认，改用 `app:showSeekBarValue="true"` + 标题写「工具栏高度（%）」+ 静态 summary 说明取值范围，零 API 风险。确认签名前不要重构成 summaryProvider。
 
 另外 `tools/strcheck.js` 的占位符正则升级为支持 flags/width/precision（`%(?:\d+\$)?[-#+0,(]*\d*(?:\.\d+)?[a-zA-Z%]`，故意不含空格 flag，否则 `100% is` 会被误判），以后写 `%1$.2f` 这类也能校验。
+
+## 2026-10-18 — 坑：设置页改动不生效——ACTION_RELOAD_STYLE 广播在 TermuxActivity 停止时被丢
+
+真机验证发现：在设置页改完属性返回 Termux **不生效**，要手动 `termux-reload-settings` 或在终端里重启 App。M1 的键盘页其实一直有这个问题，FORK.md §9「改完立即生效」的说法是错的。
+
+根因：`TermuxActivity` 的广播接收器原本在 `onStart()` 注册、`onStop()` 注销，而 `SettingsActivity`（`Theme.TermuxApp.DayNight.NoActionBar`，不透明全屏）打开时 TermuxActivity 会 stop → `TermuxPropertyPreferenceDataStore` 发的 `ACTION_RELOAD_STYLE` **根本没有接收者**；接收器里那句 `if (mIsVisible)` 因此形同虚设。在终端里跑 `termux-reload-settings` 时 TermuxActivity 在前台，所以那条路径正常。上游设置全是 SharedPreferences（同进程共享实例，写读同一对象，不需要重载），只有写 `termux.properties` 的这几个页面会踩到。
+
+修法（`TermuxActivity`）：
+1. 接收器改 `onCreate()` 注册 / `onDestroy()` 注销（`mIsInvalidState` 早退发生在注册之前，所以早退路径本来就没注册，onDestroy 的早退跳过 unregister 仍然配对）。
+2. `onReceive` 里若 `!mIsVisible`：先跑 `fixTermuxActivityBroadcastReceiverIntent()`（把 `EXTRA_RELOAD_STYLE="storage"` 那种转成权限请求，避免被误当成样式重载），然后只对 `ACTION_RELOAD_STYLE` 记 `mReloadActivityStylingOnStart = true` 与 `mRecreateActivityOnStart |= intent.getBooleanExtra(EXTRA_RECREATE_ACTIVITY, true)`，其余 action 直接 return（等价于改动前「停止期间收不到」）。
+3. `onStart()` 末尾消费这两个标志，调用 `reloadActivityStyling(recreate)`（位置在 clients 的 `onStart()` 之后，和「广播刚好此时到达」等价）。标志是实例字段，`recreate()` 后新实例为 false，不会循环重建。
+
+为什么不直接在停止期间重载：`reloadActivityStyling` 会动 extra keys view、改窗口 insets、调 `setSoftKeyboardState`，stop 期间做这些不安全；`recreate()` 放在 `onStart()` 里是安全的（`ActivityThread.handleRelaunchActivityInner` 会自己处理 paused/stopped 状态），而且 `onResume` 随后会再调一次 `setSoftKeyboardState(true, isActivityRecreated)` 兜底。
+
+`recreate` 位必须由广播携带而不能统一用 true：键盘页/`TermuxService` 传 false（这些属性用到时现读，或者本来每次可见都重读），只有外观页的 `fullscreen` / `use-fullscreen-workaround` / `extra-keys-style`（`setExtraKeys()` 只在构造时跑）必须重建。外观页 false→true 会让每次返回都闪一下重建。
+
+副作用（可接受）：`TermuxService` 在停止期间新建会话时发的那个 false 广播，现在会留下一个待重载标志，下次 `onStart()` 多跑一次 `reloadActivityStyling(false)`——不做 UI 破坏，只是多读一次文件。

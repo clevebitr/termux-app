@@ -408,6 +408,8 @@ night-mode=color-scheme
 这些开关**直接读写 `~/.termux/termux.properties`**：按行替换同名键、保留文件里的注释和其他设置
 （重复键会被注释掉，不会留下冲突），改完**立即生效**，不需要 `termux-reload-settings`。
 所以手写 properties 和用设置页改，两者看到的是同一份配置。
+（⚠️ 这里的「立即生效」在 M3 之前是**错的**：打开设置页时 TermuxActivity 处于停止状态，
+广播重载会被丢掉，必须手动 reload 才生效。链路已在 M3 修好，见 §12.5。）
 
 实现位置：`TermuxSharedProperties.getTermuxPropertyValue()` / `setTermuxPropertyValue()`（按行改写
 properties 文件）、`TerminalKeyboardPreferencesFragment`（把 `PreferenceDataStore` 落到 properties
@@ -550,3 +552,36 @@ mouse-tap-shows-keyboard=true
 并且触发一次无意义的 Activity 重建。所以
 `TermuxPropertyPreferenceDataStore` 会记下每个键「上次读到的值」，
 写回值与之一致时直接跳过（含属性本来就没定义、读到默认值的情况）。
+
+### 12.5 坑：`ACTION_RELOAD_STYLE` 广播在 TermuxActivity 停止时会丢（真机验证发现）
+
+**现象**：在设置页改完属性返回 Termux 后**不生效**，必须手动 `termux-reload-settings`
+（或在终端里重启 App）才生效。M1 的「终端键盘」页其实一直有同样的问题，§9 里
+「改完立即生效」的说法是错的，本次一并修掉。
+
+**原因**：`TermuxActivity` 的广播接收器原先在 `onStart()` 注册、`onStop()` 注销，而
+`SettingsActivity` 是不透明全屏 Activity，打开设置页时 `TermuxActivity` 会走 `onStop`，
+于是 `TermuxPropertyPreferenceDataStore` 写盘后发出的 `ACTION_RELOAD_STYLE` 广播
+**根本没有接收者**（接收器里那句 `if (mIsVisible)` 判断也就永远为真、形同虚设）。
+在终端里跑 `termux-reload-settings` 时 TermuxActivity 在前台，所以那条路径是好的。
+上游的设置都基于 SharedPreferences（同进程共享实例，不需要重载），只有写
+`termux.properties` 的这几个页面会踩到。
+
+**修法**（`TermuxActivity`）：
+* 接收器改为 `onCreate()` 注册、`onDestroy()` 注销，这样 stop 期间也收得到广播。
+* 收到 `ACTION_RELOAD_STYLE` 时若 `!mIsVisible`，不立即重载（stop 期间做 UI 操作不安全），
+  而是记下 `mReloadActivityStylingOnStart` 与 `mRecreateActivityOnStart`
+  （后者取自广播的 `EXTRA_RECREATE_ACTIVITY`：键盘页 `false`、外观页 `true`），
+  在 `onStart()` 里再调用一次 `reloadActivityStyling(recreate)`。
+* 另外两个 action（`ACTION_REQUEST_PERMISSIONS` / `ACTION_NOTIFY_APP_CRASH`）仍然只在可见时处理，
+  行为与改动前完全一致（改动前停止期间收不到，现在收到后直接 return）。
+
+结果：键盘相关属性（返回键/音量键/鼠标点按唤键盘/配色…）返回后立即生效且不重建；
+外观页（主题/全屏/工具栏）返回后重建一次生效——这些属性本来就只在 `onCreate` 读取。
+
+### 12.6 实测（真机）
+
+安装 `fork-latest` 的 arm64 包验证：外观页 6 项、按键行为 6 项均可改；打开设置页前后
+`~/.termux/termux.properties` 无任何变化（确认 §12.4 的 no-op 守卫生效）。
+首次验证发现「改动要手动 `termux-reload-settings` 才生效」，即 §12.5 的广播丢失问题，
+修复后返回设置页即生效。
