@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 /*
- * Version: v0.19.0
+ * Version: v0.20.0
  * SPDX-License-Identifier: MIT
  *
  * Changelog
@@ -83,6 +83,10 @@ import java.util.Set;
  *
  * - 0.19.0 (2026-02-14)
  *      - Add `KEY_GBOARD_CJK_WORKAROUND`.
+ *
+ * - 0.20.0 (2026-10-18)
+ *      - Add `KEY_EXTRA_KEYS_FOREGROUND`, `KEY_EXTRA_KEYS_BACKGROUND`,
+ *          `KEY_EXTRA_KEYS_ACTIVE_FOREGROUND` and `KEY_EXTRA_KEYS_ACTIVE_BACKGROUND`.
  */
 
 /**
@@ -346,6 +350,31 @@ public final class TermuxPropertyConstants {
 
 
 
+    /** Defines the key for the text color of the extra keys view buttons. If not defined, then the
+     * color defined by the `extra-keys-foreground` property in the `colors.properties` file is used,
+     * which defaults to the `foreground` color of the color scheme. This property can be used to
+     * override the color scheme color, and unlike the `colors.properties` file, it is not overwritten
+     * by Termux:Styling when a theme is applied. */
+    public static final String KEY_EXTRA_KEYS_FOREGROUND =  "extra-keys-foreground"; // Default: "extra-keys-foreground"
+
+    /** Defines the key for the background color of the extra keys view buttons. If not defined, then
+     * the color defined by the `extra-keys-background` property in the `colors.properties` file is
+     * used, which defaults to the `background` color of the color scheme. */
+    public static final String KEY_EXTRA_KEYS_BACKGROUND =  "extra-keys-background"; // Default: "extra-keys-background"
+
+    /** Defines the key for the text color of the extra keys view buttons when they are active. If
+     * not defined, then the color defined by the `extra-keys-active-foreground` property in the
+     * `colors.properties` file is used, which defaults to the `cursor` color of the color scheme. */
+    public static final String KEY_EXTRA_KEYS_ACTIVE_FOREGROUND =  "extra-keys-active-foreground"; // Default: "extra-keys-active-foreground"
+
+    /** Defines the key for the background color of the extra keys view buttons when they are active.
+     * If not defined, then the color defined by the `extra-keys-active-background` property in the
+     * `colors.properties` file is used, which defaults to the `foreground` color blended into the
+     * `background` color of the color scheme. */
+    public static final String KEY_EXTRA_KEYS_ACTIVE_BACKGROUND =  "extra-keys-active-background"; // Default: "extra-keys-active-background"
+
+
+
     /** Defines the key for {@link NightMode}. */
     public static final String KEY_NIGHT_MODE = "night-mode"; // Default: "night-mode"
 
@@ -441,6 +470,10 @@ public final class TermuxPropertyConstants {
         KEY_DEFAULT_WORKING_DIRECTORY,
         KEY_EXTRA_KEYS,
         KEY_EXTRA_KEYS_STYLE,
+        KEY_EXTRA_KEYS_FOREGROUND,
+        KEY_EXTRA_KEYS_BACKGROUND,
+        KEY_EXTRA_KEYS_ACTIVE_FOREGROUND,
+        KEY_EXTRA_KEYS_ACTIVE_BACKGROUND,
         KEY_NIGHT_MODE,
         KEY_SOFT_KEYBOARD_TOGGLE_BEHAVIOUR,
         KEY_VOLUME_KEYS_BEHAVIOUR

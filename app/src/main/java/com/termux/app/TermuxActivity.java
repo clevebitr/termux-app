@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -51,9 +52,12 @@ import com.termux.shared.termux.interact.TextInputDialogUtils;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxUtils;
 import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
+import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 import com.termux.shared.termux.theme.TermuxThemeUtils;
 import com.termux.shared.theme.NightMode;
 import com.termux.shared.view.ViewUtils;
+import com.termux.terminal.TerminalColors;
+import com.termux.terminal.TerminalColorScheme;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.view.TerminalView;
@@ -831,6 +835,62 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     public void setExtraKeysView(ExtraKeysView extraKeysView) {
         mExtraKeysView = extraKeysView;
+        // Set the colors before the caller reloads the extra keys view, since the colors are applied
+        // to the buttons when they are created in ExtraKeysView.reload().
+        setExtraKeysViewColors(extraKeysView);
+    }
+
+    /**
+     * Update the colors of the extra keys view buttons from the termux color scheme and the
+     * `extra-keys-*` properties and recreate the buttons so that the new colors are applied.
+     *
+     * This should be called whenever the colors of the termux color scheme set by Termux:Styling in
+     * the `colors.properties` file or the `extra-keys-*` properties in `termux.properties` may have
+     * changed.
+     */
+    public void updateExtraKeysViewColors() {
+        ExtraKeysView extraKeysView = getExtraKeysView();
+        if (extraKeysView == null) return;
+
+        setExtraKeysViewColors(extraKeysView);
+
+        // The colors are applied to the buttons when they are created, so they must be recreated.
+        extraKeysView.reload(mTermuxTerminalExtraKeys.getExtraKeysInfo(), getTerminalToolbarDefaultHeight());
+    }
+
+    /**
+     * Set the colors of the extra keys view buttons from the termux color scheme, like the one set
+     * by Termux:Styling in the `colors.properties` file, and the `extra-keys-*` properties in
+     * `termux.properties`, which take precedence and are not overwritten by Termux:Styling.
+     */
+    private void setExtraKeysViewColors(@NonNull ExtraKeysView extraKeysView) {
+        TerminalColorScheme colorScheme = TerminalColors.COLOR_SCHEME;
+
+        int textColor = getExtraKeysColor(mProperties.getExtraKeysForeground(),
+            TermuxPropertyConstants.KEY_EXTRA_KEYS_FOREGROUND, colorScheme.getExtraKeysForegroundColor());
+        int activeTextColor = getExtraKeysColor(mProperties.getExtraKeysActiveForeground(),
+            TermuxPropertyConstants.KEY_EXTRA_KEYS_ACTIVE_FOREGROUND, colorScheme.getExtraKeysActiveForegroundColor());
+        int backgroundColor = getExtraKeysColor(mProperties.getExtraKeysBackground(),
+            TermuxPropertyConstants.KEY_EXTRA_KEYS_BACKGROUND, colorScheme.getExtraKeysBackgroundColor());
+        int activeBackgroundColor = getExtraKeysColor(mProperties.getExtraKeysActiveBackground(),
+            TermuxPropertyConstants.KEY_EXTRA_KEYS_ACTIVE_BACKGROUND, colorScheme.getExtraKeysActiveBackgroundColor());
+
+        extraKeysView.setButtonColors(textColor, activeTextColor, backgroundColor, activeBackgroundColor);
+    }
+
+    /**
+     * Get the color defined by {@code value} for the {@code propertyName} property, otherwise the
+     * {@code fallbackColor} if the property is not set or its value is invalid.
+     */
+    private int getExtraKeysColor(@Nullable String value, @NonNull String propertyName, int fallbackColor) {
+        if (DataUtils.isNullOrEmpty(value)) return fallbackColor;
+
+        try {
+            return Color.parseColor(value.trim());
+        } catch (IllegalArgumentException e) {
+            Logger.logError(LOG_TAG, "Invalid color \"" + value + "\" defined for the \"" + propertyName + "\" property, using fallback color instead");
+            return fallbackColor;
+        }
     }
 
     public DrawerLayout getDrawer() {
@@ -971,6 +1031,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
             if (mExtraKeysView != null) {
                 mExtraKeysView.setButtonTextAllCaps(mProperties.shouldExtraKeysTextBeAllCaps());
+                setExtraKeysViewColors(mExtraKeysView);
                 mExtraKeysView.reload(mTermuxTerminalExtraKeys.getExtraKeysInfo(), mTerminalToolbarDefaultHeight);
             }
 

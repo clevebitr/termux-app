@@ -407,10 +407,15 @@ public final class ExtraKeysView extends GridLayout {
                     if (button == null) return;
                 } else {
                     button = new MaterialButton(getContext(), null, android.R.attr.buttonBarButtonStyle);
+                    button.setTextColor(mButtonTextColor);
                 }
 
                 button.setText(buttonInfo.getDisplay());
-                button.setTextColor(mButtonTextColor);
+                // The background color is set here since it is otherwise only set when the button is
+                // touched in the OnTouchListener, and the initial state should match the colors
+                // returned by the current theme and color scheme, which may be changed at runtime
+                // by a call to `reload()` after a call to `setButtonColors()`.
+                button.setBackgroundColor(mButtonBackgroundColor);
                 button.setAllCaps(mButtonTextAllCaps);
                 button.setPadding(0, 0, 0, 0);
 

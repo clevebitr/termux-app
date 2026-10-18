@@ -1,6 +1,7 @@
 package com.termux.terminal;
 
 import java.io.UnsupportedEncodingException;
+import java.util.Properties;
 
 public class TerminalTest extends TerminalTestCase {
 
@@ -345,6 +346,60 @@ public class TerminalTest extends TerminalTestCase {
 	public void testTab() {
 		withTerminalSized(11, 2).enterString("01234567890\r\tXX").assertLinesAre("01234567XX0", "           ");
 		withTerminalSized(11, 2).enterString("01234567890\033[44m\r\tXX").assertLinesAre("01234567XX0", "           ");
+	}
+
+	public void testExtraKeysColors() {
+		TerminalColorScheme colorScheme = new TerminalColorScheme();
+		Properties props = new Properties();
+
+		// Without any properties set, the extra keys colors must be derived from the default color scheme.
+		colorScheme.updateWith(props);
+		assertEquals(0xffffffff, colorScheme.getExtraKeysForegroundColor());
+		assertEquals(0xff000000, colorScheme.getExtraKeysBackgroundColor());
+		assertEquals(0xffffffff, colorScheme.getExtraKeysActiveForegroundColor());
+		assertEquals(0xff3f3f3f, colorScheme.getExtraKeysActiveBackgroundColor());
+
+		// The extra keys colors must follow the color scheme set by Termux:Styling.
+		props.clear();
+		props.setProperty("foreground", "#000000");
+		props.setProperty("background", "#ffffff");
+		colorScheme.updateWith(props);
+		assertEquals(0xff000000, colorScheme.getExtraKeysForegroundColor());
+		assertEquals(0xffffffff, colorScheme.getExtraKeysBackgroundColor());
+		assertEquals(0xff000000, colorScheme.getExtraKeysActiveForegroundColor());
+		assertEquals(0xffbfbfbf, colorScheme.getExtraKeysActiveBackgroundColor());
+
+		// Explicitly defined extra keys colors must be used as is.
+		props.clear();
+		props.setProperty("foreground", "#000000");
+		props.setProperty("background", "#ffffff");
+		props.setProperty(TerminalColorScheme.KEY_EXTRA_KEYS_FOREGROUND, "#ff0000");
+		props.setProperty(TerminalColorScheme.KEY_EXTRA_KEYS_BACKGROUND, "#00ff00");
+		props.setProperty(TerminalColorScheme.KEY_EXTRA_KEYS_ACTIVE_FOREGROUND, "#0000ff");
+		props.setProperty(TerminalColorScheme.KEY_EXTRA_KEYS_ACTIVE_BACKGROUND, "#123456");
+		colorScheme.updateWith(props);
+		assertEquals(0xffff0000, colorScheme.getExtraKeysForegroundColor());
+		assertEquals(0xff00ff00, colorScheme.getExtraKeysBackgroundColor());
+		assertEquals(0xff0000ff, colorScheme.getExtraKeysActiveForegroundColor());
+		assertEquals(0xff123456, colorScheme.getExtraKeysActiveBackgroundColor());
+
+		// Invalid extra keys colors must throw an exception.
+		props.clear();
+		props.setProperty(TerminalColorScheme.KEY_EXTRA_KEYS_BACKGROUND, "invalid");
+		try {
+			colorScheme.updateWith(props);
+			fail("Expected an IllegalArgumentException for an invalid color");
+		} catch (IllegalArgumentException e) {
+			// Expected.
+		}
+	}
+
+	public void testBlendColors() {
+		assertEquals(0xff000000, TerminalColorScheme.blendColors(0xff000000, 0xffffffff, 0));
+		assertEquals(0xffffffff, TerminalColorScheme.blendColors(0xff000000, 0xffffffff, 1));
+		assertEquals(0xff7f7f7f, TerminalColorScheme.blendColors(0xff000000, 0xffffffff, 0.5));
+		assertEquals(0xff3f3f3f, TerminalColorScheme.blendColors(0xff000000, 0xffffffff,
+			TerminalColorScheme.EXTRA_KEYS_ACTIVE_BACKGROUND_COLOR_BLEND_RATIO));
 	}
 
 }

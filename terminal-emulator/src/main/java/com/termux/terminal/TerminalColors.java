@@ -34,7 +34,8 @@ public final class TerminalColors {
      * <p/>
      * Highest bit is set if successful, so return value is 0xFF${R}${G}${B}. Return 0 if failed.
      */
-    static int parse(String c) {
+    /** Try parse a color from a text parameter and return its value, or {@code 0} if it is invalid. */
+    public static int parse(String c) {
         try {
             int skipInitial, skipBetween;
             if (c.charAt(0) == '#') {

@@ -286,3 +286,60 @@ gboard-cjk-workaround=true
   会导致键盘被禁用。
 * 日志：`logcat -s TermuxTerminalViewClient:V TerminalView:V`（需在 Termux 设置里把日志级别调成
   verbose）。
+
+---
+
+## 7. 虚拟键盘（extra keys 行）配色：与 Termux:Styling 主题联动
+
+> 先明确一下“虚拟键盘”：这里指的是 **Termux 自己画的那一行功能键**（`ExtraKeysView`，
+> ESC/CTRL/ALT/HOME/方向键……，也就是常说的“额外按键行/虚拟键盘”）。系统输入法（Gboard、
+> 搜狗等）的外观由输入法自己控制，第三方 App 无法改——能改的只有这一行。
+
+### 联动规则（本 fork 新增）
+
+`~/.termux/colors.properties` 里的主题色现在也会决定 extra keys 行的配色：
+
+| extra keys 颜色 | colors.properties 里的键 | 未定义时的默认值 |
+| --- | --- | --- |
+| 文字色 | `extra-keys-foreground` | `foreground` |
+| 背景色 | `extra-keys-background` | `background` |
+| 按下/激活文字色（CTRL/ALT 等） | `extra-keys-active-foreground` | `cursor` |
+| 按下/激活背景色 | `extra-keys-active-background` | `background` 混入 25% `foreground` |
+
+所以在 **Termux:Styling 里换主题就会同时换掉键盘配色**（Styling 写的就是 colors.properties），
+浅色主题不会再出现“白色终端 + 黑色键盘”的割裂感。主题里的 `foreground`/`background`/`cursor`
+是所有官方主题都定义了的键（例如 `base16-3024-light` → 键盘变成 `#f7f7f7` 底 + `#4a4543` 字）。
+
+### 自定义（优先级更高、且不会被 Styling 覆盖）
+
+Styling 每次应用主题都会重写 `colors.properties`，所以想要固定/自定义的键盘配色，请写进
+`~/.termux/termux.properties`（同名键，支持 `#RGB` / `#ARGB` / `#RRGGBB` / `#AARRGGBB`，
+带 alpha 可以做半透明）：
+
+```properties
+extra-keys-foreground=#e0e0e0
+extra-keys-background=#80000000        # 半透明黑，能看到后面的终端背景
+extra-keys-active-foreground=#ff8800
+extra-keys-active-background=#33ffffff
+```
+
+改完执行 `termux-reload-settings` 生效。
+
+也可以在 `colors.properties` 里直接写这四个 `extra-keys-*` 键（格式同该文件的其他颜色：
+`#rgb` / `#rrggbb` / `rgb:xx/xx/xx`，该文件不支持 alpha），这样它们会随主题一起切换；
+只是 Termux:Styling 换主题时会被覆盖。
+
+### 实现位置
+
+* `terminal-emulator/.../TerminalColorScheme.java`：解析 colors.properties 里的四个
+  `extra-keys-*` 键，未定义的从 color scheme 派生（`blendColors()` 做混合）。
+* `termux-shared/.../TermuxPropertyConstants.java` + `TermuxSharedProperties.java`：
+  termux.properties 的同名键（覆盖项）。
+* `app/.../TermuxActivity.java`：`setExtraKeysViewColors()` 解析覆盖项 →
+  `ExtraKeysView.setButtonColors()`；`checkForFontAndColors()`（colors.properties 变更时）和
+  `reloadActivityStyling()`（termux.properties 变更时）都会重新应用并重建按键。
+* `termux-shared/.../ExtraKeysView.java`：`reload()` 时立即应用背景色（原本只有触摸时才应用），
+  并保留 CTRL/ALT 已激活时的文字色。
+
+注意：Termux:Float 用的是自己的一套属性/颜色处理，本次没有把联动接过去；它的 extra keys 行只
+受上面 `ExtraKeysView` 的行为调整影响。

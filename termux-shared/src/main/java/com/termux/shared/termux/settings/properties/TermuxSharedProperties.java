@@ -682,6 +682,50 @@ public abstract class TermuxSharedProperties {
         return (String) getInternalPropertyValue(TermuxPropertyConstants.KEY_NIGHT_MODE, true);
     }
 
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_EXTRA_KEYS_FOREGROUND} String value.
+     *
+     * It is the text color of the extra keys view buttons and overrides the
+     * `extra-keys-foreground` color from the `colors.properties` file. The color can be defined as
+     * any of the formats supported by {@link android.graphics.Color#parseColor(String)}.
+     */
+    public String getExtraKeysForeground() {
+        return (String) getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_FOREGROUND, true);
+    }
+
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_EXTRA_KEYS_BACKGROUND} String value.
+     *
+     * It is the background color of the extra keys view buttons and overrides the
+     * `extra-keys-background` color from the `colors.properties` file. The color can be defined as
+     * any of the formats supported by {@link android.graphics.Color#parseColor(String)}.
+     */
+    public String getExtraKeysBackground() {
+        return (String) getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_BACKGROUND, true);
+    }
+
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_EXTRA_KEYS_ACTIVE_FOREGROUND} String value.
+     *
+     * It is the text color of the extra keys view buttons when they are active and overrides the
+     * `extra-keys-active-foreground` color from the `colors.properties` file. The color can be
+     * defined as any of the formats supported by {@link android.graphics.Color#parseColor(String)}.
+     */
+    public String getExtraKeysActiveForeground() {
+        return (String) getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_ACTIVE_FOREGROUND, true);
+    }
+
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_EXTRA_KEYS_ACTIVE_BACKGROUND} String value.
+     *
+     * It is the background color of the extra keys view buttons when they are active and overrides
+     * the `extra-keys-active-background` color from the `colors.properties` file. The color can be
+     * defined as any of the formats supported by {@link android.graphics.Color#parseColor(String)}.
+     */
+    public String getExtraKeysActiveBackground() {
+        return (String) getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_ACTIVE_BACKGROUND, true);
+    }
+
     /** Get the {@link TermuxPropertyConstants#KEY_NIGHT_MODE} value from the properties file on disk. */
     public static String getNightMode(Context context) {
         return (String) TermuxSharedProperties.getTermuxInternalPropertyValue(context,

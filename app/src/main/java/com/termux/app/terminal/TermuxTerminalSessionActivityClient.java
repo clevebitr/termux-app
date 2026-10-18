@@ -504,6 +504,13 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             }
 
             TerminalColors.COLOR_SCHEME.updateWith(props);
+
+            // Update the extra keys view colors, since the color scheme may have been changed by
+            // Termux:Styling in the `colors.properties` file, which also defines the colors for the
+            // extra keys view, unless they are overridden by the `extra-keys-*` properties in
+            // `termux.properties`.
+            mActivity.updateExtraKeysViewColors();
+
             TerminalSession session = mActivity.getCurrentSession();
             if (session != null && session.getEmulator() != null) {
                 session.getEmulator().mColors.reset();

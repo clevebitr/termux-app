@@ -11,6 +11,22 @@ import java.util.Properties;
  */
 public final class TerminalColorScheme {
 
+    /** The key for the text color of the extra keys view buttons. */
+    public static final String KEY_EXTRA_KEYS_FOREGROUND = "extra-keys-foreground";
+    /** The key for the background color of the extra keys view buttons. */
+    public static final String KEY_EXTRA_KEYS_BACKGROUND = "extra-keys-background";
+    /** The key for the text color of the extra keys view buttons when they are active. */
+    public static final String KEY_EXTRA_KEYS_ACTIVE_FOREGROUND = "extra-keys-active-foreground";
+    /** The key for the background color of the extra keys view buttons when they are active. */
+    public static final String KEY_EXTRA_KEYS_ACTIVE_BACKGROUND = "extra-keys-active-background";
+
+    /**
+     * The ratio of the foreground color that is blended into the background color to get the
+     * default active background color of the extra keys view buttons, if the
+     * {@link #KEY_EXTRA_KEYS_ACTIVE_BACKGROUND} key is not defined.
+     */
+    public static final double EXTRA_KEYS_ACTIVE_BACKGROUND_COLOR_BLEND_RATIO = 0.25;
+
     /** http://upload.wikimedia.org/wikipedia/en/1/15/Xterm_256color_chart.svg, but with blue color brighter. */
     private static final int[] DEFAULT_COLORSCHEME = {
         // 16 original colors. First 8 are dim.
@@ -61,12 +77,40 @@ public final class TerminalColorScheme {
 
     public final int[] mDefaultColors = new int[TextStyle.NUM_INDEXED_COLORS];
 
+    /**
+     * The text color for the extra keys view buttons. A value of {@code 0} means that the color is
+     * not defined, in which case it defaults to {@link TextStyle#COLOR_INDEX_FOREGROUND}.
+     */
+    private int mExtraKeysForegroundColor;
+    /**
+     * The background color for the extra keys view buttons. A value of {@code 0} means that the
+     * color is not defined, in which case it defaults to {@link TextStyle#COLOR_INDEX_BACKGROUND}.
+     */
+    private int mExtraKeysBackgroundColor;
+    /**
+     * The text color for the extra keys view buttons when they are active. A value of {@code 0}
+     * means that the color is not defined, in which case it defaults to
+     * {@link TextStyle#COLOR_INDEX_CURSOR}.
+     */
+    private int mExtraKeysActiveForegroundColor;
+    /**
+     * The background color for the extra keys view buttons when they are active. A value of
+     * {@code 0} means that the color is not defined, in which case it defaults to the
+     * {@link #mDefaultColors} foreground color blended into the background color with the
+     * {@link #EXTRA_KEYS_ACTIVE_BACKGROUND_COLOR_BLEND_RATIO} ratio.
+     */
+    private int mExtraKeysActiveBackgroundColor;
+
     public TerminalColorScheme() {
         reset();
     }
 
     private void reset() {
         System.arraycopy(DEFAULT_COLORSCHEME, 0, mDefaultColors, 0, TextStyle.NUM_INDEXED_COLORS);
+        mExtraKeysForegroundColor = 0;
+        mExtraKeysBackgroundColor = 0;
+        mExtraKeysActiveForegroundColor = 0;
+        mExtraKeysActiveBackgroundColor = 0;
     }
 
     public void updateWith(Properties props) {
@@ -76,6 +120,22 @@ public final class TerminalColorScheme {
             String key = (String) entries.getKey();
             String value = (String) entries.getValue();
             int colorIndex;
+
+            // The extra keys view colors are optional and are derived from the other colors if not
+            // defined, so that extra keys view follows the color scheme set by Termux:Styling.
+            if (key.equals(KEY_EXTRA_KEYS_FOREGROUND)) {
+                mExtraKeysForegroundColor = getColorValueForProperty(key, value);
+                continue;
+            } else if (key.equals(KEY_EXTRA_KEYS_BACKGROUND)) {
+                mExtraKeysBackgroundColor = getColorValueForProperty(key, value);
+                continue;
+            } else if (key.equals(KEY_EXTRA_KEYS_ACTIVE_FOREGROUND)) {
+                mExtraKeysActiveForegroundColor = getColorValueForProperty(key, value);
+                continue;
+            } else if (key.equals(KEY_EXTRA_KEYS_ACTIVE_BACKGROUND)) {
+                mExtraKeysActiveBackgroundColor = getColorValueForProperty(key, value);
+                continue;
+            }
 
             if (key.equals("foreground")) {
                 colorIndex = TextStyle.COLOR_INDEX_FOREGROUND;
@@ -103,6 +163,77 @@ public final class TerminalColorScheme {
 
         if (!cursorPropExists)
             setCursorColorForBackground();
+
+        setExtraKeysColorsForBackground();
+    }
+
+    /** Get the color value for a property or throw an {@link IllegalArgumentException} if it is invalid. */
+    private static int getColorValueForProperty(String key, String value) {
+        int colorValue = TerminalColors.parse(value);
+        if (colorValue == 0)
+            throw new IllegalArgumentException("Property '" + key + "' has invalid color: '" + value + "'");
+        return colorValue;
+    }
+
+    /**
+     * Set the extra keys view colors that are not defined in the `colors.properties` file based on
+     * the other colors of the color scheme, so that the extra keys view matches the terminal colors.
+     */
+    private void setExtraKeysColorsForBackground() {
+        if (mExtraKeysForegroundColor == 0)
+            mExtraKeysForegroundColor = mDefaultColors[TextStyle.COLOR_INDEX_FOREGROUND];
+        if (mExtraKeysBackgroundColor == 0)
+            mExtraKeysBackgroundColor = mDefaultColors[TextStyle.COLOR_INDEX_BACKGROUND];
+        if (mExtraKeysActiveForegroundColor == 0)
+            mExtraKeysActiveForegroundColor = mDefaultColors[TextStyle.COLOR_INDEX_CURSOR];
+        if (mExtraKeysActiveBackgroundColor == 0)
+            mExtraKeysActiveBackgroundColor = blendColors(mExtraKeysBackgroundColor, mExtraKeysForegroundColor,
+                EXTRA_KEYS_ACTIVE_BACKGROUND_COLOR_BLEND_RATIO);
+    }
+
+    /** Get the text color for the extra keys view buttons. */
+    public int getExtraKeysForegroundColor() {
+        return mExtraKeysForegroundColor;
+    }
+
+    /** Get the background color for the extra keys view buttons. */
+    public int getExtraKeysBackgroundColor() {
+        return mExtraKeysBackgroundColor;
+    }
+
+    /** Get the text color for the extra keys view buttons when they are active. */
+    public int getExtraKeysActiveForegroundColor() {
+        return mExtraKeysActiveForegroundColor;
+    }
+
+    /** Get the background color for the extra keys view buttons when they are active. */
+    public int getExtraKeysActiveBackgroundColor() {
+        return mExtraKeysActiveBackgroundColor;
+    }
+
+    /**
+     * Blend the {@code foregroundColor} into the {@code backgroundColor} with the given {@code ratio}.
+     *
+     * @param backgroundColor The color to blend into, its alpha is ignored and the returned color
+     *                        is fully opaque.
+     * @param foregroundColor The color to blend, its alpha is ignored.
+     * @param ratio The ratio of the foreground color, must be between {@code 0} and {@code 1}.
+     * @return Returns the blended color.
+     */
+    public static int blendColors(int backgroundColor, int foregroundColor, double ratio) {
+        int backgroundRed = (backgroundColor >> 16) & 0xFF;
+        int backgroundGreen = (backgroundColor >> 8) & 0xFF;
+        int backgroundBlue = backgroundColor & 0xFF;
+
+        int foregroundRed = (foregroundColor >> 16) & 0xFF;
+        int foregroundGreen = (foregroundColor >> 8) & 0xFF;
+        int foregroundBlue = foregroundColor & 0xFF;
+
+        int red = (int) (backgroundRed + (foregroundRed - backgroundRed) * ratio);
+        int green = (int) (backgroundGreen + (foregroundGreen - backgroundGreen) * ratio);
+        int blue = (int) (backgroundBlue + (foregroundBlue - backgroundBlue) * ratio);
+
+        return 0xFF000000 | (red << 16) | (green << 8) | blue;
     }
 
     /**
