@@ -161,6 +161,18 @@ def hasCustomSigningConfig = signingProperties.getProperty("storeFile") != null
 
 ### 4.4 卸载 / 备份 / 恢复
 
+**先确认你当前装的是哪个发行版**，可以免卸载直接升级：
+
+| 当前 Termux 来源 | 签名证书 SHA-256 | 能否直接覆盖安装本 fork |
+| --- | --- | --- |
+| GitHub Release / GitHub Actions 构建 | `b6da01480eefd5fbf2cd3771b8d1021ec791304bdd6c4bf41d3faabad48ee5e1` | 可以（`testkey` 模式产物同签名，数据保留） |
+| F-Droid | `228fb2cfe90831c1499ec3ccaf61e96e8e1ce70766b9474672ce427334d41c42` | 不行，必须先卸载（先备份） |
+| Google Play | `738f0a30a04d3c8a1be304af18d0779bcf3ea88fb60808f657a3521861c2ebf9` | 不行，必须先卸载（先备份） |
+| 自己之前的 fork | `testkey` 模式下是 `b6da0148…`；`ownkey` 模式下看你自己的证书 | 同一证书可以，否则先卸载 |
+
+查当前签名：在已装的 Termux 里打开左侧抽屉 → **Report Issue**（或 About），App Info 里会列出
+`SIGNING_CERTIFICATE_SHA256_DIGEST`。
+
 同包名换签名必须**先卸载**官方 Termux 和所有官方插件，这会删除应用数据（也就是整个
 `/data/data/com.termux/files` = `$PREFIX` + `$HOME`），所以务必先备份：
 
