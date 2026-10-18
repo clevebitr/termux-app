@@ -414,8 +414,10 @@ public final class ExtraKeysView extends GridLayout {
                 // The background color is set here since it is otherwise only set when the button is
                 // touched in the OnTouchListener, and the initial state should match the colors
                 // returned by the current theme and color scheme, which may be changed at runtime
-                // by a call to `reload()` after a call to `setButtonColors()`.
-                button.setBackgroundColor(mButtonBackgroundColor);
+                // by a call to `reload()` after a call to `setButtonColors()`. An active special
+                // button must keep its active background color, which is why the idle background
+                // color is read based on the current active state of the button.
+                button.setBackgroundColor(getButtonIdleBackgroundColor(buttonInfo));
                 button.setAllCaps(mButtonTextAllCaps);
                 button.setPadding(0, 0, 0, 0);
 
@@ -437,7 +439,7 @@ public final class ExtraKeysView extends GridLayout {
                                 // Show popup on swipe up
                                 if (mPopupWindow == null && event.getY() < 0) {
                                     stopScheduledExecutors();
-                                    view.setBackgroundColor(mButtonBackgroundColor);
+                                    view.setBackgroundColor(getButtonIdleBackgroundColor(buttonInfo));
                                     showPopup(view, buttonInfo.getPopup());
                                 }
                                 if (mPopupWindow != null && event.getY() > 0) {
@@ -448,12 +450,12 @@ public final class ExtraKeysView extends GridLayout {
                             return true;
 
                         case MotionEvent.ACTION_CANCEL:
-                            view.setBackgroundColor(mButtonBackgroundColor);
+                            view.setBackgroundColor(getButtonIdleBackgroundColor(buttonInfo));
                             stopScheduledExecutors();
                             return true;
 
                         case MotionEvent.ACTION_UP:
-                            view.setBackgroundColor(mButtonBackgroundColor);
+                            view.setBackgroundColor(getButtonIdleBackgroundColor(buttonInfo));
                             stopScheduledExecutors();
                             // If ACTION_UP up was not from a repetitive key or was with a key with a popup button
                             if (mLongPressCount == 0 || mPopupWindow != null) {
@@ -664,11 +666,38 @@ public final class ExtraKeysView extends GridLayout {
         if (state == null) return null;
         state.setIsCreated(true);
         MaterialButton button = new MaterialButton(getContext(), null, android.R.attr.buttonBarButtonStyle);
-        button.setTextColor(state.isActive ? mButtonActiveTextColor : mButtonTextColor);
+        updateSpecialButtonStateColors(button, state.isActive);
         if (needUpdate) {
             state.buttons.add(button);
         }
         return button;
+    }
+
+    /**
+     * Update the text and background colors of a {@link SpecialButton} based on its active state, so
+     * that an active special button, like the CTRL or ALT key when it is toggled on, is highlighted
+     * with the active colors.
+     *
+     * @param button The {@link MaterialButton} to update the colors of.
+     * @param isActive If the special button is active.
+     */
+    void updateSpecialButtonStateColors(@NonNull MaterialButton button, boolean isActive) {
+        button.setTextColor(isActive ? mButtonActiveTextColor : mButtonTextColor);
+        button.setBackgroundColor(isActive ? mButtonActiveBackgroundColor : mButtonBackgroundColor);
+    }
+
+    /**
+     * Get the background color a button must have when it is not currently being touched, which is
+     * the active background color for an active {@link SpecialButton}, otherwise the normal one.
+     *
+     * @param buttonInfo The {@link ExtraKeyButton} for the button.
+     * @return Returns the background color.
+     */
+    int getButtonIdleBackgroundColor(@NonNull ExtraKeyButton buttonInfo) {
+        if (!isSpecialButton(buttonInfo)) return mButtonBackgroundColor;
+
+        SpecialButtonState state = mSpecialButtons.get(SpecialButton.valueOf(buttonInfo.getKey()));
+        return (state != null && state.isActive) ? mButtonActiveBackgroundColor : mButtonBackgroundColor;
     }
 
 

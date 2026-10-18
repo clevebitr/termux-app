@@ -413,3 +413,36 @@ night-mode=color-scheme
 properties 文件）、`TerminalKeyboardPreferencesFragment`（把 `PreferenceDataStore` 落到 properties
 文件）、`ColorPreference`（色板 + 自定义色对话框 + 校验）、
 `app/src/main/res/xml/termux_keyboard_preferences.xml`。
+
+---
+
+## 10. 虚拟键盘激活态高亮 + UI 多语言
+
+### 10.1 CTRL/ALT 等组合键的激活高亮（修复）
+
+之前按下 CTRL/ALT 只改**文字色**，而"激活时文字颜色"默认取 `cursor` 色（常常和普通文字色相同），
+所以激活后几乎看不出变化。现在激活状态会**同时**使用激活文字色和**激活背景色**
+（`extra-keys-active-foreground` / `extra-keys-active-background`）：
+
+* 激活键在手指松开后保持高亮（不会再被复位成普通背景色）；
+* 长按锁定（locked）状态同样保持高亮；
+* 同一类键存在多个实例（例如两行都有 CTRL）时一起变化。
+
+想让高亮更醒目，把激活背景色调亮即可，例如 `extra-keys-active-background=#ffff7043`
+（或在 设置 → Termux → Terminal Keyboard → 激活时背景颜色 里用色板选）。
+
+### 10.2 UI 多语言（已内置简体中文）
+
+* 新增 `values-zh` 翻译，覆盖 3 个模块：
+  * `app`（壳子 UI：标题栏、会话菜单、设置页、对话框、Toast…共 126 条）
+  * `termux-shared`（弹窗/错误/通知/报告文案，55 条）
+  * `terminal-view`（文本选择工具栏：复制/粘贴/更多，3 条）
+  * 终端模拟器（VT）内部没有面向用户的文案，无需翻译。
+* Android 13+ 可在 **系统设置 → 应用 → Termux → 语言** 里单独为 Termux 选语言
+  （已添加 `app/src/main/res/xml/locales_config.xml` 并在 manifest 里声明 `android:localeConfig`）；
+  Android 12 及以下跟随系统语言。
+* **新增其他语言**：把 `app/src/main/res/values/strings.xml` 复制为
+  `values-<语言码>/strings.xml`（如 `values-ja`、`values-ru`、`values-zh-rTW`）后翻译即可，
+  遗漏的条目会自动回退英文。注意占位符 `%1$s` / `%2$d` / `%d`、`\n`、`\"`、
+  `&TERMUX_APP_NAME;` 这类实体必须原样保留（`termux-shared`、`terminal-view` 同理）。
+* `supportsRtl` 仍是上游的 `false`；若要加阿拉伯语/希伯来语等 RTL 语言，需要改成 `true` 并检查布局。
