@@ -329,6 +329,24 @@ extra-keys-active-background=#33ffffff
 `#rgb` / `#rrggbb` / `rgb:xx/xx/xx`，该文件不支持 alpha），这样它们会随主题一起切换；
 只是 Termux:Styling 换主题时会被覆盖。
 
+### 整条底部工具栏的背景也跟着走
+
+`extra-keys-background` 不只影响按键，还会应用到承载它的整个底部工具栏条（`ViewPager`，
+包括左滑出来的文本输入框那一页——它的背景原本在布局里写死为 `@color/black`，文字色写死为白色）。
+文本输入框的文字色现在会跟着 `extra-keys-foreground` 走，所以浅色主题下不会出现
+“黑色条 + 白色字看不见”的情况。
+
+### 想固定成以前的深色键盘（不跟主题变）
+
+```properties
+extra-keys-background=#ff000000
+extra-keys-foreground=#ffffffff
+extra-keys-active-foreground=#ffff5252
+extra-keys-active-background=#ff9e9e9e
+```
+
+（这四个值就是原来主题里 `extraKeysButton*Color` 的取值：白字 / 黑底 / 红字 / 灰底。）
+
 ### 实现位置
 
 * `terminal-emulator/.../TerminalColorScheme.java`：解析 colors.properties 里的四个

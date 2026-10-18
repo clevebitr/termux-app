@@ -825,6 +825,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         return mTermuxActivityBottomSpaceView;
     }
 
+    /** The text color applied to the extra keys view buttons and the terminal toolbar text input view. */
+    private int mExtraKeysTextColor = ExtraKeysView.DEFAULT_BUTTON_TEXT_COLOR;
+
     public ExtraKeysView getExtraKeysView() {
         return mExtraKeysView;
     }
@@ -875,7 +878,37 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         int activeBackgroundColor = getExtraKeysColor(mProperties.getExtraKeysActiveBackground(),
             TermuxPropertyConstants.KEY_EXTRA_KEYS_ACTIVE_BACKGROUND, colorScheme.getExtraKeysActiveBackgroundColor());
 
+        // The text color is also used by the terminal toolbar text input view, whose text color is
+        // hardcoded to white in the layout and would not be visible if the toolbar background is light.
+        mExtraKeysTextColor = textColor;
+
         extraKeysView.setButtonColors(textColor, activeTextColor, backgroundColor, activeBackgroundColor);
+
+        // The extra keys view is hosted in the terminal toolbar view pager, which also contains the
+        // text input view, and its background is hardcoded to black in the layout, which would show
+        // through around the extra keys buttons, so it must be updated as well to match the colors.
+        View terminalToolbarViewPager = getTerminalToolbarViewPager();
+        if (terminalToolbarViewPager != null)
+            terminalToolbarViewPager.setBackgroundColor(backgroundColor);
+
+        // The extra keys view background is set as well since its background defined by the
+        // `buttonBarStyle` may be drawn over the parent view pager background.
+        extraKeysView.setBackgroundColor(backgroundColor);
+
+        EditText textInputView = findViewById(R.id.terminal_toolbar_text_input);
+        if (textInputView != null)
+            setTerminalToolbarTextInputViewColors(textInputView);
+    }
+
+    /**
+     * Set the colors of the terminal toolbar text input view, which shows the text being entered
+     * with the keyboard, to the same colors as the extra keys view buttons, so that its text is
+     * visible regardless of the toolbar background color. It is called when the view is created by
+     * {@link TerminalToolbarViewPager} as well, since the view may not exist when the colors are
+     * otherwise updated.
+     */
+    public void setTerminalToolbarTextInputViewColors(@NonNull EditText textInputView) {
+        textInputView.setTextColor(mExtraKeysTextColor);
     }
 
     /**

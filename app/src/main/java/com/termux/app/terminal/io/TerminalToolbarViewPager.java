@@ -59,6 +59,10 @@ public class TerminalToolbarViewPager {
                 layout = inflater.inflate(R.layout.view_terminal_toolbar_text_input, collection, false);
                 final EditText editText = layout.findViewById(R.id.terminal_toolbar_text_input);
 
+                // The text color is hardcoded to white in the layout, so it must be set to the color
+                // being used by the extra keys view, since the toolbar background may be light.
+                mActivity.setTerminalToolbarTextInputViewColors(editText);
+
                 if (mSavedTextInput != null) {
                     editText.setText(mSavedTextInput);
                     mSavedTextInput = null;
