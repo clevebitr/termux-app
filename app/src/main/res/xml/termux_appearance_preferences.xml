@@ -45,10 +45,10 @@
             app:useSimpleSummaryProvider="true" />
 
         <SeekBarPreference
+            android:max="300"
+            android:min="40"
             app:defaultValue="100"
             app:key="terminal-toolbar-height"
-            app:max="300"
-            app:min="40"
             app:seekBarIncrement="5"
             app:showSeekBarValue="true"
             app:summary="@string/termux_appearance_toolbar_height_summary"

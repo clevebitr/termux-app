@@ -70,7 +70,9 @@ class AppearancePreferencesDataStore extends TermuxPropertyPreferenceDataStore {
         String value = TermuxSharedProperties.getTermuxPropertyValue(getContext(), key);
         int intValue;
         if (DataUtils.isNullOrEmpty(value)) {
-            intValue = defValue;
+            // A SeekBarPreference may pass its own minimum as the default value, so fall back to the
+            // default scale factor of the property instead of using `defValue`.
+            intValue = KEY_TERMINAL_TOOLBAR_HEIGHT.equals(key) ? 100 : defValue;
         } else if (KEY_TERMINAL_TOOLBAR_HEIGHT.equals(key)) {
             intValue = Math.round(DataUtils.getFloatFromString(value, defValue / 100f) * 100);
         } else {
