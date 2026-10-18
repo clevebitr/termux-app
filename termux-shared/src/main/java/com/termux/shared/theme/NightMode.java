@@ -19,7 +19,15 @@ public enum NightMode {
      * Use night or dark theme depending on system night mode.
      * https://developer.android.com/guide/topics/resources/providing-resources#NightQualifier
      */
-    SYSTEM("system", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+    SYSTEM("system", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM),
+
+    /**
+     * Use night or dark theme depending on the termux color scheme set by Termux:Styling in the
+     * `colors.properties` file, based on the perceived brightness of its background color. The
+     * value is resolved to {@link #TRUE} or {@link #FALSE} by
+     * {@code TermuxThemeUtils.resolveNightMode()} before it is set as the app night mode.
+     */
+    COLOR_SCHEME("color-scheme", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
 
     /** The current app wide night mode used by various libraries. Defaults to {@link #SYSTEM}. */
     private static NightMode APP_NIGHT_MODE;

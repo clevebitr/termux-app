@@ -250,8 +250,6 @@ gh secret set TERMUX_KEY_PASSWORD      --repo <owner>/termux-app
 2. 装主 App，再装插件
 3. `termux-api` 这个 apt 包照常在 Termux 里 `pkg install termux-api`
 
----
-
 ## 6. Gboard 相关配置（本次补丁附带的选项）
 
 `~/.termux/termux.properties`（改完执行 `termux-reload-settings`）：
@@ -361,3 +359,30 @@ extra-keys-active-background=#ff9e9e9e
 
 注意：Termux:Float 用的是自己的一套属性/颜色处理，本次没有把联动接过去；它的 extra keys 行只
 受上面 `ExtraKeysView` 的行为调整影响。
+
+---
+
+## 8. 整个 App 跟随主题（`night-mode=color-scheme`）+ 状态栏/导航栏同步
+
+之前只有 extra keys 行跟着 `colors.properties` 走，App 的浅/深色主题还是由 `night-mode=system`
+决定。现在 `night-mode` 多了一个取值：
+
+```properties
+# ~/.termux/termux.properties
+night-mode=color-scheme
+```
+
+* 按 `colors.properties` 的 `background` 亮度决定（阈值 **130**，与光标色自适应用的是同一个阈值）：
+  亮 → 用浅色主题，暗 → 用深色主题。所以 **在 Termux:Styling 里选浅色主题，整个 App
+  （抽屉、设置页、长按菜单等）都会切成浅色**，不再只有键盘跟着变。
+* 状态栏和导航栏的图标会在浅色背景时自动切成深色（原仓库里**完全没有**这个处理，浅色主题下图标
+  是白色的、基本看不见）。两个栏位本身仍是透明的，透出来的就是终端背景色
+  （`TermuxActivity.updateWindowBackgroundColor()`）。
+* 这两个栏位也会在 `onResume` 时重新应用，避免启动瞬间还是上一次的颜色。
+
+其他取值（`true` / `false` / `system`）行为不变。设成 `color-scheme` 后切换主题时 App 会自动重建
+一次（AppCompat 的标准行为），这是预期的。
+
+实现位置：`NightMode` 新增 `COLOR_SCHEME`；`TermuxThemeUtils.resolveNightMode()` /
+`isLightBackground()`；`TermuxActivity.updateNightMode()` / `updateWindowBackgroundColor()`；
+`TermuxTerminalSessionActivityClient.checkForFontAndColors()` / `updateBackgroundColor()` / `onResume()`。

@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 /*
- * Version: v0.20.0
+ * Version: v0.21.0
  * SPDX-License-Identifier: MIT
  *
  * Changelog
@@ -87,6 +87,9 @@ import java.util.Set;
  * - 0.20.0 (2026-10-18)
  *      - Add `KEY_EXTRA_KEYS_FOREGROUND`, `KEY_EXTRA_KEYS_BACKGROUND`,
  *          `KEY_EXTRA_KEYS_ACTIVE_FOREGROUND` and `KEY_EXTRA_KEYS_ACTIVE_BACKGROUND`.
+ *
+ * - 0.21.0 (2026-10-18)
+ *      - Add `IVALUE_NIGHT_MODE_COLOR_SCHEME` and `NightMode#COLOR_SCHEME` to `MAP_NIGHT_MODE`.
  */
 
 /**
@@ -381,6 +384,7 @@ public final class TermuxPropertyConstants {
     public static final String IVALUE_NIGHT_MODE_TRUE = NightMode.TRUE.getName();
     public static final String IVALUE_NIGHT_MODE_FALSE = NightMode.FALSE.getName();
     public static final String IVALUE_NIGHT_MODE_SYSTEM = NightMode.SYSTEM.getName();
+    public static final String IVALUE_NIGHT_MODE_COLOR_SCHEME = NightMode.COLOR_SCHEME.getName();
     public static final String DEFAULT_IVALUE_NIGHT_MODE = IVALUE_NIGHT_MODE_SYSTEM;
 
     /** Defines the bidirectional map for {@link NightMode} values and their internal values */
@@ -389,6 +393,7 @@ public final class TermuxPropertyConstants {
             .put(IVALUE_NIGHT_MODE_TRUE, IVALUE_NIGHT_MODE_TRUE)
             .put(IVALUE_NIGHT_MODE_FALSE, IVALUE_NIGHT_MODE_FALSE)
             .put(IVALUE_NIGHT_MODE_SYSTEM, IVALUE_NIGHT_MODE_SYSTEM)
+            .put(IVALUE_NIGHT_MODE_COLOR_SCHEME, IVALUE_NIGHT_MODE_COLOR_SCHEME)
             .build();
 
 

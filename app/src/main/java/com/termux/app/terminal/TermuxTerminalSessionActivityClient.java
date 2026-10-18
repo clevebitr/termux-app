@@ -87,6 +87,11 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         // the first time bell key is pressed and play() is called, since sound may not be loaded
         // quickly enough before the call to play(). https://stackoverflow.com/questions/35435625
         loadBellSoundPool();
+
+        // The window background color and the status bar and navigation bar icon colors are based
+        // on the terminal background color, which is set to the color scheme background color, so
+        // they must be updated when the activity becomes visible.
+        updateBackgroundColor();
     }
 
     /**
@@ -511,6 +516,11 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             // `termux.properties`.
             mActivity.updateExtraKeysViewColors();
 
+            // Update the app night mode, since it may be based on the color scheme with the
+            // `color-scheme` value of the `night-mode` property. The activity is recreated if the
+            // night mode actually changed.
+            mActivity.updateNightMode();
+
             TerminalSession session = mActivity.getCurrentSession();
             if (session != null && session.getEmulator() != null) {
                 session.getEmulator().mColors.reset();
@@ -528,7 +538,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         if (!mActivity.isVisible()) return;
         TerminalSession session = mActivity.getCurrentSession();
         if (session != null && session.getEmulator() != null) {
-            mActivity.getWindow().getDecorView().setBackgroundColor(session.getEmulator().mColors.mCurrentColors[TextStyle.COLOR_INDEX_BACKGROUND]);
+            mActivity.updateWindowBackgroundColor(session.getEmulator().mColors.mCurrentColors[TextStyle.COLOR_INDEX_BACKGROUND]);
         }
     }
 

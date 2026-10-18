@@ -66,6 +66,8 @@ import com.termux.view.TerminalViewClient;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.viewpager.widget.ViewPager;
 
@@ -456,13 +458,46 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
 
     private void setActivityTheme() {
-        // Update NightMode.APP_NIGHT_MODE
+        // Update NightMode.APP_NIGHT_MODE. If the `night-mode` property is set to `color-scheme`,
+        // then it is resolved to light or dark based on the termux color scheme background color.
         TermuxThemeUtils.setAppNightMode(mProperties.getNightMode());
 
         // Set activity night mode. If NightMode.SYSTEM is set, then android will automatically
         // trigger recreation of activity when uiMode/dark mode configuration is changed so that
         // day or night theme takes affect.
         AppCompatActivityUtils.setNightMode(this, NightMode.getAppNightMode().getName(), true);
+    }
+
+    /**
+     * Re-apply the app night mode, since it may be based on the termux color scheme with the
+     * `color-scheme` value of the `night-mode` property, which may have been changed by
+     * Termux:Styling in the `colors.properties` file. The activity is recreated by
+     * {@link AppCompatActivityUtils} if the night mode actually changed, so that the new theme
+     * takes effect.
+     */
+    public void updateNightMode() {
+        setActivityTheme();
+    }
+
+    /**
+     * Set the window (decor view) background color, like the terminal background color, and update
+     * the status bar and navigation bar icon colors so that they remain visible on the background,
+     * since it may be a light or dark color depending on the termux color scheme set by
+     * Termux:Styling in the `colors.properties` file.
+     *
+     * The status bar and navigation bar are translucent, so their background color is the window
+     * background color, but their icon colors must be manually updated, since android does not do
+     * that automatically for a runtime set background color when the app theme does not match it.
+     */
+    public void updateWindowBackgroundColor(int backgroundColor) {
+        getWindow().getDecorView().setBackgroundColor(backgroundColor);
+
+        boolean isLightBackground = TermuxThemeUtils.isLightBackground(backgroundColor);
+        WindowInsetsControllerCompat windowInsetsController = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (windowInsetsController != null) {
+            windowInsetsController.setAppearanceLightStatusBars(isLightBackground);
+            windowInsetsController.setAppearanceLightNavigationBars(isLightBackground);
+        }
     }
 
     private void setMargins() {
@@ -1068,7 +1103,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 mExtraKeysView.reload(mTermuxTerminalExtraKeys.getExtraKeysInfo(), mTerminalToolbarDefaultHeight);
             }
 
-            // Update NightMode.APP_NIGHT_MODE
+            // Update NightMode.APP_NIGHT_MODE, since the `night-mode` property may be set to
+            // `color-scheme`, in which case it depends on the termux color scheme.
             TermuxThemeUtils.setAppNightMode(mProperties.getNightMode());
         }
 
