@@ -265,8 +265,6 @@ jobs:
         run: |
           set -euo pipefail
           cd apks
-          find . -mindepth 2 -name '*.apk' -exec mv -f {} . \;
-          rm -rf */ 2>/dev/null || true
           sha256sum ./*.apk > sha256sums
           cat > RELEASE-NOTES.md <<EOF
           ## Termux fork build
@@ -297,8 +295,9 @@ jobs:
           set -euo pipefail
           cd apks
           TAG="fork-latest"
-          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
-          gh release create "$TAG" \
+          # The `-R` flag is required since the release job does not have a git checkout.
+          gh release delete "$TAG" -R "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" -R "$GITHUB_REPOSITORY" \
             --title "Termux fork build (${GITHUB_SHA:0:7})" \
             --notes-file RELEASE-NOTES.md \
             --prerelease \

@@ -192,7 +192,55 @@ termux-fix-shebang ~/bin/* 2>/dev/null || true
 
 ---
 
-## 5. Gboard 相关配置（本次补丁附带的选项）
+## 5. 用 CI 构建（推荐，无需本地 SDK/NDK）
+
+仓库里的 `.github/workflows/fork_build.yml`（Fork Build (signed APKs)）会一次性构建：
+
+* Termux 主 App
+* Termux:API / :Boot / :Float / :Styling / :Tasker / :Widget 六个插件（从 `termux/<repo>@master` 克隆后构建）
+
+并**校验每个 APK 的签名证书 SHA-256 完全一致**，不一致直接 fail。构建产物会打包成
+`fork-latest` 这个预发布 Release，方便在手机上直接下载安装。
+
+触发方式：
+
+* push 到 `master`（只改了 `app/**`、`terminal-view/**`、`termux-shared/**`、`terminal-emulator/**`、
+  `*.gradle`、`gradle.properties`、`gradle/wrapper/gradle-wrapper.properties` 或该 workflow 时）
+* 手动：`gh workflow run "Fork Build (signed APKs)" -f build_mode=testkey -f build_plugins=true`
+  或在 Actions 页面点 Run workflow
+
+两种模式：
+
+| 模式 | 条件 | 产物 | 用途 |
+| --- | --- | --- | --- |
+| `testkey` | 默认（没配 secrets） | 全部 `assembleDebug`，用各仓库内置的 `testkey_untrusted.jks` 签名 | 本地自测；签名证书 SHA-256 为 `b6da0148…e5e1`（与 Termux GitHub 官方发行版同一把公开密钥） |
+| `ownkey` | 配了 `TERMUX_KEYSTORE_BASE64` 等 secrets | 主 App `assembleRelease` + 插件 `assembleRelease`，用你的 keystore 签名 | 长期自用/分发 |
+
+### ownkey 模式需要的 secrets
+
+```sh
+gh secret set TERMUX_KEYSTORE_BASE64   --repo <owner>/termux-app < <(base64 -w0 termux-fork.jks)
+gh secret set TERMUX_KEYSTORE_PASSWORD --repo <owner>/termux-app
+gh secret set TERMUX_KEY_ALIAS         --repo <owner>/termux-app
+gh secret set TERMUX_KEY_PASSWORD      --repo <owner>/termux-app
+```
+
+* `TERMUX_KEYSTORE_BASE64`：keystore 文件的 base64（单行）
+* 主 App 走 `signing.properties`，插件仓库不改动——通过 AGP 的
+  `-Pandroid.injected.signing.*` 注入签名；如果某个仓库的 AGP 不认这套属性，产物会因未签名而
+  在校验步骤直接报错（不会默默出个坏包）
+* Actions 需要写权限才能建 Release：Settings → Actions → General → Workflow permissions 设为
+  `Read and write permissions`（`gh api -X PUT repos/<owner>/termux-app/actions/permissions/workflow -f default_workflow_permissions=write`）
+
+### 安装顺序
+
+1. 先卸载官方 Termux **和所有官方插件**（签名不同不能共存），卸载前备份 `$PREFIX`（见 §4.4）
+2. 装主 App，再装插件
+3. `termux-api` 这个 apt 包照常在 Termux 里 `pkg install termux-api`
+
+---
+
+## 6. Gboard 相关配置（本次补丁附带的选项）
 
 `~/.termux/termux.properties`（改完执行 `termux-reload-settings`）：
 
