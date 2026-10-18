@@ -494,3 +494,59 @@ termux-restore <归档> --target-dir ~/restore-test --no-pre-backup             
 本机（aarch64，约 1.08 GB 数据）实测：备份 26s / 333 MB / 43023 条目，校验通过；
 `--target-dir` 解包演练 1.1 GB，符号链接（`usr/bin/sh -> dash`）与可执行权限位均正确保留；
 交互选择、非法输入、损坏归档（假文件）都能正确处理。
+
+---
+
+## 12. 设置页补齐：外观 / 按键行为 + 鼠标点按唤键盘
+
+§9 里的开关只覆盖了输入法和 extra keys 配色，其余常用属性这次也搬进了设置页，
+全部**直接读写 `~/.termux/termux.properties`**（按行替换同名键、保留注释和其他设置），
+改完立即生效。
+
+### 12.1 设置 → Termux → **外观**（新页面，`AppearancePreferencesFragment`）
+
+| 分类 | 条目 | 属性 | 说明 |
+| --- | --- | --- | --- |
+| 主题 | 夜间模式 | `night-mode` | 浅色 / 深色 / 跟随系统 / 跟随配色方案（`color-scheme`，见 §8） |
+| 全屏 | 全屏 | `fullscreen` | 隐藏状态栏，终端绘制在状态栏后面 |
+| 全屏 | 全屏兼容处理 | `use-fullscreen-workaround` | 仅在开了全屏时生效；终端被画到状态栏下面时打开 |
+| 终端工具栏 | 虚拟键盘风格 | `extra-keys-style` | `default` / `arrows-only` / `arrows-all` / `all` / `none` |
+| 终端工具栏 | 工具栏高度（%） | `terminal-toolbar-height` | 40–300，100 为默认；滑条存的是百分数，写回文件时会换算成 `0.4`–`3.0` 的倍率 |
+| 终端工具栏 | 虚拟键盘字母大写 | `extra-keys-text-all-caps` | 默认开 |
+
+这一页的属性都是**创建 Activity 时读取**的，所以改完会重建一次 `TermuxActivity`
+（终端会话和 transcript 都在 `TermuxService` 里，不会被杀掉）。
+
+### 12.2 设置 → Termux → **终端键盘** → 按键行为（新分类）
+
+| 条目 | 属性 | 取值 |
+| --- | --- | --- |
+| 返回键 | `back-key` | `back`（默认）/ `escape` |
+| 音量键 | `volume-keys` | `virtual`（默认，发方向键等虚拟键）/ `volume`（真实音量键） |
+| 键盘开关按钮 | `soft-keyboard-toggle-behaviour` | `show/hide`（默认）/ `enable/disable` |
+| 启动时隐藏键盘 | `hide-soft-keyboard-on-startup` | 默认关 |
+| **鼠标点按唤键盘** | `mouse-tap-shows-keyboard` | 默认关，见下 |
+| 停用物理键盘快捷键 | `disable-hardware-keyboard-shortcuts` | 默认关（默认由 App 处理 Ctrl+Alt+C 等） |
+
+这些属性都在用到时读取，所以改完立即生效，不需要重建 Activity。
+
+### 12.3 新属性：`mouse-tap-shows-keyboard`（本 fork 新增）
+
+```properties
+# 鼠标点击、以及 TUI 开了鼠标跟踪时的点击，默认只转发给终端，不弹软键盘
+# （设计如此，否则 vim/tmux 的选择、点击会被键盘打断）。打开后这些点击也会弹软键盘。
+mouse-tap-shows-keyboard=true
+```
+
+实现：`TermuxTerminalViewClient.onSingleTapUp()` 里原来只有
+「非鼠标来源 && 未开鼠标跟踪」才弹键盘，现在这个限制在属性打开时被取消。
+用 `KEYBOARD` 键 / Ctrl+Alt+K 手动唤起键盘的老办法仍然可用（§6）。
+
+### 12.4 坑：设置页不重写 properties
+
+`androidx.preference` 的 `ListPreference` / `SwitchPreferenceCompat` / `SeekBarPreference`
+在用 `PreferenceDataStore` 初始化时会**把刚读到的值再写回去**。如果 DataStore 直接落盘，
+那么光是打开设置页就会往 `termux.properties` 里塞进一堆 `back-key=back` 之类的默认值，
+并且触发一次无意义的 Activity 重建。所以
+`TermuxPropertyPreferenceDataStore` 会记下每个键「上次读到的值」，
+写回值与之一致时直接跳过（含属性本来就没定义、读到默认值的情况）。

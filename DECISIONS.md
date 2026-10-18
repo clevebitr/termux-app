@@ -37,3 +37,29 @@
 ## 2026-10-18 — 环境限制：本机无法编译，验证只能靠 CI
 
 本机（Termux）**没有 JDK / Android SDK / NDK**（`java`、`javac`、`gradle` 均不存在，`$ANDROID_HOME` 为空），所以本地无法编译或跑 gradle；唯一可行的验证路径是 **push 到 master → GitHub Actions**（`Fork Build` 编译+签名+证书一致性校验、`Unit tests` 跑 gradle test、上游 `Build` 再编两套 variant）。约 6–8 分钟一轮。\n\n本地只能做静态检查，三个自研脚本（放在 `/storage/emulated/0/Download/AppProjects/tools/`，**不要放 $HOME**，App 重装/数据重映射会丢）：\n- `javabal2.js`：Java 词法级括号/引号平衡（跑全仓库 201 个 .java，应 0 失败）。\n- `xmlcheck.js`：XML 良构性（标签配对/注释/CDATA）。\n- `strcheck.js`：i18n 键名与占位符一致性。\n另外：`/tmp` 不可写（要用 `$HOME` 或 /sdcard）；仓库在 /sdcard（App 卸载不影响）；`gh` 已登录 clevebitr，`git push` 需要 `-c credential.helper='!gh auth git-credential'`，网络偶发 SSL/超时，要重试循环（实测最多第 4 次成功）。
+
+## 2026-10-18 — M3 范围与页面组织（外观页 + 按键行为 + 鼠标点按唤键盘）
+
+范围由用户确认：1) 「鼠标点按唤键盘」做成**新属性** `mouse-tap-shows-keyboard`（默认 false，保持上游行为），不直接改默认；2) 「工具栏」这组只做 `extra-keys-style` + `extra-keys-text-all-caps` + `terminal-toolbar-height`（不做 SharedPreferences 里的 showTerminalToolbar）；3) 页面组织：新建「外观」页（主题/全屏/工具栏，`AppearancePreferencesFragment`），按键行为加到现有「终端键盘」页的新分类（`back-key` / `volume-keys` / `soft-keyboard-toggle-behaviour` / `hide-soft-keyboard-on-startup` / `mouse-tap-shows-keyboard` / `disable-hardware-keyboard-shortcuts`）。
+
+新属性的判定逻辑在 `TermuxTerminalViewClient.onSingleTapUp()`：原来条件是 `!term.isMouseTrackingActive() && !e.isFromSource(InputDevice.SOURCE_MOUSE)`，现在改成 `boolean isMouseTap = e.isFromSource(SOURCE_MOUSE) || term.isMouseTrackingActive(); if (!isMouseTap || properties.shouldShowSoftKeyboardOnMouseTap())`。所以它同时覆盖「鼠标点击」和「鼠标跟踪生效时的点击（含手指）」，这也符合 FORK.md §6 里描述的「TUI 开了鼠标跟踪点击不弹键盘」的历史行为修补。
+
+「外观」页的属性都是创建 Activity 时读取的（`fullscreen` 在 `onCreate` 加 FLAG_FULLSCREEN，`terminal-toolbar-height` 在 `setTerminalToolbarHeight()` 里算高度），所以 `AppearancePreferencesDataStore` 用 `updateTermuxActivityStyling(ctx, true)` 让 Activity 重建一次；`TerminalKeyboardPreferencesDataStore` 仍用 false。会话/transcript 在 TermuxService 里，重建不掉。
+
+顺带修了 `TermuxActivity.reloadActivityStyling(false)` 的 night-mode 通路：原来只调 `TermuxThemeUtils.setAppNightMode()` 设静态值（改了 `night-mode` 属性不会重建 Activity，主题不生效），现在 recreate=false 时改调 `setActivityTheme()`（`setLocalNightMode` 只在真的变了才重建）；recreate=true 时保持原来的静态赋值以免重复重建。
+
+i18n：新增 `values/arrays.xml` + `values-zh/arrays.xml`（5 组 entries/entryValues），文案 en/zh 各 30 余条。注意「工具栏高度（%）」标题里的裸 `%` 不要写成 `% i` 这种形态，会被工具误判成占位符。
+
+## 2026-10-18 — 坑：PreferenceDataStore 初始化会回写默认值 → 抽 TermuxPropertyPreferenceDataStore 加 no-op 守卫
+
+`androidx.preference` 的 `ListPreference.setValue()`（`onSetInitialValue` → `setValue(getPersistedString(default))`）和 `SwitchPreferenceCompat.setChecked()`（值为 true 时）、`SeekBarPreference.setValue()`（值 != 内部初值 0 时）都会**在初始化阶段就调 `persistString/persistBoolean/persistInt`**，也就是「刚读到的值再写回去」。原来的 `TerminalKeyboardPreferencesDataStore` 直接落盘 + `updateTermuxActivityStyling()`，所以：1) 光是打开设置页就会往 `termux.properties` 里插入 `back-key=back`、`night-mode=system` 这类用户没设过的键；2) 对「外观」页更糟——每次打开都会走 `updateTermuxActivityStyling(ctx, true)` 重建一次 Activity。
+
+修法：抽出 `TermuxPropertyPreferenceDataStore`（base，`app/.../fragments/settings/termux/`，两个 DataStore 都继承它，键盘页那份改为 3 行），用 `mLastReadValues` 记住每个键「上次 getter 返回的值」，`putXxx` 的值与它相等就跳过（并 remove）。要点：
+- 比较对象必须是**从文件读到的值**，不能拿被写入的值当默认值比较——属性没定义时 `getBoolean(key, newValue)` 会返回 newValue，那样判断相等就永远不写了（用户改了也不生效）。
+- 属性没定义 + 用户选了跟 XML 默认值相同的项 → 也跳过，语义正确（生效值没变）。
+- 键名必须与属性名一致（两个页都满足），base 里 `putBoolean/putString` 直接按 key 落盘。
+- `SeekBarPreference` 只能存 int，而我们用的是 float 倍率：约定 int = 百分数（40–300），`putInt` 写 `value/100f`（`String.valueOf` → `"1.0"`/`"1.25"`），`getInt` 用 `DataUtils.getFloatFromString` 再 `Math.round(*100)`；被越界属性（如 `5`）会被 seekbar clamp 后写回合法值，属于预期。
+
+不要用 `Preference.setSummaryProvider()` 来显示滑条数值：其签名（`SummaryProvider<Preference>` 还是 raw）没能确认，改用 `app:showSeekBarValue="true"` + 标题写「工具栏高度（%）」+ 静态 summary 说明取值范围，零 API 风险。确认签名前不要重构成 summaryProvider。
+
+另外 `tools/strcheck.js` 的占位符正则升级为支持 flags/width/precision（`%(?:\d+\$)?[-#+0,(]*\d*(?:\.\d+)?[a-zA-Z%]`，故意不含空格 flag，否则 `100% is` 会被误判），以后写 `%1$.2f` 这类也能校验。
