@@ -32,6 +32,14 @@ public interface TerminalViewClient {
 
     boolean shouldEnforceCharBasedInput();
 
+    /**
+     * If the workaround to be able to use CJK keyboards of IMEs like Gboard in the terminal view
+     * should be enabled. If enabled, the terminal view will use a text class input type for the IME
+     * and restart the input whenever the IME language is changed.
+     * See https://github.com/termux/termux-app/issues/1539.
+     */
+    boolean isGboardCjkWorkaroundEnabled();
+
     boolean shouldUseCtrlSpaceWorkaround();
 
     boolean isTerminalViewSelected();

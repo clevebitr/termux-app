@@ -12,6 +12,24 @@ ext {
     packageVariant = System.getenv("TERMUX_PACKAGE_VARIANT") ?: "apt-android-7" // Default: "apt-android-7"
 }
 
+// Signing configuration for release builds, so that a self built APK, like a fork, can be signed
+// with the user's own keystore instead of the untrusted `testkey_untrusted.jks` that is used for
+// debug builds. The keystore must be used for all the Termux plugin apps as well, since they must
+// be signed with the same key as the main Termux app, otherwise they cannot be installed alongside
+// it due to the shared `com.termux` `sharedUserId` and the `signature` level permissions used for
+// communication between the apps. See FORK.md for more information.
+// Create a `signing.properties` file in the root project directory with the following values:
+//   storeFile=/absolute/path/to/keystore.jks
+//   storePassword=...
+//   keyAlias=...
+//   keyPassword=...
+def signingPropertiesFile = rootProject.file("signing.properties")
+def signingProperties = new Properties()
+if (signingPropertiesFile.exists()) {
+    signingPropertiesFile.withInputStream { signingProperties.load(it) }
+}
+def hasCustomSigningConfig = signingProperties.getProperty("storeFile") != null
+
 android {
     namespace "com.termux"
 
@@ -84,6 +102,15 @@ android {
             storePassword 'xrj45yWGLbsO7W0v'
             keyPassword 'xrj45yWGLbsO7W0v'
         }
+
+        if (hasCustomSigningConfig) {
+            release {
+                storeFile rootProject.file(signingProperties.getProperty("storeFile"))
+                storePassword signingProperties.getProperty("storePassword")
+                keyAlias signingProperties.getProperty("keyAlias")
+                keyPassword signingProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -91,6 +118,7 @@ android {
             minifyEnabled true
             shrinkResources false // Reproducible builds
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasCustomSigningConfig) signingConfig signingConfigs.release
         }
 
         debug {

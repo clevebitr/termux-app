@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 /*
- * Version: v0.18.0
+ * Version: v0.19.0
  * SPDX-License-Identifier: MIT
  *
  * Changelog
@@ -80,6 +80,9 @@ import java.util.Set;
  *
  * - 0.18.0 (2022-06-13)
  *      - Add `KEY_DISABLE_FILE_SHARE_RECEIVER` and `KEY_DISABLE_FILE_VIEW_RECEIVER`.
+ *
+ * - 0.19.0 (2026-02-14)
+ *      - Add `KEY_GBOARD_CJK_WORKAROUND`.
  */
 
 /**
@@ -124,6 +127,15 @@ public final class TermuxPropertyConstants {
 
     /** Defines the key for whether text for the extra keys buttons should be all capitalized automatically */
     public static final String KEY_EXTRA_KEYS_TEXT_ALL_CAPS =  "extra-keys-text-all-caps"; // Default: "extra-keys-text-all-caps"
+
+
+
+    /** Defines the key for whether the workaround for Gboard (and other IMEs) to be able to use CJK
+     * keyboards, like Chinese Pinyin, in the terminal view should be enabled by using a text class
+     * input type instead of `InputType.TYPE_NULL`, since Gboard otherwise only shows an ASCII
+     * QWERTY keyboard and hides the language switch key.
+     * See https://github.com/termux/termux-app/issues/1539. */
+    public static final String KEY_GBOARD_CJK_WORKAROUND =  "gboard-cjk-workaround"; // Default: "gboard-cjk-workaround"
 
 
 
@@ -397,6 +409,7 @@ public final class TermuxPropertyConstants {
         KEY_DISABLE_TERMINAL_SESSION_CHANGE_TOAST,
         KEY_ENFORCE_CHAR_BASED_INPUT,
         KEY_EXTRA_KEYS_TEXT_ALL_CAPS,
+        KEY_GBOARD_CJK_WORKAROUND,
         KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP,
         KEY_RUN_TERMUX_AM_SOCKET_SERVER,
         KEY_TERMINAL_ONCLICK_URL_OPEN,
@@ -444,6 +457,7 @@ public final class TermuxPropertyConstants {
         KEY_DISABLE_HARDWARE_KEYBOARD_SHORTCUTS,
         KEY_DISABLE_TERMINAL_SESSION_CHANGE_TOAST,
         KEY_ENFORCE_CHAR_BASED_INPUT,
+        KEY_GBOARD_CJK_WORKAROUND,
         KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP,
         KEY_TERMINAL_ONCLICK_URL_OPEN,
         KEY_USE_CTRL_SPACE_WORKAROUND,

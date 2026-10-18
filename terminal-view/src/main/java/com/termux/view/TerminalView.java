@@ -32,6 +32,8 @@ import android.view.autofill.AutofillValue;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputMethodManager;
+import android.view.inputmethod.InputMethodSubtype;
 import android.widget.Scroller;
 
 import androidx.annotation.Nullable;
@@ -132,6 +134,19 @@ public final class TerminalView extends View {
     public final static int KEY_EVENT_SOURCE_SOFT_KEYBOARD = 0;
 
     private static final String LOG_TAG = "TerminalView";
+
+    /**
+     * The language tag of the currently selected IME subtype, like `en` or `zh-Hans-CN`. It is set
+     * by {@link #updateImeLanguageTag()} and is {@code null} if it cannot be determined.
+     * Currently only used by the {@link #mClient gboard CJK workaround}.
+     */
+    private String mImeLanguageTag;
+
+    /**
+     * If the currently selected IME subtype is for a CJK language. It is set by
+     * {@link #updateImeLanguageTag()}.
+     */
+    private boolean mImeIsCjkLanguage;
 
     public TerminalView(Context context, AttributeSet attributes) { // NO_UCD (unused code)
         super(context, attributes);
@@ -336,6 +351,25 @@ public final class TerminalView extends View {
             outAttrs.inputType =  InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL;
         }
 
+        // Workaround to allow IMEs like Gboard to use CJK keyboards, like Chinese Pinyin, while the
+        // terminal view is selected. Gboard forces itself to an ASCII QWERTY keyboard and hides the
+        // language switch key if the input type is `InputType.TYPE_NULL` or
+        // `InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD`, since it does not consider the view as a
+        // normal text editor. A text class input type is used instead, and the input is restarted
+        // whenever the IME language is changed, like when user switches to a CJK language, since
+        // the input type must be updated for the new language.
+        // See https://github.com/termux/termux-app/issues/1539 and
+        // https://github.com/termux/termux-x11/pull/620.
+        if (mClient.isGboardCjkWorkaroundEnabled() && mClient.isTerminalViewSelected()) {
+            updateImeLanguageTag();
+            if (mImeLanguageTag != null) {
+                // `InputType.TYPE_TEXT_VARIATION_NORMAL` is required for CJK keyboards for Gboard to
+                // show the composing/candidate view, otherwise the input may not work correctly.
+                outAttrs.inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS |
+                    (mImeIsCjkLanguage ? InputType.TYPE_TEXT_VARIATION_NORMAL : InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+            }
+        }
+
         // Note that IME_ACTION_NONE cannot be used as that makes it impossible to input newlines using the on-screen
         // keyboard on Android TV (see https://github.com/termux/termux-app/issues/221).
         outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_FULLSCREEN;
@@ -353,6 +387,19 @@ public final class TerminalView extends View {
             }
 
             @Override
+            public boolean requestCursorUpdates(int cursorUpdateMode) {
+                if (TERMINAL_VIEW_KEY_LOGGING_ENABLED) mClient.logInfo(LOG_TAG, "IME: requestCursorUpdates(" + cursorUpdateMode + ")");
+
+                // Gboard calls this function whenever the IME language is changed, like when user
+                // switches to a CJK language. The terminal view must be restarted with the new input
+                // type for the correct keyboard to be shown for the new language.
+                if (mClient.isGboardCjkWorkaroundEnabled() && mClient.isTerminalViewSelected())
+                    checkImeLanguageTagAndRestartInput(true);
+
+                return super.requestCursorUpdates(cursorUpdateMode);
+            }
+
+            @Override
             public boolean commitText(CharSequence text, int newCursorPosition) {
                 if (TERMINAL_VIEW_KEY_LOGGING_ENABLED) {
                     mClient.logInfo(LOG_TAG, "IME: commitText(\"" + text + "\", " + newCursorPosition + ")");
@@ -364,6 +411,11 @@ public final class TerminalView extends View {
                 Editable content = getEditable();
                 sendTextToTerminal(content);
                 content.clear();
+
+                // Workaround to hide the suggestion strip that Gboard shows for CJK languages,
+                // since it may cover the extra keys row or the terminal, and the suggestions are
+                // not usable anyway since committed text is sent directly to the terminal.
+                if (mImeIsCjkLanguage) invalidateImeInput();
                 return true;
             }
 
@@ -435,6 +487,101 @@ public final class TerminalView extends View {
             }
 
         };
+    }
+
+    /**
+     * Get the {@link InputMethodManager} for the {@link Context} of the terminal view.
+     *
+     * @return Returns the {@link InputMethodManager} or {@code null} if it is not available.
+     */
+    @Nullable
+    private InputMethodManager getInputMethodManager() {
+        Context context = getContext();
+        if (context == null) return null;
+
+        return (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+    }
+
+    /**
+     * Set the {@link #mImeLanguageTag} and {@link #mImeIsCjkLanguage} values based on the language of
+     * the currently selected IME subtype. The values are set to {@code null} and {@code false}
+     * respectively if the language cannot be determined, like on android versions before
+     * {@link Build.VERSION_CODES#N} or if the IME does not define a language for the subtype.
+     */
+    private void updateImeLanguageTag() {
+        mImeLanguageTag = null;
+        mImeIsCjkLanguage = false;
+
+        // `InputMethodManager.getCurrentInputMethodSubtype()` was added in android 7.0.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return;
+
+        InputMethodManager inputMethodManager = getInputMethodManager();
+        if (inputMethodManager == null) return;
+
+        try {
+            InputMethodSubtype subtype = inputMethodManager.getCurrentInputMethodSubtype();
+            if (subtype == null) return;
+
+            String languageTag = subtype.getLanguageTag();
+            if (TextUtils.isEmpty(languageTag)) return;
+
+            mImeLanguageTag = languageTag;
+            mImeIsCjkLanguage = languageTag.regionMatches(true, 0, "zh", 0, 2) ||
+                languageTag.regionMatches(true, 0, "ja", 0, 2) ||
+                languageTag.regionMatches(true, 0, "ko", 0, 2);
+        } catch (Exception e) {
+            mClient.logWarn(LOG_TAG, "Failed to get language tag of current IME subtype: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Restart the input connection of the terminal view if the language of the currently selected
+     * IME subtype has changed, since the input type returned by
+     * {@link #onCreateInputConnection(EditorInfo)} may need to be updated for the new language.
+     *
+     * @param recheck If the language should be rechecked after a small delay, since Gboard may call
+     *                {@link InputConnection#requestCursorUpdates(int)} before the
+     *                {@link InputMethodManager} has detected the change in the IME subtype.
+     */
+    private void checkImeLanguageTagAndRestartInput(boolean recheck) {
+        String previousImeLanguageTag = mImeLanguageTag;
+        updateImeLanguageTag();
+
+        if (mImeLanguageTag != null && !mImeLanguageTag.equals(previousImeLanguageTag)) {
+            restartInputConnection();
+        } else if (recheck) {
+            postDelayed(() -> checkImeLanguageTagAndRestartInput(false), 40);
+        }
+    }
+
+    /**
+     * Restart the input connection of the terminal view so that the IME reloads the input attributes
+     * returned by {@link #onCreateInputConnection(EditorInfo)}, like after the IME language or the
+     * termux properties have changed.
+     */
+    public void restartInputConnection() {
+        InputMethodManager inputMethodManager = getInputMethodManager();
+        if (inputMethodManager == null) return;
+
+        if (TERMINAL_VIEW_KEY_LOGGING_ENABLED) mClient.logInfo(LOG_TAG, "Restarting IME input");
+        inputMethodManager.restartInput(this);
+    }
+
+    /**
+     * Invalidate the input connection of the terminal view, like to hide the suggestion strip that
+     * Gboard shows for CJK languages. The IME is restarted on android versions before android 13.0
+     * since {@link InputMethodManager#invalidateInput(View)} was added in android 13.0.
+     */
+    private void invalidateImeInput() {
+        if (!mClient.isGboardCjkWorkaroundEnabled()) return;
+
+        InputMethodManager inputMethodManager = getInputMethodManager();
+        if (inputMethodManager == null) return;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            inputMethodManager.invalidateInput(this);
+        else
+            inputMethodManager.restartInput(this);
     }
 
     @Override

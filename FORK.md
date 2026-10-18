@@ -1,0 +1,228 @@
+# Fork 指南：自编译 Termux + 自编译插件
+
+本文档说明「自己 fork 并编译 Termux 后，能否继续使用官方编译的插件」这个问题的结论、
+原因，以及可行的操作流程。文档里引用的文件/行号基于本仓库当前代码。
+
+---
+
+## 1. 结论（TL;DR）
+
+**不能。** 你自己签名的 `com.termux` 和官方签名的插件（Termux:API、:Boot、:Float、
+:Styling、:Tasker、:Widget）无法共存，插件会安装失败（`INSTALL_FAILED_SHARED_USER_INCOMPATIBLE`，
+用户看到的提示是 "App not installed"）。
+
+要么：
+
+* **方案 A（最快）**：主 App 和你要用的所有插件都用各仓库自带的 `testkey_untrusted.jks`
+  编译 **debug** 版本。已验证 7 个仓库里的这个 keystore 是同一个文件（git blob
+  `174cc95acd605bf557f9e63983f55fadc5ae44bd`），所以签名天然一致。缺点：该密钥是公开的，
+  任何恶意 App 都可以用它签名并和你的 Termux 共享 UID，**只适合本地自用/测试**。
+* **方案 B（推荐）**：生成**你自己的** keystore，主 App 与所有插件都用它签 release 包。
+  本仓库的 `app/build.gradle` 已支持从根目录的 `signing.properties` 读取配置，插件仓库需按
+  §4.2 的片段补一段（或用同一条命令统一签名）。
+
+---
+
+## 2. 为什么不能混用（硬约束）
+
+1. **sharedUserId**：主 App 声明 `android:sharedUserId="com.termux"`
+   （`app/src/main/AndroidManifest.xml:5`），6 个插件也全部声明了
+   `android:sharedUserId="com.termux"`（各自的 `app/src/main/AndroidManifest.xml`）。
+   Android 在**安装时**就强制要求同一 `sharedUserId` 的已安装包签名一致，否则拒绝安装。
+2. **signature 级权限**：Termux:API 声明了
+   `<permission android:name="com.termux.sharedfiles.READ_WRITE" android:protectionLevel="signature"/>`
+   （`share`/SAF 那套 ContentProvider 的权限），只有同证书的应用才能拿到。
+   Termux:API 的 README 原文：*"this app needs to be signed with the same key as the main Termux
+   app for permissions to work (only the main Termux app are allowed to call the API methods in
+   this app)"*。
+3. **运行时检查**：`TermuxUtils.isTermuxAppAccessible()`（`createPackageContext` + 校验 `$PREFIX`
+   权限）、`TermuxUtils.getTermuxAppAPKClassField()`（跨 APK 读 `BuildConfig`）都依赖
+   shared UID / 同证书；APK 发行版也是靠签名摘要判定的
+   （`termux-shared/.../TermuxConstants.java:482` 起的
+   `APK_RELEASE_*_SIGNING_CERTIFICATE_SHA256_DIGEST`），自编译只会显示 `Unknown`。
+
+**推论**：不要改包名（如 `com.termux.fork`）。包名一旦改变，插件、`$PREFIX` 路径
+（`/data/data/com.termux/files`）、bootstrap、termux-packages 全都要跟着改，等于自建整套生态。
+保留 `com.termux` + 统一签名是唯一低成本路径。
+
+另外：`sharedUserId` 在 Android 10+ 已标记废弃，但仍然强制生效；每次更换签名都必须先把主 App
+**和所有插件**全部卸载（同包名不同签名不能覆盖升级）。
+
+---
+
+## 3. 方案 A：全部用仓库自带 testkey 编 debug（最快）
+
+```sh
+# 主 App
+./gradlew assembleDebug          # 产物 app/build/outputs/apk/debug/*.apk
+
+# 每个要用的插件仓库里各执行一次
+./gradlew assembleDebug
+```
+
+插件仓库列表：
+
+| 插件 | 仓库 |
+| --- | --- |
+| Termux:API | https://github.com/termux/termux-api |
+| Termux:Boot | https://github.com/termux/termux-boot |
+| Termux:Float | https://github.com/termux/termux-float |
+| Termux:Styling | https://github.com/termux/termux-styling |
+| Termux:Tasker | https://github.com/termux/termux-tasker |
+| Termux:Widget | https://github.com/termux/termux-widget |
+
+注意：
+
+* 主 App 编译需要 Android SDK + NDK（版本见 `gradle.properties` 的 `ndkVersion`），
+  以及 `task downloadBootstraps` 下载的 bootstrap（需联网，见 `app/build.gradle` 末尾）。
+* 插件仓库用 Java 11，主 App 用 Java 8（见各自 `compileOptions`）。
+* `termux-api` 这个 **apt 包**（`pkg install termux-api`）也要装，它提供 `termux-api-*` 脚本
+  和与插件 APK 通信的 socket 客户端；APK 和 apt 包缺一不可。
+* 验证签名一致：
+
+  ```sh
+  apksigner verify --print-certs <apk>   # 对比所有 APK 的 SHA-256 digest 是否相同
+  ```
+
+---
+
+## 4. 方案 B：用你自己的 keystore 签 release（推荐）
+
+### 4.1 生成 keystore
+
+```sh
+keytool -genkeypair -v -keystore ~/termux-fork.jks -alias termuxfork \
+    -keyalg RSA -keysize 2048 -validity 10000
+```
+
+### 4.2 配置主 App
+
+在**仓库根目录**创建 `signing.properties`（该文件已在 `.gitignore` 中，不会提交）：
+
+```properties
+storeFile=/absolute/path/to/termux-fork.jks
+storePassword=你的store密码
+keyAlias=termuxfork
+keyPassword=你的key密码
+```
+
+存在该文件时，`app/build.gradle` 会自动为 `release` 构建类型套用 `signingConfigs.release`；
+不存在时行为与上游一致（release 不签名，交给 F-Droid / 你自己的流程签）。
+
+```sh
+TERMUX_APK_VERSION_TAG=my-fork-$(date +%Y%m%d) ./gradlew assembleRelease
+```
+
+### 4.3 配置每个插件仓库
+
+插件仓库目前只有 debug 的 `testkey_untrusted.jks`，release 没有签名配置。在每个插件仓库根目录
+也放一份同样的 `signing.properties`，并在其 `app/build.gradle` 里加同样的判断（放在
+`android { }` 之前）：
+
+```gradle
+def signingPropertiesFile = rootProject.file("signing.properties")
+def signingProperties = new Properties()
+if (signingPropertiesFile.exists()) {
+    signingPropertiesFile.withInputStream { signingProperties.load(it) }
+}
+def hasCustomSigningConfig = signingProperties.getProperty("storeFile") != null
+```
+
+然后把该仓库的 `signingConfigs { debug { ... } }` 和 `buildTypes.release { ... }` 改成：
+
+```gradle
+    signingConfigs {
+        debug {
+            storeFile file('testkey_untrusted.jks')
+            keyAlias 'alias'
+            storePassword 'xrj45yWGLbsO7W0v'
+            keyPassword 'xrj45yWGLbsO7W0v'
+        }
+
+        if (hasCustomSigningConfig) {
+            release {
+                storeFile rootProject.file(signingProperties.getProperty("storeFile"))
+                storePassword signingProperties.getProperty("storePassword")
+                keyAlias signingProperties.getProperty("keyAlias")
+                keyPassword signingProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources false
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            if (hasCustomSigningConfig) signingConfig signingConfigs.release
+        }
+    }
+```
+
+### 4.4 卸载 / 备份 / 恢复
+
+同包名换签名必须**先卸载**官方 Termux 和所有官方插件，这会删除应用数据（也就是整个
+`/data/data/com.termux/files` = `$PREFIX` + `$HOME`），所以务必先备份：
+
+```sh
+# 1) 备份（在官方 Termux 里执行，需要已授予存储权限）
+termux-setup-storage
+tar -czf /sdcard/termux-backup-$(date +%Y%m%d).tar.gz \
+    -C /data/data/com.termux/files ./home ./usr
+# 可选：记录已安装包列表
+dpkg --get-selections > /sdcard/termux-packages.txt
+
+# 2) 卸载官方 main app 和所有插件（系统设置里逐个卸载，或用 adb uninstall）
+
+# 3) 安装你的 APK：主 App 先装，再装插件
+
+# 4) 恢复数据（在**新**的 Termux 里执行；新 App 会重新生成 bootstrap）
+tar -xzf /sdcard/termux-backup-<日期>.tar.gz -C /data/data/com.termux/files
+# 恢复后常见收尾
+termux-fix-shebang ~/bin/* 2>/dev/null || true
+```
+
+注意：
+
+* 备份里的 `./usr` 与本机 bootstrap 版本必须兼容；如果新 App 的 bootstrap 版本更旧/更新，
+  恢复后建议 `pkg upgrade`。
+* 恢复后 App 的 `sharedUserId` 未变（仍是 `com.termux`），所以 apt 状态、`$PREFIX` 路径都还能用。
+* 卸载插件时不要把 `com.termux.api` 留给新签名的主 App 去"覆盖安装"，那样只会得到
+  `INSTALL_FAILED_SHARED_USER_INCOMPATIBLE`。
+
+---
+
+## 5. Gboard 相关配置（本次补丁附带的选项）
+
+`~/.termux/termux.properties`（改完执行 `termux-reload-settings`）：
+
+```properties
+# 允许 Gboard 在终端视图里直接使用中文/日文/韩文键盘（本 fork 新增）
+# 原理：终端视图默认用 InputType.TYPE_NULL，Gboard 会把键盘强制成英文 QWERTY 并隐藏语言切换键；
+# 打开后改用 text class inputType，并监听 IME 语言切换（requestCursorUpdates）重启输入，
+# 同时用 TYPE_TEXT_VARIATION_NORMAL 让 Gboard 显示候选词。
+# 副作用：非 CJK 语言会退化为 visible-password 风格输入（无联想/候选），与
+# enforce-char-based-input=true 类似；依赖 Gboard 的行为，其他输入法表现未充分验证。
+gboard-cjk-workaround=true
+
+# 部分三星键盘等需要字符级输入时打开
+#enforce-char-based-input=true
+
+# 某些 ROM 上 ctrl+space 切换输入法失效时的 workaround
+#ctrl-space-workaround=true
+
+# keyboard 开关按钮的行为：show/hide（默认）或 enable/disable
+#soft-keyboard-toggle-behaviour=show/hide
+
+# 建议在 extra-keys 里保留 KEYBOARD 键，方便在 TUI 开了鼠标跟踪、点击不弹键盘时手动唤起
+#extra-keys=[['ESC','/','-','HOME','UP','END','PGUP','KEYBOARD'],['TAB','CTRL','ALT','LEFT','DOWN','RIGHT','PGDN']]
+```
+
+排障要点：
+
+* 点击不弹键盘：TUI 开了鼠标跟踪时设计上就不弹（`TermuxTerminalViewClient.onSingleTapUp`），
+  用 `KEYBOARD` 键 / `Ctrl+Alt+K` 手动唤起；键盘处于 disabled 状态时同样点击无效。
+* `soft_keyboard_enabled_only_if_no_hardware` + `KeyboardUtils.isHardKeyboardConnected()` 误报
+  会导致键盘被禁用。
+* 日志：`logcat -s TermuxTerminalViewClient:V TerminalView:V`（需在 Termux 设置里把日志级别调成
+  verbose）。

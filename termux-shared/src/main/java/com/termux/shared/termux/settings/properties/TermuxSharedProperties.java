@@ -598,6 +598,18 @@ public abstract class TermuxSharedProperties {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_ENFORCE_CHAR_BASED_INPUT, true);
     }
 
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_GBOARD_CJK_WORKAROUND} boolean value.
+     *
+     * The workaround makes the terminal view use a text class input type for the IME, since Gboard
+     * otherwise only shows an ASCII QWERTY keyboard and hides the language switch key, making it
+     * impossible to use CJK keyboards, like Chinese Pinyin, directly in the terminal view.
+     * See https://github.com/termux/termux-app/issues/1539.
+     */
+    public boolean isGboardCjkWorkaroundEnabled() {
+        return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_GBOARD_CJK_WORKAROUND, true);
+    }
+
     public boolean shouldExtraKeysTextBeAllCaps() {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_TEXT_ALL_CAPS, true);
     }

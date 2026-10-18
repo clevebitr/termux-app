@@ -43,6 +43,7 @@ import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.KeyHandler;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalSession;
+import com.termux.view.TerminalView;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -138,6 +139,12 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
      */
     public void onReloadProperties() {
         setSessionShortcuts();
+
+        // Restart the input connection so that the IME reloads the input attributes returned by
+        // TerminalView.onCreateInputConnection(), since properties like gboard-cjk-workaround may
+        // have changed.
+        TerminalView terminalView = mActivity.getTerminalView();
+        if (terminalView != null) terminalView.restartInputConnection();
     }
 
     /**
@@ -214,6 +221,11 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     @Override
     public boolean shouldEnforceCharBasedInput() {
         return mActivity.getProperties().isEnforcingCharBasedInput();
+    }
+
+    @Override
+    public boolean isGboardCjkWorkaroundEnabled() {
+        return mActivity.getProperties().isGboardCjkWorkaroundEnabled();
     }
 
     @Override

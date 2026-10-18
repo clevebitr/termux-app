@@ -20,6 +20,9 @@ local.properties
 # Signing files
 .signing/
 
+# Local signing configuration for release builds, see FORK.md
+signing.properties
+
 # Intellij
 .idea/
 *.iml

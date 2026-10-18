@@ -1,0 +1,305 @@
+name: Fork Build (signed APKs)
+
+# Builds the Termux app (and optionally the Termux plugin apps) with a single signing key, so that
+# the app and the plugins can be installed alongside each other. All Termux apps declare
+# `android:sharedUserId="com.termux"` and use `signature` level permissions to communicate, so
+# Android refuses to install apps with the same shared user id that are signed with different keys
+# (`INSTALL_FAILED_SHARED_USER_INCOMPATIBLE`). See FORK.md for details.
+#
+# Signing modes:
+#  - `testkey`: build debug APKs, signed with the untrusted `testkey_untrusted.jks` that is
+#    committed to all Termux app repositories. The key is public, so this is only safe for local
+#    testing, but requires no secrets and produces a mutually compatible set of APKs.
+#  - `ownkey`: build release APKs, signed with your own keystore that must be provided through the
+#    repository secrets `TERMUX_KEYSTORE_BASE64`, `TERMUX_KEYSTORE_PASSWORD`, `TERMUX_KEY_ALIAS`
+#    and `TERMUX_KEY_PASSWORD`.
+#
+# The signing certificate of every built APK is verified to be identical, otherwise the build fails.
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_mode:
+        description: 'Signing mode ("auto" uses ownkey if the keystore secret exists, otherwise testkey)'
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - testkey
+          - ownkey
+      build_plugins:
+        description: 'Also build the Termux plugin apps (Termux:API/Boot/Float/Styling/Tasker/Widget)'
+        required: false
+        default: true
+        type: boolean
+  push:
+    branches:
+      - master
+    paths:
+      - 'app/**'
+      - 'terminal-view/**'
+      - 'termux-shared/**'
+      - 'terminal-emulator/**'
+      - '*.gradle'
+      - 'gradle.properties'
+      - 'gradle/wrapper/gradle-wrapper.properties'
+      - '.github/workflows/fork_build.yml'
+
+permissions:
+  contents: write
+
+env:
+  JAVA_VERSION: '17'
+  PLUGIN_REPOS: 'termux-api termux-boot termux-float termux-styling termux-tasker termux-widget'
+
+jobs:
+  app:
+    name: Build Termux app
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+      cert_digest: ${{ steps.cert.outputs.digest }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Setup java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Determine signing mode
+        id: mode
+        env:
+          INPUT_MODE: ${{ github.event.inputs.build_mode || 'auto' }}
+          HAS_KEYSTORE: ${{ secrets.TERMUX_KEYSTORE_BASE64 != '' }}
+        run: |
+          set -euo pipefail
+          mode="$INPUT_MODE"
+          if [ "$mode" = "auto" ]; then
+            if [ "$HAS_KEYSTORE" = "true" ]; then mode="ownkey"; else mode="testkey"; fi
+          fi
+          if [ "$mode" = "ownkey" ] && [ "$HAS_KEYSTORE" != "true" ]; then
+            echo "::error::ownkey mode requires the TERMUX_KEYSTORE_BASE64 secret"
+            exit 1
+          fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "Signing mode: '$mode'"
+
+      - name: Decode keystore
+        if: steps.mode.outputs.mode == 'ownkey'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.TERMUX_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/fork.jks"
+          test -s "$RUNNER_TEMP/fork.jks"
+
+      - name: Build APKs
+        env:
+          MODE: ${{ steps.mode.outputs.mode }}
+          KEYSTORE_PASSWORD: ${{ secrets.TERMUX_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.TERMUX_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.TERMUX_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          APK_VERSION_TAG="fork-$(date -u +%Y%m%d-%H%M)-${MODE}"
+          export TERMUX_APK_VERSION_TAG="$APK_VERSION_TAG"
+
+          if [ "$MODE" = "ownkey" ]; then
+            # `signing.properties` is read by app/build.gradle, the injected properties are also
+            # passed so that the same command can be reused for the plugin repositories.
+            printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+              "$RUNNER_TEMP/fork.jks" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > signing.properties
+            GRADLE_TASK=assembleRelease
+            APK_DIR="app/build/outputs/apk/release"
+            SIGNING_ARGS=(
+              "-Pandroid.injected.signing.store.file=$RUNNER_TEMP/fork.jks"
+              "-Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD"
+              "-Pandroid.injected.signing.key.alias=$KEY_ALIAS"
+              "-Pandroid.injected.signing.key.password=$KEY_PASSWORD"
+            )
+          else
+            GRADLE_TASK=assembleDebug
+            APK_DIR="app/build/outputs/apk/debug"
+            SIGNING_ARGS=()
+          fi
+
+          ./gradlew "$GRADLE_TASK" "${SIGNING_ARGS[@]}"
+
+          echo "APK_DIR=$APK_DIR" >> "$GITHUB_ENV"
+          ls -l "$APK_DIR"
+
+      - name: Verify signing certificate
+        id: cert
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(ls "$ANDROID_SDK_ROOT"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)"
+          APK="$(find "$APK_DIR" -name '*universal.apk' | head -1)"
+          if [ -z "$APK" ]; then APK="$(find "$APK_DIR" -name '*.apk' | head -1)"; fi
+          echo "Verifying '$APK' with '$APKSIGNER'"
+          "$APKSIGNER" verify --print-certs "$APK" | tee apk-certs.txt
+          DIGEST="$(grep -i 'certificate SHA-256 digest' apk-certs.txt | head -1 | sed 's/.*: *//' | tr -d ' ' | tr 'A-F' 'a-f')"
+          test -n "$DIGEST"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Termux fork build"
+            echo ""
+            echo "* signing mode: \`${{ steps.mode.outputs.mode }}\`"
+            echo "* signing certificate SHA-256: \`$DIGEST\`"
+            echo "* all built apps must share this digest to be installable together"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Attach app APKs
+        uses: actions/upload-artifact@v6
+        with:
+          name: termux-app
+          if-no-files-found: error
+          path: ${{ env.APK_DIR }}/*.apk
+
+  plugins:
+    name: Build plugin (${{ matrix.repo }})
+    needs: app
+    if: ${{ github.event.inputs.build_plugins != 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: [ termux-api, termux-boot, termux-float, termux-styling, termux-tasker, termux-widget ]
+    steps:
+      - name: Setup java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Clone ${{ matrix.repo }}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch master \
+            "https://github.com/termux/${{ matrix.repo }}.git" "$RUNNER_TEMP/src"
+
+      - name: Decode keystore
+        if: needs.app.outputs.mode == 'ownkey'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.TERMUX_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/fork.jks"
+          test -s "$RUNNER_TEMP/fork.jks"
+
+      - name: Build APKs
+        env:
+          MODE: ${{ needs.app.outputs.mode }}
+          KEYSTORE_PASSWORD: ${{ secrets.TERMUX_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.TERMUX_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.TERMUX_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/src"
+
+          if [ "$MODE" = "ownkey" ]; then
+            GRADLE_TASK=assembleRelease
+            APK_DIR="app/build/outputs/apk/release"
+            SIGNING_ARGS=(
+              "-Pandroid.injected.signing.store.file=$RUNNER_TEMP/fork.jks"
+              "-Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD"
+              "-Pandroid.injected.signing.key.alias=$KEY_ALIAS"
+              "-Pandroid.injected.signing.key.password=$KEY_PASSWORD"
+            )
+          else
+            GRADLE_TASK=assembleDebug
+            APK_DIR="app/build/outputs/apk/debug"
+            SIGNING_ARGS=()
+          fi
+
+          ./gradlew "$GRADLE_TASK" "${SIGNING_ARGS[@]}"
+
+          echo "APK_DIR=$PWD/$APK_DIR" >> "$GITHUB_ENV"
+          ls -l "$APK_DIR"
+
+      - name: Check signing certificate matches the app
+        env:
+          EXPECTED_DIGEST: ${{ needs.app.outputs.cert_digest }}
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(ls "$ANDROID_SDK_ROOT"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)"
+          APK="$(find "$APK_DIR" -name '*.apk' | head -1)"
+          "$APKSIGNER" verify --print-certs "$APK" | tee apk-certs.txt
+          DIGEST="$(grep -i 'certificate SHA-256 digest' apk-certs.txt | head -1 | sed 's/.*: *//' | tr -d ' ' | tr 'A-F' 'a-f')"
+          echo "app digest:     $EXPECTED_DIGEST"
+          echo "plugin digest:  $DIGEST"
+          if [ "$DIGEST" != "$EXPECTED_DIGEST" ]; then
+            echo "::error::${{ matrix.repo }} is signed with a different certificate than the Termux app and cannot be installed alongside it"
+            exit 1
+          fi
+
+      - name: Attach APKs
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.repo }}
+          if-no-files-found: error
+          path: ${{ env.APK_DIR }}/*.apk
+
+  release:
+    name: Publish APKs
+    needs: [ app, plugins ]
+    if: ${{ always() && needs.app.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: apks
+          merge-multiple: true
+
+      - name: Prepare files
+        env:
+          MODE: ${{ needs.app.outputs.mode }}
+          CERT_DIGEST: ${{ needs.app.outputs.cert_digest }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          cd apks
+          find . -mindepth 2 -name '*.apk' -exec mv -f {} . \;
+          rm -rf */ 2>/dev/null || true
+          sha256sum ./*.apk > sha256sums
+          cat > RELEASE-NOTES.md <<EOF
+          ## Termux fork build
+
+          * commit: \`${{ github.sha }}\`
+          * signing mode: \`$MODE\`
+          * signing certificate SHA-256: \`$CERT_DIGEST\`
+          * build log: $RUN_URL
+
+          All APKs in this release are signed with the same certificate and \`sharedUserId="com.termux"\`,
+          so the Termux app and the plugin apps can be installed alongside each other.
+
+          Installation:
+
+          1. Uninstall the official Termux app **and all official plugins** first if they were signed with a
+             different key, otherwise Android rejects the install
+             (\`INSTALL_FAILED_SHARED_USER_INCOMPATIBLE\`). Back up \`\$PREFIX\` before uninstalling, see FORK.md.
+          2. Install the Termux app APK, then the plugin APKs you need.
+          3. \`testkey\` builds are debug builds signed with the public untrusted test key, only use them for
+             local testing.
+          EOF
+          ls -l
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd apks
+          TAG="fork-latest"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" \
+            --title "Termux fork build (${GITHUB_SHA:0:7})" \
+            --notes-file RELEASE-NOTES.md \
+            --prerelease \
+            ./*.apk ./sha256sums
