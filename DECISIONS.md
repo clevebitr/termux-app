@@ -80,3 +80,17 @@ i18n：新增 `values/arrays.xml` + `values-zh/arrays.xml`（5 组 entries/entry
 `recreate` 位必须由广播携带而不能统一用 true：键盘页/`TermuxService` 传 false（这些属性用到时现读，或者本来每次可见都重读），只有外观页的 `fullscreen` / `use-fullscreen-workaround` / `extra-keys-style`（`setExtraKeys()` 只在构造时跑）必须重建。外观页 false→true 会让每次返回都闪一下重建。
 
 副作用（可接受）：`TermuxService` 在停止期间新建会话时发的那个 false 广播，现在会留下一个待重载标志，下次 `onStart()` 多跑一次 `reloadActivityStyling(false)`——不做 UI 破坏，只是多读一次文件。
+
+## 2026-10-18 — M4 实现：真斜体缩放对齐 + OSC 8 按格存储与渲染分组
+
+范围由用户确认：斜体自动探测 `~/.termux/font-italic.ttf`、无则回退现有合成斜切；OSC 8 点击共用 `terminal-onclick-url-open`（默认关）；链接按格存储（reflow/resize 都正确）；超链接自动加下划线。实现位置与用法已写进 FORK.md §13。
+
+**真斜体**：`Typeface.create(自定义Typeface, ITALIC)` 拿不到真斜体，必须有第二个字体文件，所以加 `TermuxConstants.TERMUX_FONT_ITALIC_FILE`（`~/.termux/font-italic.ttf`，Termux:Styling 不写它）。`TerminalRenderer` 多一个 `mItalicTypeface`；度量（行高/基线/列宽/asciiMeasures）一律取正体，只在实际画 italic run 时切 typeface，并用 `mItalicTextScaleX = 正体'X'宽 / 斜体'X'宽` 缩放，保证网格不被撑歪（度量一致的字体缩放=1，无失真）。保留 `TerminalRenderer(int,Typeface)` 与 `TerminalView.setTypeface(Typeface)` 旧重载，Termux:Float 等调用方不受影响。斜体文件加载失败只记日志，不影响正体/配色。
+
+**OSC 8 存储**：样式 long 已经满了（bit 15 = TERMINAL_BITMAP，位 16-63 是颜色），所以不能像 bitmap 那样塞进 style；改为 `TerminalRow` 里**惰性**分配 `int[] mHyperlinks`（0=无链接，N=本行 URI 表下标+1），URI 表是每行一个 `List<String>`（行内链接通常 1-2 个，`indexOf` 去重足够）。惰性分配很关键：transcript 可以有一万行，无条件加 int[] 会让行内存 (long[]+int[]) 涨 50%。宽度 2 的字符要把链接写到**两格**（`getHyperlinkAtLocation` 拿到的列可能是宽字符后半）。`copyInterval` 必须带链接；`this == line` 的自拷贝要对 `mHyperlinks` 做快照（上游 mStyle 有这个重叠 bug，链接这份先做对）。`TerminalBuffer` 加 `setChar(...,String hyperlinkUri)` 重载（旧 4 参重载保留，擦除路径 blockSet/EL/ED/ECH 走旧重载 → 自然清链接）与 `getHyperlinkAtLocation(x,y)`（坐标约定同 `getWordAtLocation`，负数=transcript，超界返回 null，避免 `externalToInternalRow` 抛异常）。reflow（resize 改列数）里除了 `styleAtCol` 还要记住 `hyperlinkAtCol`（零宽字符沿用上一个）。
+
+**渲染下划线**：`TerminalRenderer.render()` 的 run 分组条件要加 `hasHyperlink != lastRunHasHyperlink`，否则同一样式的链接文字无法单独加下划线；bitmap 分支要一起复位该标志。`drawTextRun` 多带一个 `hasHyperlink` 参数，`underline = 原下划线 || hasHyperlink`。
+
+**OSC 8 解析**：`doOsc` 的 `textParameter` 是第一个 `;` 之后的内容，所以 `OSC 8;params;URI` 要再按第一个 `;` 切一次。`mCurrentHyperlinkUri` 作为「当前属性」跨行保持（规范如此，只有空 URI 才结束），`reset()`(RIS) 里清掉。params 里的 `id=` 忽略。URI 里带 `:` 不会破坏 OSC 快速路径（`setOscTypeVariables()` 只影响 `mTerminalControlArgs` 容量，mOscType 非 52/1337 时照常累积）。
+
+**测试**：`./gradlew test` 会在 CI 跑。加了 OperatingSystemControlTest 7 个（含 BEL/ST 两种结尾、params、同行多链接、宽字符两格、跨行保持、ECH 擦除、RIS 清零）、ResizeTest 1 个（reflow 前后链接跟着文字）、TerminalRowTest 2 个（含自拷贝快照）。本地无 JDK/gradle，只能靠 CI 验证。

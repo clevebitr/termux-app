@@ -585,3 +585,50 @@ mouse-tap-shows-keyboard=true
 `~/.termux/termux.properties` 无任何变化（确认 §12.4 的 no-op 守卫生效）。
 首次验证发现「改动要手动 `termux-reload-settings` 才生效」，即 §12.5 的广播丢失问题，
 修复后返回设置页即生效。
+
+---
+
+## 13. 真斜体字体 + OSC 8 超链接可点
+
+### 13.1 真斜体：`~/.termux/font-italic.ttf`
+
+上游的斜体是**合成斜切**（把正体字形按 `setTextSkewX(-0.35)` 歪一下），很多字体歪出来很难看。
+现在只要在正体旁边放一个斜体字体文件，斜体就用真字形渲染：
+
+```sh
+# 和 font.ttf 同级（Termux:Styling 只写 font.ttf，不会碰这个文件，要自己放）
+~/.termux/font-italic.ttf
+```
+
+* **没有该文件时行为完全不变**（回退到原来的 -0.35 合成斜切），不会因为升级而突然变形。
+* 斜体字形会按 `'X'` 的字宽**水平缩放**到与正体同宽，所以斜体度量与正体不一致时也不会把网格
+  撑歪；对度量一致的字体缩放系数正好是 1，等于无失真。
+* 字体度量（行高/基线/列宽）一律取正体，保证网格对齐。
+* 加载失败（文件损坏）只会记一条日志，不影响正体和配色。
+* 相关文件：`TermuxConstants.TERMUX_FONT_ITALIC_FILE`、`TerminalRenderer`（`mItalicTypeface` /
+  `mItalicTextScaleX` / `setItalic()`）、`TerminalView.setTypeface(Typeface, Typeface)`、
+  `TermuxTerminalSessionActivityClient.checkForFontAndColors()`。
+
+### 13.2 OSC 8 超链接
+
+```sh
+# OSC 8 ; params ; URI ST ；URI 留空表示结束链接
+printf '\e]8;;https://example.com\e\\点我\e]8;;\e\\ 普通文字\n'
+```
+
+* 链接文字**自动加下划线**（和 xterm/VTE/kitty 一致），一眼能看出哪里可点。
+* **点击打开**复用现有开关 `terminal-onclick-url-open`（默认关，见 §6）。打开后：
+  被点格子的 OSC 8 链接优先，取不到才回退到原来的「纯文本里找 URL」逻辑。
+  （之所以共用同一个开关：默认关是为了不干扰在文字上点选，OSC 8 也一样。）
+* `params`（例如 `id=xxx`）按规范忽略；`BEL` 和 `ESC \` 两种结尾都支持。
+* 链接**按格存储**：滚动、改变列数时的 reflow、宽字符、备用屏切换都跟着文字走；
+  `EL`/`ED`/`ECH` 擦除会清掉链接；`ESC c`(RIS) 会清掉「当前链接」状态。
+* 换行**不会**自动结束链接（符合 OSC 8 规范：由程序显式用空 URI 结束）。
+* 未被覆盖的部分：长按「选择 URL」菜单仍然只看纯文本（不认 OSC 8 链接）。
+* 实现位置：`TerminalEmulator`（`mCurrentHyperlinkUri`、`doOsc` 的 `case 8`）、
+  `TerminalBuffer.setChar(...)/getHyperlinkAtLocation()`、`TerminalRow`（惰性 `int[] mHyperlinks`
+  + 每行 URI 表、`copyInterval`/`clear`）、`TerminalRenderer`（run 分组纳入链接 → 下划线）、
+  `TermuxTerminalViewClient.onSingleTapUp()`。
+* 单测：`OperatingSystemControlTest#testSetHyperlink*`（设置/结束/params/宽字符/擦除/RIS）、
+  `ResizeTest#testResizePreservesHyperlinks`、`TerminalRowTest#testHyperlink` /
+  `#testCopyIntervalCopiesHyperlinks`。
