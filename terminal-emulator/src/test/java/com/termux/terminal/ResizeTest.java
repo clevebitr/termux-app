@@ -209,4 +209,24 @@ public class ResizeTest extends TerminalTestCase {
 		resize(5, rows).assertLinesAre("ＱＲ ", "     ", "     ", "     ");
 	}
 
+	public void testResizePreservesHyperlinks() {
+		final int rows = 3, cols = 10;
+
+		withTerminalSized(cols, rows);
+		enterString("\033]8;;https://example.com\007abcdefghijklm\033]8;;\007");
+		assertLinesAre("abcdefghij", "klm       ", "          ");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(2, 1));
+
+		// The hyperlinks must be reflowed along with the text when the columns change.
+		resize(5, rows).assertLinesAre("abcde", "fghij", "klm  ");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(4, 1));
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(2, 2));
+
+		resize(cols, rows).assertLinesAre("abcdefghij", "klm       ", "          ");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(2, 1));
+	}
+
 }

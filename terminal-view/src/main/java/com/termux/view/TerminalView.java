@@ -660,12 +660,24 @@ public final class TerminalView extends View {
      * @param textSize the new font size, in density-independent pixels.
      */
     public void setTextSize(int textSize) {
-        mRenderer = new TerminalRenderer(textSize, mRenderer == null ? Typeface.MONOSPACE : mRenderer.mTypeface);
+        mRenderer = new TerminalRenderer(textSize, mRenderer == null ? Typeface.MONOSPACE : mRenderer.mTypeface,
+            mRenderer == null ? null : mRenderer.mItalicTypeface);
         updateSize();
     }
 
     public void setTypeface(Typeface newTypeface) {
-        mRenderer = new TerminalRenderer(mRenderer.mTextSize, newTypeface);
+        setTypeface(newTypeface, null);
+    }
+
+    /**
+     * Set the typeface used to render text and optionally the one used to render italic text.
+     *
+     * @param newTypeface The typeface to use for the terminal grid.
+     * @param newItalicTypeface The typeface to use for italic text, or {@code null} to render italic
+     *                          text by skewing the {@code newTypeface} glyphs.
+     */
+    public void setTypeface(Typeface newTypeface, @Nullable Typeface newItalicTypeface) {
+        mRenderer = new TerminalRenderer(mRenderer.mTextSize, newTypeface, newItalicTypeface);
         updateSize();
         invalidate();
     }

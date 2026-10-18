@@ -1,6 +1,8 @@
 package com.termux.terminal;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * A row in a terminal, composed of a fixed number of cells.
@@ -47,6 +49,18 @@ public final class TerminalRow {
     boolean mLineWrap;
     /** The style bits of each cell in the row. See {@link TextStyle}. */
     final long[] mStyle;
+    /**
+     * The hyperlink number + 1 of each cell in the row, or {@code null} if the row has no hyperlinks,
+     * since hyperlinks are rare and the array is therefore only allocated when needed. A value of 0
+     * means that the cell has no hyperlink. See {@link #setHyperlink(int, String)}.
+     */
+    private int[] mHyperlinks;
+    /**
+     * The URIs of the hyperlinks of the row, where the number stored in {@link #mHyperlinks} is the
+     * index in this list + 1. A list is used instead of a single URI, since a row can contain cells
+     * of multiple hyperlinks, like when a terminal program prints two links on the same line.
+     */
+    private List<String> mHyperlinkUris;
     /** If this row might contain chars with width != 1, used for deactivating fast path */
     boolean mHasNonOneWidthOrSurrogateChars;
     /** If this row has a {@link TerminalBitmap}. Used for performance only. */
@@ -67,6 +81,9 @@ public final class TerminalRow {
         final int x2 = line.findStartOfColumn(sourceX2);
         boolean startingFromSecondHalfOfWideChar = (sourceX1 > 0 && line.wideDisplayCharacterStartingAt(sourceX1 - 1));
         final char[] sourceChars = (this == line) ? Arrays.copyOf(line.mText, line.mText.length) : line.mText;
+        // Snapshot the hyperlinks of the source if the row is copied onto itself, since the destination
+        // cells may overwrite the source cells that are read by later iterations.
+        final int[] sourceHyperlinks = (this == line && line.mHyperlinks != null) ? Arrays.copyOf(line.mHyperlinks, line.mHyperlinks.length) : line.mHyperlinks;
         int latestNonCombiningWidth = 0;
         for (int i = x1; i < x2; i++) {
             char sourceChar = sourceChars[i];
@@ -82,7 +99,8 @@ public final class TerminalRow {
                 sourceX1 += latestNonCombiningWidth;
                 latestNonCombiningWidth = w;
             }
-            setChar(destinationX, codePoint, line.getStyle(sourceX1));
+            setChar(destinationX, codePoint, line.getStyle(sourceX1),
+                getHyperlink(sourceHyperlinks, line.mHyperlinkUris, sourceX1));
         }
     }
 
@@ -146,6 +164,8 @@ public final class TerminalRow {
     public void clear(long style) {
         Arrays.fill(mText, ' ');
         Arrays.fill(mStyle, style);
+        if (mHyperlinks != null) Arrays.fill(mHyperlinks, 0);
+        if (mHyperlinkUris != null) mHyperlinkUris.clear();
         mSpaceUsed = mColumns;
         mHasNonOneWidthOrSurrogateChars = false;
         mHasTerminalBitmap = false;
@@ -153,10 +173,22 @@ public final class TerminalRow {
 
     // https://github.com/steven676/Android-Terminal-Emulator/commit/9a47042620bec87617f0b4f5d50568535668fe26
     public void setChar(int columnToSet, int codePoint, long style) {
+        setChar(columnToSet, codePoint, style, null);
+    }
+
+    /**
+     * Set the character at the {@code columnToSet} with the given {@code style} and {@code hyperlinkUri},
+     * which may be {@code null} if the cell should not be part of an OSC 8 hyperlink.
+     */
+    public void setChar(int columnToSet, int codePoint, long style, String hyperlinkUri) {
         if (columnToSet  < 0 || columnToSet >= mStyle.length)
             throw new IllegalArgumentException("TerminalRow.setChar(): columnToSet=" + columnToSet + ", codePoint=" + codePoint + ", style=" + style);
 
         mStyle[columnToSet] = style;
+        setHyperlink(columnToSet, hyperlinkUri);
+        // A wide character occupies two columns, so also set the hyperlink for its second half so that
+        // it is found if that column is tapped on. Rendering only reads the first half.
+        if (WcWidth.width(codePoint) == 2 && columnToSet + 1 < mColumns) setHyperlink(columnToSet + 1, hyperlinkUri);
 
         if (!mHasTerminalBitmap && TextStyle.isTerminalBitmap(style)) {
             mHasTerminalBitmap = true;
@@ -183,10 +215,10 @@ public final class TerminalRow {
             if (wasExtraColForWideChar) columnToSet--;
         } else {
             // Check if we are overwriting the second half of a wide character starting at the previous column:
-            if (wasExtraColForWideChar) setChar(columnToSet - 1, ' ', style);
+            if (wasExtraColForWideChar) setChar(columnToSet - 1, ' ', style, hyperlinkUri);
             // Check if we are overwriting the first half of a wide character starting at the next column:
             boolean overwritingWideCharInNextColumn = newCodePointDisplayWidth == 2 && wideDisplayCharacterStartingAt(columnToSet + 1);
-            if (overwritingWideCharInNextColumn) setChar(columnToSet + 1, ' ', style);
+            if (overwritingWideCharInNextColumn) setChar(columnToSet + 1, ' ', style, hyperlinkUri);
         }
 
         char[] text = mText;
@@ -285,6 +317,42 @@ public final class TerminalRow {
 
     public final long getStyle(int column) {
         return mStyle[column];
+    }
+
+    /**
+     * Get the URI of the OSC 8 hyperlink that the {@code column} is part of, or {@code null} if the
+     * cell has no hyperlink.
+     */
+    public final String getHyperlink(int column) {
+        return getHyperlink(mHyperlinks, mHyperlinkUris, column);
+    }
+
+    private static String getHyperlink(int[] hyperlinks, List<String> hyperlinkUris, int column) {
+        if (hyperlinks == null || hyperlinkUris == null) return null;
+
+        int hyperlinkNum = hyperlinks[column];
+        return hyperlinkNum > 0 ? hyperlinkUris.get(hyperlinkNum - 1) : null;
+    }
+
+    /** Set the URI of the OSC 8 hyperlink of the {@code column}, or clear it if {@code uri} is null. */
+    private void setHyperlink(int column, String uri) {
+        if (uri == null) {
+            if (mHyperlinks != null) mHyperlinks[column] = 0;
+            return;
+        }
+
+        if (mHyperlinks == null) {
+            mHyperlinks = new int[mColumns];
+            mHyperlinkUris = new ArrayList<>();
+        }
+
+        int hyperlinkNum = mHyperlinkUris.indexOf(uri);
+        if (hyperlinkNum < 0) {
+            mHyperlinkUris.add(uri);
+            hyperlinkNum = mHyperlinkUris.size() - 1;
+        }
+
+        mHyperlinks[column] = hyperlinkNum + 1;
     }
 
 }

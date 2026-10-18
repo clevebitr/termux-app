@@ -363,13 +363,17 @@ public final class TerminalBuffer {
 
                 int currentOldCol = 0;
                 long styleAtCol = 0;
+                String hyperlinkAtCol = null;
                 for (int i = 0; i < lastNonSpaceIndex; i++) {
                     // Note that looping over java character, not cells.
                     char c = oldLine.mText[i];
                     int codePoint = (Character.isHighSurrogate(c)) ? Character.toCodePoint(c, oldLine.mText[++i]) : c;
                     int displayWidth = WcWidth.width(codePoint);
-                    // Use the last style if this is a zero-width character:
-                    if (displayWidth > 0) styleAtCol = oldLine.getStyle(currentOldCol);
+                    // Use the last style and hyperlink if this is a zero-width character:
+                    if (displayWidth > 0) {
+                        styleAtCol = oldLine.getStyle(currentOldCol);
+                        hyperlinkAtCol = oldLine.getHyperlink(currentOldCol);
+                    }
 
                     // Line wrap as necessary:
                     if (currentOutputExternalColumn + displayWidth > mColumns) {
@@ -385,7 +389,7 @@ public final class TerminalBuffer {
 
                     int offsetDueToCombiningChar = ((displayWidth <= 0 && currentOutputExternalColumn > 0) ? 1 : 0);
                     int outputColumn = currentOutputExternalColumn - offsetDueToCombiningChar;
-                    setChar(outputColumn, currentOutputExternalRow, codePoint, styleAtCol);
+                    setChar(outputColumn, currentOutputExternalRow, codePoint, styleAtCol, hyperlinkAtCol);
 
                     if (displayWidth > 0) {
                         if (oldCursorRow == externalOldRow && oldCursorColumn == currentOldCol) {
@@ -522,14 +526,36 @@ public final class TerminalBuffer {
     }
 
     public void setChar(int column, int row, int codePoint, long style) {
+        setChar(column, row, codePoint, style, null);
+    }
+
+    /**
+     * Set the character at the given {@code column} and {@code row} with the given {@code style} and
+     * {@code hyperlinkUri}, which may be {@code null} if the cell should not be part of an OSC 8 hyperlink.
+     */
+    public void setChar(int column, int row, int codePoint, long style, String hyperlinkUri) {
         if (row  < 0 || row >= mScreenRows || column < 0 || column >= mColumns)
             throw new IllegalArgumentException("TerminalBuffer.setChar(): row=" + row + ", column=" + column + ", mScreenRows=" + mScreenRows + ", mColumns=" + mColumns);
         row = externalToInternalRow(row);
-        allocateFullLineIfNecessary(row).setChar(column, codePoint, style);
+        allocateFullLineIfNecessary(row).setChar(column, codePoint, style, hyperlinkUri);
     }
 
     public long getStyleAt(int externalRow, int column) {
         return allocateFullLineIfNecessary(externalToInternalRow(externalRow)).getStyle(column);
+    }
+
+    /**
+     * Get the URI of the OSC 8 hyperlink that the cell at the given {@code x} and {@code y} coordinates
+     * is part of, or {@code null} if the cell has no hyperlink.
+     *
+     * @param x The column of the cell.
+     * @param y The row of the cell in the external coordinate system, where 0 is the top row of the
+     *          screen and negative values are transcript rows.
+     */
+    public String getHyperlinkAtLocation(int x, int y) {
+        if (x < 0 || x >= mColumns || y >= mScreenRows || y < -mActiveTranscriptRows) return null;
+
+        return allocateFullLineIfNecessary(externalToInternalRow(y)).getHyperlink(x);
     }
 
     /** Support for http://vt100.net/docs/vt510-rm/DECCARA and http://vt100.net/docs/vt510-rm/DECCARA */

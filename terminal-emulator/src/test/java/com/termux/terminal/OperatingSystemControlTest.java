@@ -193,4 +193,80 @@ public class OperatingSystemControlTest extends TerminalTestCase {
 		assertEnteringStringGivesResponse("\033]10;?\033\\", "\033]10;rgb:abab/cdcd/0000\033\\");
 	}
 
+	/** `OSC 8` sets the hyperlink of the text that is printed after it, until it is cleared. */
+	public void testSetHyperlink() {
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://example.com\007link\033]8;;\007 tail");
+		assertLineIs(0, "link tail ");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(3, 0));
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(4, 0));
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(5, 0));
+	}
+
+	public void testSetHyperlinkWithParams() {
+		// The params contain the optional id that terminal programs use to group hyperlinks and are ignored.
+		withTerminalSized(10, 3);
+		enterString("\033]8;id=1234;https://example.com\007link\033]8;;\007");
+		assertLineIs(0, "link      ");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(3, 0));
+	}
+
+	public void testSetHyperlinkTerminatedWithStringTerminator() {
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://example.com\033\\link\033]8;;\033\\ tail");
+		assertLineIs(0, "link tail ");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(4, 0));
+	}
+
+	public void testSetMultipleHyperlinksOnSameLine() {
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://one.example.com\007one\033]8;;\007 \033]8;;https://two.example.com\007two\033]8;;\007");
+		assertLineIs(0, "one two   ");
+		assertEquals("https://one.example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://one.example.com", mTerminal.getScreen().getHyperlinkAtLocation(2, 0));
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(3, 0));
+		assertEquals("https://two.example.com", mTerminal.getScreen().getHyperlinkAtLocation(4, 0));
+		assertEquals("https://two.example.com", mTerminal.getScreen().getHyperlinkAtLocation(6, 0));
+	}
+
+	public void testSetHyperlinkWithWideCharacter() {
+		// Unicode Character 'CJK UNIFIED IDEOGRAPH-679C' (U+679C), a character of display width 2.
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://example.com\007\u679C\033]8;;\007x");
+		assertLineIs(0, "\u679Cx        ");
+		// A character of display width 2 spans two cells, so both of its cells are part of the hyperlink.
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(1, 0));
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(2, 0));
+	}
+
+	public void testSetHyperlinkPersistsUntilCleared() {
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://example.com\007one\r\ntwo\033]8;;\007");
+		assertLinesAre("one       ", "two       ", "          ");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(2, 1));
+	}
+
+	public void testSetHyperlinkClearedOnErase() {
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://example.com\007link\033]8;;\007");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		enterString("\033[4D\033[4X");
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+	}
+
+	public void testSetHyperlinkClearedOnReset() {
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://example.com\007a");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		enterString("\033c");
+		placeCursorAndAssert(0, 0);
+		enterString("b");
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+	}
+
 }

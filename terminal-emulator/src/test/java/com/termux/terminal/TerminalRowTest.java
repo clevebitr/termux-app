@@ -429,4 +429,43 @@ public class TerminalRowTest extends TestCase {
 		// assertEquals(' ', line.mText[line.findStartOfColumn(COLUMNS - 1)]);
 	}
 
+	public void testHyperlink() {
+		row.setChar(0, 'a', TextStyle.NORMAL, "https://example.com");
+		row.setChar(1, 'b', TextStyle.NORMAL, null);
+		row.setChar(2, ONE_JAVA_CHAR_DISPLAY_WIDTH_TWO_1, TextStyle.NORMAL, "https://example.com");
+		assertEquals("https://example.com", row.getHyperlink(0));
+		assertNull(row.getHyperlink(1));
+		// Both cells of a character of display width 2 are part of the hyperlink.
+		assertEquals("https://example.com", row.getHyperlink(2));
+		assertEquals("https://example.com", row.getHyperlink(3));
+		assertNull(row.getHyperlink(4));
+
+		// Overwriting a cell clears its hyperlink.
+		row.setChar(0, 'c', TextStyle.NORMAL, null);
+		assertNull(row.getHyperlink(0));
+
+		// Clearing the row clears its hyperlinks.
+		row.clear(TextStyle.NORMAL);
+		assertNull(row.getHyperlink(2));
+		assertNull(row.getHyperlink(3));
+	}
+
+	public void testCopyIntervalCopiesHyperlinks() {
+		row.setChar(0, 'a', TextStyle.NORMAL, "https://one.example.com");
+		row.setChar(1, 'b', TextStyle.NORMAL, null);
+		row.setChar(2, 'c', TextStyle.NORMAL, "https://two.example.com");
+
+		TerminalRow other = new TerminalRow(COLUMNS, TextStyle.NORMAL);
+		other.copyInterval(row, 0, 3, 0);
+		assertEquals("https://one.example.com", other.getHyperlink(0));
+		assertNull(other.getHyperlink(1));
+		assertEquals("https://two.example.com", other.getHyperlink(2));
+
+		// A row can be copied onto itself, in which case the source hyperlinks must be read before
+		// the destination cells overwrite them.
+		row.copyInterval(row, 0, 3, 1);
+		assertEquals("https://one.example.com", row.getHyperlink(1));
+		assertEquals("https://two.example.com", row.getHyperlink(3));
+	}
+
 }

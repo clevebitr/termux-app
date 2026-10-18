@@ -528,7 +528,22 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             updateBackgroundColor();
 
             final Typeface newTypeface = (fontFile.exists() && fontFile.length() > 0) ? Typeface.createFromFile(fontFile) : Typeface.MONOSPACE;
-            mActivity.getTerminalView().setTypeface(newTypeface);
+
+            // Use the `font-italic.ttf` file for italic text, if it exists, so that a real italic font
+            // is used instead of the synthetic skew that is applied to the `font.ttf` glyphs. A failure
+            // to load it must not prevent the font and colors from being applied, since the italic font
+            // is optional.
+            Typeface newItalicTypeface = null;
+            File italicFontFile = TermuxConstants.TERMUX_FONT_ITALIC_FILE;
+            if (italicFontFile.exists() && italicFontFile.length() > 0) {
+                try {
+                    newItalicTypeface = Typeface.createFromFile(italicFontFile);
+                } catch (Exception e) {
+                    Logger.logStackTraceWithMessage(LOG_TAG, "Failed to load the italic font file at \"" + italicFontFile.getAbsolutePath() + "\"", e);
+                }
+            }
+
+            mActivity.getTerminalView().setTypeface(newTypeface, newItalicTypeface);
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Error in checkForFontAndColors()", e);
         }

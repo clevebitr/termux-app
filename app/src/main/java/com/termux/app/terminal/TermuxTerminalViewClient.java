@@ -195,6 +195,15 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
 
         if (mActivity.getProperties().shouldOpenTerminalTranscriptURLOnClick()) {
             int[] columnAndRow = mActivity.getTerminalView().getColumnAndRow(e, true);
+
+            // Prefer the OSC 8 hyperlink that the tapped cell is explicitly part of over a URL found in
+            // the text of the cell, since the text may be a shortened or different form of the link.
+            String hyperlink = term.getScreen().getHyperlinkAtLocation(columnAndRow[0], columnAndRow[1]);
+            if (hyperlink != null) {
+                ShareUtils.openUrl(mActivity, hyperlink);
+                return;
+            }
+
             String wordAtTap = term.getScreen().getWordAtLocation(columnAndRow[0], columnAndRow[1]);
             LinkedHashSet<CharSequence> urlSet = TermuxUrlUtils.extractUrls(wordAtTap);
 

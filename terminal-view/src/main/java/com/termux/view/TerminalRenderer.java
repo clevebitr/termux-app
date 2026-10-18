@@ -9,6 +9,8 @@ import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.os.Build;
 
+import androidx.annotation.Nullable;
+
 import com.termux.terminal.TerminalBuffer;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalRow;
@@ -24,6 +26,15 @@ public final class TerminalRenderer {
 
     final int mTextSize;
     final Typeface mTypeface;
+    /**
+     * The typeface used to render italic text, or {@code null} if italic text should be rendered by
+     * skewing {@link #mTypeface} glyphs, since no italic font file was provided. The glyphs of this
+     * typeface are scaled horizontally by {@link #mItalicTextScaleX} so that they keep the terminal
+     * grid of {@link #mTypeface}, whose metrics are used for layout.
+     */
+    final Typeface mItalicTypeface;
+    /** The horizontal scale to apply to {@link #mItalicTypeface} glyphs to match {@link #mFontWidth}. */
+    private final float mItalicTextScaleX;
     private final Paint mTextPaint = new Paint();
 
     /** The width of a single mono spaced character obtained by {@link Paint#measureText(String)} on a single 'X'. */
@@ -38,6 +49,10 @@ public final class TerminalRenderer {
     private final float[] asciiMeasures = new float[127];
 
     public TerminalRenderer(int textSize, Typeface typeface) {
+        this(textSize, typeface, null);
+    }
+
+    public TerminalRenderer(int textSize, Typeface typeface, @Nullable Typeface italicTypeface) {
         mTextSize = textSize;
         mTypeface = typeface;
 
@@ -49,6 +64,20 @@ public final class TerminalRenderer {
         mFontAscent = (int) Math.ceil(mTextPaint.ascent());
         mFontLineSpacingAndAscent = mFontLineSpacing + mFontAscent;
         mFontWidth = mTextPaint.measureText("X");
+
+        // The italic typeface may not be truly monospace with the same metrics as the typeface used
+        // for the terminal grid, so its glyphs are scaled horizontally to match the cell width. This
+        // is a no-op for italic fonts that are metric compatible with the regular one.
+        if (italicTypeface != null) {
+            mItalicTypeface = italicTypeface;
+            mTextPaint.setTypeface(italicTypeface);
+            float italicFontWidth = mTextPaint.measureText("X");
+            mItalicTextScaleX = italicFontWidth > 0 ? mFontWidth / italicFontWidth : 1.f;
+            mTextPaint.setTypeface(typeface);
+        } else {
+            mItalicTypeface = null;
+            mItalicTextScaleX = 1.f;
+        }
 
         StringBuilder sb = new StringBuilder(" ");
         for (int i = 0; i < asciiMeasures.length; i++) {
@@ -91,6 +120,7 @@ public final class TerminalRenderer {
             long lastRunStyle = 0;
             boolean lastRunInsideCursor = false;
             boolean lastRunInsideSelection = false;
+            boolean lastRunHasHyperlink = false;
             int lastRunStartColumn = -1;
             int lastRunStartIndex = 0;
             boolean lastRunFontWidthMismatch = false;
@@ -103,6 +133,9 @@ public final class TerminalRenderer {
                 final int charsForCodePoint = charIsHighsurrogate ? 2 : 1;
                 final int codePoint = charIsHighsurrogate ? Character.toCodePoint(charAtIndex, line[currentCharIndex + 1]) : charAtIndex;
                 final long style = lineObject.getStyle(column);
+                // Hyperlinks are underlined, so a cell of a hyperlink must be drawn in a separate run
+                // from adjacent cells that do not have one.
+                final boolean hasHyperlink = lineObject.getHyperlink(column) != null;
                 if (TextStyle.isTerminalBitmap(style)) {
                     Bitmap bitmap = mEmulator.getScreen().getSixelBitmap(style);
                     if (bitmap != null) {
@@ -116,6 +149,7 @@ public final class TerminalRenderer {
                     measuredWidthForRun = 0.f;
                     lastRunStyle = 0;
                     lastRunInsideCursor = false;
+                    lastRunHasHyperlink = false;
                     lastRunStartColumn = column + 1;
                     lastRunStartIndex = currentCharIndex;
                     lastRunFontWidthMismatch = false;
@@ -134,7 +168,7 @@ public final class TerminalRenderer {
                     currentCharIndex, charsForCodePoint);
                 final boolean fontWidthMismatch = Math.abs(measuredCodePointWidth / mFontWidth - codePointWcWidth) > 0.01;
 
-                if (style != lastRunStyle || insideCursor != lastRunInsideCursor || insideSelection != lastRunInsideSelection || fontWidthMismatch || lastRunFontWidthMismatch) {
+                if (style != lastRunStyle || insideCursor != lastRunInsideCursor || insideSelection != lastRunInsideSelection || hasHyperlink != lastRunHasHyperlink || fontWidthMismatch || lastRunFontWidthMismatch) {
                     if (column == 0 || column == lastRunStartColumn) {
                         // Skip first column as there is nothing to draw, just record the current style.
                     } else {
@@ -147,12 +181,13 @@ public final class TerminalRenderer {
                         }
                         drawTextRun(canvas, line, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun,
                             lastRunStartIndex, charsSinceLastRun, measuredWidthForRun,
-                            cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
+                            cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection, lastRunHasHyperlink);
                     }
                     measuredWidthForRun = 0.f;
                     lastRunStyle = style;
                     lastRunInsideCursor = insideCursor;
                     lastRunInsideSelection = insideSelection;
+                    lastRunHasHyperlink = hasHyperlink;
                     lastRunStartColumn = column;
                     lastRunStartIndex = currentCharIndex;
                     lastRunFontWidthMismatch = fontWidthMismatch;
@@ -175,18 +210,19 @@ public final class TerminalRenderer {
                 invertCursorTextColor = true;
             }
             drawTextRun(canvas, line, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun, lastRunStartIndex, charsSinceLastRun,
-                measuredWidthForRun, cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
+                measuredWidthForRun, cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection, lastRunHasHyperlink);
         }
     }
 
     private void drawTextRun(Canvas canvas, char[] text, int[] palette, float y, int startColumn, int runWidthColumns,
                              int startCharIndex, int runWidthChars, float mes, int cursor, int cursorStyle,
-                             long textStyle, boolean reverseVideo) {
+                             long textStyle, boolean reverseVideo, boolean hasHyperlink) {
         int foreColor = TextStyle.decodeForeColor(textStyle);
         final int effect = TextStyle.decodeEffect(textStyle);
         int backColor = TextStyle.decodeBackColor(textStyle);
         final boolean bold = (effect & (TextStyle.CHARACTER_ATTRIBUTE_BOLD | TextStyle.CHARACTER_ATTRIBUTE_BLINK)) != 0;
-        final boolean underline = (effect & TextStyle.CHARACTER_ATTRIBUTE_UNDERLINE) != 0;
+        // Underline the text of an OSC 8 hyperlink, so that it can be seen, like other terminals do.
+        final boolean underline = (effect & TextStyle.CHARACTER_ATTRIBUTE_UNDERLINE) != 0 || hasHyperlink;
         final boolean italic = (effect & TextStyle.CHARACTER_ATTRIBUTE_ITALIC) != 0;
         final boolean strikeThrough = (effect & TextStyle.CHARACTER_ATTRIBUTE_STRIKETHROUGH) != 0;
         final boolean dim = (effect & TextStyle.CHARACTER_ATTRIBUTE_DIM) != 0;
@@ -251,7 +287,7 @@ public final class TerminalRenderer {
 
             mTextPaint.setFakeBoldText(bold);
             mTextPaint.setUnderlineText(underline);
-            mTextPaint.setTextSkewX(italic ? -0.35f : 0.f);
+            setItalic(italic);
             mTextPaint.setStrikeThruText(strikeThrough);
             mTextPaint.setColor(foreColor);
 
@@ -264,6 +300,22 @@ public final class TerminalRenderer {
         }
 
         if (savedMatrix) canvas.restore();
+    }
+
+    /**
+     * Set the italic rendering of {@link #mTextPaint}, using {@link #mItalicTypeface} if one was
+     * provided, otherwise falling back to skewing the {@link #mTypeface} glyphs.
+     */
+    private void setItalic(boolean italic) {
+        if (mItalicTypeface == null) {
+            mTextPaint.setTypeface(mTypeface);
+            mTextPaint.setTextScaleX(1.f);
+            mTextPaint.setTextSkewX(italic ? -0.35f : 0.f);
+        } else {
+            mTextPaint.setTypeface(italic ? mItalicTypeface : mTypeface);
+            mTextPaint.setTextScaleX(italic ? mItalicTextScaleX : 1.f);
+            mTextPaint.setTextSkewX(0.f);
+        }
     }
 
     public float getFontWidth() {
