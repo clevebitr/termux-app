@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 /*
- * Version: v0.22.0
+ * Version: v0.23.0
  * SPDX-License-Identifier: MIT
  *
  * Changelog
@@ -93,6 +93,9 @@ import java.util.Set;
  *
  * - 0.22.0 (2026-10-18)
  *      - Add `KEY_MOUSE_TAP_SHOWS_KEYBOARD`.
+ *
+ * - 0.23.0 (2026-10-18)
+ *      - Add `KEY_HIDE_EXTRA_KEYS_WHEN_SOFT_KEYBOARD_HIDDEN` and `KEY_TOUCH_DRAG_SENDS_MOUSE_DRAG`.
  */
 
 /**
@@ -140,6 +143,15 @@ public final class TermuxPropertyConstants {
 
 
 
+    /** Defines the key for whether the extra keys view should be hidden when the soft keyboard is
+     * hidden, since it is not useful without it for most users, and should be shown again when the
+     * soft keyboard is shown. The extra keys row is not useful when the soft keyboard is hidden for
+     * most users, and hiding it gives the terminal more rows. The manual toggle of the terminal
+     * toolbar is still respected. */
+    public static final String KEY_HIDE_EXTRA_KEYS_WHEN_SOFT_KEYBOARD_HIDDEN =  "hide-extra-keys-when-soft-keyboard-hidden"; // Default: "hide-extra-keys-when-soft-keyboard-hidden"
+
+
+
     /** Defines the key for whether the workaround for Gboard (and other IMEs) to be able to use CJK
      * keyboards, like Chinese Pinyin, in the terminal view should be enabled by using a text class
      * input type instead of `InputType.TYPE_NULL`, since Gboard otherwise only shows an ASCII
@@ -169,6 +181,14 @@ public final class TermuxPropertyConstants {
 
     /** Defines the key for whether url links in terminal transcript will automatically open on click or on tap */
     public static final String KEY_TERMINAL_ONCLICK_URL_OPEN =  "terminal-onclick-url-open"; // Default: "terminal-onclick-url-open"
+
+
+
+    /** Defines the key for whether a drag with a finger should be reported as a drag of the mouse
+     * pointer with the left button pressed instead of scroll wheel events when mouse tracking is
+     * active, so that terminal programs that support dragging, like for selecting text or resizing
+     * panes in a TUI, can handle the drag. */
+    public static final String KEY_TOUCH_DRAG_SENDS_MOUSE_DRAG =  "touch-drag-sends-mouse-drag"; // Default: "touch-drag-sends-mouse-drag"
 
 
 
@@ -455,10 +475,12 @@ public final class TermuxPropertyConstants {
         KEY_ENFORCE_CHAR_BASED_INPUT,
         KEY_EXTRA_KEYS_TEXT_ALL_CAPS,
         KEY_GBOARD_CJK_WORKAROUND,
+        KEY_HIDE_EXTRA_KEYS_WHEN_SOFT_KEYBOARD_HIDDEN,
         KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP,
         KEY_MOUSE_TAP_SHOWS_KEYBOARD,
         KEY_RUN_TERMUX_AM_SOCKET_SERVER,
         KEY_TERMINAL_ONCLICK_URL_OPEN,
+        KEY_TOUCH_DRAG_SENDS_MOUSE_DRAG,
         KEY_USE_CTRL_SPACE_WORKAROUND,
         KEY_USE_FULLSCREEN,
         KEY_USE_FULLSCREEN_WORKAROUND,
@@ -508,9 +530,11 @@ public final class TermuxPropertyConstants {
         KEY_DISABLE_TERMINAL_SESSION_CHANGE_TOAST,
         KEY_ENFORCE_CHAR_BASED_INPUT,
         KEY_GBOARD_CJK_WORKAROUND,
+        KEY_HIDE_EXTRA_KEYS_WHEN_SOFT_KEYBOARD_HIDDEN,
         KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP,
         KEY_MOUSE_TAP_SHOWS_KEYBOARD,
         KEY_TERMINAL_ONCLICK_URL_OPEN,
+        KEY_TOUCH_DRAG_SENDS_MOUSE_DRAG,
         KEY_USE_CTRL_SPACE_WORKAROUND,
         KEY_USE_FULLSCREEN,
         KEY_USE_FULLSCREEN_WORKAROUND,

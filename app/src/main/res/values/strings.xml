@@ -299,6 +299,25 @@
                 <string name="termux_hide_soft_keyboard_on_startup_on">The soft keyboard is hidden when the app
                     starts.</string>
 
+                <!-- Hide Extra Keys When Soft Keyboard Hidden -->
+                <string name="termux_hide_extra_keys_when_soft_keyboard_hidden_title">Hide Extra Keys When Keyboard
+                    Hidden</string>
+                <string name="termux_hide_extra_keys_when_soft_keyboard_hidden_off">The extra keys row is kept visible
+                    while the soft keyboard is hidden. (Default)</string>
+                <string name="termux_hide_extra_keys_when_soft_keyboard_hidden_on">The extra keys row is hidden while
+                    the soft keyboard is hidden, so that the terminal gets its rows, and is shown again when the soft
+                    keyboard is shown. Requires Android 6 or later. The toolbar can still be shown manually, which is
+                    kept until the soft keyboard visibility changes again.</string>
+
+                <!-- Touch Drag Sends Mouse Drag -->
+                <string name="termux_touch_drag_sends_mouse_drag_title">Touch Drag Sends Mouse Drag</string>
+                <string name="termux_touch_drag_sends_mouse_drag_off">Dragging with a finger sends scroll wheel
+                    events to terminal programs that use mouse tracking. (Default)</string>
+                <string name="termux_touch_drag_sends_mouse_drag_on">Dragging with a finger is reported as a drag of
+                    the mouse pointer, which programs that support dragging, like for selecting text or resizing
+                    panes in a TUI, can handle. Scrolling with a drag is then not reported as scroll wheel events
+                    to programs that use mouse tracking.</string>
+
                 <!-- Mouse Tap Shows Keyboard -->
                 <string name="termux_mouse_tap_shows_keyboard_title">Show Keyboard on Mouse Tap</string>
                 <string name="termux_mouse_tap_shows_keyboard_off">Taps with a mouse or while mouse tracking is active

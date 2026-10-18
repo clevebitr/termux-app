@@ -85,6 +85,13 @@ public final class TerminalView extends View {
     /** What was left in from scrolling movement. */
     float mScrollRemainder;
 
+    /**
+     * Whether a drag with a finger is being reported as a drag of the mouse pointer with the left
+     * button pressed, in which case the button must be released when the gesture ends. See
+     * {@link TerminalViewClient#shouldTouchDragSendMouseDrag()}.
+     */
+    private boolean mIsMouseDragFromTouchInProgress;
+
     /** If non-zero, this is the last unicode code point received if that was a combining character. */
     int mCombiningAccent;
 
@@ -157,6 +164,12 @@ public final class TerminalView extends View {
             @Override
             public boolean onUp(MotionEvent event) {
                 mScrollRemainder = 0.0f;
+                if (mIsMouseDragFromTouchInProgress) {
+                    mIsMouseDragFromTouchInProgress = false;
+                    scrolledWithFinger = false;
+                    sendMouseEventCode(event, TerminalEmulator.MOUSE_LEFT_BUTTON, false);
+                    return true;
+                }
                 if (mEmulator != null && mEmulator.isMouseTrackingActive() && !event.isFromSource(InputDevice.SOURCE_MOUSE) && !isSelectingText() && !scrolledWithFinger) {
                     // Quick event processing when mouse tracking is active - do not wait for check of double tapping
                     // for zooming.
@@ -182,20 +195,34 @@ public final class TerminalView extends View {
             }
 
             @Override
-            public boolean onScroll(MotionEvent e, float distanceX, float distanceY) {
+            public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
                 if (mEmulator == null) return true;
-                if (mEmulator.isMouseTrackingActive() && e.isFromSource(InputDevice.SOURCE_MOUSE)) {
-                    // If moving with mouse pointer while pressing button, report that instead of scroll.
-                    // This means that we never report moving with button press-events for touch input,
-                    // since we cannot just start sending these events without a starting press event,
-                    // which we do not do for touch input, only mouse in onTouchEvent().
-                    sendMouseEventCode(e, TerminalEmulator.MOUSE_LEFT_BUTTON_MOVED, true);
+
+                boolean fromMouse = e2.isFromSource(InputDevice.SOURCE_MOUSE);
+                // A drag with a finger is reported as a drag of the mouse pointer instead of scroll wheel
+                // events, if enabled, since the emulator cannot report a drag of the mouse pointer without a
+                // button press event and a terminal program that supports dragging needs one. This is not
+                // done when selecting text or after a long press, since the gesture then belongs to the view
+                // and the release of the button press would not be reported, which would leave the mouse
+                // pointer in a pressed state in the terminal program.
+                if (mEmulator.isMouseTrackingActive() &&
+                    (fromMouse || (mClient.shouldTouchDragSendMouseDrag() && !isSelectingText() && !mGestureRecognizer.isAfterLongPress))) {
+                    if (!fromMouse) {
+                        // The press must be reported before the first move, so that the terminal program knows
+                        // that a drag is being made and from which position, since a touch drag has no press
+                        // event of its own, unlike a drag with the mouse pointer in onTouchEvent().
+                        if (!mIsMouseDragFromTouchInProgress) {
+                            mIsMouseDragFromTouchInProgress = true;
+                            sendMouseEventCode(e1, TerminalEmulator.MOUSE_LEFT_BUTTON, true);
+                        }
+                    }
+                    sendMouseEventCode(e2, TerminalEmulator.MOUSE_LEFT_BUTTON_MOVED, true);
                 } else {
                     scrolledWithFinger = true;
                     distanceY += mScrollRemainder;
                     int deltaRows = (int) (distanceY / mRenderer.mFontLineSpacing);
                     mScrollRemainder = distanceY - deltaRows * mRenderer.mFontLineSpacing;
-                    doScroll(e, deltaRows);
+                    doScroll(e2, deltaRows);
                 }
                 return true;
             }
@@ -215,6 +242,11 @@ public final class TerminalView extends View {
                 if (!mScroller.isFinished()) return true;
 
                 final boolean mouseTrackingAtStartOfFling = mEmulator.isMouseTrackingActive();
+                // Do not send scroll wheel events for the inertial scroll of a drag with a finger, since the
+                // drag was already reported as a drag of the mouse pointer, if that is enabled.
+                if (mouseTrackingAtStartOfFling && !e2.isFromSource(InputDevice.SOURCE_MOUSE) && mClient.shouldTouchDragSendMouseDrag())
+                    return true;
+
                 float SCALE = 0.25f;
                 if (mouseTrackingAtStartOfFling) {
                     mScroller.fling(0, 0, 0, -(int) (velocityY * SCALE), 0, 0, -mEmulator.mRows / 2, mEmulator.mRows / 2);
@@ -766,6 +798,14 @@ public final class TerminalView extends View {
     public boolean onTouchEvent(MotionEvent event) {
         if (mEmulator == null) return true;
         final int action = event.getAction();
+
+        if (action == MotionEvent.ACTION_CANCEL && mIsMouseDragFromTouchInProgress) {
+            // Release the button press that was reported for a drag with a finger, since the gesture was
+            // cancelled and the release event would otherwise not be reported, which would leave the
+            // mouse pointer in a pressed state in the terminal program.
+            mIsMouseDragFromTouchInProgress = false;
+            sendMouseEventCode(event, TerminalEmulator.MOUSE_LEFT_BUTTON, false);
+        }
 
         if (isSelectingText()) {
             updateFloatingToolbarVisibility(event);

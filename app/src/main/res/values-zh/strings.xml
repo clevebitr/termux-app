@@ -286,6 +286,20 @@
                 <string name="termux_hide_soft_keyboard_on_startup_off">启动应用时不改变软键盘状态。（默认）</string>
                 <string name="termux_hide_soft_keyboard_on_startup_on">启动应用时隐藏软键盘。</string>
 
+                <!-- Hide Extra Keys When Soft Keyboard Hidden -->
+                <string name="termux_hide_extra_keys_when_soft_keyboard_hidden_title">软键盘隐藏时收起虚拟键盘</string>
+                <string name="termux_hide_extra_keys_when_soft_keyboard_hidden_off">软键盘隐藏时仍然显示额外按键行。（默认）</string>
+                <string name="termux_hide_extra_keys_when_soft_keyboard_hidden_on">软键盘隐藏时收起额外按键行，把这行还给终端；
+                    软键盘再次弹出时自动恢复。需要 Android 6 或更高版本。手动显示工具栏的优先，
+                    直到软键盘状态再次变化。</string>
+
+                <!-- Touch Drag Sends Mouse Drag -->
+                <string name="termux_touch_drag_sends_mouse_drag_title">手指拖拽按鼠标拖拽上报</string>
+                <string name="termux_touch_drag_sends_mouse_drag_off">手指拖拽会向使用鼠标跟踪的终端程序上报滚轮事件。（默认）</string>
+                <string name="termux_touch_drag_sends_mouse_drag_on">手指拖拽改为上报为鼠标指针拖拽，支持拖拽的程序
+                    （如在 TUI 里选择文本、调整窗格大小）可以处理它。此后使用鼠标跟踪的程序不会再
+                    收到拖拽产生的滚轮事件。</string>
+
                 <!-- Mouse Tap Shows Keyboard -->
                 <string name="termux_mouse_tap_shows_keyboard_title">鼠标点按唤键盘</string>
                 <string name="termux_mouse_tap_shows_keyboard_off">鼠标点击以及鼠标跟踪生效时的点击会转发给终端，

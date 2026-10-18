@@ -75,4 +75,41 @@ public class DecSetTest extends TerminalTestCase {
 		enterString("\033[?7hhij").assertLinesAre("abh", "ij ", "   ");
 	}
 
+	/** DECSET 1004 controls whether focus in and focus out events are reported to the terminal. */
+	public void testSendFocusEvent() {
+		withTerminalSized(3, 3);
+
+		// Focus events should not be sent if the terminal has not enabled focus reporting:
+		mTerminal.setWindowFocused(false);
+		mTerminal.setWindowFocused(true);
+		assertEquals("", mOutput.getOutputAndClear());
+
+		// Enabling focus reporting should report the current focus state:
+		enterString("\033[?1004h");
+		assertEquals("\033[I", mOutput.getOutputAndClear());
+
+		mTerminal.setWindowFocused(false);
+		assertEquals("\033[O", mOutput.getOutputAndClear());
+		mTerminal.setWindowFocused(true);
+		assertEquals("\033[I", mOutput.getOutputAndClear());
+
+		// Setting the same state again should not be reported, to not spam the terminal program:
+		mTerminal.setWindowFocused(true);
+		assertEquals("", mOutput.getOutputAndClear());
+
+		enterString("\033[?1004l");
+		mTerminal.setWindowFocused(false);
+		mTerminal.setWindowFocused(true);
+		assertEquals("", mOutput.getOutputAndClear());
+
+		// Enabling focus reporting while the window does not have focus should report focus out, and a
+		// terminal reset should disable focus reporting as well:
+		mTerminal.setWindowFocused(false);
+		enterString("\033[?1004h");
+		assertEquals("\033[O", mOutput.getOutputAndClear());
+		mTerminal.reset();
+		mTerminal.setWindowFocused(true);
+		assertEquals("", mOutput.getOutputAndClear());
+	}
+
 }

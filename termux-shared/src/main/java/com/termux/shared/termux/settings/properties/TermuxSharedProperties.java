@@ -710,6 +710,17 @@ public abstract class TermuxSharedProperties {
     }
 
     /**
+     * Get the {@link TermuxPropertyConstants#KEY_HIDE_EXTRA_KEYS_WHEN_SOFT_KEYBOARD_HIDDEN} boolean value.
+     *
+     * If enabled, then the extra keys view is hidden when the soft keyboard is hidden and shown again
+     * when it is shown, since the extra keys row is not useful without the soft keyboard for most
+     * users, and hiding it gives the terminal more rows.
+     */
+    public boolean shouldHideExtraKeysWhenSoftKeyboardIsHidden() {
+        return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_HIDE_EXTRA_KEYS_WHEN_SOFT_KEYBOARD_HIDDEN, true);
+    }
+
+    /**
      * Get the {@link TermuxPropertyConstants#KEY_MOUSE_TAP_SHOWS_KEYBOARD} boolean value.
      *
      * If enabled, then the soft keyboard will also be shown when the terminal view is tapped with a
@@ -726,6 +737,17 @@ public abstract class TermuxSharedProperties {
 
     public boolean shouldOpenTerminalTranscriptURLOnClick() {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_TERMINAL_ONCLICK_URL_OPEN, true);
+    }
+
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_TOUCH_DRAG_SENDS_MOUSE_DRAG} boolean value.
+     *
+     * If enabled, then a drag with a finger is reported as a drag of the mouse pointer with the left
+     * button pressed, instead of scroll wheel events, when mouse tracking is active, so that terminal
+     * programs that support dragging can handle it.
+     */
+    public boolean shouldTouchDragSendMouseDrag() {
+        return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_TOUCH_DRAG_SENDS_MOUSE_DRAG, true);
     }
 
     public boolean isUsingCtrlSpaceWorkaround() {

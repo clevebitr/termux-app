@@ -59,6 +59,18 @@
             app:title="@string/termux_hide_soft_keyboard_on_startup_title" />
 
         <SwitchPreferenceCompat
+            app:key="hide-extra-keys-when-soft-keyboard-hidden"
+            app:summaryOff="@string/termux_hide_extra_keys_when_soft_keyboard_hidden_off"
+            app:summaryOn="@string/termux_hide_extra_keys_when_soft_keyboard_hidden_on"
+            app:title="@string/termux_hide_extra_keys_when_soft_keyboard_hidden_title" />
+
+        <SwitchPreferenceCompat
+            app:key="touch-drag-sends-mouse-drag"
+            app:summaryOff="@string/termux_touch_drag_sends_mouse_drag_off"
+            app:summaryOn="@string/termux_touch_drag_sends_mouse_drag_on"
+            app:title="@string/termux_touch_drag_sends_mouse_drag_title" />
+
+        <SwitchPreferenceCompat
             app:key="mouse-tap-shows-keyboard"
             app:summaryOff="@string/termux_mouse_tap_shows_keyboard_off"
             app:summaryOn="@string/termux_mouse_tap_shows_keyboard_on"

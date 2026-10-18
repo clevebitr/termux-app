@@ -42,6 +42,14 @@ public interface TerminalViewClient {
 
     boolean shouldUseCtrlSpaceWorkaround();
 
+    /**
+     * Whether a drag with a finger should be reported as a drag of the mouse pointer with the left
+     * button pressed, instead of scroll wheel events, when mouse tracking is active, so that terminal
+     * programs that support dragging, like for selecting text or resizing panes in a TUI, can handle
+     * the drag.
+     */
+    boolean shouldTouchDragSendMouseDrag();
+
     boolean isTerminalViewSelected();
 
 

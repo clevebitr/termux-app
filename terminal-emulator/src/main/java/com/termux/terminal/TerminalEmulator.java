@@ -200,7 +200,7 @@ public final class TerminalEmulator {
     private static final int DECSET_BIT_MOUSE_TRACKING_PRESS_RELEASE = 1 << 6;
     /** DECSET 1002 - like 1000, but report moving mouse while pressed. */
     private static final int DECSET_BIT_MOUSE_TRACKING_BUTTON_EVENT = 1 << 7;
-    /** DECSET 1004 - NOT implemented. */
+    /** DECSET 1004 - if to report focus in&out events. */
     private static final int DECSET_BIT_SEND_FOCUS_EVENTS = 1 << 8;
     /** DECSET 1006 - SGR-like mouse protocol (the modern sane choice). */
     private static final int DECSET_BIT_MOUSE_PROTOCOL_SGR = 1 << 9;
@@ -679,6 +679,44 @@ public final class TerminalEmulator {
     /** If mouse events are being sent as escape codes to the terminal. */
     public boolean isMouseTrackingActive() {
         return isDecsetInternalBitSet(DECSET_BIT_MOUSE_TRACKING_PRESS_RELEASE) || isDecsetInternalBitSet(DECSET_BIT_MOUSE_TRACKING_BUTTON_EVENT);
+    }
+
+    /**
+     * Whether the terminal window has focus, which is assumed to be the case until reported
+     * otherwise, since the terminal session is normally created while the window has focus.
+     */
+    private boolean mIsWindowFocused = true;
+
+    /** If focus in and focus out events are being sent to the terminal. */
+    public boolean isReportingFocusEvents() {
+        return isDecsetInternalBitSet(DECSET_BIT_SEND_FOCUS_EVENTS);
+    }
+
+    /**
+     * Set whether the terminal window has focus and report the change to the terminal program, if it
+     * has enabled focus reporting with `DECSET 1004`.
+     *
+     * The terminal program can use it to know when the terminal window has gained or lost focus, like
+     * to save files when the user switches to another app or session, which cannot be done when the
+     * app is not visible. See http://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Focus-In-Focus-Out.
+     *
+     * @param focused Whether the terminal window has focus.
+     */
+    public void setWindowFocused(boolean focused) {
+        if (mIsWindowFocused == focused) return;
+
+        mIsWindowFocused = focused;
+        sendFocusEvent();
+    }
+
+    /**
+     * Report the focus state of the terminal window to the terminal program, if it has enabled focus
+     * reporting with `DECSET 1004`. The events are `CSI I` for focus in and `CSI O` for focus out.
+     */
+    private void sendFocusEvent() {
+        if (!isReportingFocusEvents()) return;
+
+        mSession.write(mIsWindowFocused ? "\033[I" : "\033[O");
     }
 
     private void setDefaultTabStops() {
@@ -1843,11 +1881,15 @@ public final class TerminalEmulator {
             case 1001:
             case 1002:
             case 1003:
-            case 1004:
             case 1005: // UTF-8 mouse mode, ignore.
             case 1006: // SGR Mouse Mode
             case 1015:
             case 1034: // Interpret "meta" key, sets eighth bit.
+                break;
+            case 1004: // Report focus in&out events.
+                // Report the current focus state, since the terminal program would otherwise not know
+                // whether the terminal window has focus until it loses and gains it again.
+                if (setting) sendFocusEvent();
                 break;
             case 1048: // Set: Save cursor as in DECSC. Reset: Restore cursor as in DECRC.
                 if (setting)

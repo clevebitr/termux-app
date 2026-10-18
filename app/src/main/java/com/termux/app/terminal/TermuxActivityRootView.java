@@ -120,6 +120,10 @@ public class TermuxActivityRootView extends LinearLayout implements ViewTreeObse
     public void onGlobalLayout() {
         if (mActivity == null || !mActivity.isVisible()) return;
 
+        // Update the terminal toolbar visibility, since the layout changes when the soft keyboard is
+        // shown or hidden and its visibility can only be checked then.
+        mActivity.updateTerminalToolbarVisibilityForSoftKeyboardVisibility();
+
         View bottomSpaceView = mActivity.getTermuxActivityBottomSpaceView();
         if (bottomSpaceView == null) return;
 

@@ -55,9 +55,11 @@ import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
 import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 import com.termux.shared.termux.theme.TermuxThemeUtils;
 import com.termux.shared.theme.NightMode;
+import com.termux.shared.view.KeyboardUtils;
 import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalColors;
 import com.termux.terminal.TerminalColorScheme;
+import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.view.TerminalView;
@@ -72,6 +74,7 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.viewpager.widget.ViewPager;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * A terminal emulator activity.
@@ -175,6 +178,19 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * `extra-keys-style` properties.
      */
     private boolean mRecreateActivityOnStart;
+
+    /**
+     * Whether the soft keyboard was last reported as visible, or {@code null} if it has not been
+     * determined yet. See {@link #updateTerminalToolbarVisibilityForSoftKeyboardVisibility()}.
+     */
+    private Boolean mIsSoftKeyboardVisibleForToolbar;
+
+    /**
+     * Whether the terminal toolbar visibility was last set manually by the user, in which case the
+     * `hide-extra-keys-when-soft-keyboard-hidden` property does not change it until the soft keyboard
+     * visibility changes again.
+     */
+    private boolean mIsTerminalToolbarVisibilitySetManually;
 
     /**
      * If onResume() was called after onCreate().
@@ -322,7 +338,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (mTermuxTerminalViewClient != null)
             mTermuxTerminalViewClient.onStart();
 
-        if (mPreferences.isTerminalMarginAdjustmentEnabled())
+        if (mPreferences.isTerminalMarginAdjustmentEnabled() || mProperties.shouldHideExtraKeysWhenSoftKeyboardIsHidden())
             addTermuxActivityRootViewGlobalLayoutListener();
 
         // Apply the styling reload requested by the settings activities while this activity was stopped.
@@ -355,6 +371,31 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         TermuxCrashUtils.notifyAppCrashFromCrashLogFile(this, LOG_TAG);
 
         mIsOnResumeAfterOnCreate = false;
+    }
+
+    /**
+     * Report the focus change of the terminal window to the terminal program of the current session,
+     * if it has enabled focus reporting with `DECSET 1004`. A program can use it to know when the app
+     * is switched away from, like to save files, which cannot be done when the app is not visible.
+     */
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+
+        Logger.logVerbose(LOG_TAG, "onWindowFocusChanged(hasFocus=" + hasFocus + ")");
+
+        if (mIsInvalidState) return;
+
+        TerminalSession session = getCurrentSession();
+        if (session == null) return;
+
+        TerminalEmulator emulator = session.getEmulator();
+        if (emulator != null) emulator.setWindowFocused(hasFocus);
+    }
+
+    /** Returns whether the window of the activity currently has focus. */
+    public boolean isWindowFocused() {
+        return hasWindowFocus();
     }
 
     @Override
@@ -613,11 +654,64 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         final boolean showNow = mPreferences.toogleShowTerminalToolbar();
         Logger.showToast(this, (showNow ? getString(R.string.msg_enabling_terminal_toolbar) : getString(R.string.msg_disabling_terminal_toolbar)), true);
-        terminalToolbarViewPager.setVisibility(showNow ? View.VISIBLE : View.GONE);
-        if (showNow && isTerminalToolbarTextInputViewSelected()) {
+        // The user made the choice manually, so it should be respected even if the
+        // `hide-extra-keys-when-soft-keyboard-hidden` property would hide the toolbar, until the soft
+        // keyboard visibility changes again.
+        mIsTerminalToolbarVisibilitySetManually = true;
+        setTerminalToolbarVisibility(showNow);
+    }
+
+    private void setTerminalToolbarVisibility(boolean visible) {
+        final ViewPager terminalToolbarViewPager = getTerminalToolbarViewPager();
+        if (terminalToolbarViewPager == null) return;
+
+        if ((terminalToolbarViewPager.getVisibility() == View.VISIBLE) == visible) return;
+
+        terminalToolbarViewPager.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (visible && isTerminalToolbarTextInputViewSelected()) {
             // Focus the text input view if just revealed.
             findViewById(R.id.terminal_toolbar_text_input).requestFocus();
         }
+    }
+
+    /**
+     * Update whether the terminal toolbar is visible based on the soft keyboard visibility, if the
+     * `hide-extra-keys-when-soft-keyboard-hidden` property is enabled, so that the rows occupied by
+     * the extra keys are given back to the terminal while the soft keyboard is hidden, like when the
+     * terminal is being read.
+     *
+     * The soft keyboard visibility can only be checked when the layout is updated, so this must be
+     * called from an {@link android.view.ViewTreeObserver.OnGlobalLayoutListener}, and needs to be
+     * called when the properties are reloaded so that a change of the property takes effect
+     * immediately even if the layout does not change afterwards.
+     */
+    public void updateTerminalToolbarVisibilityForSoftKeyboardVisibility() {
+        if (mIsInvalidState || mProperties == null || mPreferences == null) return;
+
+        boolean hideWhenSoftKeyboardIsHidden = mProperties.shouldHideExtraKeysWhenSoftKeyboardIsHidden();
+
+        Boolean isSoftKeyboardVisible = null;
+        if (hideWhenSoftKeyboardIsHidden && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // The soft keyboard visibility cannot be checked on android 7 and below, so the toolbar
+            // visibility is not updated based on it there.
+            isSoftKeyboardVisible = KeyboardUtils.isSoftKeyboardVisible(this) ? Boolean.TRUE : Boolean.FALSE;
+        }
+
+        if (!Objects.equals(isSoftKeyboardVisible, mIsSoftKeyboardVisibleForToolbar)) {
+            // The soft keyboard visibility changed, so the user should have to toggle the toolbar again
+            // if they want it shown while the soft keyboard is hidden.
+            mIsSoftKeyboardVisibleForToolbar = isSoftKeyboardVisible;
+            mIsTerminalToolbarVisibilitySetManually = false;
+        }
+
+        boolean isTerminalToolbarVisible = mPreferences.shouldShowTerminalToolbar();
+        if (isTerminalToolbarVisible && hideWhenSoftKeyboardIsHidden && !mIsTerminalToolbarVisibilitySetManually &&
+            Boolean.FALSE.equals(isSoftKeyboardVisible)) {
+            Logger.logDebug(LOG_TAG, "Hiding terminal toolbar since the soft keyboard is hidden");
+            isTerminalToolbarVisible = false;
+        }
+
+        setTerminalToolbarVisibility(isTerminalToolbarVisible);
     }
 
     private void saveTerminalToolbarTextInput(Bundle savedInstanceState) {
@@ -1160,6 +1254,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         setMargins();
         setTerminalToolbarHeight();
+
+        // Update the terminal toolbar visibility in case the `hide-extra-keys-when-soft-keyboard-hidden`
+        // property was changed or disabled while the soft keyboard was hidden, since the layout may not
+        // change afterwards, like if the toolbar is hidden by this or if the terminal view does not change.
+        updateTerminalToolbarVisibilityForSoftKeyboardVisibility();
 
         FileReceiverActivity.updateFileReceiverActivityComponentsState(this);
 

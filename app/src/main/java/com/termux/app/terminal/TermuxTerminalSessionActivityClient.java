@@ -298,9 +298,21 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     public void setCurrentSession(TerminalSession session) {
         if (session == null) return;
 
+        TerminalSession previousSession = mActivity.getCurrentSession();
+
         if (mActivity.getTerminalView().attachSession(session)) {
             // notify about switched session if not already displaying the session
             notifyOfSessionChange();
+
+            // Only the session being displayed can have focus, so report the focus change to the terminal
+            // programs of the previous and the new session, if they have enabled focus reporting with
+            // `DECSET 1004`. The focus state of the new session is synced even if the window does not have
+            // focus, so that a program that enables focus reporting later is reported the correct state.
+            if (previousSession != null && previousSession.getEmulator() != null)
+                previousSession.getEmulator().setWindowFocused(false);
+
+            if (session.getEmulator() != null)
+                session.getEmulator().setWindowFocused(mActivity.isWindowFocused());
         }
 
         // We call the following even when the session is already being displayed since config may

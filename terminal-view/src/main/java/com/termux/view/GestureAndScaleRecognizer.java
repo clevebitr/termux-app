@@ -13,7 +13,12 @@ final class GestureAndScaleRecognizer {
 
         boolean onDoubleTap(MotionEvent e);
 
-        boolean onScroll(MotionEvent e2, float dx, float dy);
+        /**
+         * @param e1 The initial down event of the gesture, which is needed to report the position at
+         *           which a drag of the mouse pointer should be started for touch input.
+         * @param e2 The current move event of the gesture.
+         */
+        boolean onScroll(MotionEvent e1, MotionEvent e2, float dx, float dy);
 
         boolean onFling(MotionEvent e, float velocityX, float velocityY);
 
@@ -37,7 +42,7 @@ final class GestureAndScaleRecognizer {
         mGestureDetector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onScroll(MotionEvent e1, MotionEvent e2, float dx, float dy) {
-                return mListener.onScroll(e2, dx, dy);
+                return mListener.onScroll(e1, e2, dx, dy);
             }
 
             @Override
