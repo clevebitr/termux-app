@@ -1,0 +1,50 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        app:key="input_method"
+        app:title="@string/termux_keyboard_input_method_header">
+
+        <SwitchPreferenceCompat
+            app:key="gboard-cjk-workaround"
+            app:title="@string/termux_gboard_cjk_workaround_title"
+            app:summaryOff="@string/termux_gboard_cjk_workaround_off"
+            app:summaryOn="@string/termux_gboard_cjk_workaround_on" />
+
+        <SwitchPreferenceCompat
+            app:key="enforce-char-based-input"
+            app:title="@string/termux_enforce_char_based_input_title"
+            app:summaryOff="@string/termux_enforce_char_based_input_off"
+            app:summaryOn="@string/termux_enforce_char_based_input_on" />
+
+        <SwitchPreferenceCompat
+            app:key="ctrl-space-workaround"
+            app:title="@string/termux_ctrl_space_workaround_title"
+            app:summaryOff="@string/termux_ctrl_space_workaround_off"
+            app:summaryOn="@string/termux_ctrl_space_workaround_on" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="extra_keys_colors"
+        app:title="@string/termux_extra_keys_colors_header"
+        app:summary="@string/termux_extra_keys_colors_summary">
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="extra-keys-foreground"
+            app:title="@string/termux_extra_keys_foreground_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="extra-keys-background"
+            app:title="@string/termux_extra_keys_background_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="extra-keys-active-foreground"
+            app:title="@string/termux_extra_keys_active_foreground_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="extra-keys-active-background"
+            app:title="@string/termux_extra_keys_active_background_title" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

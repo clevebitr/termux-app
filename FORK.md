@@ -386,3 +386,30 @@ night-mode=color-scheme
 实现位置：`NightMode` 新增 `COLOR_SCHEME`；`TermuxThemeUtils.resolveNightMode()` /
 `isLightBackground()`；`TermuxActivity.updateNightMode()` / `updateWindowBackgroundColor()`；
 `TermuxTerminalSessionActivityClient.checkForFontAndColors()` / `updateBackgroundColor()` / `onResume()`。
+
+---
+
+## 9. 设置页里的图形化开关（不用再手改 properties）
+
+设置 → Termux → **Terminal Keyboard**（新页面）里现在可以直接调：
+
+* **Input Method** 分类
+  * `Gboard CJK Keyboards` = `gboard-cjk-workaround`
+  * `Enforce Character Based Input` = `enforce-char-based-input`
+  * `Ctrl+Space Workaround` = `ctrl-space-workaround`
+* **Extra Keys Colors** 分类（4 项，点进去是色板）
+  * `Text Color` / `Background Color` / `Active Text Color` / `Active Background Color`
+    = `extra-keys-foreground` / `extra-keys-background` /
+    `extra-keys-active-foreground` / `extra-keys-active-background`
+  * 对话框里有 **22 个预设色**（含 `#80000000` 这类半透明色，可让终端背景透出来）、
+    **Custom color**（手输 `#RGB` / `#ARGB` / `#RRGGBB` / `#AARRGGBB`，会校验格式）、
+    以及 **Follow color scheme**（一键清除覆盖，恢复跟随 Termux:Styling 主题）
+
+这些开关**直接读写 `~/.termux/termux.properties`**：按行替换同名键、保留文件里的注释和其他设置
+（重复键会被注释掉，不会留下冲突），改完**立即生效**，不需要 `termux-reload-settings`。
+所以手写 properties 和用设置页改，两者看到的是同一份配置。
+
+实现位置：`TermuxSharedProperties.getTermuxPropertyValue()` / `setTermuxPropertyValue()`（按行改写
+properties 文件）、`TerminalKeyboardPreferencesFragment`（把 `PreferenceDataStore` 落到 properties
+文件）、`ColorPreference`（色板 + 自定义色对话框 + 校验）、
+`app/src/main/res/xml/termux_keyboard_preferences.xml`。

@@ -3,19 +3,25 @@ package com.termux.shared.termux.settings.properties;
 import android.content.Context;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
-import com.termux.shared.logger.Logger;
 import com.termux.shared.data.DataUtils;
+import com.termux.shared.errors.Error;
+import com.termux.shared.file.FileUtils;
+import com.termux.shared.logger.Logger;
 import com.termux.shared.settings.properties.SharedProperties;
 import com.termux.shared.settings.properties.SharedPropertiesParser;
 import com.termux.shared.termux.TermuxConstants;
 
 import java.io.File;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public abstract class TermuxSharedProperties {
 
@@ -28,6 +34,9 @@ public abstract class TermuxSharedProperties {
     protected SharedProperties mSharedProperties;
 
     public static final String LOG_TAG = "TermuxSharedProperties";
+
+    /** The key of a property line in a properties file, like `key` for `key=value` or `#key=value`. */
+    private static final Pattern PROPERTY_LINE_KEY_PATTERN = Pattern.compile("^\\s*#?\\s*([^=\\s]+)\\s*=");
 
     public TermuxSharedProperties(@NonNull Context context, @NonNull String label, List<String> propertiesFilePaths,
                                   @NonNull Set<String> propertiesList, @NonNull SharedPropertiesParser sharedPropertiesParser) {
@@ -596,6 +605,88 @@ public abstract class TermuxSharedProperties {
 
     public boolean isEnforcingCharBasedInput() {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_ENFORCE_CHAR_BASED_INPUT, true);
+    }
+
+    /**
+     * Get the value of the {@code key} property from the termux properties file on disk.
+     *
+     * @param context The {@link Context} for operations.
+     * @param key The key of the property.
+     * @return Returns the value of the property, otherwise {@code null} if the property is not
+     *         defined or is commented out.
+     */
+    @Nullable
+    public static String getTermuxPropertyValue(@NonNull Context context, @NonNull String key) {
+        return SharedProperties.getProperty(context, TermuxConstants.TERMUX_PROPERTIES_PRIMARY_FILE, key, null);
+    }
+
+    /**
+     * Set the value of the {@code key} property in the termux properties file on disk, while
+     * preserving the other lines of the file, like comments and other properties. If {@code value}
+     * is {@code null}, then the property is commented out, so that its default value is used again.
+     *
+     * The caller is responsible for reloading the properties with a call to
+     * {@link #loadTermuxPropertiesFromDisk()} and for applying them, like by calling
+     * {@code TermuxActivity.updateTermuxActivityStyling()}.
+     *
+     * @param context The {@link Context} for operations.
+     * @param key The key of the property.
+     * @param value The value of the property, or {@code null} to comment it out.
+     * @return Returns {@code true} if the property was successfully set, otherwise {@code false}.
+     */
+    public static synchronized boolean setTermuxPropertyValue(@NonNull Context context, @NonNull String key, @Nullable String value) {
+        File propertiesFile = TermuxConstants.TERMUX_PROPERTIES_PRIMARY_FILE;
+        StringBuilder currentFileContents = new StringBuilder();
+        StringBuilder newFileContents = new StringBuilder();
+        boolean keyFound = false;
+        String newLine = value != null ? key + "=" + value : "#" + key + "=";
+
+        try {
+            if (propertiesFile.isFile()) {
+                Error error = FileUtils.readTextFromFile("termux.properties", propertiesFile.getAbsolutePath(),
+                    Charset.defaultCharset(), currentFileContents, true);
+                if (error != null) {
+                    Logger.logError(LOG_TAG, "Failed to read \"" + propertiesFile.getAbsolutePath() + "\": " + error.getMessage());
+                    return false;
+                }
+            }
+
+            // Read the file contents as lines, without any trailing newline, since the lines are
+            // written back with a newline at the end of each of them.
+            String fileContents = currentFileContents.toString();
+            if (fileContents.endsWith("\n"))
+                fileContents = fileContents.substring(0, fileContents.length() - 1);
+
+            if (!fileContents.isEmpty()) {
+                for (String line : fileContents.split("\n", -1)) {
+                    Matcher matcher = PROPERTY_LINE_KEY_PATTERN.matcher(line);
+                    if (matcher.find() && key.equals(matcher.group(1))) {
+                        // Only replace the first line that defines the property and comment out any
+                        // other ones, since duplicate keys must not be left behind.
+                        newFileContents.append(!keyFound ? newLine : "#" + key + "=").append("\n");
+                        keyFound = true;
+                    } else {
+                        newFileContents.append(line).append("\n");
+                    }
+                }
+            }
+
+            if (!keyFound)
+                newFileContents.append(newLine).append("\n");
+
+            Error error = FileUtils.writeTextToFile("termux.properties", propertiesFile.getAbsolutePath(),
+                Charset.defaultCharset(), newFileContents.toString(), false);
+            if (error != null) {
+                Logger.logError(LOG_TAG, "Failed to write \"" + propertiesFile.getAbsolutePath() + "\": " + error.getMessage());
+                return false;
+            }
+
+            Logger.logVerbose(LOG_TAG, "Set property \"" + key + "\" to \"" + value + "\" in \"" + propertiesFile.getAbsolutePath() + "\"");
+            return true;
+        } catch (Exception e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to set property \"" + key + "\" in \"" + propertiesFile.getAbsolutePath() + "\"", e);
+            return false;
+        }
     }
 
     /**

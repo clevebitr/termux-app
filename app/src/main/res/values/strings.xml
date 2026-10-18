@@ -189,6 +189,50 @@
                     no hardware keyboard is connected.</string>
 
 
+        <!-- Terminal Keyboard Preferences -->
+        <string name="termux_keyboard_preferences_title">Terminal Keyboard</string>
+        <string name="termux_keyboard_preferences_summary">Preferences for the input method and extra keys</string>
+
+            <!-- Input Method Category -->
+            <string name="termux_keyboard_input_method_header">Input Method</string>
+
+                <!-- Gboard CJK Workaround -->
+                <string name="termux_gboard_cjk_workaround_title">Gboard CJK Keyboards</string>
+                <string name="termux_gboard_cjk_workaround_off">IMEs like Gboard may only show an ASCII QWERTY keyboard in
+                    the terminal view, so CJK keyboards like Chinese Pinyin cannot be used directly.</string>
+                <string name="termux_gboard_cjk_workaround_on">IMEs like Gboard can use CJK keyboards like Chinese Pinyin
+                    in the terminal view. Suggestions are disabled for other languages and the keyboard may
+                    restart when the input language is changed.</string>
+
+                <!-- Enforce Char Based Input -->
+                <string name="termux_enforce_char_based_input_title">Enforce Character Based Input</string>
+                <string name="termux_enforce_char_based_input_off">Characters are sent to the terminal as they are
+                    committed by the input method. (Default)</string>
+                <string name="termux_enforce_char_based_input_on">A visible password input type is used, which fixes
+                    characters not being sent until enter is pressed on some keyboards, like the Samsung one.</string>
+
+                <!-- Ctrl+Space Workaround -->
+                <string name="termux_ctrl_space_workaround_title">Ctrl+Space Workaround</string>
+                <string name="termux_ctrl_space_workaround_off">Disabled. (Default)</string>
+                <string name="termux_ctrl_space_workaround_on">Enabled, which fixes Ctrl+Space not working to switch
+                    the input method on some ROMs, but may break it on other devices.</string>
+
+            <!-- Extra Keys Colors Category -->
+            <string name="termux_extra_keys_colors_header">Extra Keys Colors</string>
+            <string name="termux_extra_keys_colors_summary">Colors of the extra keys row drawn below the terminal,
+                which follow the termux color scheme by default</string>
+
+                <!-- Extra Keys Colors -->
+                <string name="termux_extra_keys_foreground_title">Text Color</string>
+                <string name="termux_extra_keys_background_title">Background Color</string>
+                <string name="termux_extra_keys_active_foreground_title">Active Text Color</string>
+                <string name="termux_extra_keys_active_background_title">Active Background Color</string>
+                <string name="termux_extra_keys_color_follow_theme">Follow color scheme (Default)</string>
+                <string name="termux_extra_keys_color_custom">Custom color</string>
+                <string name="termux_extra_keys_color_invalid">Invalid color \"%1$s\", use a value like #RGB,
+                    #RRGGBB or #AARRGGBB</string>
+
+
         <!-- Terminal View Preferences -->
         <string name="termux_terminal_view_preferences_title">Terminal View</string>
         <string name="termux_terminal_view_preferences_summary">Preferences for terminal view</string>
