@@ -3,6 +3,7 @@ package com.termux.terminal;
 import android.util.Base64;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -236,7 +237,13 @@ public class OperatingSystemControlTest extends TerminalTestCase {
 		// Unicode Character 'CJK UNIFIED IDEOGRAPH-679C' (U+679C), a character of display width 2.
 		withTerminalSized(10, 3);
 		enterString("\033]8;;https://example.com\007\u679C\033]8;;\007x");
-		assertLineIs(0, "\u679Cx        ");
+		// A character of display width 2 is stored as a single java char, so the row only uses 9 chars
+		// for the 10 columns that it spans together with the 'x'.
+		char[] expectedLine = new char[9];
+		Arrays.fill(expectedLine, ' ');
+		expectedLine[0] = '\u679C';
+		expectedLine[1] = 'x';
+		assertLineIs(0, new String(expectedLine));
 		// A character of display width 2 spans two cells, so both of its cells are part of the hyperlink.
 		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
 		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(1, 0));
