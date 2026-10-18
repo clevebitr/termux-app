@@ -632,3 +632,70 @@ printf '\e]8;;https://example.com\e\\点我\e]8;;\e\\ 普通文字\n'
 * 单测：`OperatingSystemControlTest#testSetHyperlink*`（设置/结束/params/宽字符/擦除/RIS）、
   `ResizeTest#testResizePreservesHyperlinks`、`TerminalRowTest#testHyperlink` /
   `#testCopyIntervalCopiesHyperlinks`。
+
+---
+
+## 14. 交互三连：收起额外按键行 / 拖拽上报 / 焦点上报
+
+### 14.1 软键盘隐藏时自动收起 extra keys 行（`hide-extra-keys-when-soft-keyboard-hidden`）
+
+上游 issue #140 / #3263。开着 extra keys 行时，软键盘一收（比如只想读输出），那一行就白占着屏幕。
+
+设置 → Termux → 终端键盘 → 按键行为 → **软键盘隐藏时收起虚拟键盘**（默认**关**），对应属性：
+
+```properties
+# 软键盘隐藏时收起 extra keys 行，把这行还给终端；软键盘再弹出时自动恢复
+hide-extra-keys-when-soft-keyboard-hidden=true
+```
+
+* 判定用 `KeyboardUtils.isSoftKeyboardVisible()`（`WindowInsetsCompat.Type.ime()`），**需要 Android 6+
+  才有效**；更低版本该属性不生效（不会崩，只是不做处理）。
+* 判定时机是布局变化（`TermuxActivityRootView.onGlobalLayout()`），因为 IME 可见性只能这时读；
+  另外 `reloadActivityStyling()` 里也会重算，所以属性开关一改就立即生效。
+* **手动优先**：用工具栏开关（`Ctrl+Alt+K` / 会话菜单里的切换工具栏）手动显示时，会记住「手动设置」，
+  直到软键盘状态再次变化才重新按规则收起——避免开关看起来坏了。
+* 实现：`TermuxActivity.updateTerminalToolbarVisibilityForSoftKeyboardVisibility()` /
+  `setTerminalToolbarVisibility()`、`toggleTerminalToolbar()` 设手动标志、`TermuxActivityRootView.onGlobalLayout()`。
+
+### 14.2 手指拖拽按鼠标拖拽上报（`touch-drag-sends-mouse-drag`）
+
+上游 issue #1384。鼠标跟踪（1000/1002/1006）生效时，手指拖拽原来一律变成滚轮事件（`doScroll()`），
+所以 TUI 里没法做「按住拖拽」（tmux 拉窗格、vim 可视选择等）。
+
+设置 → Termux → 终端键盘 → 按键行为 → **手指拖拽按鼠标拖拽上报**（默认**关**），对应属性：
+
+```properties
+# 手指拖拽上报为鼠标指针拖拽（按下 → 移动 → 抬起），而不是滚轮事件
+touch-drag-sends-mouse-drag=true
+```
+
+* 打开后，鼠标跟踪生效时手指拖拽发 3 个事件：`e1`（按下位置）按下 → 每次移动 → 抬手/取消时抬起，
+  这样程序能收到完整的拖拽（没有按下事件只有移动事件的话，多数程序不会当作拖拽）。
+* **默认关**是有意的：打开后使用鼠标跟踪的程序（tmux/vim `mouse=a`）就**收不到拖拽产生的滚轮事件**了，
+  滚动会变成拖拽；要用滚轮滚动就把属性关掉。要用哪个由你决定，设置页里随时可切。
+* 备用屏（没有鼠标跟踪）不受影响：仍然是上下方向键；惯性甩动（fling）在打开该属性时不再补发滚轮事件，
+  否则拖拽结束后又滚一下。
+* 长按之后（手势归 View，如文本选择）不启动拖拽上报，取消手势（`ACTION_CANCEL`）会补发抬起事件，
+  避免程序里鼠标一直处于按下状态。
+* 实现：`TerminalViewClient.shouldTouchDragSendMouseDrag()`、
+  `TerminalView`（`onScroll(e1, e2, ...)` / `onUp()` / `onFling()` / `ACTION_CANCEL`）、
+  `GestureAndScaleRecognizer.onScroll()` 现在也把 `e1` 传出来。
+
+### 14.3 焦点上报（`DECSET 1004`）
+
+上游 issue #3650 / discussion #3644。之前 `DECSET_BIT_SEND_FOCUS_EVENTS` 的位存在、解析也认，
+但**从来不发事件**（代码里写着 "NOT implemented"），所以 Emacs 之类靠焦点事件自动存盘的程序拿不到通知。
+
+现在：
+
+* `TermuxActivity.onWindowFocusChanged()` → 当前会话的 emulator `setWindowFocused(hasFocus)` →
+  程序若开了 `DECSET 1004` 就收到 `CSI I`（获得焦点）/ `CSI O`（失去焦点）。
+  切换 App、拉通知栏、弹对话框都算「失去焦点」。
+* 会话切换时（`TermuxTerminalSessionActivityClient.setCurrentSession()`）也给旧会话发失去焦点、
+  给新会话同步当前焦点状态，这样切会话也能触发存盘。
+* **程序开启 1004 的那一刻会立刻收到当前焦点状态**（`doDecSetOrReset` 的 `case 1004`），
+  否则在 App 启动时就开 1004 的程序永远不知道自己是聚焦的（行为对齐 xterm.js #2333）。
+* emulator 侧 `mIsWindowFocused` 默认 `true`（会话都是在前台创建的），只有状态真的变化才发，
+  避免重复发同一事件。
+* 实现：`TerminalEmulator.setWindowFocused()` / `sendFocusEvent()` / `isReportingFocusEvents()`、
+  `TermuxActivity.onWindowFocusChanged()` / `isWindowFocused()`、单测 `DecSetTest#testSendFocusEvent`。

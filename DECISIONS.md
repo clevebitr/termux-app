@@ -94,3 +94,15 @@ i18n：新增 `values/arrays.xml` + `values-zh/arrays.xml`（5 组 entries/entry
 **OSC 8 解析**：`doOsc` 的 `textParameter` 是第一个 `;` 之后的内容，所以 `OSC 8;params;URI` 要再按第一个 `;` 切一次。`mCurrentHyperlinkUri` 作为「当前属性」跨行保持（规范如此，只有空 URI 才结束），`reset()`(RIS) 里清掉。params 里的 `id=` 忽略。URI 里带 `:` 不会破坏 OSC 快速路径（`setOscTypeVariables()` 只影响 `mTerminalControlArgs` 容量，mOscType 非 52/1337 时照常累积）。
 
 **测试**：`./gradlew test` 会在 CI 跑。加了 OperatingSystemControlTest 7 个（含 BEL/ST 两种结尾、params、同行多链接、宽字符两格、跨行保持、ECH 擦除、RIS 清零）、ResizeTest 1 个（reflow 前后链接跟着文字）、TerminalRowTest 2 个（含自拷贝快照）。本地无 JDK/gradle，只能靠 CI 验证。
+
+## 2026-10-18 — M5 实现：IME 收放 extra keys 行 / 手指拖拽上报鼠标拖拽 / DECSET 1004 焦点上报
+
+范围由用户确认（三项各自对应上游 issue）：1) 「键盘收起收行」= 上游 #140/#3263，新增属性 `hide-extra-keys-when-soft-keyboard-hidden`（默认关）+ 设置页开关，IME 隐藏时收起 extra keys 行、弹出时恢复；2) 「拖拽滚轮」= 上游 #1384，新增属性 `touch-drag-sends-mouse-drag`（默认关）+ 设置页开关，鼠标跟踪生效时手指拖拽按鼠标拖拽上报而不是滚轮事件；3) 1004 = 上游 #3650/#3644，用窗口焦点（`TermuxActivity.onWindowFocusChanged`）发 `CSI I`/`CSI O`。用法与限制写进 FORK.md §14。
+
+**1) extra keys 行随 IME 收放**：IME 可见性用已有的 `KeyboardUtils.isSoftKeyboardVisible()`（`WindowInsetsCompat.Type.ime()`，**只有 API 23+ 可用**，helper 注释里就写着 "Does not work on android 7"），所以属性在低版本不生效而不是崩溃。判定时机必须在布局变化时（`TermuxActivityRootView.onGlobalLayout()` 里回调 activity），而全局布局监听器原来只在 `terminal_margin_adjustment` 打开时才注册 → 注册条件改成 `isTerminalMarginAdjustmentEnabled() || shouldHideExtraKeysWhenSoftKeyboardIsHidden()`；另外 `reloadActivityStyling()` 里也重算一次，否则「属性从开改成关」时行不会回来（关掉属性后不再查询 IME，只用 `shouldShowTerminalToolbar()` 恢复显示，也就不需要 layout 事件）。**手动优先**：`toggleTerminalToolbar()` 会置 `mIsTerminalToolbarVisibilitySetManually`，IME 状态变化时清掉——否则属性打开时按工具栏开关会「显示后立刻被收起」，看起来像坏了。用 `Boolean mIsSoftKeyboardVisibleForToolbar`（null=未知）做状态比较，null 与 false 的区别很重要：未知时不判定为「IME 隐藏」，避免启动瞬间把行收掉。
+
+**2) 拖拽上报**：老代码注释里写得很清楚——对手指输入不能只发「移动」事件，因为协议上没有前置的按下事件。所以要发完整的 press(e1) → motion(e2) → release，e1 必须从 `GestureAndScaleRecognizer.onScroll(e1, e2, ...)` 传出来（原来只传 e2），否则按下位置会变成越过 touch slop 之后的位置。**默认关**是刻意的：打开后使用鼠标跟踪的程序就收不到拖拽产生的滚轮事件了（滚动变拖拽），这是个能力替换而不是纯增强，所以留给用户切。长按后（`isAfterLongPress`，手势已归 View/文本选择）不启动上报，`ACTION_CANCEL` 里补发 release；否则程序里鼠标会一直处于按下状态。开启该属性时 `onFling` 不再补发滚轮事件（拖拽结束又滚一下很怪）。状态机放在 `TerminalView`（`mIsMouseDragFromTouchInProgress`），顺手在 release 分支里复位 `scrolledWithFinger`。
+
+**3) 1004**：`sendFocusEvent(boolean)` 不够用——程序可能在 App 启动后才开启 1004，那时若没人再给它发事件，它永远以为自己是聚焦的。所以改成 emulator 里存 `mIsWindowFocused`（默认 true，因为会话都在前台创建）+ `setWindowFocused()`（状态真变化才发，避免重复），并在 `doDecSetOrReset` 的 `case 1004`（DECSET 置位时）立刻上报当前状态，行为对齐 xterm.js #2333。`TermuxActivity.isWindowFocused()` 直接用 `hasWindowFocus()` 而不是自己记字段（onStart 时可能还没收到焦点事件）。会话切换在 `setCurrentSession()` 里给旧会话发 out、给新会话同步状态（只有显示中的会话能有焦点）。
+
+测试：`DecSetTest#testSendFocusEvent`（未开 1004 不发、开启时上报当前状态、状态变化才发、关闭/`reset()` 后不发）。本地无 JDK，靠 CI 的 `./gradlew test`。
