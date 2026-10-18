@@ -709,6 +709,17 @@ public abstract class TermuxSharedProperties {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP, true);
     }
 
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_MOUSE_TAP_SHOWS_KEYBOARD} boolean value.
+     *
+     * If enabled, then the soft keyboard will also be shown when the terminal view is tapped with a
+     * mouse or while mouse tracking is active, since by default those taps are forwarded to the
+     * terminal instead of being treated as keyboard show requests.
+     */
+    public boolean shouldShowSoftKeyboardOnMouseTap() {
+        return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_MOUSE_TAP_SHOWS_KEYBOARD, true);
+    }
+
     public boolean shouldRunTermuxAmSocketServer() {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_RUN_TERMUX_AM_SOCKET_SERVER, true);
     }

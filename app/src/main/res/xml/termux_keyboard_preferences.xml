@@ -25,6 +25,54 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        app:key="key_behaviour"
+        app:title="@string/termux_keyboard_key_behaviour_header">
+
+        <ListPreference
+            app:defaultValue="back"
+            app:entries="@array/termux_back_key_behaviour_entries"
+            app:entryValues="@array/termux_back_key_behaviour_values"
+            app:key="back-key"
+            app:title="@string/termux_back_key_behaviour_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="virtual"
+            app:entries="@array/termux_volume_keys_behaviour_entries"
+            app:entryValues="@array/termux_volume_keys_behaviour_values"
+            app:key="volume-keys"
+            app:title="@string/termux_volume_keys_behaviour_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="show/hide"
+            app:entries="@array/termux_soft_keyboard_toggle_behaviour_entries"
+            app:entryValues="@array/termux_soft_keyboard_toggle_behaviour_values"
+            app:key="soft-keyboard-toggle-behaviour"
+            app:title="@string/termux_soft_keyboard_toggle_behaviour_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreferenceCompat
+            app:key="hide-soft-keyboard-on-startup"
+            app:summaryOff="@string/termux_hide_soft_keyboard_on_startup_off"
+            app:summaryOn="@string/termux_hide_soft_keyboard_on_startup_on"
+            app:title="@string/termux_hide_soft_keyboard_on_startup_title" />
+
+        <SwitchPreferenceCompat
+            app:key="mouse-tap-shows-keyboard"
+            app:summaryOff="@string/termux_mouse_tap_shows_keyboard_off"
+            app:summaryOn="@string/termux_mouse_tap_shows_keyboard_on"
+            app:title="@string/termux_mouse_tap_shows_keyboard_title" />
+
+        <SwitchPreferenceCompat
+            app:key="disable-hardware-keyboard-shortcuts"
+            app:summaryOff="@string/termux_disable_hardware_keyboard_shortcuts_off"
+            app:summaryOn="@string/termux_disable_hardware_keyboard_shortcuts_on"
+            app:title="@string/termux_disable_hardware_keyboard_shortcuts_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
         app:key="extra_keys_colors"
         app:title="@string/termux_extra_keys_colors_header"
         app:summary="@string/termux_extra_keys_colors_summary">

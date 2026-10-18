@@ -205,7 +205,12 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
             }
         }
 
-        if (!term.isMouseTrackingActive() && !e.isFromSource(InputDevice.SOURCE_MOUSE)) {
+        // A tap with a mouse or while mouse tracking is active is normally forwarded to the terminal
+        // instead of being treated as a keyboard show request, unless the user has explicitly enabled
+        // the `mouse-tap-shows-keyboard` property.
+        boolean isMouseTap = e.isFromSource(InputDevice.SOURCE_MOUSE) || term.isMouseTrackingActive();
+
+        if (!isMouseTap || mActivity.getProperties().shouldShowSoftKeyboardOnMouseTap()) {
             if (!KeyboardUtils.areDisableSoftKeyboardFlagsSet(mActivity))
                 KeyboardUtils.showSoftKeyboard(mActivity, mActivity.getTerminalView());
             else

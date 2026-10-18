@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Appearance Preferences -->
+
+        <!-- Night Mode -->
+        <string-array name="termux_appearance_night_mode_entries">
+            <item>@string/termux_appearance_night_mode_light</item>
+            <item>@string/termux_appearance_night_mode_dark</item>
+            <item>@string/termux_appearance_night_mode_system</item>
+            <item>@string/termux_appearance_night_mode_color_scheme</item>
+        </string-array>
+
+        <string-array name="termux_appearance_night_mode_values">
+            <item>false</item>
+            <item>true</item>
+            <item>system</item>
+            <item>color-scheme</item>
+        </string-array>
+
+        <!-- Extra Keys Style -->
+        <string-array name="termux_appearance_extra_keys_style_entries">
+            <item>@string/termux_appearance_extra_keys_style_default</item>
+            <item>@string/termux_appearance_extra_keys_style_arrows_only</item>
+            <item>@string/termux_appearance_extra_keys_style_arrows_all</item>
+            <item>@string/termux_appearance_extra_keys_style_all</item>
+            <item>@string/termux_appearance_extra_keys_style_none</item>
+        </string-array>
+
+        <string-array name="termux_appearance_extra_keys_style_values">
+            <item>default</item>
+            <item>arrows-only</item>
+            <item>arrows-all</item>
+            <item>all</item>
+            <item>none</item>
+        </string-array>
+
+
+    <!-- Terminal Keyboard Preferences -->
+
+        <!-- Back Key Behaviour -->
+        <string-array name="termux_back_key_behaviour_entries">
+            <item>@string/termux_back_key_behaviour_back</item>
+            <item>@string/termux_back_key_behaviour_escape</item>
+        </string-array>
+
+        <string-array name="termux_back_key_behaviour_values">
+            <item>back</item>
+            <item>escape</item>
+        </string-array>
+
+        <!-- Volume Keys Behaviour -->
+        <string-array name="termux_volume_keys_behaviour_entries">
+            <item>@string/termux_volume_keys_behaviour_virtual</item>
+            <item>@string/termux_volume_keys_behaviour_volume</item>
+        </string-array>
+
+        <string-array name="termux_volume_keys_behaviour_values">
+            <item>virtual</item>
+            <item>volume</item>
+        </string-array>
+
+        <!-- Soft Keyboard Toggle Behaviour -->
+        <string-array name="termux_soft_keyboard_toggle_behaviour_entries">
+            <item>@string/termux_soft_keyboard_toggle_behaviour_show_hide</item>
+            <item>@string/termux_soft_keyboard_toggle_behaviour_enable_disable</item>
+        </string-array>
+
+        <string-array name="termux_soft_keyboard_toggle_behaviour_values">
+            <item>show/hide</item>
+            <item>enable/disable</item>
+        </string-array>
+
+</resources>

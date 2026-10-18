@@ -187,6 +187,56 @@
                 <string name="termux_soft_keyboard_enabled_only_if_no_hardware_on">仅在未连接外接键盘时启用软键盘。</string>
 
 
+        <!-- Appearance Preferences -->
+        <string name="termux_appearance_preferences_title">外观</string>
+        <string name="termux_appearance_preferences_summary">主题、全屏与终端工具栏的相关设置</string>
+
+            <!-- Theme Category -->
+            <string name="termux_appearance_theme_header">主题</string>
+
+                <!-- Night Mode -->
+                <string name="termux_appearance_night_mode_title">夜间模式</string>
+                <string name="termux_appearance_night_mode_light">浅色</string>
+                <string name="termux_appearance_night_mode_dark">深色</string>
+                <string name="termux_appearance_night_mode_system">跟随系统</string>
+                <string name="termux_appearance_night_mode_color_scheme">跟随配色方案</string>
+
+            <!-- Fullscreen Category -->
+            <string name="termux_appearance_fullscreen_header">全屏</string>
+
+                <!-- Fullscreen -->
+                <string name="termux_appearance_fullscreen_title">全屏</string>
+                <string name="termux_appearance_fullscreen_off">终端上方会显示状态栏，终端排在它下面。（默认）</string>
+                <string name="termux_appearance_fullscreen_on">隐藏状态栏，终端绘制在状态栏后面，从而占满整个屏幕。</string>
+
+                <!-- Fullscreen Workaround -->
+                <string name="termux_appearance_fullscreen_workaround_title">全屏兼容处理</string>
+                <string name="termux_appearance_fullscreen_workaround_off">已停用。（默认）</string>
+                <string name="termux_appearance_fullscreen_workaround_on">已启用，会为终端额外增加内边距，尝试修复终端被绘制到
+                    状态栏区域下方的问题。仅在同时启用全屏时生效。</string>
+
+            <!-- Terminal Toolbar Category -->
+            <string name="termux_appearance_toolbar_header">终端工具栏</string>
+
+                <!-- Extra Keys Style -->
+                <string name="termux_appearance_extra_keys_style_title">虚拟键盘风格</string>
+                <string name="termux_appearance_extra_keys_style_default">默认</string>
+                <string name="termux_appearance_extra_keys_style_arrows_only">仅方向键箭头</string>
+                <string name="termux_appearance_extra_keys_style_arrows_all">箭头及更多符号</string>
+                <string name="termux_appearance_extra_keys_style_all">全部符号</string>
+                <string name="termux_appearance_extra_keys_style_none">不使用符号（只显示键名）</string>
+
+                <!-- Terminal Toolbar Height -->
+                <string name="termux_appearance_toolbar_height_title">工具栏高度（%）</string>
+                <string name="termux_appearance_toolbar_height_summary">终端工具栏高度相对于默认高度的百分比。
+                    默认值为 100，可取 40 到 300。</string>
+
+                <!-- Extra Keys Text All Caps -->
+                <string name="termux_appearance_extra_keys_text_all_caps_title">虚拟键盘字母大写</string>
+                <string name="termux_appearance_extra_keys_text_all_caps_off">按键文字按 `extra-keys` 属性里定义的原样显示。</string>
+                <string name="termux_appearance_extra_keys_text_all_caps_on">按键文字自动转为大写。（默认）</string>
+
+
         <!-- Terminal Keyboard Preferences -->
         <string name="termux_keyboard_preferences_title">终端键盘</string>
         <string name="termux_keyboard_preferences_summary">输入法与虚拟键盘（额外按键行）的相关设置</string>
@@ -212,6 +262,41 @@
                 <string name="termux_ctrl_space_workaround_off">已停用。（默认）</string>
                 <string name="termux_ctrl_space_workaround_on">已启用，可修复部分 ROM 上 Ctrl+Space 无法切换输入法的问题，
                     但在其他设备上可能反而失效。</string>
+
+            <!-- Key Behaviour Category -->
+            <string name="termux_keyboard_key_behaviour_header">按键行为</string>
+
+                <!-- Back Key -->
+                <string name="termux_back_key_behaviour_title">返回键</string>
+                <string name="termux_back_key_behaviour_back">返回（默认）</string>
+                <string name="termux_back_key_behaviour_escape">Escape</string>
+
+                <!-- Volume Keys -->
+                <string name="termux_volume_keys_behaviour_title">音量键</string>
+                <string name="termux_volume_keys_behaviour_virtual">虚拟音量键（默认）</string>
+                <string name="termux_volume_keys_behaviour_volume">真实的音量键</string>
+
+                <!-- Soft Keyboard Toggle Behaviour -->
+                <string name="termux_soft_keyboard_toggle_behaviour_title">键盘开关按钮</string>
+                <string name="termux_soft_keyboard_toggle_behaviour_show_hide">显示/隐藏键盘（默认）</string>
+                <string name="termux_soft_keyboard_toggle_behaviour_enable_disable">启用/停用键盘</string>
+
+                <!-- Hide Soft Keyboard On Startup -->
+                <string name="termux_hide_soft_keyboard_on_startup_title">启动时隐藏键盘</string>
+                <string name="termux_hide_soft_keyboard_on_startup_off">启动应用时不改变软键盘状态。（默认）</string>
+                <string name="termux_hide_soft_keyboard_on_startup_on">启动应用时隐藏软键盘。</string>
+
+                <!-- Mouse Tap Shows Keyboard -->
+                <string name="termux_mouse_tap_shows_keyboard_title">鼠标点按唤键盘</string>
+                <string name="termux_mouse_tap_shows_keyboard_off">鼠标点击以及鼠标跟踪生效时的点击会转发给终端，
+                    不会弹出软键盘。（默认）</string>
+                <string name="termux_mouse_tap_shows_keyboard_on">这些点击也会弹出软键盘，可能更方便，
+                    但可能与使用鼠标跟踪/点击的终端程序（如 TUI）冲突。</string>
+
+                <!-- Disable Hardware Keyboard Shortcuts -->
+                <string name="termux_disable_hardware_keyboard_shortcuts_title">停用物理键盘快捷键</string>
+                <string name="termux_disable_hardware_keyboard_shortcuts_off">Ctrl+Alt+C 这类新建会话的快捷键由应用处理。（默认）</string>
+                <string name="termux_disable_hardware_keyboard_shortcuts_on">这些组合键会直接发送给终端，应用不再拦截。</string>
 
             <!-- Extra Keys Colors Category -->
             <string name="termux_extra_keys_colors_header">虚拟键盘配色</string>

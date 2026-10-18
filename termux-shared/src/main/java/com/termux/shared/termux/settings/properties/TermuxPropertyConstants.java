@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 /*
- * Version: v0.21.0
+ * Version: v0.22.0
  * SPDX-License-Identifier: MIT
  *
  * Changelog
@@ -90,6 +90,9 @@ import java.util.Set;
  *
  * - 0.21.0 (2026-10-18)
  *      - Add `IVALUE_NIGHT_MODE_COLOR_SCHEME` and `NightMode#COLOR_SCHEME` to `MAP_NIGHT_MODE`.
+ *
+ * - 0.22.0 (2026-10-18)
+ *      - Add `KEY_MOUSE_TAP_SHOWS_KEYBOARD`.
  */
 
 /**
@@ -148,6 +151,14 @@ public final class TermuxPropertyConstants {
 
     /** Defines the key for whether to hide soft keyboard when termux app is started */
     public static final String KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP =  "hide-soft-keyboard-on-startup"; // Default: "hide-soft-keyboard-on-startup"
+
+
+
+    /** Defines the key for whether the soft keyboard should also be shown when the terminal view is
+     * tapped with a mouse or while mouse tracking is active, since by default taps are not treated as
+     * keyboard show requests in those cases, as the tap is forwarded to the terminal to allow
+     * terminal programs to handle it, like for selecting text or clicking on links in TUIs. */
+    public static final String KEY_MOUSE_TAP_SHOWS_KEYBOARD =  "mouse-tap-shows-keyboard"; // Default: "mouse-tap-shows-keyboard"
 
 
 
@@ -445,6 +456,7 @@ public final class TermuxPropertyConstants {
         KEY_EXTRA_KEYS_TEXT_ALL_CAPS,
         KEY_GBOARD_CJK_WORKAROUND,
         KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP,
+        KEY_MOUSE_TAP_SHOWS_KEYBOARD,
         KEY_RUN_TERMUX_AM_SOCKET_SERVER,
         KEY_TERMINAL_ONCLICK_URL_OPEN,
         KEY_USE_CTRL_SPACE_WORKAROUND,
@@ -497,6 +509,7 @@ public final class TermuxPropertyConstants {
         KEY_ENFORCE_CHAR_BASED_INPUT,
         KEY_GBOARD_CJK_WORKAROUND,
         KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP,
+        KEY_MOUSE_TAP_SHOWS_KEYBOARD,
         KEY_TERMINAL_ONCLICK_URL_OPEN,
         KEY_USE_CTRL_SPACE_WORKAROUND,
         KEY_USE_FULLSCREEN,

@@ -1,0 +1,65 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        app:key="theme"
+        app:title="@string/termux_appearance_theme_header">
+
+        <ListPreference
+            app:defaultValue="system"
+            app:entries="@array/termux_appearance_night_mode_entries"
+            app:entryValues="@array/termux_appearance_night_mode_values"
+            app:key="night-mode"
+            app:title="@string/termux_appearance_night_mode_title"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="fullscreen"
+        app:title="@string/termux_appearance_fullscreen_header">
+
+        <SwitchPreferenceCompat
+            app:key="fullscreen"
+            app:summaryOff="@string/termux_appearance_fullscreen_off"
+            app:summaryOn="@string/termux_appearance_fullscreen_on"
+            app:title="@string/termux_appearance_fullscreen_title" />
+
+        <SwitchPreferenceCompat
+            app:key="use-fullscreen-workaround"
+            app:summaryOff="@string/termux_appearance_fullscreen_workaround_off"
+            app:summaryOn="@string/termux_appearance_fullscreen_workaround_on"
+            app:title="@string/termux_appearance_fullscreen_workaround_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="toolbar"
+        app:title="@string/termux_appearance_toolbar_header">
+
+        <ListPreference
+            app:defaultValue="default"
+            app:entries="@array/termux_appearance_extra_keys_style_entries"
+            app:entryValues="@array/termux_appearance_extra_keys_style_values"
+            app:key="extra-keys-style"
+            app:title="@string/termux_appearance_extra_keys_style_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <SeekBarPreference
+            app:defaultValue="100"
+            app:key="terminal-toolbar-height"
+            app:max="300"
+            app:min="40"
+            app:seekBarIncrement="5"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_appearance_toolbar_height_summary"
+            app:title="@string/termux_appearance_toolbar_height_title" />
+
+        <SwitchPreferenceCompat
+            app:key="extra-keys-text-all-caps"
+            app:summaryOff="@string/termux_appearance_extra_keys_text_all_caps_off"
+            app:summaryOn="@string/termux_appearance_extra_keys_text_all_caps_on"
+            app:title="@string/termux_appearance_extra_keys_text_all_caps_title" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

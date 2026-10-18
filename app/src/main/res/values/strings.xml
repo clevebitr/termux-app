@@ -189,6 +189,63 @@
                     no hardware keyboard is connected.</string>
 
 
+        <!-- Appearance Preferences -->
+        <string name="termux_appearance_preferences_title">Appearance</string>
+        <string name="termux_appearance_preferences_summary">Preferences for the theme, the fullscreen mode and the
+            terminal toolbar</string>
+
+            <!-- Theme Category -->
+            <string name="termux_appearance_theme_header">Theme</string>
+
+                <!-- Night Mode -->
+                <string name="termux_appearance_night_mode_title">Night Mode</string>
+                <string name="termux_appearance_night_mode_light">Light</string>
+                <string name="termux_appearance_night_mode_dark">Dark</string>
+                <string name="termux_appearance_night_mode_system">Follow system</string>
+                <string name="termux_appearance_night_mode_color_scheme">Follow color scheme</string>
+
+            <!-- Fullscreen Category -->
+            <string name="termux_appearance_fullscreen_header">Fullscreen</string>
+
+                <!-- Fullscreen -->
+                <string name="termux_appearance_fullscreen_title">Fullscreen</string>
+                <string name="termux_appearance_fullscreen_off">The status bar is shown above the terminal and the
+                    terminal is laid out below it. (Default)</string>
+                <string name="termux_appearance_fullscreen_on">The status bar is hidden and the terminal is laid out
+                    behind it, so that it uses the whole screen.</string>
+
+                <!-- Fullscreen Workaround -->
+                <string name="termux_appearance_fullscreen_workaround_title">Fullscreen Workaround</string>
+                <string name="termux_appearance_fullscreen_workaround_off">Disabled. (Default)</string>
+                <string name="termux_appearance_fullscreen_workaround_on">Enabled, which adds extra insets to the
+                    terminal to try to fix it being drawn below the status bar area. Only used when the
+                    fullscreen mode is also enabled.</string>
+
+            <!-- Terminal Toolbar Category -->
+            <string name="termux_appearance_toolbar_header">Terminal Toolbar</string>
+
+                <!-- Extra Keys Style -->
+                <string name="termux_appearance_extra_keys_style_title">Extra Keys Style</string>
+                <string name="termux_appearance_extra_keys_style_default">Default</string>
+                <string name="termux_appearance_extra_keys_style_arrows_only">Arrows only</string>
+                <string name="termux_appearance_extra_keys_style_arrows_all">Arrows and more</string>
+                <string name="termux_appearance_extra_keys_style_all">All symbols</string>
+                <string name="termux_appearance_extra_keys_style_none">None (just the key names)</string>
+
+                <!-- Terminal Toolbar Height -->
+                <string name="termux_appearance_toolbar_height_title">Toolbar Height (%)</string>
+                <string name="termux_appearance_toolbar_height_summary">Height of the terminal toolbar as a
+                    percentage of its default height. The default value is 100 and the allowed range is
+                    40 to 300.</string>
+
+                <!-- Extra Keys Text All Caps -->
+                <string name="termux_appearance_extra_keys_text_all_caps_title">Uppercase Extra Keys</string>
+                <string name="termux_appearance_extra_keys_text_all_caps_off">Key labels are shown as defined in the
+                    `extra-keys` property.</string>
+                <string name="termux_appearance_extra_keys_text_all_caps_on">Key labels are automatically converted to
+                    uppercase. (Default)</string>
+
+
         <!-- Terminal Keyboard Preferences -->
         <string name="termux_keyboard_preferences_title">Terminal Keyboard</string>
         <string name="termux_keyboard_preferences_summary">Preferences for the input method and extra keys</string>
@@ -216,6 +273,47 @@
                 <string name="termux_ctrl_space_workaround_off">Disabled. (Default)</string>
                 <string name="termux_ctrl_space_workaround_on">Enabled, which fixes Ctrl+Space not working to switch
                     the input method on some ROMs, but may break it on other devices.</string>
+
+            <!-- Key Behaviour Category -->
+            <string name="termux_keyboard_key_behaviour_header">Key Behaviour</string>
+
+                <!-- Back Key -->
+                <string name="termux_back_key_behaviour_title">Back Key</string>
+                <string name="termux_back_key_behaviour_back">Back (Default)</string>
+                <string name="termux_back_key_behaviour_escape">Escape</string>
+
+                <!-- Volume Keys -->
+                <string name="termux_volume_keys_behaviour_title">Volume Keys</string>
+                <string name="termux_volume_keys_behaviour_virtual">Virtual (Default)</string>
+                <string name="termux_volume_keys_behaviour_volume">Literal volume keys</string>
+
+                <!-- Soft Keyboard Toggle Behaviour -->
+                <string name="termux_soft_keyboard_toggle_behaviour_title">Keyboard Toggle Button</string>
+                <string name="termux_soft_keyboard_toggle_behaviour_show_hide">Show/hide the keyboard (Default)</string>
+                <string name="termux_soft_keyboard_toggle_behaviour_enable_disable">Enable/disable the keyboard</string>
+
+                <!-- Hide Soft Keyboard On Startup -->
+                <string name="termux_hide_soft_keyboard_on_startup_title">Hide Keyboard on Startup</string>
+                <string name="termux_hide_soft_keyboard_on_startup_off">The soft keyboard state is not changed when the
+                    app starts. (Default)</string>
+                <string name="termux_hide_soft_keyboard_on_startup_on">The soft keyboard is hidden when the app
+                    starts.</string>
+
+                <!-- Mouse Tap Shows Keyboard -->
+                <string name="termux_mouse_tap_shows_keyboard_title">Show Keyboard on Mouse Tap</string>
+                <string name="termux_mouse_tap_shows_keyboard_off">Taps with a mouse or while mouse tracking is active
+                    are forwarded to the terminal and do not show the soft keyboard. (Default)</string>
+                <string name="termux_mouse_tap_shows_keyboard_on">The soft keyboard is shown for those taps too, which
+                    can be convenient, but may conflict with terminal programs that use mouse tracking or
+                    clicking, like TUIs.</string>
+
+                <!-- Disable Hardware Keyboard Shortcuts -->
+                <string name="termux_disable_hardware_keyboard_shortcuts_title">Disable Hardware Keyboard
+                    Shortcuts</string>
+                <string name="termux_disable_hardware_keyboard_shortcuts_off">Shortcuts like Ctrl+Alt+C to create a new
+                    session are handled by the app. (Default)</string>
+                <string name="termux_disable_hardware_keyboard_shortcuts_on">The key combinations are sent to the
+                    terminal instead, so that the app does not intercept them.</string>
 
             <!-- Extra Keys Colors Category -->
             <string name="termux_extra_keys_colors_header">Extra Keys Colors</string>

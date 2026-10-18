@@ -1105,7 +1105,13 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
             // Update NightMode.APP_NIGHT_MODE, since the `night-mode` property may be set to
             // `color-scheme`, in which case it depends on the termux color scheme.
-            TermuxThemeUtils.setAppNightMode(mProperties.getNightMode());
+            if (recreateActivity) {
+                TermuxThemeUtils.setAppNightMode(mProperties.getNightMode());
+            } else {
+                // Applying the night mode locally recreates the activity if the mode actually
+                // changed, so that a change of the `night-mode` property takes effect immediately.
+                setActivityTheme();
+            }
         }
 
         setMargins();
