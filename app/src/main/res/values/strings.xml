@@ -233,7 +233,41 @@
                     #RRGGBB or #AARRGGBB</string>
 
 
-        <!-- Terminal View Preferences -->
+            <!-- Backup and Restore Preferences -->
+        <string name="termux_backup_preferences_title">Backup and Restore</string>
+        <string name="termux_backup_preferences_summary">Back up or restore the Termux environment</string>
+
+            <string name="termux_backup_category_title">Environment Backup</string>
+            <string name="termux_backup_category_summary">The whole $PREFIX and $HOME are archived, which is required
+                before uninstalling the app or switching to a build that is signed with a different key</string>
+
+            <string name="termux_backup_now_title">Back up now</string>
+            <string name="termux_backup_now_summary">Create a backup in ~/storage/shared/Download and show the progress
+                in a new terminal session</string>
+
+            <string name="termux_restore_now_title">Restore a backup</string>
+            <string name="termux_restore_now_summary">Pick a backup from the device and overwrite $PREFIX and $HOME with
+                it. The current environment is backed up first.</string>
+
+            <string name="termux_backup_install_commands_title">Install the scripts as commands</string>
+            <string name="termux_backup_install_commands_summary">Copy them to $PREFIX/bin, so that they can also be run
+                as `termux-backup` and `termux-restore` from the terminal at any time</string>
+
+            <string name="termux_backup_started_toast">Starting the backup in a new terminal session</string>
+            <string name="termux_restore_started_toast">Starting the restore in a new terminal session</string>
+            <string name="termux_backup_script_extract_failed_toast">Failed to extract the %1$s script</string>
+            <string name="termux_backup_script_run_failed_toast">Failed to run the %1$s script</string>
+            <string name="termux_backup_commands_installed_toast">%1$s and %2$s can now be run from the terminal</string>
+            <string name="termux_backup_commands_install_failed_toast">Failed to install the scripts, check logcat
+                for details</string>
+            <string name="termux_restore_confirm_title">Restore a backup?</string>
+            <string name="termux_restore_confirm_message">$PREFIX and $HOME will be overwritten with the contents of the
+                selected backup, and the current environment will be backed up first. You can still cancel the
+                restore in the terminal afterwards.</string>
+            <string name="termux_restore_confirm_positive">Continue</string>
+
+
+    <!-- Terminal View Preferences -->
         <string name="termux_terminal_view_preferences_title">Terminal View</string>
         <string name="termux_terminal_view_preferences_summary">Preferences for terminal view</string>
 

@@ -446,3 +446,51 @@ properties 文件）、`TerminalKeyboardPreferencesFragment`（把 `PreferenceDa
   遗漏的条目会自动回退英文。注意占位符 `%1$s` / `%2$d` / `%d`、`\n`、`\"`、
   `&TERMUX_APP_NAME;` 这类实体必须原样保留（`termux-shared`、`terminal-view` 同理）。
 * `supportsRtl` 仍是上游的 `false`；若要加阿拉伯语/希伯来语等 RTL 语言，需要改成 `true` 并检查布局。
+
+---
+
+## 11. 备份 / 恢复（`termux-backup` / `termux-restore`）
+
+卸载应用会删掉整个 `/data/data/com.termux/files`（$PREFIX + $HOME），换签名构建时必须卸载，
+所以本 fork 内置了两个脚本 + 图形入口。
+
+### 图形入口
+
+**设置 → Termux → 备份与恢复**：
+
+| 条目 | 作用 |
+| --- | --- |
+| 立即备份 | 提取脚本并在**新终端会话**里运行，输出可见、可 Ctrl+C 取消 |
+| 从备份恢复 | 脚本会列出设备上找到的备份（含大小/时间）让你选序号，再要求确认；默认先自动备份当前环境 |
+| 把脚本安装为命令 | 复制到 `$PREFIX/bin`，之后随时可 `termux-backup` / `termux-restore` |
+
+脚本以 raw 资源形式随 App 打包（`app/src/main/res/raw/termux_backup.sh`、`termux_restore.sh`），
+运行时提取到 `$PREFIX/tmp/` 用 `bash` 执行；CI 也会把这两个脚本作为独立文件放进 Release。
+
+### 命令行用法
+
+```sh
+termux-backup                      # 备份到 ~/storage/shared/Download/termux-backup-<日期>-<时间>.tar.zst
+termux-backup -o /sdcard/Download -n my-bk -z gzip   # 指定目录/名字/压缩器（zstd 优先，gzip 兜底）
+termux-restore                     # 不带参数：交互列出备份并选择
+termux-restore /sdcard/Download/termux-backup-20260101-120000.tar.zst --dry-run   # 只校验+报告
+termux-restore <归档> --target-dir ~/restore-test --no-pre-backup                  # 解包到别处演练（不碰现有环境）
+```
+
+### 行为与安全
+
+* 归档内容：完整的 `./usr`（$PREFIX）与 `./home`（$HOME），排除 `usr/tmp/*`、`usr/var/run/*`、
+  `home/storage`（符号链接）、`home/.cache/*`；另有一个 `<名字>.metadata/` 目录记录
+  dpkg 包列表、`termux.properties`、`colors.properties` 与 app/bootstrap 版本，便于恢复时对比。
+* 生成后会做 `tar -t` 完整性校验并写 `<名字>.sha256`；恢复前会用这个校验值验证（存在时）。
+* 恢复是 tar 覆盖式：归档里的文件被覆盖，**归档里没有的文件（例如备份后新装的包）保留**。
+* 恢复前默认先自动备份当前环境（`termux-backup-before-restore-<时间>`），可用 `--no-pre-backup` 关闭。
+* 共享存储不可用时（还没 `termux-setup-storage`）会自动退回到 `$HOME` 存放，并提示。
+* 恢复后建议执行：`termux-reload-settings` → `pkg upgrade` → `termux-setup-storage`
+  （`~/storage` 不在备份里）；`~/bin` 下若有绝对 shebang 的脚本用 `termux-fix-shebang` 修一下。
+
+### 实测（真机）
+
+本机（aarch64，约 1.08 GB 数据）实测：备份 26s / 333 MB / 43023 条目，校验通过；
+`--target-dir` 解包演练 1.1 GB，符号链接（`usr/bin/sh -> dash`）与可执行权限位均正确保留；
+交互选择、非法输入、损坏归档（假文件）都能正确处理。

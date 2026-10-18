@@ -228,7 +228,38 @@
                     #RRGGBB 或 #AARRGGBB 这类取值</string>
 
 
-        <!-- Terminal View Preferences -->
+            <!-- Backup and Restore Preferences -->
+        <string name="termux_backup_preferences_title">备份与恢复</string>
+        <string name="termux_backup_preferences_summary">备份或恢复 Termux 环境</string>
+
+            <string name="termux_backup_category_title">环境备份</string>
+            <string name="termux_backup_category_summary">会打包整个 $PREFIX 与 $HOME，卸载应用或换成其他签名的构建前
+                需要先做这个备份</string>
+
+            <string name="termux_backup_now_title">立即备份</string>
+            <string name="termux_backup_now_summary">在 ~/storage/shared/Download 创建备份，并开一个新终端会话显示进度</string>
+
+            <string name="termux_restore_now_title">从备份恢复</string>
+            <string name="termux_restore_now_summary">从设备上选择备份并覆盖 $PREFIX 与 $HOME。恢复前会先自动备份当前
+                环境。</string>
+
+            <string name="termux_backup_install_commands_title">把脚本安装为命令</string>
+            <string name="termux_backup_install_commands_summary">复制到 $PREFIX/bin，之后随时可以在终端里直接用
+                `termux-backup` 与 `termux-restore`</string>
+
+            <string name="termux_backup_started_toast">已在新终端会话中开始备份</string>
+            <string name="termux_restore_started_toast">已在新终端会话中开始恢复</string>
+            <string name="termux_backup_script_extract_failed_toast">提取 %1$s 脚本失败</string>
+            <string name="termux_backup_script_run_failed_toast">运行 %1$s 脚本失败</string>
+            <string name="termux_backup_commands_installed_toast">现在可以在终端里直接运行 %1$s 与 %2$s 了</string>
+            <string name="termux_backup_commands_install_failed_toast">安装脚本失败，详情请看 logcat</string>
+            <string name="termux_restore_confirm_title">要恢复备份吗？</string>
+            <string name="termux_restore_confirm_message">$PREFIX 与 $HOME 会被所选备份的内容覆盖，恢复前会先自动备份
+                当前环境。之后在终端里仍然可以取消恢复。</string>
+            <string name="termux_restore_confirm_positive">继续</string>
+
+
+    <!-- Terminal View Preferences -->
         <string name="termux_terminal_view_preferences_title">终端视图</string>
         <string name="termux_terminal_view_preferences_summary">终端视图相关设置</string>
 
