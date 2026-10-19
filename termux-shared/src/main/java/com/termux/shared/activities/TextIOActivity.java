@@ -232,6 +232,9 @@ public class TextIOActivity extends AppCompatActivity {
         return false;
     }
 
+    // Suppress the lint check for not calling super.onBackPressed(), since the text is confirmed and sent
+    // back to the calling activity on back button press instead of just the activity being finished.
+    @SuppressLint("MissingSuperCall")
     @Override
     public void onBackPressed() {
         confirm();

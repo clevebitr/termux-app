@@ -810,7 +810,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
 
 
-    @SuppressLint("RtlHardcoded")
+    @SuppressLint({"RtlHardcoded", "MissingSuperCall"})
     @Override
     public void onBackPressed() {
         if (getDrawer().isDrawerOpen(Gravity.LEFT)) {

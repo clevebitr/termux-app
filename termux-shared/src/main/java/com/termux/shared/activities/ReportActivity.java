@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -203,6 +204,9 @@ public class ReportActivity extends AppCompatActivity {
         return true;
     }
 
+    // Suppress the lint check for not calling super.onBackPressed(), since the activity must be removed
+    // from the recents menu instead of just being finished.
+    @SuppressLint("MissingSuperCall")
     @Override
     public void onBackPressed() {
         // Remove activity from recents menu on back button press
