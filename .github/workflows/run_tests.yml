@@ -24,3 +24,33 @@ jobs:
     - name: Execute tests
       run: |
         ./gradlew test
+
+    # Android lint checks the code and the resources for issues that the compiler and the unit tests
+    # do not catch, like the use of APIs that do not exist on the minimum supported android version,
+    # misused XML attributes, invalid format strings and missing translations. Lint errors fail the
+    # job, while warnings are only reported below.
+    - name: Execute lint
+      run: |
+        ./gradlew lintDebug
+
+    - name: Show lint report
+      if: always()
+      run: |
+        set -euo pipefail
+        lint_reports=$(find . -path '*/build/reports/lint-results-debug.txt' | sort)
+        if [ -z "$lint_reports" ]; then
+          echo "No lint report was found"
+          exit 0
+        fi
+
+        echo "Lint issue counts (errors, warnings):"
+        for lint_report in $lint_reports; do
+          printf '%s: %s\n' "$lint_report" "$(grep -E '^[0-9]+ errors?, [0-9]+ warnings?' "$lint_report" | tail -n 1)"
+        done
+
+        echo "::group::Lint report"
+        for lint_report in $lint_reports; do
+          echo "--- $lint_report"
+          head -n 300 "$lint_report"
+        done
+        echo "::endgroup::"
