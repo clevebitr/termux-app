@@ -25,6 +25,7 @@ import com.termux.shared.interact.ShareUtils;
 import com.termux.shared.shell.ShellUtils;
 import com.termux.shared.termux.TermuxBootstrap;
 import com.termux.shared.termux.terminal.TermuxTerminalViewClientBase;
+import com.termux.shared.termux.extrakeys.ExtraKeysView;
 import com.termux.shared.termux.extrakeys.SpecialButton;
 import com.termux.shared.android.AndroidUtils;
 import com.termux.shared.termux.TermuxConstants;
