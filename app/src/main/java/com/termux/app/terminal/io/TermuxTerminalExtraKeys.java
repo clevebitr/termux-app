@@ -95,64 +95,59 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
         mExtraKeysPanels = new ArrayList<>();
         mExtraKeysProperties = getExtraKeysProperties();
 
-        try {
-            // The mMap stores the extra key and style string values while loading properties
-            // Check {@link #getExtraKeysInternalPropertyValueFromValue(String)} and
-            // {@link #getExtraKeysStyleInternalPropertyValueFromValue(String)}
-            String extraKeys = (String) mActivity.getProperties().getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS, true);
-            String extraKeysPanels = (String) mActivity.getProperties().getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_PANELS, true);
-            String extraKeysStyle = (String) mActivity.getProperties().getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_STYLE, true);
+        // The mMap stores the extra key and style string values while loading properties
+        // Check {@link #getExtraKeysInternalPropertyValueFromValue(String)} and
+        // {@link #getExtraKeysStyleInternalPropertyValueFromValue(String)}
+        String extraKeys = (String) mActivity.getProperties().getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS, true);
+        String extraKeysPanels = (String) mActivity.getProperties().getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_PANELS, true);
+        String extraKeysStyle = (String) mActivity.getProperties().getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_STYLE, true);
 
-            ExtraKeysConstants.ExtraKeyDisplayMap extraKeyDisplayMap = ExtraKeysInfo.getCharDisplayMapForStyle(extraKeysStyle);
-            if (ExtraKeysConstants.EXTRA_KEY_DISPLAY_MAPS.DEFAULT_CHAR_DISPLAY.equals(extraKeyDisplayMap) && !TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS_STYLE.equals(extraKeysStyle)) {
-                Logger.logError(TermuxSharedProperties.LOG_TAG, "The style \"" + extraKeysStyle + "\" for the key \"" + TermuxPropertyConstants.KEY_EXTRA_KEYS_STYLE + "\" is invalid. Using default style instead.");
-                extraKeysStyle = TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS_STYLE;
+        ExtraKeysConstants.ExtraKeyDisplayMap extraKeyDisplayMap = ExtraKeysInfo.getCharDisplayMapForStyle(extraKeysStyle);
+        if (ExtraKeysConstants.EXTRA_KEY_DISPLAY_MAPS.DEFAULT_CHAR_DISPLAY.equals(extraKeyDisplayMap) && !TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS_STYLE.equals(extraKeysStyle)) {
+            Logger.logError(TermuxSharedProperties.LOG_TAG, "The style \"" + extraKeysStyle + "\" for the key \"" + TermuxPropertyConstants.KEY_EXTRA_KEYS_STYLE + "\" is invalid. Using default style instead.");
+            extraKeysStyle = TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS_STYLE;
+        }
+
+        if (extraKeysPanels != null && !extraKeysPanels.isEmpty()) {
+            try {
+                // Each panel is a matrix of rows of keys, so the property is a JSON array of matrices.
+                JSONArray panelsArray = new JSONArray(extraKeysPanels);
+                for (int i = 0; i < panelsArray.length(); i++) {
+                    JSONArray panelArray = panelsArray.optJSONArray(i);
+                    if (panelArray == null) {
+                        throw new JSONException("The panel at index " + i + " is not an array of rows of keys");
+                    }
+                    mExtraKeysPanels.add(new ExtraKeysInfo(panelArray.toString(), extraKeysStyle, ExtraKeysConstants.CONTROL_CHARS_ALIASES));
+                }
+
+                if (mExtraKeysPanels.isEmpty()) {
+                    throw new JSONException("The property does not define any panel");
+                }
+            } catch (JSONException e) {
+                Logger.showToast(mActivity, "Could not load and set the \"" + TermuxPropertyConstants.KEY_EXTRA_KEYS_PANELS + "\" property from the properties file: " + e.toString(), true);
+                Logger.logStackTraceWithMessage(LOG_TAG, "Could not load and set the \"" + TermuxPropertyConstants.KEY_EXTRA_KEYS_PANELS + "\" property from the properties file: ", e);
+
+                // Fall back to the `extra-keys` property as a single panel.
+                mExtraKeysPanels.clear();
             }
+        }
 
-            if (extraKeysPanels != null && !extraKeysPanels.isEmpty()) {
+        if (mExtraKeysPanels.isEmpty()) {
+            try {
+                mExtraKeysPanels.add(new ExtraKeysInfo(extraKeys, extraKeysStyle, ExtraKeysConstants.CONTROL_CHARS_ALIASES));
+            } catch (JSONException e) {
+                Logger.showToast(mActivity, "Could not load and set the \"" + TermuxPropertyConstants.KEY_EXTRA_KEYS + "\" property from the properties file: " + e.toString(), true);
+                Logger.logStackTraceWithMessage(LOG_TAG, "Could not load and set the \"" + TermuxPropertyConstants.KEY_EXTRA_KEYS + "\" property from the properties file: ", e);
+
+                mExtraKeysPanels.clear();
                 try {
-                    // Each panel is a matrix of rows of keys, so the property is a JSON array of matrices.
-                    JSONArray panelsArray = new JSONArray(extraKeysPanels);
-                    for (int i = 0; i < panelsArray.length(); i++) {
-                        JSONArray panelArray = panelsArray.optJSONArray(i);
-                        if (panelArray == null) {
-                            throw new JSONException("The panel at index " + i + " is not an array of rows of keys");
-                        }
-                        mExtraKeysPanels.add(new ExtraKeysInfo(panelArray.toString(), extraKeysStyle, ExtraKeysConstants.CONTROL_CHARS_ALIASES));
-                    }
-
-                    if (mExtraKeysPanels.isEmpty()) {
-                        throw new JSONException("The property does not define any panel");
-                    }
-                } catch (JSONException e) {
-                    Logger.showToast(mActivity, "Could not load and set the \"" + TermuxPropertyConstants.KEY_EXTRA_KEYS_PANELS + "\" property from the properties file: " + e.toString(), true);
-                    Logger.logStackTraceWithMessage(LOG_TAG, "Could not load and set the \"" + TermuxPropertyConstants.KEY_EXTRA_KEYS_PANELS + "\" property from the properties file: ", e);
-
-                    // Fall back to the `extra-keys` property as a single panel.
+                    mExtraKeysPanels.add(new ExtraKeysInfo(TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS, TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS_STYLE, ExtraKeysConstants.CONTROL_CHARS_ALIASES));
+                } catch (JSONException e2) {
+                    Logger.showToast(mActivity, "Can't create default extra keys",true);
+                    Logger.logStackTraceWithMessage(LOG_TAG, "Could create default extra keys: ", e2);
                     mExtraKeysPanels.clear();
                 }
             }
-
-            if (mExtraKeysPanels.isEmpty()) {
-                try {
-                    mExtraKeysPanels.add(new ExtraKeysInfo(extraKeys, extraKeysStyle, ExtraKeysConstants.CONTROL_CHARS_ALIASES));
-                } catch (JSONException e) {
-                    Logger.showToast(mActivity, "Could not load and set the \"" + TermuxPropertyConstants.KEY_EXTRA_KEYS + "\" property from the properties file: " + e.toString(), true);
-                    Logger.logStackTraceWithMessage(LOG_TAG, "Could not load and set the \"" + TermuxPropertyConstants.KEY_EXTRA_KEYS + "\" property from the properties file: ", e);
-
-                    mExtraKeysPanels.clear();
-                    try {
-                        mExtraKeysPanels.add(new ExtraKeysInfo(TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS, TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS_STYLE, ExtraKeysConstants.CONTROL_CHARS_ALIASES));
-                    } catch (JSONException e2) {
-                        Logger.showToast(mActivity, "Can't create default extra keys",true);
-                        Logger.logStackTraceWithMessage(LOG_TAG, "Could create default extra keys: ", e2);
-                        mExtraKeysPanels.clear();
-                    }
-                }
-            }
-        } catch (JSONException e) {
-            Logger.showToast(mActivity, "Could not load the extra keys properties from the properties file: " + e.toString(), true);
-            Logger.logStackTraceWithMessage(LOG_TAG, "Could not load the extra keys properties from the properties file: ", e);
         }
     }
 
