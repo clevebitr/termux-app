@@ -156,6 +156,14 @@ public final class ExtraKeysView extends GridLayout {
      * set when the call to {@link #setSpecialButtons(Map)} is made. */
     protected Set<String> mSpecialButtonsKeys;
 
+    /**
+     * The {@link ExtraKeysInfo} that the buttons of the view were created from by the last call to
+     * {@link #reload(ExtraKeysInfo, float)}, which is needed to recreate the buttons, like when the
+     * button colors are changed.
+     */
+    @Nullable
+    protected ExtraKeysInfo mExtraKeysInfo;
+
 
     /**
      * The list of keys for which auto repeat of key should be triggered if its extra keys button
@@ -229,6 +237,12 @@ public final class ExtraKeysView extends GridLayout {
     /** Get {@link #mExtraKeysViewClient}. */
     public IExtraKeysView getExtraKeysViewClient() {
         return mExtraKeysViewClient;
+    }
+
+    /** Get {@link #mExtraKeysInfo}, which the buttons of the view were created from. */
+    @Nullable
+    public ExtraKeysInfo getExtraKeysInfo() {
+        return mExtraKeysInfo;
     }
 
     /** Set {@link #mExtraKeysViewClient}. */
@@ -386,6 +400,8 @@ public final class ExtraKeysView extends GridLayout {
     public void reload(ExtraKeysInfo extraKeysInfo, float heightPx) {
         if (extraKeysInfo == null)
             return;
+
+        mExtraKeysInfo = extraKeysInfo;
 
         for(SpecialButtonState state : mSpecialButtons.values())
             state.buttons = new ArrayList<>();

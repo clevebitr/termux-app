@@ -4,7 +4,6 @@ import android.content.Context;
 import android.os.Bundle;
 
 import androidx.annotation.Keep;
-import androidx.preference.PreferenceDataStore;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
@@ -27,15 +26,26 @@ public class TerminalViewPreferencesFragment extends PreferenceFragmentCompat {
 
 }
 
-class TerminalViewPreferencesDataStore extends PreferenceDataStore {
+/**
+ * A {@link TermuxPropertyPreferenceDataStore} for the `termux.properties` file entries shown in
+ * {@link TerminalViewPreferencesFragment}.
+ *
+ * The terminal margin adjustment preference is stored in shared preferences instead of the properties
+ * file, since it is specific to the app and not applicable to terminal programs.
+ */
+class TerminalViewPreferencesDataStore extends TermuxPropertyPreferenceDataStore {
 
-    private final Context mContext;
+    /** The key of the preference that is stored in shared preferences instead of the properties file. */
+    private static final String KEY_TERMINAL_MARGIN_ADJUSTMENT = "terminal_margin_adjustment";
+
     private final TermuxAppSharedPreferences mPreferences;
 
     private static TerminalViewPreferencesDataStore mInstance;
 
     private TerminalViewPreferencesDataStore(Context context) {
-        mContext = context;
+        // The properties shown in this screen are read whenever they are needed, so the activity does
+        // not have to be recreated for the changes to take effect.
+        super(context, false);
         mPreferences = TermuxAppSharedPreferences.build(context, true);
     }
 
@@ -46,32 +56,28 @@ class TerminalViewPreferencesDataStore extends PreferenceDataStore {
         return mInstance;
     }
 
-
-
     @Override
     public void putBoolean(String key, boolean value) {
-        if (mPreferences == null) return;
-        if (key == null) return;
+        if (KEY_TERMINAL_MARGIN_ADJUSTMENT.equals(key)) {
+            if (mPreferences == null) return;
+            mPreferences.setTerminalMarginAdjustment(value);
 
-        switch (key) {
-            case "terminal_margin_adjustment":
-                    mPreferences.setTerminalMarginAdjustment(value);
-                break;
-            default:
-                break;
+            // The margin adjustment is applied when the activity is started, so the activity does not
+            // have to be recreated or the styling reloaded for the change to take effect.
+            return;
         }
+
+        super.putBoolean(key, value);
     }
 
     @Override
     public boolean getBoolean(String key, boolean defValue) {
-        if (mPreferences == null) return false;
-
-        switch (key) {
-            case "terminal_margin_adjustment":
-                return mPreferences.isTerminalMarginAdjustmentEnabled();
-            default:
-                return false;
+        if (KEY_TERMINAL_MARGIN_ADJUSTMENT.equals(key)) {
+            if (mPreferences == null) return defValue;
+            return mPreferences.isTerminalMarginAdjustmentEnabled();
         }
+
+        return super.getBoolean(key, defValue);
     }
 
 }

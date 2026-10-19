@@ -20,7 +20,7 @@ final class GestureAndScaleRecognizer {
          */
         boolean onScroll(MotionEvent e1, MotionEvent e2, float dx, float dy);
 
-        boolean onFling(MotionEvent e, float velocityX, float velocityY);
+        boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY);
 
         boolean onScale(float focusX, float focusY, float scale);
 
@@ -47,7 +47,7 @@ final class GestureAndScaleRecognizer {
 
             @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-                return mListener.onFling(e2, velocityX, velocityY);
+                return mListener.onFling(e1, e2, velocityX, velocityY);
             }
 
             @Override

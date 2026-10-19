@@ -248,6 +248,17 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     }
 
     @Override
+    public boolean shouldSwitchSessionOnSwipe() {
+        return mActivity.getProperties().shouldSwitchSessionOnSwipe();
+    }
+
+    @Override
+    public void onSwitchSessionSwipe(boolean forward) {
+        if (mTermuxTerminalSessionActivityClient != null)
+            mTermuxTerminalSessionActivityClient.switchToSession(forward);
+    }
+
+    @Override
     public boolean shouldUseCtrlSpaceWorkaround() {
         return mActivity.getProperties().isUsingCtrlSpaceWorkaround();
     }
@@ -372,11 +383,17 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     }
 
     public boolean readExtraKeysSpecialButton(SpecialButton specialButton) {
-        if (mActivity.getExtraKeysView() == null) return false;
-        Boolean state = mActivity.getExtraKeysView().readSpecialButton(specialButton, true);
-        if (state == null) {
-            Logger.logError(LOG_TAG,"Failed to read an unregistered " + specialButton + " special button value from extra keys.");
-            return false;
+        // The special button state is stored in each extra keys panel separately, so the button is
+        // considered active if it is active in any of the panels. Reading the state also disables the
+        // active state of the panel, unless it is locked.
+        boolean state = false;
+        for (ExtraKeysView extraKeysView : mActivity.getExtraKeysViews()) {
+            Boolean viewState = extraKeysView.readSpecialButton(specialButton, true);
+            if (viewState == null) {
+                Logger.logError(LOG_TAG, "Failed to read an unregistered " + specialButton + " special button value from extra keys.");
+            } else if (viewState) {
+                state = true;
+            }
         }
         return state;
     }

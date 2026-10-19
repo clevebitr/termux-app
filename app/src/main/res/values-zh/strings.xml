@@ -52,6 +52,9 @@
     <string name="title_create_named_session">新建命名会话</string>
     <string name="action_create_named_session_confirm">创建</string>
 
+    <!-- Session list item details -->
+    <string name="termux_session_details_pid">PID %1$d</string>
+
     <string name="action_toggle_soft_keyboard">键盘</string>
 
     <string name="msg_enabling_terminal_toolbar">正在启用终端工具栏</string>
@@ -371,6 +374,12 @@
                 <string name="termux_terminal_view_terminal_margin_adjustment_on">终端边距自适应将被启用。
                     它可以尝试修复软键盘遮挡部分额外按键行/终端视图的问题。
                     如果它导致你的设备屏幕闪烁，请停用它。（默认）</string>
+
+                <!-- Switch Session on Swipe -->
+                <string name="termux_terminal_view_switch_session_on_swipe_title">左右滑动切换会话</string>
+                <string name="termux_terminal_view_switch_session_on_swipe_off">在终端上左右滑动不会切换会话。</string>
+                <string name="termux_terminal_view_switch_session_on_swipe_on">在终端上左右滑动会切换到上一个/下一个会话。
+                    选择文本时以及终端程序开启了鼠标跟踪时不会触发。（默认）</string>
 
 
 

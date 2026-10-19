@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 /*
- * Version: v0.23.0
+ * Version: v0.24.0
  * SPDX-License-Identifier: MIT
  *
  * Changelog
@@ -96,6 +96,9 @@ import java.util.Set;
  *
  * - 0.23.0 (2026-10-18)
  *      - Add `KEY_HIDE_EXTRA_KEYS_WHEN_SOFT_KEYBOARD_HIDDEN` and `KEY_TOUCH_DRAG_SENDS_MOUSE_DRAG`.
+ *
+ * - 0.24.0 (2026-10-18)
+ *      - Add `KEY_EXTRA_KEYS_PANELS` and `KEY_SWITCH_SESSION_ON_SWIPE`.
  */
 
 /**
@@ -181,6 +184,12 @@ public final class TermuxPropertyConstants {
 
     /** Defines the key for whether url links in terminal transcript will automatically open on click or on tap */
     public static final String KEY_TERMINAL_ONCLICK_URL_OPEN =  "terminal-onclick-url-open"; // Default: "terminal-onclick-url-open"
+
+
+
+    /** Defines the key for whether a horizontal swipe on the terminal view should switch to the next or
+     * previous terminal session. */
+    public static final String KEY_SWITCH_SESSION_ON_SWIPE =  "switch-session-on-swipe"; // Default: "switch-session-on-swipe"
 
 
 
@@ -378,6 +387,16 @@ public final class TermuxPropertyConstants {
     //public static final String DEFAULT_IVALUE_EXTRA_KEYS = "[[ESC, TAB, CTRL, ALT, {key: '-', popup: '|'}, DOWN, UP]]"; // Single row
     public static final String DEFAULT_IVALUE_EXTRA_KEYS = "[['ESC','/',{key: '-', popup: '|'},'HOME','UP','END','PGUP'], ['TAB','CTRL','ALT','LEFT','DOWN','RIGHT','PGDN']]"; // Double row
 
+    /**
+     * Defines the key for the panels of extra keys, which define multiple sets of extra keys that the
+     * user can swipe horizontally between, like between the extra keys and the text input view.
+     *
+     * The value is a JSON array of extra keys matrices, where each matrix has the same format as the
+     * {@link #KEY_EXTRA_KEYS} property. If the property is not set or its value is not a valid array of
+     * matrices, then the value of the {@link #KEY_EXTRA_KEYS} property is used as a single panel instead.
+     */
+    public static final String KEY_EXTRA_KEYS_PANELS =  "extra-keys-panels"; // Default: "extra-keys-panels"
+
     /** Defines the key for extra keys style */
     public static final String KEY_EXTRA_KEYS_STYLE =  "extra-keys-style"; // Default: "extra-keys-style"
     public static final String DEFAULT_IVALUE_EXTRA_KEYS_STYLE = "default";
@@ -479,6 +498,7 @@ public final class TermuxPropertyConstants {
         KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP,
         KEY_MOUSE_TAP_SHOWS_KEYBOARD,
         KEY_RUN_TERMUX_AM_SOCKET_SERVER,
+        KEY_SWITCH_SESSION_ON_SWIPE,
         KEY_TERMINAL_ONCLICK_URL_OPEN,
         KEY_TOUCH_DRAG_SENDS_MOUSE_DRAG,
         KEY_USE_CTRL_SPACE_WORKAROUND,
@@ -508,6 +528,7 @@ public final class TermuxPropertyConstants {
         KEY_BACK_KEY_BEHAVIOUR,
         KEY_DEFAULT_WORKING_DIRECTORY,
         KEY_EXTRA_KEYS,
+        KEY_EXTRA_KEYS_PANELS,
         KEY_EXTRA_KEYS_STYLE,
         KEY_EXTRA_KEYS_FOREGROUND,
         KEY_EXTRA_KEYS_BACKGROUND,
@@ -548,7 +569,8 @@ public final class TermuxPropertyConstants {
      */
     public static final Set<String> TERMUX_DEFAULT_TRUE_BOOLEAN_BEHAVIOUR_PROPERTIES_LIST = new HashSet<>(Arrays.asList(
         KEY_EXTRA_KEYS_TEXT_ALL_CAPS,
-        KEY_RUN_TERMUX_AM_SOCKET_SERVER
+        KEY_RUN_TERMUX_AM_SOCKET_SERVER,
+        KEY_SWITCH_SESSION_ON_SWIPE
     ));
 
     /** Defines the set for keys loaded by termux that have default inverted boolean behaviour with false as default.

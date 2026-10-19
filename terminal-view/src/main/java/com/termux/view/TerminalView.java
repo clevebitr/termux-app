@@ -236,8 +236,18 @@ public final class TerminalView extends View {
             }
 
             @Override
-            public boolean onFling(final MotionEvent e2, float velocityX, float velocityY) {
+            public boolean onFling(final MotionEvent e1, final MotionEvent e2, float velocityX, float velocityY) {
                 if (mEmulator == null) return true;
+
+                // A horizontal swipe switches to the previous or next session, unless a terminal program is
+                // using mouse tracking or text is being selected, in which case the gesture belongs to them.
+                if (mClient.shouldSwitchSessionOnSwipe() && isSessionSwitchSwipe(e1, e2, velocityX, velocityY)) {
+                    // Swiping towards the left moves the view towards the left, which is like moving to the next
+                    // page of a pager, so the next session is switched to.
+                    mClient.onSwitchSessionSwipe(velocityX < 0);
+                    return true;
+                }
+
                 // Do not start scrolling until last fling has been taken care of:
                 if (!mScroller.isFinished()) return true;
 
@@ -309,6 +319,20 @@ public final class TerminalView extends View {
     }
 
 
+
+    /**
+     * Whether a fling is a horizontal swipe that should switch to the next or previous session, which
+     * requires it to be clearly horizontal, so that a diagonal swipe meant for scrolling does not switch
+     * the session, and to cover a minimum distance, so that a small flick does not switch it either.
+     */
+    private boolean isSessionSwitchSwipe(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+        if (e1 == null || e2 == null) return false;
+        if (mEmulator == null || mEmulator.isMouseTrackingActive() || isSelectingText()) return false;
+
+        if (Math.abs(velocityX) < 2 * Math.abs(velocityY)) return false;
+
+        return Math.abs(e2.getX() - e1.getX()) > getWidth() / 10.f;
+    }
 
     /**
      * @param client The {@link TerminalViewClient} interface implementation to allow

@@ -52,6 +52,9 @@
     <string name="title_create_named_session">New named session</string>
     <string name="action_create_named_session_confirm">Create</string>
 
+    <!-- Session list item details -->
+    <string name="termux_session_details_pid">pid %1$d</string>
+
     <string name="action_toggle_soft_keyboard">Keyboard</string>
 
     <string name="msg_enabling_terminal_toolbar">Enabling Terminal Toolbar</string>
@@ -397,6 +400,14 @@
                 <string name="termux_terminal_view_terminal_margin_adjustment_on">Terminal margin adjustment will be enabled.
                     It should be enabled to try to fix the issue where soft keyboard covers part of extra keys/terminal view.
                     If it causes screen flickering on your devices, then disable it. (Default)</string>
+
+                <!-- Switch Session on Swipe -->
+                <string name="termux_terminal_view_switch_session_on_swipe_title">Switch Session on Swipe</string>
+                <string name="termux_terminal_view_switch_session_on_swipe_off">A horizontal swipe on the terminal
+                    does not switch the session.</string>
+                <string name="termux_terminal_view_switch_session_on_swipe_on">A horizontal swipe on the terminal
+                    switches to the previous or next session. It is not used while selecting text or while a
+                    terminal program is using mouse tracking. (Default)</string>
 
 
 

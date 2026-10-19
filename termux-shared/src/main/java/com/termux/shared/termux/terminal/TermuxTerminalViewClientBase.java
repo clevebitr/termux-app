@@ -41,6 +41,14 @@ public class TermuxTerminalViewClientBase implements TerminalViewClient {
         return false;
     }
 
+    public boolean shouldSwitchSessionOnSwipe() {
+        return false;
+    }
+
+    @Override
+    public void onSwitchSessionSwipe(boolean forward) {
+    }
+
     @Override
     public boolean isTerminalViewSelected() {
         return true;

@@ -750,6 +750,16 @@ public abstract class TermuxSharedProperties {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_TOUCH_DRAG_SENDS_MOUSE_DRAG, true);
     }
 
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_SWITCH_SESSION_ON_SWIPE} boolean value.
+     *
+     * If enabled, then a horizontal swipe on the terminal view switches to the next or previous
+     * terminal session.
+     */
+    public boolean shouldSwitchSessionOnSwipe() {
+        return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_SWITCH_SESSION_ON_SWIPE, true);
+    }
+
     public boolean isUsingCtrlSpaceWorkaround() {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_USE_CTRL_SPACE_WORKAROUND, true);
     }

@@ -43,6 +43,21 @@ public interface TerminalViewClient {
     boolean shouldUseCtrlSpaceWorkaround();
 
     /**
+     * Whether a horizontal swipe on the terminal view should switch to the next or previous session.
+     * The gesture is not reported to this client if it is disabled, or if a terminal program is using
+     * mouse tracking or text is being selected, since the gesture then belongs to them.
+     */
+    boolean shouldSwitchSessionOnSwipe();
+
+    /**
+     * Called when the user makes a horizontal swipe on the terminal view to switch to the next or
+     * previous session.
+     *
+     * @param forward Whether the swipe was towards the next session, otherwise the previous one.
+     */
+    void onSwitchSessionSwipe(boolean forward);
+
+    /**
      * Whether a drag with a finger should be reported as a drag of the mouse pointer with the left
      * button pressed, instead of scroll wheel events, when mouse tracking is active, so that terminal
      * programs that support dragging, like for selecting text or resizing panes in a TUI, can handle

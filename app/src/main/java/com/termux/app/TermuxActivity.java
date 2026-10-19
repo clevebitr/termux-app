@@ -72,9 +72,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.viewpager.widget.PagerAdapter;
 import androidx.viewpager.widget.ViewPager;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -136,10 +139,15 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     /**
      * The terminal extra keys view.
      */
-    ExtraKeysView mExtraKeysView;
+    /**
+     * The {@link ExtraKeysView} of each extra keys panel that has been created by the terminal toolbar
+     * view pager, since multiple panels can be defined with the `extra-keys-panels` property and swiped
+     * between. The views are removed when the pager destroys them, like when the panel count changes.
+     */
+    final List<ExtraKeysView> mExtraKeysViews = new ArrayList<>();
 
     /**
-     * The client for the {@link #mExtraKeysView}.
+     * The client for the {@link #mExtraKeysViews extra keys views}.
      */
     TermuxTerminalExtraKeys mTermuxTerminalExtraKeys;
 
@@ -291,6 +299,16 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         setToggleKeyboardView();
 
         registerForContextMenu(mTerminalView);
+
+        // Refresh the session list when the drawer is opened, since the details shown for the sessions,
+        // like the foreground process and the working directory, may have changed while it was closed.
+        getDrawer().addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
+            @Override
+            public void onDrawerOpened(@NonNull View drawerView) {
+                if (mTermuxSessionListViewController != null)
+                    mTermuxSessionListViewController.notifyDataSetChanged();
+            }
+        });
 
         // The receiver must be registered for the whole lifetime of the activity and not only while it
         // is started, since the settings activities change termux properties while this activity is
@@ -520,11 +538,21 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
 
 
-    private void reloadProperties() {
+    /**
+     * Reload the termux properties from disk.
+     *
+     * @return Whether the extra keys panels changed, in which case the views of the extra keys must be
+     *         recreated, since the views are created from the panels.
+     */
+    private boolean reloadProperties() {
         mProperties.loadTermuxPropertiesFromDisk();
 
         if (mTermuxTerminalViewClient != null)
             mTermuxTerminalViewClient.onReloadProperties();
+
+        // The extra keys panels are only parsed when the extra keys client is created or when they are
+        // reloaded, since the parsing is not handled by `onReloadProperties()` above.
+        return mTermuxTerminalExtraKeys != null && mTermuxTerminalExtraKeys.reloadExtraKeys();
     }
 
 
@@ -638,13 +666,33 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         terminalToolbarViewPager.addOnPageChangeListener(new TerminalToolbarViewPager.OnPageChangeListener(this, terminalToolbarViewPager));
     }
 
+    /**
+     * Recreate the pages of the terminal toolbar view pager, like when the extra keys panels have changed,
+     * since each extra keys page is created from a panel. The text typed in the text input page is
+     * preserved by the pager adapter.
+     */
+    private void recreateTerminalToolbarViewPagerPages() {
+        ViewPager terminalToolbarViewPager = getTerminalToolbarViewPager();
+        if (terminalToolbarViewPager == null) return;
+
+        PagerAdapter adapter = terminalToolbarViewPager.getAdapter();
+        if (adapter == null) return;
+
+        Logger.logDebug(LOG_TAG, "Recreating the terminal toolbar view pager pages since the extra keys panels changed");
+        adapter.notifyDataSetChanged();
+
+        // The current page may not exist anymore if the number of the panels decreased.
+        if (terminalToolbarViewPager.getCurrentItem() >= adapter.getCount())
+            terminalToolbarViewPager.setCurrentItem(adapter.getCount() - 1, false);
+    }
+
     private void setTerminalToolbarHeight() {
         final ViewPager terminalToolbarViewPager = getTerminalToolbarViewPager();
         if (terminalToolbarViewPager == null) return;
 
         ViewGroup.LayoutParams layoutParams = terminalToolbarViewPager.getLayoutParams();
         layoutParams.height = Math.round(mTerminalToolbarDefaultHeight *
-            (mTermuxTerminalExtraKeys.getExtraKeysInfo() == null ? 0 : mTermuxTerminalExtraKeys.getExtraKeysInfo().getMatrix().length) *
+            mTermuxTerminalExtraKeys.getExtraKeysPanelsMaxRows() *
             mProperties.getTerminalToolbarHeightScaleFactor());
         terminalToolbarViewPager.setLayoutParams(layoutParams);
     }
@@ -988,19 +1036,28 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     /** The text color applied to the extra keys view buttons and the terminal toolbar text input view. */
     private int mExtraKeysTextColor = ExtraKeysView.DEFAULT_BUTTON_TEXT_COLOR;
 
-    public ExtraKeysView getExtraKeysView() {
-        return mExtraKeysView;
+    /** Get the {@link ExtraKeysView} of each extra keys panel that is currently created, if any. */
+    public List<ExtraKeysView> getExtraKeysViews() {
+        return mExtraKeysViews;
     }
 
     public TermuxTerminalExtraKeys getTermuxTerminalExtraKeys() {
         return mTermuxTerminalExtraKeys;
     }
 
-    public void setExtraKeysView(ExtraKeysView extraKeysView) {
-        mExtraKeysView = extraKeysView;
-        // Set the colors before the caller reloads the extra keys view, since the colors are applied
-        // to the buttons when they are created in ExtraKeysView.reload().
+    /**
+     * Add a {@link ExtraKeysView} panel to {@link #mExtraKeysViews} and set its colors. Must be called
+     * before the caller reloads the extra keys view, since the colors are applied to the buttons when
+     * they are created in {@link ExtraKeysView#reload(com.termux.shared.termux.extrakeys.ExtraKeysInfo, float)}.
+     */
+    public void addExtraKeysView(ExtraKeysView extraKeysView) {
+        mExtraKeysViews.add(extraKeysView);
         setExtraKeysViewColors(extraKeysView);
+    }
+
+    /** Remove a {@link ExtraKeysView} panel from {@link #mExtraKeysViews}, like when the pager destroys it. */
+    public void removeExtraKeysView(ExtraKeysView extraKeysView) {
+        mExtraKeysViews.remove(extraKeysView);
     }
 
     /**
@@ -1012,13 +1069,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * changed.
      */
     public void updateExtraKeysViewColors() {
-        ExtraKeysView extraKeysView = getExtraKeysView();
-        if (extraKeysView == null) return;
+        for (ExtraKeysView extraKeysView : mExtraKeysViews) {
+            setExtraKeysViewColors(extraKeysView);
 
-        setExtraKeysViewColors(extraKeysView);
-
-        // The colors are applied to the buttons when they are created, so they must be recreated.
-        extraKeysView.reload(mTermuxTerminalExtraKeys.getExtraKeysInfo(), getTerminalToolbarDefaultHeight());
+            // The colors are applied to the buttons when they are created, so they must be recreated.
+            extraKeysView.reload(extraKeysView.getExtraKeysInfo(), getTerminalToolbarDefaultHeight());
+        }
     }
 
     /**
@@ -1100,11 +1156,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     public boolean isTerminalViewSelected() {
-        return getTerminalToolbarViewPager().getCurrentItem() == 0;
+        return getTerminalToolbarViewPager().getCurrentItem() < mTermuxTerminalExtraKeys.getExtraKeysPanelCount();
     }
 
     public boolean isTerminalToolbarTextInputViewSelected() {
-        return getTerminalToolbarViewPager().getCurrentItem() == 1;
+        return getTerminalToolbarViewPager().getCurrentItem() == mTermuxTerminalExtraKeys.getExtraKeysPanelCount();
     }
 
 
@@ -1234,12 +1290,18 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     private void reloadActivityStyling(boolean recreateActivity) {
         if (mProperties != null) {
-            reloadProperties();
+            boolean extraKeysPanelsChanged = reloadProperties();
 
-            if (mExtraKeysView != null) {
-                mExtraKeysView.setButtonTextAllCaps(mProperties.shouldExtraKeysTextBeAllCaps());
-                setExtraKeysViewColors(mExtraKeysView);
-                mExtraKeysView.reload(mTermuxTerminalExtraKeys.getExtraKeysInfo(), mTerminalToolbarDefaultHeight);
+            if (extraKeysPanelsChanged) {
+                // The views of the extra keys are created from the panels, so they must be recreated, which
+                // also applies the new colors and the all caps setting to them.
+                recreateTerminalToolbarViewPagerPages();
+            } else {
+                for (ExtraKeysView extraKeysView : mExtraKeysViews) {
+                    extraKeysView.setButtonTextAllCaps(mProperties.shouldExtraKeysTextBeAllCaps());
+                    setExtraKeysViewColors(extraKeysView);
+                    extraKeysView.reload(extraKeysView.getExtraKeysInfo(), mTerminalToolbarDefaultHeight);
+                }
             }
 
             // Update NightMode.APP_NIGHT_MODE, since the `night-mode` property may be set to

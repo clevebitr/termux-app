@@ -10,6 +10,12 @@
             app:summaryOn="@string/termux_terminal_view_terminal_margin_adjustment_on"
             app:title="@string/termux_terminal_view_terminal_margin_adjustment_title" />
 
+        <SwitchPreferenceCompat
+            app:key="switch-session-on-swipe"
+            app:summaryOff="@string/termux_terminal_view_switch_session_on_swipe_off"
+            app:summaryOn="@string/termux_terminal_view_switch_session_on_swipe_on"
+            app:title="@string/termux_terminal_view_switch_session_on_swipe_title" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>
