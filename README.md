@@ -6,10 +6,12 @@
 [![Join the Termux discord server](https://img.shields.io/discord/641256914684084234.svg?label=&logo=discord&logoColor=ffffff&color=5865F2)](https://discord.gg/HXpF69X)
 [![Termux library releases at Jitpack](https://jitpack.io/v/termux/termux-app.svg)](https://jitpack.io/#termux/termux-app)
 
----
-## Vibe Coding Warning ⚠️ 
-## This fork contains AI-generated code. Please review before use.
----
+>  **Vibe Coding Warning** ⚠️ 
+>  This fork contains AI-generated code. Please review before use.
+>  The features and behaviour changes added by this fork (terminal extras, settings screens, backup
+>  and restore, italic font and OSC 8 hyperlinks, more) are listed in [FORK.md](FORK.md), and how to
+>  build, sign and install it alongside the official plugins is described in [FORK_BUILD.md](FORK_BUILD.md).
+>  Forked from [Termux](https://github.com/termux/termux-app)
 
 [Termux](https://termux.dev) is an Android terminal application and Linux environment.
 

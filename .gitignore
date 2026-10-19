@@ -20,8 +20,13 @@ local.properties
 # Signing files
 .signing/
 
-# Local signing configuration for release builds, see FORK.md
+# Local signing configuration for release builds, see FORK_BUILD.md
 signing.properties
+
+# Local development notes of this fork, which are not part of the published repository. They are
+# maintained by the coding agent's plan tool, so they must stay in the working tree.
+/PLAN.md
+/DECISIONS.md
 
 # Intellij
 .idea/

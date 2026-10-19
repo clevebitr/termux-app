@@ -4,7 +4,7 @@ name: Fork Build (signed APKs)
 # the app and the plugins can be installed alongside each other. All Termux apps declare
 # `android:sharedUserId="com.termux"` and use `signature` level permissions to communicate, so
 # Android refuses to install apps with the same shared user id that are signed with different keys
-# (`INSTALL_FAILED_SHARED_USER_INCOMPATIBLE`). See FORK.md for details.
+# (`INSTALL_FAILED_SHARED_USER_INCOMPATIBLE`). See FORK_BUILD.md for details.
 #
 # Signing modes:
 #  - `testkey`: build debug APKs, signed with the untrusted `testkey_untrusted.jks` that is
@@ -289,7 +289,7 @@ jobs:
 
           1. Uninstall the official Termux app **and all official plugins** first if they were signed with a
              different key, otherwise Android rejects the install
-             (\`INSTALL_FAILED_SHARED_USER_INCOMPATIBLE\`). Back up \`\$PREFIX\` before uninstalling, see FORK.md.
+             (\`INSTALL_FAILED_SHARED_USER_INCOMPATIBLE\`). Back up \`\$PREFIX\` before uninstalling, see FORK_BUILD.md.
           2. Install the Termux app APK, then the plugin APKs you need.
           3. Install the \`termux-backup.sh\` and \`termux-restore.sh\` scripts if you want to back up or restore the
              environment from the terminal, they are also bundled in the app at

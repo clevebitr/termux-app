@@ -1,256 +1,35 @@
-# Fork 指南：自编译 Termux + 自编译插件
+# Fork 特性说明
 
-本文档说明「自己 fork 并编译 Termux 后，能否继续使用官方编译的插件」这个问题的结论、
-原因，以及可行的操作流程。文档里引用的文件/行号基于本仓库当前代码。
+本仓库是 [Termux](https://github.com/termux/termux-app) 的 fork。本文档**只列出本分支新增或改变的功能与行为**，
+以及怎么配置它们。
 
----
+* **怎么编译 / 签名 / 和官方插件共存**（`sharedUserId` 硬约束）→ [`FORK_BUILD.md`](FORK_BUILD.md)
+* **怎么编译 / 签名 / 和官方插件共存**（`sharedUserId` 硬约束）→ [`FORK_BUILD.md`](FORK_BUILD.md)
+* 每节末尾的「实现」一行指出该特性改动了哪些上游文件；详细的设计取舍与踩坑记录在本地开发日志里，
+  **不随仓库发布**。
 
-## 1. 结论（TL;DR）
+配置项都写在 `~/.termux/termux.properties`（改完执行 `termux-reload-settings`），其中大部分也能在
+**设置 → Termux** 里直接改（见 §4、§7）。新增属性一律**默认关闭或保持上游行为**，只有
+`switch-session-on-swipe`（§10.2）默认开启。
 
-**不能。** 你自己签名的 `com.termux` 和官方签名的插件（Termux:API、:Boot、:Float、
-:Styling、:Tasker、:Widget）无法共存，插件会安装失败（`INSTALL_FAILED_SHARED_USER_INCOMPATIBLE`，
-用户看到的提示是 "App not installed"）。
+## 特性总览
 
-要么：
-
-* **方案 A（最快）**：主 App 和你要用的所有插件都用各仓库自带的 `testkey_untrusted.jks`
-  编译 **debug** 版本。已验证 7 个仓库里的这个 keystore 是同一个文件（git blob
-  `174cc95acd605bf557f9e63983f55fadc5ae44bd`），所以签名天然一致。缺点：该密钥是公开的，
-  任何恶意 App 都可以用它签名并和你的 Termux 共享 UID，**只适合本地自用/测试**。
-* **方案 B（推荐）**：生成**你自己的** keystore，主 App 与所有插件都用它签 release 包。
-  本仓库的 `app/build.gradle` 已支持从根目录的 `signing.properties` 读取配置，插件仓库需按
-  §4.2 的片段补一段（或用同一条命令统一签名）。
-
----
-
-## 2. 为什么不能混用（硬约束）
-
-1. **sharedUserId**：主 App 声明 `android:sharedUserId="com.termux"`
-   （`app/src/main/AndroidManifest.xml:5`），6 个插件也全部声明了
-   `android:sharedUserId="com.termux"`（各自的 `app/src/main/AndroidManifest.xml`）。
-   Android 在**安装时**就强制要求同一 `sharedUserId` 的已安装包签名一致，否则拒绝安装。
-2. **signature 级权限**：Termux:API 声明了
-   `<permission android:name="com.termux.sharedfiles.READ_WRITE" android:protectionLevel="signature"/>`
-   （`share`/SAF 那套 ContentProvider 的权限），只有同证书的应用才能拿到。
-   Termux:API 的 README 原文：*"this app needs to be signed with the same key as the main Termux
-   app for permissions to work (only the main Termux app are allowed to call the API methods in
-   this app)"*。
-3. **运行时检查**：`TermuxUtils.isTermuxAppAccessible()`（`createPackageContext` + 校验 `$PREFIX`
-   权限）、`TermuxUtils.getTermuxAppAPKClassField()`（跨 APK 读 `BuildConfig`）都依赖
-   shared UID / 同证书；APK 发行版也是靠签名摘要判定的
-   （`termux-shared/.../TermuxConstants.java:482` 起的
-   `APK_RELEASE_*_SIGNING_CERTIFICATE_SHA256_DIGEST`），自编译只会显示 `Unknown`。
-
-**推论**：不要改包名（如 `com.termux.fork`）。包名一旦改变，插件、`$PREFIX` 路径
-（`/data/data/com.termux/files`）、bootstrap、termux-packages 全都要跟着改，等于自建整套生态。
-保留 `com.termux` + 统一签名是唯一低成本路径。
-
-另外：`sharedUserId` 在 Android 10+ 已标记废弃，但仍然强制生效；每次更换签名都必须先把主 App
-**和所有插件**全部卸载（同包名不同签名不能覆盖升级）。
-
----
-
-## 3. 方案 A：全部用仓库自带 testkey 编 debug（最快）
-
-```sh
-# 主 App
-./gradlew assembleDebug          # 产物 app/build/outputs/apk/debug/*.apk
-
-# 每个要用的插件仓库里各执行一次
-./gradlew assembleDebug
-```
-
-插件仓库列表：
-
-| 插件 | 仓库 |
-| --- | --- |
-| Termux:API | https://github.com/termux/termux-api |
-| Termux:Boot | https://github.com/termux/termux-boot |
-| Termux:Float | https://github.com/termux/termux-float |
-| Termux:Styling | https://github.com/termux/termux-styling |
-| Termux:Tasker | https://github.com/termux/termux-tasker |
-| Termux:Widget | https://github.com/termux/termux-widget |
-
-注意：
-
-* 主 App 编译需要 Android SDK + NDK（版本见 `gradle.properties` 的 `ndkVersion`），
-  以及 `task downloadBootstraps` 下载的 bootstrap（需联网，见 `app/build.gradle` 末尾）。
-* 插件仓库用 Java 11，主 App 用 Java 8（见各自 `compileOptions`）。
-* `termux-api` 这个 **apt 包**（`pkg install termux-api`）也要装，它提供 `termux-api-*` 脚本
-  和与插件 APK 通信的 socket 客户端；APK 和 apt 包缺一不可。
-* 验证签名一致：
-
-  ```sh
-  apksigner verify --print-certs <apk>   # 对比所有 APK 的 SHA-256 digest 是否相同
-  ```
-
----
-
-## 4. 方案 B：用你自己的 keystore 签 release（推荐）
-
-### 4.1 生成 keystore
-
-```sh
-keytool -genkeypair -v -keystore ~/termux-fork.jks -alias termuxfork \
-    -keyalg RSA -keysize 2048 -validity 10000
-```
-
-### 4.2 配置主 App
-
-在**仓库根目录**创建 `signing.properties`（该文件已在 `.gitignore` 中，不会提交）：
-
-```properties
-storeFile=/absolute/path/to/termux-fork.jks
-storePassword=你的store密码
-keyAlias=termuxfork
-keyPassword=你的key密码
-```
-
-存在该文件时，`app/build.gradle` 会自动为 `release` 构建类型套用 `signingConfigs.release`；
-不存在时行为与上游一致（release 不签名，交给 F-Droid / 你自己的流程签）。
-
-```sh
-TERMUX_APK_VERSION_TAG=my-fork-$(date +%Y%m%d) ./gradlew assembleRelease
-```
-
-### 4.3 配置每个插件仓库
-
-插件仓库目前只有 debug 的 `testkey_untrusted.jks`，release 没有签名配置。在每个插件仓库根目录
-也放一份同样的 `signing.properties`，并在其 `app/build.gradle` 里加同样的判断（放在
-`android { }` 之前）：
-
-```gradle
-def signingPropertiesFile = rootProject.file("signing.properties")
-def signingProperties = new Properties()
-if (signingPropertiesFile.exists()) {
-    signingPropertiesFile.withInputStream { signingProperties.load(it) }
-}
-def hasCustomSigningConfig = signingProperties.getProperty("storeFile") != null
-```
-
-然后把该仓库的 `signingConfigs { debug { ... } }` 和 `buildTypes.release { ... }` 改成：
-
-```gradle
-    signingConfigs {
-        debug {
-            storeFile file('testkey_untrusted.jks')
-            keyAlias 'alias'
-            storePassword 'xrj45yWGLbsO7W0v'
-            keyPassword 'xrj45yWGLbsO7W0v'
-        }
-
-        if (hasCustomSigningConfig) {
-            release {
-                storeFile rootProject.file(signingProperties.getProperty("storeFile"))
-                storePassword signingProperties.getProperty("storePassword")
-                keyAlias signingProperties.getProperty("keyAlias")
-                keyPassword signingProperties.getProperty("keyPassword")
-            }
-        }
-    }
-
-    buildTypes {
-        release {
-            minifyEnabled true
-            shrinkResources false
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-            if (hasCustomSigningConfig) signingConfig signingConfigs.release
-        }
-    }
-```
-
-### 4.4 卸载 / 备份 / 恢复
-
-**先确认你当前装的是哪个发行版**，可以免卸载直接升级：
-
-| 当前 Termux 来源 | 签名证书 SHA-256 | 能否直接覆盖安装本 fork |
-| --- | --- | --- |
-| GitHub Release / GitHub Actions 构建 | `b6da01480eefd5fbf2cd3771b8d1021ec791304bdd6c4bf41d3faabad48ee5e1` | 可以（`testkey` 模式产物同签名，数据保留） |
-| F-Droid | `228fb2cfe90831c1499ec3ccaf61e96e8e1ce70766b9474672ce427334d41c42` | 不行，必须先卸载（先备份） |
-| Google Play | `738f0a30a04d3c8a1be304af18d0779bcf3ea88fb60808f657a3521861c2ebf9` | 不行，必须先卸载（先备份） |
-| 自己之前的 fork | `testkey` 模式下是 `b6da0148…`；`ownkey` 模式下看你自己的证书 | 同一证书可以，否则先卸载 |
-
-查当前签名：在已装的 Termux 里打开左侧抽屉 → **Report Issue**（或 About），App Info 里会列出
-`SIGNING_CERTIFICATE_SHA256_DIGEST`。
-
-同包名换签名必须**先卸载**官方 Termux 和所有官方插件，这会删除应用数据（也就是整个
-`/data/data/com.termux/files` = `$PREFIX` + `$HOME`），所以务必先备份：
-
-```sh
-# 1) 备份（在官方 Termux 里执行，需要已授予存储权限）
-termux-setup-storage
-tar -czf /sdcard/termux-backup-$(date +%Y%m%d).tar.gz \
-    -C /data/data/com.termux/files ./home ./usr
-# 可选：记录已安装包列表
-dpkg --get-selections > /sdcard/termux-packages.txt
-
-# 2) 卸载官方 main app 和所有插件（系统设置里逐个卸载，或用 adb uninstall）
-
-# 3) 安装你的 APK：主 App 先装，再装插件
-
-# 4) 恢复数据（在**新**的 Termux 里执行；新 App 会重新生成 bootstrap）
-tar -xzf /sdcard/termux-backup-<日期>.tar.gz -C /data/data/com.termux/files
-# 恢复后常见收尾
-termux-fix-shebang ~/bin/* 2>/dev/null || true
-```
-
-注意：
-
-* 备份里的 `./usr` 与本机 bootstrap 版本必须兼容；如果新 App 的 bootstrap 版本更旧/更新，
-  恢复后建议 `pkg upgrade`。
-* 恢复后 App 的 `sharedUserId` 未变（仍是 `com.termux`），所以 apt 状态、`$PREFIX` 路径都还能用。
-* 卸载插件时不要把 `com.termux.api` 留给新签名的主 App 去"覆盖安装"，那样只会得到
-  `INSTALL_FAILED_SHARED_USER_INCOMPATIBLE`。
-
----
-
-## 5. 用 CI 构建（推荐，无需本地 SDK/NDK）
-
-仓库里的 `.github/workflows/fork_build.yml`（Fork Build (signed APKs)）会一次性构建：
-
-* Termux 主 App
-* Termux:API / :Boot / :Float / :Styling / :Tasker / :Widget 六个插件（从 `termux/<repo>@master` 克隆后构建）
-
-并**校验每个 APK 的签名证书 SHA-256 完全一致**，不一致直接 fail。构建产物会打包成
-`fork-latest` 这个预发布 Release，方便在手机上直接下载安装。
-
-触发方式：
-
-* push 到 `master`（只改了 `app/**`、`terminal-view/**`、`termux-shared/**`、`terminal-emulator/**`、
-  `*.gradle`、`gradle.properties`、`gradle/wrapper/gradle-wrapper.properties` 或该 workflow 时）
-* 手动：`gh workflow run "Fork Build (signed APKs)" -f build_mode=testkey -f build_plugins=true`
-  或在 Actions 页面点 Run workflow
-
-两种模式：
-
-| 模式 | 条件 | 产物 | 用途 |
+| § | 特性 | 配置 | 默认 |
 | --- | --- | --- | --- |
-| `testkey` | 默认（没配 secrets） | 全部 `assembleDebug`，用各仓库内置的 `testkey_untrusted.jks` 签名 | 本地自测；签名证书 SHA-256 为 `b6da0148…e5e1`（与 Termux GitHub 官方发行版同一把公开密钥） |
-| `ownkey` | 配了 `TERMUX_KEYSTORE_BASE64` 等 secrets | 主 App `assembleRelease` + 插件 `assembleRelease`，用你的 keystore 签名 | 长期自用/分发 |
+| 1 | Gboard 等输入法可直接用中日韩键盘 | `gboard-cjk-workaround` | 关 |
+| 2 | extra keys 行配色跟随 Termux:Styling 主题 | `extra-keys-foreground/background/…`（设置页有 22 色色板） | 跟随配色方案 |
+| 3 | 整个 App 跟随配色方案（含状态栏/导航栏图标明暗） | `night-mode=color-scheme` | `system` |
+| 4 | 输入法 / 虚拟键盘配色的图形化设置页 | 设置 → Termux → 终端键盘 | — |
+| 5 | 虚拟键盘激活态高亮 + 简体中文界面 | `extra-keys-active-foreground/background` | 开 |
+| 6 | 环境备份 / 恢复（`termux-backup` / `termux-restore`） | 设置 → Termux → 备份与恢复 | — |
+| 7 | 外观页（主题/全屏/工具栏）+ 按键行为 + 鼠标点按唤键盘 | `mouse-tap-shows-keyboard` 等 | 关 |
+| 8 | 真斜体字体 + OSC 8 超链接可点 | `~/.termux/font-italic.ttf`；`terminal-onclick-url-open` | 无斜体字体则合成斜切；点击关 |
+| 9 | IME 收起额外按键行 / 手指拖拽按鼠标拖拽上报 / 焦点上报（`DECSET 1004`） | `hide-extra-keys-when-soft-keyboard-hidden`、`touch-drag-sends-mouse-drag` | 前两项关；1004 由程序请求 |
+| 10 | 多面板 extra keys / 左右滑切会话 / 会话列表显示 PID·进程·cwd | `extra-keys-panels`、`switch-session-on-swipe` | 面板需自行配置；滑切默认开 |
 
-### ownkey 模式需要的 secrets
+---
 
-```sh
-gh secret set TERMUX_KEYSTORE_BASE64   --repo <owner>/termux-app < <(base64 -w0 termux-fork.jks)
-gh secret set TERMUX_KEYSTORE_PASSWORD --repo <owner>/termux-app
-gh secret set TERMUX_KEY_ALIAS         --repo <owner>/termux-app
-gh secret set TERMUX_KEY_PASSWORD      --repo <owner>/termux-app
-```
-
-* `TERMUX_KEYSTORE_BASE64`：keystore 文件的 base64（单行）
-* 主 App 走 `signing.properties`，插件仓库不改动——通过 AGP 的
-  `-Pandroid.injected.signing.*` 注入签名；如果某个仓库的 AGP 不认这套属性，产物会因未签名而
-  在校验步骤直接报错（不会默默出个坏包）
-* Actions 需要写权限才能建 Release：Settings → Actions → General → Workflow permissions 设为
-  `Read and write permissions`（`gh api -X PUT repos/<owner>/termux-app/actions/permissions/workflow -f default_workflow_permissions=write`）
-
-### 安装顺序
-
-1. 先卸载官方 Termux **和所有官方插件**（签名不同不能共存），卸载前备份 `$PREFIX`（见 §4.4）
-2. 装主 App，再装插件
-3. `termux-api` 这个 apt 包照常在 Termux 里 `pkg install termux-api`
-
-## 6. Gboard 相关配置（本次补丁附带的选项）
+## 1. Gboard 相关配置（本次补丁附带的选项）
 
 `~/.termux/termux.properties`（改完执行 `termux-reload-settings`）：
 
@@ -287,7 +66,7 @@ gboard-cjk-workaround=true
 
 ---
 
-## 7. 虚拟键盘（extra keys 行）配色：与 Termux:Styling 主题联动
+## 2. 虚拟键盘（extra keys 行）配色：与 Termux:Styling 主题联动
 
 > 先明确一下“虚拟键盘”：这里指的是 **Termux 自己画的那一行功能键**（`ExtraKeysView`，
 > ESC/CTRL/ALT/HOME/方向键……，也就是常说的“额外按键行/虚拟键盘”）。系统输入法（Gboard、
@@ -362,7 +141,7 @@ extra-keys-active-background=#ff9e9e9e
 
 ---
 
-## 8. 整个 App 跟随主题（`night-mode=color-scheme`）+ 状态栏/导航栏同步
+## 3. 整个 App 跟随主题（`night-mode=color-scheme`）+ 状态栏/导航栏同步
 
 之前只有 extra keys 行跟着 `colors.properties` 走，App 的浅/深色主题还是由 `night-mode=system`
 决定。现在 `night-mode` 多了一个取值：
@@ -389,7 +168,7 @@ night-mode=color-scheme
 
 ---
 
-## 9. 设置页里的图形化开关（不用再手改 properties）
+## 4. 设置页里的图形化开关（不用再手改 properties）
 
 设置 → Termux → **Terminal Keyboard**（新页面）里现在可以直接调：
 
@@ -409,7 +188,7 @@ night-mode=color-scheme
 （重复键会被注释掉，不会留下冲突），改完**立即生效**，不需要 `termux-reload-settings`。
 所以手写 properties 和用设置页改，两者看到的是同一份配置。
 （⚠️ 这里的「立即生效」在 M3 之前是**错的**：打开设置页时 TermuxActivity 处于停止状态，
-广播重载会被丢掉，必须手动 reload 才生效。链路已在 M3 修好，见 §12.5。）
+广播重载会被丢掉，必须手动 reload 才生效。链路已在 M3 修好。）
 
 实现位置：`TermuxSharedProperties.getTermuxPropertyValue()` / `setTermuxPropertyValue()`（按行改写
 properties 文件）、`TerminalKeyboardPreferencesFragment`（把 `PreferenceDataStore` 落到 properties
@@ -418,9 +197,9 @@ properties 文件）、`TerminalKeyboardPreferencesFragment`（把 `PreferenceDa
 
 ---
 
-## 10. 虚拟键盘激活态高亮 + UI 多语言
+## 5. 虚拟键盘激活态高亮 + UI 多语言
 
-### 10.1 CTRL/ALT 等组合键的激活高亮（修复）
+### 5.1 CTRL/ALT 等组合键的激活高亮（修复）
 
 之前按下 CTRL/ALT 只改**文字色**，而"激活时文字颜色"默认取 `cursor` 色（常常和普通文字色相同），
 所以激活后几乎看不出变化。现在激活状态会**同时**使用激活文字色和**激活背景色**
@@ -433,7 +212,7 @@ properties 文件）、`TerminalKeyboardPreferencesFragment`（把 `PreferenceDa
 想让高亮更醒目，把激活背景色调亮即可，例如 `extra-keys-active-background=#ffff7043`
 （或在 设置 → Termux → Terminal Keyboard → 激活时背景颜色 里用色板选）。
 
-### 10.2 UI 多语言（已内置简体中文）
+### 5.2 UI 多语言（已内置简体中文）
 
 * 新增 `values-zh` 翻译，覆盖 3 个模块：
   * `app`（壳子 UI：标题栏、会话菜单、设置页、对话框、Toast…共 126 条）
@@ -451,7 +230,7 @@ properties 文件）、`TerminalKeyboardPreferencesFragment`（把 `PreferenceDa
 
 ---
 
-## 11. 备份 / 恢复（`termux-backup` / `termux-restore`）
+## 6. 备份 / 恢复（`termux-backup` / `termux-restore`）
 
 卸载应用会删掉整个 `/data/data/com.termux/files`（$PREFIX + $HOME），换签名构建时必须卸载，
 所以本 fork 内置了两个脚本 + 图形入口。
@@ -491,25 +270,19 @@ termux-restore <归档> --target-dir ~/restore-test --no-pre-backup             
 * 恢复后建议执行：`termux-reload-settings` → `pkg upgrade` → `termux-setup-storage`
   （`~/storage` 不在备份里）；`~/bin` 下若有绝对 shebang 的脚本用 `termux-fix-shebang` 修一下。
 
-### 实测（真机）
-
-本机（aarch64，约 1.08 GB 数据）实测：备份 26s / 333 MB / 43023 条目，校验通过；
-`--target-dir` 解包演练 1.1 GB，符号链接（`usr/bin/sh -> dash`）与可执行权限位均正确保留；
-交互选择、非法输入、损坏归档（假文件）都能正确处理。
-
 ---
 
-## 12. 设置页补齐：外观 / 按键行为 + 鼠标点按唤键盘
+## 7. 设置页补齐：外观 / 按键行为 + 鼠标点按唤键盘
 
-§9 里的开关只覆盖了输入法和 extra keys 配色，其余常用属性这次也搬进了设置页，
+§4 里的开关只覆盖了输入法和 extra keys 配色，其余常用属性这次也搬进了设置页，
 全部**直接读写 `~/.termux/termux.properties`**（按行替换同名键、保留注释和其他设置），
 改完立即生效。
 
-### 12.1 设置 → Termux → **外观**（新页面，`AppearancePreferencesFragment`）
+### 7.1 设置 → Termux → **外观**（新页面，`AppearancePreferencesFragment`）
 
 | 分类 | 条目 | 属性 | 说明 |
 | --- | --- | --- | --- |
-| 主题 | 夜间模式 | `night-mode` | 浅色 / 深色 / 跟随系统 / 跟随配色方案（`color-scheme`，见 §8） |
+| 主题 | 夜间模式 | `night-mode` | 浅色 / 深色 / 跟随系统 / 跟随配色方案（`color-scheme`，见 §3） |
 | 全屏 | 全屏 | `fullscreen` | 隐藏状态栏，终端绘制在状态栏后面 |
 | 全屏 | 全屏兼容处理 | `use-fullscreen-workaround` | 仅在开了全屏时生效；终端被画到状态栏下面时打开 |
 | 终端工具栏 | 虚拟键盘风格 | `extra-keys-style` | `default` / `arrows-only` / `arrows-all` / `all` / `none` |
@@ -519,7 +292,7 @@ termux-restore <归档> --target-dir ~/restore-test --no-pre-backup             
 这一页的属性都是**创建 Activity 时读取**的，所以改完会重建一次 `TermuxActivity`
 （终端会话和 transcript 都在 `TermuxService` 里，不会被杀掉）。
 
-### 12.2 设置 → Termux → **终端键盘** → 按键行为（新分类）
+### 7.2 设置 → Termux → **终端键盘** → 按键行为（新分类）
 
 | 条目 | 属性 | 取值 |
 | --- | --- | --- |
@@ -532,7 +305,7 @@ termux-restore <归档> --target-dir ~/restore-test --no-pre-backup             
 
 这些属性都在用到时读取，所以改完立即生效，不需要重建 Activity。
 
-### 12.3 新属性：`mouse-tap-shows-keyboard`（本 fork 新增）
+### 7.3 新属性：`mouse-tap-shows-keyboard`（本 fork 新增）
 
 ```properties
 # 鼠标点击、以及 TUI 开了鼠标跟踪时的点击，默认只转发给终端，不弹软键盘
@@ -542,55 +315,13 @@ mouse-tap-shows-keyboard=true
 
 实现：`TermuxTerminalViewClient.onSingleTapUp()` 里原来只有
 「非鼠标来源 && 未开鼠标跟踪」才弹键盘，现在这个限制在属性打开时被取消。
-用 `KEYBOARD` 键 / Ctrl+Alt+K 手动唤起键盘的老办法仍然可用（§6）。
-
-### 12.4 坑：设置页不重写 properties
-
-`androidx.preference` 的 `ListPreference` / `SwitchPreferenceCompat` / `SeekBarPreference`
-在用 `PreferenceDataStore` 初始化时会**把刚读到的值再写回去**。如果 DataStore 直接落盘，
-那么光是打开设置页就会往 `termux.properties` 里塞进一堆 `back-key=back` 之类的默认值，
-并且触发一次无意义的 Activity 重建。所以
-`TermuxPropertyPreferenceDataStore` 会记下每个键「上次读到的值」，
-写回值与之一致时直接跳过（含属性本来就没定义、读到默认值的情况）。
-
-### 12.5 坑：`ACTION_RELOAD_STYLE` 广播在 TermuxActivity 停止时会丢（真机验证发现）
-
-**现象**：在设置页改完属性返回 Termux 后**不生效**，必须手动 `termux-reload-settings`
-（或在终端里重启 App）才生效。M1 的「终端键盘」页其实一直有同样的问题，§9 里
-「改完立即生效」的说法是错的，本次一并修掉。
-
-**原因**：`TermuxActivity` 的广播接收器原先在 `onStart()` 注册、`onStop()` 注销，而
-`SettingsActivity` 是不透明全屏 Activity，打开设置页时 `TermuxActivity` 会走 `onStop`，
-于是 `TermuxPropertyPreferenceDataStore` 写盘后发出的 `ACTION_RELOAD_STYLE` 广播
-**根本没有接收者**（接收器里那句 `if (mIsVisible)` 判断也就永远为真、形同虚设）。
-在终端里跑 `termux-reload-settings` 时 TermuxActivity 在前台，所以那条路径是好的。
-上游的设置都基于 SharedPreferences（同进程共享实例，不需要重载），只有写
-`termux.properties` 的这几个页面会踩到。
-
-**修法**（`TermuxActivity`）：
-* 接收器改为 `onCreate()` 注册、`onDestroy()` 注销，这样 stop 期间也收得到广播。
-* 收到 `ACTION_RELOAD_STYLE` 时若 `!mIsVisible`，不立即重载（stop 期间做 UI 操作不安全），
-  而是记下 `mReloadActivityStylingOnStart` 与 `mRecreateActivityOnStart`
-  （后者取自广播的 `EXTRA_RECREATE_ACTIVITY`：键盘页 `false`、外观页 `true`），
-  在 `onStart()` 里再调用一次 `reloadActivityStyling(recreate)`。
-* 另外两个 action（`ACTION_REQUEST_PERMISSIONS` / `ACTION_NOTIFY_APP_CRASH`）仍然只在可见时处理，
-  行为与改动前完全一致（改动前停止期间收不到，现在收到后直接 return）。
-
-结果：键盘相关属性（返回键/音量键/鼠标点按唤键盘/配色…）返回后立即生效且不重建；
-外观页（主题/全屏/工具栏）返回后重建一次生效——这些属性本来就只在 `onCreate` 读取。
-
-### 12.6 实测（真机）
-
-安装 `fork-latest` 的 arm64 包验证：外观页 6 项、按键行为 6 项均可改；打开设置页前后
-`~/.termux/termux.properties` 无任何变化（确认 §12.4 的 no-op 守卫生效）。
-首次验证发现「改动要手动 `termux-reload-settings` 才生效」，即 §12.5 的广播丢失问题，
-修复后返回设置页即生效。
+用 `KEYBOARD` 键 / Ctrl+Alt+K 手动唤起键盘的老办法仍然可用（§1）。
 
 ---
 
-## 13. 真斜体字体 + OSC 8 超链接可点
+## 8. 真斜体字体 + OSC 8 超链接可点
 
-### 13.1 真斜体：`~/.termux/font-italic.ttf`
+### 8.1 真斜体：`~/.termux/font-italic.ttf`
 
 上游的斜体是**合成斜切**（把正体字形按 `setTextSkewX(-0.35)` 歪一下），很多字体歪出来很难看。
 现在只要在正体旁边放一个斜体字体文件，斜体就用真字形渲染：
@@ -609,7 +340,7 @@ mouse-tap-shows-keyboard=true
   `mItalicTextScaleX` / `setItalic()`）、`TerminalView.setTypeface(Typeface, Typeface)`、
   `TermuxTerminalSessionActivityClient.checkForFontAndColors()`。
 
-### 13.2 OSC 8 超链接
+### 8.2 OSC 8 超链接
 
 ```sh
 # OSC 8 ; params ; URI ST ；URI 留空表示结束链接
@@ -617,7 +348,7 @@ printf '\e]8;;https://example.com\e\\点我\e]8;;\e\\ 普通文字\n'
 ```
 
 * 链接文字**自动加下划线**（和 xterm/VTE/kitty 一致），一眼能看出哪里可点。
-* **点击打开**复用现有开关 `terminal-onclick-url-open`（默认关，见 §6）。打开后：
+* **点击打开**复用现有开关 `terminal-onclick-url-open`（默认关，见 §1）。打开后：
   被点格子的 OSC 8 链接优先，取不到才回退到原来的「纯文本里找 URL」逻辑。
   （之所以共用同一个开关：默认关是为了不干扰在文字上点选，OSC 8 也一样。）
 * `params`（例如 `id=xxx`）按规范忽略；`BEL` 和 `ESC \` 两种结尾都支持。
@@ -635,9 +366,9 @@ printf '\e]8;;https://example.com\e\\点我\e]8;;\e\\ 普通文字\n'
 
 ---
 
-## 14. 交互三连：收起额外按键行 / 拖拽上报 / 焦点上报
+## 9. 交互三连：收起额外按键行 / 拖拽上报 / 焦点上报
 
-### 14.1 软键盘隐藏时自动收起 extra keys 行（`hide-extra-keys-when-soft-keyboard-hidden`）
+### 9.1 软键盘隐藏时自动收起 extra keys 行（`hide-extra-keys-when-soft-keyboard-hidden`）
 
 上游 issue #140 / #3263。开着 extra keys 行时，软键盘一收（比如只想读输出），那一行就白占着屏幕。
 
@@ -657,7 +388,7 @@ hide-extra-keys-when-soft-keyboard-hidden=true
 * 实现：`TermuxActivity.updateTerminalToolbarVisibilityForSoftKeyboardVisibility()` /
   `setTerminalToolbarVisibility()`、`toggleTerminalToolbar()` 设手动标志、`TermuxActivityRootView.onGlobalLayout()`。
 
-### 14.2 手指拖拽按鼠标拖拽上报（`touch-drag-sends-mouse-drag`）
+### 9.2 手指拖拽按鼠标拖拽上报（`touch-drag-sends-mouse-drag`）
 
 上游 issue #1384。鼠标跟踪（1000/1002/1006）生效时，手指拖拽原来一律变成滚轮事件（`doScroll()`），
 所以 TUI 里没法做「按住拖拽」（tmux 拉窗格、vim 可视选择等）。
@@ -681,7 +412,7 @@ touch-drag-sends-mouse-drag=true
   `TerminalView`（`onScroll(e1, e2, ...)` / `onUp()` / `onFling()` / `ACTION_CANCEL`）、
   `GestureAndScaleRecognizer.onScroll()` 现在也把 `e1` 传出来。
 
-### 14.3 焦点上报（`DECSET 1004`）
+### 9.3 焦点上报（`DECSET 1004`）
 
 上游 issue #3650 / discussion #3644。之前 `DECSET_BIT_SEND_FOCUS_EVENTS` 的位存在、解析也认，
 但**从来不发事件**（代码里写着 "NOT implemented"），所以 Emacs 之类靠焦点事件自动存盘的程序拿不到通知。
@@ -702,9 +433,9 @@ touch-drag-sends-mouse-drag=true
 
 ---
 
-## 15. 多面板 extra keys / 左右滑切会话 / 会话列表信息
+## 10. 多面板 extra keys / 左右滑切会话 / 会话列表信息
 
-### 15.1 多面板 extra keys（`extra-keys-panels`）
+### 10.1 多面板 extra keys（`extra-keys-panels`）
 
 上游 issue #4365（来自 termux-monet）、#5178。以前 `extra-keys` 只能定义一套按键（一或两行），
 键多就只能挤在一行里。现在可以定义多个**面板**，像切到文本输入框那样左右滑动切换：
@@ -733,7 +464,7 @@ extra-keys-panels=[ \
   `TerminalToolbarViewPager.PageAdapter`（页数 = 面板数 + 1、`getItemPosition()` 返回 `POSITION_NONE`）、
   `TermuxActivity`（`mExtraKeysViews` 列表、`addExtraKeysView()`、`recreateTerminalToolbarViewPagerPages()`）。
 
-### 15.2 左右滑切换会话（`switch-session-on-swipe`）
+### 10.2 左右滑切换会话（`switch-session-on-swipe`）
 
 上游 issue #48 / PR #452。在终端区域左右滑动切换上一个/下一个会话：
 
@@ -753,7 +484,7 @@ switch-session-on-swipe=true
   设置页 `TerminalViewPreferencesFragment`（这一页现在混合两种存储：`terminal_margin_adjustment` 仍走
   SharedPreferences，其余走 `termux.properties`）。
 
-### 15.3 会话列表显示 PID / 前台进程 / cwd
+### 10.3 会话列表显示 PID / 前台进程 / cwd
 
 会话抽屉（侧边栏）里每一项现在有两行：第一行还是 `[序号] 会话名 / 标题`，
 第二行是 `PID 12345 · vim · ~/projects/foo`：
@@ -770,3 +501,15 @@ switch-session-on-swipe=true
 * 实现：`item_terminal_sessions_list.xml`（两行布局，选中背景移到根布局）、
   `TermuxSessionsListViewController.getView()` 与 `getSessionDetails()` / `getForegroundProcessName()` /
   `getProcessName()` / `getCurrentWorkingDirectory()`。
+
+---
+
+## 验证情况（真机）
+
+以上改动都在本机（aarch64，Android 13 系 ROM）真机验证过：
+
+* 备份 26s / 333MB / 43023 条目，校验通过；`--target-dir` 解包演练的符号链接与权限位正确。
+* 外观页 6 项、按键行为 6 项改完立即生效；打开设置页**不会**改写 `termux.properties`。
+* 真斜体（`font-italic.ttf`）与 OSC 8 链接（自动下划线 + 点击打开）正常。
+* IME 收起额外按键行、手指拖拽按鼠标拖拽上报、`DECSET 1004` 焦点事件正常。
+* 多面板 extra keys 横滑切换、左右滑切会话、会话列表 `PID · 前台进程 · cwd` 正常。

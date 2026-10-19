@@ -17,7 +17,7 @@ ext {
 // debug builds. The keystore must be used for all the Termux plugin apps as well, since they must
 // be signed with the same key as the main Termux app, otherwise they cannot be installed alongside
 // it due to the shared `com.termux` `sharedUserId` and the `signature` level permissions used for
-// communication between the apps. See FORK.md for more information.
+// communication between the apps. See FORK_BUILD.md for more information.
 // Create a `signing.properties` file in the root project directory with the following values:
 //   storeFile=/absolute/path/to/keystore.jks
 //   storePassword=...
