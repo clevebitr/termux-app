@@ -699,3 +699,74 @@ touch-drag-sends-mouse-drag=true
   避免重复发同一事件。
 * 实现：`TerminalEmulator.setWindowFocused()` / `sendFocusEvent()` / `isReportingFocusEvents()`、
   `TermuxActivity.onWindowFocusChanged()` / `isWindowFocused()`、单测 `DecSetTest#testSendFocusEvent`。
+
+---
+
+## 15. 多面板 extra keys / 左右滑切会话 / 会话列表信息
+
+### 15.1 多面板 extra keys（`extra-keys-panels`）
+
+上游 issue #4365（来自 termux-monet）、#5178。以前 `extra-keys` 只能定义一套按键（一或两行），
+键多就只能挤在一行里。现在可以定义多个**面板**，像切到文本输入框那样左右滑动切换：
+
+```properties
+# 每个面板就是一个普通 extra-keys 矩阵，整个属性是「面板数组」
+extra-keys-panels=[ \
+  [['ESC','TAB','CTRL','ALT','HOME','UP','END','PGUP'],['BKSP','LEFT','DOWN','RIGHT','PGDN','KEYBOARD']], \
+  [['F1','F2','F3','F4','F5','F6'],['|','~','{','}','[',']']], \
+  [['-','/','*','+','=','%'],['1','2','3','4','5','6']] \
+]
+```
+
+* **向后兼容**：不设 `extra-keys-panels` 时，仍按 `extra-keys` 当作**单个面板**（行为与以前完全一致）。
+  设了就以 `extra-keys-panels` 为准。
+* 面板是终端工具栏 `ViewPager` 的页：第 1..N 页是面板，**文本输入框是最后一页**。
+  所以「第 1 个面板 → 左滑 → 第 2 个面板 → … → 文本输入框」。
+* 工具栏高度取**所有面板里最大的行数**（面板行数不同时不会来回跳动）；
+  配色（`extra-keys-*`）、`extra-keys-style`、`extra-keys-text-all-caps` 对所有面板生效。
+* 属性写错（不是「矩阵的数组」）会弹 toast 并**回退到 `extra-keys` 的单面板**；`extra-keys` 也坏掉才会回退到内置默认按键。
+* 顺手修了一个老问题：`extra-keys` / `extra-keys-style` 以前**只在 Activity 创建时解析**
+  （`TermuxTerminalExtraKeys` 构造函数里），所以改完属性 `termux-reload-settings` 是不生效的、必须重进 App。
+  现在 `reloadProperties()` 会重新解析，变化时重建工具栏的页（文本输入框里已输入的文字会保留）。
+* 实现：`TermuxPropertyConstants.KEY_EXTRA_KEYS_PANELS`、`TermuxTerminalExtraKeys`（`List<ExtraKeysInfo>`、
+  `getExtraKeysPanels()`/`getExtraKeysPanelsMaxRows()`/`reloadExtraKeys()`）、
+  `TerminalToolbarViewPager.PageAdapter`（页数 = 面板数 + 1、`getItemPosition()` 返回 `POSITION_NONE`）、
+  `TermuxActivity`（`mExtraKeysViews` 列表、`addExtraKeysView()`、`recreateTerminalToolbarViewPagerPages()`）。
+
+### 15.2 左右滑切换会话（`switch-session-on-swipe`）
+
+上游 issue #48 / PR #452。在终端区域左右滑动切换上一个/下一个会话：
+
+```properties
+# 默认就是开的；关掉写 false
+switch-session-on-swipe=true
+```
+
+设置 → Termux → **终端视图** → 左右滑动切换会话（默认**开**）。
+
+* 触发条件：横向滑动**明显**大于纵向（`|vx| > 2·|vy|`）且横移超过视图宽度的 1/10，避免误触。
+* **不触发**的情况：正在选择文本；终端程序开了鼠标跟踪（1000/1002/1006，那时手势属于程序）；
+  从左边缘开始的滑动仍然是抽屉（DrawerLayout 先接管）。
+* 往左滑 = 下一个会话，往右滑 = 上一个会话（和 ViewPager 翻页一致，会循环）。
+* 实现：`TerminalViewClient.shouldSwitchSessionOnSwipe()` / `onSwitchSessionSwipe(forward)`、
+  `TerminalView.isSessionSwitchSwipe()` / `onFling()`（`GestureAndScaleRecognizer` 现在把 `e1` 也传出来）、
+  设置页 `TerminalViewPreferencesFragment`（这一页现在混合两种存储：`terminal_margin_adjustment` 仍走
+  SharedPreferences，其余走 `termux.properties`）。
+
+### 15.3 会话列表显示 PID / 前台进程 / cwd
+
+会话抽屉（侧边栏）里每一项现在有两行：第一行还是 `[序号] 会话名 / 标题`，
+第二行是 `PID 12345 · vim · ~/projects/foo`：
+
+* **PID**：`TerminalSession.getPid()`。
+* **前台进程名**：读 `/proc/<pid>/stat` 的第 8 个字段 `tpgid`（终端前台进程组），
+  再取 `/proc/<tpgid>/cmdline` 的第一个参数（取 basename；内核线程空 cmdline 时回退 `/proc/<pid>/comm`）。
+  也就是说 `vim` 在前台时显示 `vim`，回到 shell 时显示 `bash`/`zsh`。
+* **cwd**：读 `/proc/<pid>/cwd` 符号链接（shell 的工作目录），`$HOME` 前缀缩成 `~`。
+* 三项都是**读不到就不显示那一项**（会话已退出、进程已消失、无权限等），整行读不到就隐藏第二行。
+* 刷新时机：列表本身在有输出/切标题时重建，另外**打开抽屉时**也会刷新一次
+  （`DrawerLayout.SimpleDrawerListener.onDrawerOpened` → `notifyDataSetChanged()`），
+  所以 cwd 变了但标题没变也能看到最新值。
+* 实现：`item_terminal_sessions_list.xml`（两行布局，选中背景移到根布局）、
+  `TermuxSessionsListViewController.getView()` 与 `getSessionDetails()` / `getForegroundProcessName()` /
+  `getProcessName()` / `getCurrentWorkingDirectory()`。

@@ -106,3 +106,21 @@ i18n：新增 `values/arrays.xml` + `values-zh/arrays.xml`（5 组 entries/entry
 **3) 1004**：`sendFocusEvent(boolean)` 不够用——程序可能在 App 启动后才开启 1004，那时若没人再给它发事件，它永远以为自己是聚焦的。所以改成 emulator 里存 `mIsWindowFocused`（默认 true，因为会话都在前台创建）+ `setWindowFocused()`（状态真变化才发，避免重复），并在 `doDecSetOrReset` 的 `case 1004`（DECSET 置位时）立刻上报当前状态，行为对齐 xterm.js #2333。`TermuxActivity.isWindowFocused()` 直接用 `hasWindowFocus()` 而不是自己记字段（onStart 时可能还没收到焦点事件）。会话切换在 `setCurrentSession()` 里给旧会话发 out、给新会话同步状态（只有显示中的会话能有焦点）。
 
 测试：`DecSetTest#testSendFocusEvent`（未开 1004 不发、开启时上报当前状态、状态变化才发、关闭/`reset()` 后不发）。本地无 JDK，靠 CI 的 `./gradlew test`。
+
+## 2026-10-19 — M6 实现：extra-keys-panels 多面板 / 左右滑切会话 / 会话列表 PID·进程·cwd
+
+方案由用户确认：多面板用**新属性** `extra-keys-panels`（三层 JSON：面板数组→行→键），未设置时回退 `extra-keys` 单面板；会话手势用**单指左右滑、默认开**；会话列表显示 **PID/前台命令名 + cwd**；多面板**不加页数指示器**。用法与限制写进 FORK.md §15。
+
+**1) 多面板**：面板就是工具栏 ViewPager 的页，文本输入框排最后（页数 = 面板数 + 1）。实现要点/踩坑：
+- `extra-keys` 原本**只在 `TermuxTerminalExtraKeys` 构造时解析**（`setExtraKeys()` 只被构造函数调用），所以 `termux-reload-settings` 改 `extra-keys`/`extra-keys-style` 根本不生效、必须重进 App。多面板必须修这个，所以加了 `reloadExtraKeys()`（比较 `extra-keys-panels`/`extra-keys`/`extra-keys-style` 三个属性拼成的签名字符串，变了才重新解析并返回 true），`TermuxActivity.reloadProperties()` 改成返回该布尔，`reloadActivityStyling()` 里：变了就 `recreateTerminalToolbarViewPagerPages()`（`notifyDataSetChanged()` + 夹紧 currentItem），没变才走原来的「就地 reload 每个面板」。反过来如果不变还去就地 reload，用的会是 `ExtraKeysView.getExtraKeysInfo()`（旧面板）→ 面板内容改了但显示不变。
+- `ExtraKeysView.reload()` 现在把 `ExtraKeysInfo` 存下来并暴露 `getExtraKeysInfo()`，这样「只换配色要重建按钮」的就地 reload 不需要额外维护「视图→面板」映射。
+- `getItemPosition()` 必须返回 `POSITION_NONE`，否则面板数变化时 PagerAdapter 会保留旧页；为此 `destroyItem()` 里在文本输入页销毁前把已输入文字存回 `mSavedTextInput`（`instantiateItem` 会恢复），不然改属性会把文本框内容吞掉。
+- `FullScreenWorkAround.apply()` **不是幂等的**（每次调用都 addOnGlobalLayoutListener），所以只在第 0 个面板调用一次（原来 position==0 只有一页，天然只调一次）。
+- CTRL/ALT 等 `SpecialButton` 的激活状态是**每个面板各自一份**，所以 `readExtraKeysSpecialButton()` 改成遍历所有面板取「或」（单个面板时行为不变）。
+- 空面板属性（`[]`）当成无效，回退 `extra-keys`；`extra-keys` 也无效才回退内置默认。
+
+**2) 左右滑切会话**：`TerminalView.onFling()` 里判断（此时 `mScroller` 可能还在滚，所以判断放在 `mScroller.isFinished()` 之前）：`|vx| > 2|vy|` 且横移 > 宽度/10 才算，且 `shouldSwitchSessionOnSwipe()` 打开、`!isSelectingText()`、`!isMouseTrackingActive()`。`GestureAndScaleRecognizer.Listener.onFling` 增加 `e1` 参数用于算横移距离。属性 `switch-session-on-swipe` **默认 true**（放在 `TERMUX_DEFAULT_TRUE_BOOLEAN_BEHAVIOUR_PROPERTIES_LIST`），设置页在「终端视图」；那一页原来是纯 SharedPreferences 的 DataStore，现在 `TerminalViewPreferencesDataStore extends TermuxPropertyPreferenceDataStore` 并按 key 分流（`terminal_margin_adjustment` 继续走 SharedPreferences）。
+
+**3) 会话列表信息**：`/proc/<pid>/stat` 的第 2 个字段（comm）可能含空格且带括号，所以从最后一个 `)` 之后开始按空格切分，此时 `tpgid` 是第 6 个元素（字段 8 = tpgid 的偏移容易算错）。`tpgid <= 0`（进程没接终端）时用 shell 自己。cmdline 用 NUL 分隔、取第一个参数 basename；内核线程 cmdline 为空 → 回退 comm。cwd 用 `/proc/<pid>/cwd` 的 canonical path，`$HOME` 缩成 `~`。任何一项读不到就不显示该项，整行读不到就 GONE 第二行（避免空行留白）。刷新：抽屉打开时 `notifyDataSetChanged()`（`title 变化` 时本来就会刷新，但 cwd 变了标题可能不变）。选中背景（state_activated 选择器）从标题 TextView 移到根布局，否则第二行没有选中高亮。
+
+本地无 JDK，编译与单测靠 CI（`./gradlew test`、Fork Build 的 debug+release）。
