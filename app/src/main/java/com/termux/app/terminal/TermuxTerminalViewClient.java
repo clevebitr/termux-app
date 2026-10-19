@@ -25,8 +25,10 @@ import com.termux.shared.interact.ShareUtils;
 import com.termux.shared.shell.ShellUtils;
 import com.termux.shared.termux.TermuxBootstrap;
 import com.termux.shared.termux.terminal.TermuxTerminalViewClientBase;
+import com.termux.shared.termux.extrakeys.ExtraKeyButton;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
 import com.termux.shared.termux.extrakeys.SpecialButton;
+import com.termux.shared.termux.terminal.io.TerminalExtraKeys;
 import com.termux.shared.android.AndroidUtils;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.activities.ReportActivity;
@@ -63,6 +65,10 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
 
     /** Keeping track of the special keys acting as Ctrl and Fn for the soft keyboard and other hardware keys. */
     boolean mVirtualControlKeyDown, mVirtualFnKeyDown;
+
+    /** Whether the long press action of the volume key that is currently held down has already been
+     * performed, so that the single press action is not also performed when the key is released. */
+    private boolean mVolumeKeyLongPressTriggered;
 
     private Runnable mShowSoftKeyboardRunnable;
 
@@ -352,13 +358,139 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
             // Do not steal dedicated buttons from a full external keyboard.
             return false;
         } else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-            mVirtualControlKeyDown = down;
+            handleVolumeKey(false, event, down);
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
-            mVirtualFnKeyDown = down;
+            handleVolumeKey(true, event, down);
             return true;
         }
         return false;
+    }
+
+    /**
+     * Handle the volume up or down key based on the `volume-up-action`, `volume-up-long-action`,
+     * `volume-down-action` and `volume-down-long-action` properties. If the action is the
+     * {@link TermuxPropertyConstants#IVALUE_VOLUME_KEY_ACTION_DEFAULT} one, then the key behaves as the
+     * virtual CTRL key (volume down) or virtual FN key (volume up) for as long as it is held down, which
+     * is the upstream termux behaviour. Otherwise the action is performed once, either when the key is
+     * released, or when it is held down long enough for the key to start repeating, in which case the
+     * long press action is performed instead, unless it is the
+     * {@link TermuxPropertyConstants#IVALUE_VOLUME_KEY_ACTION_NONE} one, in which case the single press
+     * action is also performed on release.
+     */
+    private void handleVolumeKey(boolean isVolumeUp, KeyEvent event, boolean down) {
+        String action = mActivity.getProperties().getVolumeKeyAction(isVolumeUp, false);
+        boolean isDefaultAction = TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_DEFAULT.equals(action);
+
+        if (down) {
+            if (event.getRepeatCount() == 0) {
+                mVolumeKeyLongPressTriggered = false;
+
+                // The virtual modifier must be applied as soon as the key is pressed, since it may be
+                // combined with other keys that are pressed before the volume key is released. It is
+                // also cleared here, in case the action was changed while the key was still held down.
+                setVirtualVolumeKeyDown(isVolumeUp, isDefaultAction);
+            } else if (!mVolumeKeyLongPressTriggered) {
+                // The key started repeating, so it is a long press. The single press action must not be
+                // performed on release if the long press action was performed instead.
+                String longAction = mActivity.getProperties().getVolumeKeyAction(isVolumeUp, true);
+                if (!TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_NONE.equals(longAction)) {
+                    mVolumeKeyLongPressTriggered = true;
+                    performVolumeKeyAction(longAction, isVolumeUp);
+                }
+            }
+        } else {
+            // Always clear the virtual modifier, since the action may have been changed while the key
+            // was held down, in which case the single press action was not applied on release.
+            setVirtualVolumeKeyDown(isVolumeUp, false);
+            if (!mVolumeKeyLongPressTriggered) performVolumeKeyAction(action, isVolumeUp);
+            mVolumeKeyLongPressTriggered = false;
+        }
+    }
+
+    /** Set whether the volume key is currently applying the virtual CTRL key (volume down) or the
+     * virtual FN key (volume up). */
+    private void setVirtualVolumeKeyDown(boolean isVolumeUp, boolean down) {
+        if (isVolumeUp)
+            mVirtualFnKeyDown = down;
+        else
+            mVirtualControlKeyDown = down;
+    }
+
+    /** Perform the action of a volume key defined by the properties. The
+     * {@link TermuxPropertyConstants#IVALUE_VOLUME_KEY_ACTION_DEFAULT} action does not have to do
+     * anything, since the virtual modifier is applied when the key is pressed and released. */
+    private void performVolumeKeyAction(String action, boolean isVolumeUp) {
+        if (action == null) return;
+
+        switch (action) {
+            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_DEFAULT:
+            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_NONE:
+                break;
+            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_VOLUME:
+                AudioManager audio = (AudioManager) mActivity.getSystemService(Context.AUDIO_SERVICE);
+                if (audio != null)
+                    audio.adjustSuggestedStreamVolume(isVolumeUp ? AudioManager.ADJUST_RAISE : AudioManager.ADJUST_LOWER,
+                        AudioManager.USE_DEFAULT_STREAM_TYPE, AudioManager.FLAG_SHOW_UI);
+                break;
+            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_KEYBOARD:
+                onToggleSoftKeyboardRequest();
+                break;
+            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_TOGGLE_EXTRA_KEYS:
+                mActivity.toggleTerminalToolbar();
+                break;
+            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_PAGE_UP:
+                sendVolumeKeyHardwareKey(KeyEvent.KEYCODE_PAGE_UP);
+                break;
+            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_PAGE_DOWN:
+                sendVolumeKeyHardwareKey(KeyEvent.KEYCODE_PAGE_DOWN);
+                break;
+            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_PREV_SESSION:
+                mTermuxTerminalSessionActivityClient.switchToSession(false);
+                break;
+            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_NEXT_SESSION:
+                mTermuxTerminalSessionActivityClient.switchToSession(true);
+                break;
+            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_NEW_SESSION:
+                mTermuxTerminalSessionActivityClient.addNewSession(false, null);
+                break;
+            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_PASTE:
+                doPaste();
+                break;
+            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_SEND_KEYS:
+                sendVolumeKeySequence(mActivity.getProperties().getVolumeKeySendKeys(isVolumeUp));
+                break;
+            default:
+                Logger.logError(LOG_TAG, "Ignoring unknown volume key action: \"" + action + "\"");
+                break;
+        }
+    }
+
+    /** Send a hardware key to the terminal of the current session, like the virtual FN key combos do. */
+    private void sendVolumeKeyHardwareKey(int keyCode) {
+        TerminalSession session = mActivity.getCurrentSession();
+        if (session == null) return;
+
+        TerminalEmulator term = session.getEmulator();
+        if (term == null) return;
+
+        session.write(KeyHandler.getCode(keyCode, 0, term.isCursorKeysApplicationMode(), term.isKeypadApplicationMode()));
+    }
+
+    /**
+     * Send a key sequence to the terminal of the current session, using the same syntax as the
+     * `extra-keys` macros, like `ESC`, `CTRL c`, `UP UP` or `FN UP`. The sequence is split on space and
+     * each key is either a key name defined in
+     * {@link com.termux.shared.termux.extrakeys.ExtraKeysConstants#PRIMARY_KEY_CODES_FOR_STRINGS}, or
+     * some text, optionally prefixed with `CTRL`, `ALT`, `SHIFT` or `FN` to apply it as a modifier.
+     */
+    private void sendVolumeKeySequence(String sequence) {
+        if (DataUtils.isNullOrEmpty(sequence)) return;
+
+        TerminalView terminalView = mActivity.getTerminalView();
+        if (terminalView == null) return;
+
+        new TerminalExtraKeys(terminalView).onExtraKeyButtonClick(null, new ExtraKeyButton(sequence, true, sequence), null);
     }
 
 

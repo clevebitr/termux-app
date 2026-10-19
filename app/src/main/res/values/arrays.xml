@@ -60,6 +60,37 @@
             <item>volume</item>
         </string-array>
 
+        <!-- Volume Key Actions -->
+        <string-array name="termux_volume_key_action_entries">
+            <item>@string/termux_volume_key_action_default</item>
+            <item>@string/termux_volume_key_action_none</item>
+            <item>@string/termux_volume_key_action_volume</item>
+            <item>@string/termux_volume_key_action_keyboard</item>
+            <item>@string/termux_volume_key_action_toggle_extra_keys</item>
+            <item>@string/termux_volume_key_action_page_up</item>
+            <item>@string/termux_volume_key_action_page_down</item>
+            <item>@string/termux_volume_key_action_prev_session</item>
+            <item>@string/termux_volume_key_action_next_session</item>
+            <item>@string/termux_volume_key_action_new_session</item>
+            <item>@string/termux_volume_key_action_paste</item>
+            <item>@string/termux_volume_key_action_send_keys</item>
+        </string-array>
+
+        <string-array name="termux_volume_key_action_values">
+            <item>default</item>
+            <item>none</item>
+            <item>volume</item>
+            <item>keyboard</item>
+            <item>toggle-extra-keys</item>
+            <item>page-up</item>
+            <item>page-down</item>
+            <item>prev-session</item>
+            <item>next-session</item>
+            <item>new-session</item>
+            <item>paste</item>
+            <item>send-keys</item>
+        </string-array>
+
         <!-- Soft Keyboard Toggle Behaviour -->
         <string-array name="termux_soft_keyboard_toggle_behaviour_entries">
             <item>@string/termux_soft_keyboard_toggle_behaviour_show_hide</item>

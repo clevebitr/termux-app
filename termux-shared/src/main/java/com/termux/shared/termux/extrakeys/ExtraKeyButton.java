@@ -112,6 +112,30 @@ public class ExtraKeyButton {
         this.popup = popup;
     }
 
+    /**
+     * Initialize a {@link ExtraKeyButton} from a raw key or macro string, like the ones defined in the
+     * `extra-keys` property. This is meant for keys that are not part of an {@link ExtraKeysInfo}
+     * matrix, like the key sequence sent by a volume key action, for which no display or popup info is
+     * needed, and for which the aliases defined in
+     * {@link ExtraKeysConstants#CONTROL_CHARS_ALIASES} are intentionally not applied, since the value is
+     * expected to contain final key names.
+     *
+     * @param key The key that will be sent to the terminal, either a control character, like defined in
+     *            {@link ExtraKeysConstants#PRIMARY_KEY_CODES_FOR_STRINGS} (LEFT, RIGHT, PGUP...), or some
+     *            text. If {@code macro} is {@code true}, then a space separated sequence of such keys,
+     *            where a {@link SpecialButton} key may be prefixed to apply it as a modifier to the next
+     *            key, like `CTRL c`.
+     * @param macro If the {@code key} is a macro, i.e. a sequence of keys separated by space.
+     * @param display The text that will be displayed for the key. If {@code null}, then the {@code key}
+     *                will be used as the display text.
+     */
+    public ExtraKeyButton(@NonNull String key, boolean macro, @Nullable String display) {
+        this.key = key;
+        this.macro = macro;
+        this.display = display != null ? display : key;
+        this.popup = null;
+    }
+
     public String getStringFromJson(@NonNull JSONObject config, @NonNull String key) {
         try {
             return config.getString(key);

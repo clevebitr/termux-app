@@ -124,3 +124,37 @@ i18n：新增 `values/arrays.xml` + `values-zh/arrays.xml`（5 组 entries/entry
 **3) 会话列表信息**：`/proc/<pid>/stat` 的第 2 个字段（comm）可能含空格且带括号，所以从最后一个 `)` 之后开始按空格切分，此时 `tpgid` 是第 6 个元素（字段 8 = tpgid 的偏移容易算错）。`tpgid <= 0`（进程没接终端）时用 shell 自己。cmdline 用 NUL 分隔、取第一个参数 basename；内核线程 cmdline 为空 → 回退 comm。cwd 用 `/proc/<pid>/cwd` 的 canonical path，`$HOME` 缩成 `~`。任何一项读不到就不显示该项，整行读不到就 GONE 第二行（避免空行留白）。刷新：抽屉打开时 `notifyDataSetChanged()`（`title 变化` 时本来就会刷新，但 cwd 变了标题可能不变）。选中背景（state_activated 选择器）从标题 TextView 移到根布局，否则第二行没有选中高亮。
 
 本地无 JDK，编译与单测靠 CI（`./gradlew test`、Fork Build 的 debug+release）。
+
+## 2026-10-19 — FORK.md 重新定位为特性文档 + 拆出 FORK_BUILD.md（含旧编号映射）
+
+FORK.md 按用户要求重新定位为「**只讲本分支新增/改变的功能与行为**」，非功能内容搬走：
+
+- 构建 / 签名 / 安装 / CI（原 §1-§5）→ 新文件 `FORK_BUILD.md`（**编号不变**，所以该文件内部的 §4.2/§4.4 引用仍有效；`.github/workflows/fork_build.yml`、`.gitignore`、`app/build.gradle` 里的 "See FORK.md" 已改为指向它）。
+- 实现细节与「坑」小节（原 §12.4/§12.5）→ 不再重复写在 FORK.md，指向本文档的 #11/#12；各处「实测（真机）」小节合并为 FORK.md 末尾的「验证情况（真机）」一节。
+- 新 FORK.md 结构：开头说明 + 「特性总览」表格（10 项，含配置项与默认值）+ §1-§10 逐特性说明 + 验证情况。章节重新编号为 §1-§10（对应关系：旧 §6→§1、§7→§2、§8→§3、§9→§4、§10→§5、§11→§6、§12→§7、§13→§8、§14→§9、§15→§10）。
+- **历史条目里的旧编号引用**（本日志 #1-#9 的正文）按下表理解：`FORK.md §4.4` → 现在在 `FORK_BUILD.md §4.4`；`FORK.md §6` → 现 `FORK.md §1`；`FORK.md §9` → 现 `FORK.md §4`；`FORK.md §13` → 现 `FORK.md §8`；`FORK.md §14` → 现 `FORK.md §9`；`FORK.md §15` → 现 `FORK.md §10`。
+- `README.md` 的 **Vibe Coding Warning** 里补了一句：本分支新增的功能列在 FORK.md，构建/签名/安装说明在 FORK_BUILD.md（用户要求「提一嘴」）。
+
+另：`DECISIONS.md` 现在有「只追加、禁止直接编辑」的保护（sed/write 被拦），所以本次没有直接改历史条目的编号引用，而是用这条映射说明代替。
+
+## 2026-10-19 — M7 设计：音量键自定义动作（下拉式，单击/长按，复用 extra-keys macro）
+
+范围由用户确认（三项各自对应上游 issue）：原先音量键只有 `volume-keys=virtual`（音量减=Ctrl、音量加=Fn）与 `volume`（完全不接管）两种命运。本次新增**逐键、按手势**指定动作：设置页下拉形态（不是「可增删规则列表」），动作集合覆盖 Ctrl/Fn+音量条、软键盘/extra keys 行、翻页/切会话、发送序列/新会话/粘贴，手势为单击+长按两档，默认保持上游行为并提供「一键恢复默认」。
+
+**属性设计**：4 个动作 key（`volume-up-action` / `volume-up-long-action` / `volume-down-action` / `volume-down-long-action`）+ 2 个序列 key（`volume-up-send-keys` / `volume-down-send-keys`）。动作值走 `MAP_VOLUME_KEY_ACTION` 白名单（复用 `SharedProperties.getDefaultIfNotInMap` 模式：非法值回退默认并 `logErrorOnInvalidValue`），4 个 key 各有独立的 `*InternalPropertyValueFromValue`，为的是日志里 key 名准确。单击/长按两个默认值不同（`DEFAULT_IVALUE_VOLUME_KEY_ACTION`=`default`、`DEFAULT_IVALUE_VOLUME_KEY_LONG_ACTION`=`none`）。
+
+**`default` 的语义冲突（最重要的取舍）**：`default` = 上游修饰键，而修饰键**必须**在 keyDown 立刻生效（`mVirtualControlKeyDown`/`mVirtualFnKeyDown` 要和之后按下的键组合，`readControlKey()` 是在 `TerminalView.onKeyDown/inputCodePoint` 里 OR 进去的）。这跟「单击动作等抬手才执行」天然冲突，所以规则是：`default` 在 keyDown 生效、keyUp 清除，并且长按计时器照常跑；若用户又给它配了非 `none` 的长按动作，按住超阈值会**额外**触发一次长按动作。文档（FORK.md §11）明确写成「想把音量键当稳定 Ctrl 用就把长按留 `none`」，而不是去禁用长按下拉（那会砍掉「Fn + 长按调音量」这类合理组合）。
+
+**长按判定不用计时器**：用 `KeyEvent.getRepeatCount() > 0` 的**首个重复事件**当长按触发点，不自己维护 Handler/延时任务。代价是阈值跟随系统长按超时（约 500ms）且长按只触发一次；收益是没有新增生命周期、旋转/切 App 不会漏掉清理。
+
+**长按位 `none` 不抵消单击**：如果长按位是 `none` 就把单击动作也吃掉，用户配了单击动作、只是按久一点就「毫无反应」，像坏了。所以 `none` 在两个位置的语义不同：长按位 = 长按不额外做事（仍走单击），单击位 = 整键无动作（`mVolumeKeyLongPressTriggered` 只在长按动作非 `none` 时才置位）。
+
+**与 `volume-keys` 的关系**：保留 upstream 的 gate —— `volume-keys=volume` 时 `handleVirtualKeys()` 第一句就 `return false`，自定义动作全部不生效（没有为了「只接管一个键」去改这个语义，那会让「不接管」这个明确选择变得含糊）。这个前提写在设置页「恢复音量键默认行为」的 summary 和 FORK.md 里。
+
+**发送序列复用 extra-keys 的 macro**：给 `ExtraKeyButton` 加一个公开构造器 `(String key, boolean macro, String display)`，然后在 ViewClient 里 `new TerminalExtraKeys(mActivity.getTerminalView()).onExtraKeyButtonClick(null, new ExtraKeyButton(seq, true, seq), null)`。白送 F1~F12/方向键/PGUP/ESC 等键名映射和 `CTRL c` 这类前缀修饰语法，不重新实现一遍键名表；限制（空格分隔、发不了字面空格、修饰键只作用紧随的一个键）写进对话框文案与文档。注意 `onExtraKeyButtonClick` 第一个参数 `view` 与第三个 `button` 在实现里根本没用到，传 `null` 安全。
+
+**设置页序列输入框条件显示**：`OnPreferenceChangeListener` 是在**持久化之前**回调的，所以监听器里不能用 `getValue()` 合成新状态（那时还是旧值）——用「哪个 key 触发的回调」来决定 newValue 属于 `action` 还是 `longAction`，另一项取 `getValue()`。可见性条件是「单击或长按任一为 `send-keys`」。
+
+**「恢复默认」必须落在文件上**：这一页的 DataStore 直接读写 `~/.termux/termux.properties`，所以恢复 = 对 6 个 key 调 `setTermuxPropertyValue(key, null)`（实现是把该行写成 `#key=`，保留注释与其它配置，见 §4/#10），再 `setPreferencesFromResource(...)` 重建界面。重建时 ListPreference/EditTextPreference 会把读到的默认值再 `persistString()` 一次，靠 DataStore 的 `mLastReadValues` 判定成 no-op —— 否则「恢复默认」会立刻把默认值写回文件，失去「未设置」状态。
+
+**未做与待验证**：本地无 JDK/SDK（仓库既有约定：编译/单测/lint 靠 CI），所以本次改动**未经编译**，FORK.md 的「验证情况」一节**故意没有加这一项的实测条目**，等真机跑通再补。也没写单测：状态机落在 `TermuxTerminalViewClient`（要 Activity + TermuxService 的 Robolectric 环境才算得出边界），只测解析层则要给 termux-shared 新加 JVM test 源集，收益不匹配。验证清单：CI `./gradlew test` + `lintDebug`（重点看 MissingTranslation 与资源引用）；真机逐项试「唤醒软键盘 / 调音量 / PageUp / 切会话 / send-keys `CTRL c`」+ 长按 + 「恢复默认」后回到官方 Ctrl/Fn，另需确认 `volume-keys=volume` 下自定义动作确实不生效。

@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 /*
- * Version: v0.24.0
+ * Version: v0.25.0
  * SPDX-License-Identifier: MIT
  *
  * Changelog
@@ -99,6 +99,10 @@ import java.util.Set;
  *
  * - 0.24.0 (2026-10-18)
  *      - Add `KEY_EXTRA_KEYS_PANELS` and `KEY_SWITCH_SESSION_ON_SWIPE`.
+ *
+ * - 0.25.0 (2026-10-19)
+ *      - Add `KEY_VOLUME_UP_ACTION`, `KEY_VOLUME_UP_LONG_ACTION`, `KEY_VOLUME_DOWN_ACTION`,
+ *          `KEY_VOLUME_DOWN_LONG_ACTION`, `KEY_VOLUME_UP_SEND_KEYS` and `KEY_VOLUME_DOWN_SEND_KEYS`.
  */
 
 /**
@@ -480,6 +484,88 @@ public final class TermuxPropertyConstants {
 
 
 
+    /** Defines the key for the action performed by the volume up key on a single press. Only used if
+     * {@link #KEY_VOLUME_KEYS_BEHAVIOUR} is not set to {@link #IVALUE_VOLUME_KEY_BEHAVIOUR_VOLUME}. */
+    public static final String KEY_VOLUME_UP_ACTION =  "volume-up-action"; // Default: "volume-up-action"
+
+    /** Defines the key for the action performed by the volume up key on a long press. Only used if
+     * {@link #KEY_VOLUME_KEYS_BEHAVIOUR} is not set to {@link #IVALUE_VOLUME_KEY_BEHAVIOUR_VOLUME}. */
+    public static final String KEY_VOLUME_UP_LONG_ACTION =  "volume-up-long-action"; // Default: "volume-up-long-action"
+
+    /** Defines the key for the action performed by the volume down key on a single press. Only used if
+     * {@link #KEY_VOLUME_KEYS_BEHAVIOUR} is not set to {@link #IVALUE_VOLUME_KEY_BEHAVIOUR_VOLUME}. */
+    public static final String KEY_VOLUME_DOWN_ACTION =  "volume-down-action"; // Default: "volume-down-action"
+
+    /** Defines the key for the action performed by the volume down key on a long press. Only used if
+     * {@link #KEY_VOLUME_KEYS_BEHAVIOUR} is not set to {@link #IVALUE_VOLUME_KEY_BEHAVIOUR_VOLUME}. */
+    public static final String KEY_VOLUME_DOWN_LONG_ACTION =  "volume-down-long-action"; // Default: "volume-down-long-action"
+
+    /** Defines the key for the key sequence sent by the volume up key if its action is
+     * {@link #IVALUE_VOLUME_KEY_ACTION_SEND_KEYS} */
+    public static final String KEY_VOLUME_UP_SEND_KEYS =  "volume-up-send-keys"; // Default: "volume-up-send-keys"
+
+    /** Defines the key for the key sequence sent by the volume down key if its action is
+     * {@link #IVALUE_VOLUME_KEY_ACTION_SEND_KEYS} */
+    public static final String KEY_VOLUME_DOWN_SEND_KEYS =  "volume-down-send-keys"; // Default: "volume-down-send-keys"
+
+
+
+    /** Defines the internal value for the action that makes the volume key behave as the virtual CTRL
+     * key (volume down) or virtual FN key (volume up), which is the upstream termux behaviour. The
+     * modifier is applied as long as the key is held down, so the single press action of this value is
+     * not applied when the key is released, and a non-{@link #IVALUE_VOLUME_KEY_ACTION_NONE} long press
+     * action is additionally applied if the key is held down. */
+    public static final String IVALUE_VOLUME_KEY_ACTION_DEFAULT = "default";
+    /** Defines the internal value for the action that does nothing and just swallows the key event */
+    public static final String IVALUE_VOLUME_KEY_ACTION_NONE = "none";
+    /** Defines the internal value for the action that shows the system volume UI and changes the volume */
+    public static final String IVALUE_VOLUME_KEY_ACTION_VOLUME = "volume";
+    /** Defines the internal value for the action that toggles the soft keyboard */
+    public static final String IVALUE_VOLUME_KEY_ACTION_KEYBOARD = "keyboard";
+    /** Defines the internal value for the action that toggles the extra keys row */
+    public static final String IVALUE_VOLUME_KEY_ACTION_TOGGLE_EXTRA_KEYS = "toggle-extra-keys";
+    /** Defines the internal value for the action that sends the Page Up key */
+    public static final String IVALUE_VOLUME_KEY_ACTION_PAGE_UP = "page-up";
+    /** Defines the internal value for the action that sends the Page Down key */
+    public static final String IVALUE_VOLUME_KEY_ACTION_PAGE_DOWN = "page-down";
+    /** Defines the internal value for the action that switches to the previous session */
+    public static final String IVALUE_VOLUME_KEY_ACTION_PREV_SESSION = "prev-session";
+    /** Defines the internal value for the action that switches to the next session */
+    public static final String IVALUE_VOLUME_KEY_ACTION_NEXT_SESSION = "next-session";
+    /** Defines the internal value for the action that creates a new session */
+    public static final String IVALUE_VOLUME_KEY_ACTION_NEW_SESSION = "new-session";
+    /** Defines the internal value for the action that pastes the clipboard */
+    public static final String IVALUE_VOLUME_KEY_ACTION_PASTE = "paste";
+    /** Defines the internal value for the action that sends the key sequence defined by
+     * {@link #KEY_VOLUME_UP_SEND_KEYS} or {@link #KEY_VOLUME_DOWN_SEND_KEYS} */
+    public static final String IVALUE_VOLUME_KEY_ACTION_SEND_KEYS = "send-keys";
+
+    public static final String DEFAULT_IVALUE_VOLUME_KEY_ACTION = IVALUE_VOLUME_KEY_ACTION_DEFAULT;
+    public static final String DEFAULT_IVALUE_VOLUME_KEY_LONG_ACTION = IVALUE_VOLUME_KEY_ACTION_NONE;
+
+    /** Defines the default key sequence sent by a volume key if its action is
+     * {@link #IVALUE_VOLUME_KEY_ACTION_SEND_KEYS} */
+    public static final String DEFAULT_IVALUE_VOLUME_KEY_SEND_KEYS = "ESC";
+
+    /** Defines the bidirectional map for volume key action values and their internal values */
+    public static final ImmutableBiMap<String, String> MAP_VOLUME_KEY_ACTION =
+        new ImmutableBiMap.Builder<String, String>()
+            .put(IVALUE_VOLUME_KEY_ACTION_DEFAULT, IVALUE_VOLUME_KEY_ACTION_DEFAULT)
+            .put(IVALUE_VOLUME_KEY_ACTION_NONE, IVALUE_VOLUME_KEY_ACTION_NONE)
+            .put(IVALUE_VOLUME_KEY_ACTION_VOLUME, IVALUE_VOLUME_KEY_ACTION_VOLUME)
+            .put(IVALUE_VOLUME_KEY_ACTION_KEYBOARD, IVALUE_VOLUME_KEY_ACTION_KEYBOARD)
+            .put(IVALUE_VOLUME_KEY_ACTION_TOGGLE_EXTRA_KEYS, IVALUE_VOLUME_KEY_ACTION_TOGGLE_EXTRA_KEYS)
+            .put(IVALUE_VOLUME_KEY_ACTION_PAGE_UP, IVALUE_VOLUME_KEY_ACTION_PAGE_UP)
+            .put(IVALUE_VOLUME_KEY_ACTION_PAGE_DOWN, IVALUE_VOLUME_KEY_ACTION_PAGE_DOWN)
+            .put(IVALUE_VOLUME_KEY_ACTION_PREV_SESSION, IVALUE_VOLUME_KEY_ACTION_PREV_SESSION)
+            .put(IVALUE_VOLUME_KEY_ACTION_NEXT_SESSION, IVALUE_VOLUME_KEY_ACTION_NEXT_SESSION)
+            .put(IVALUE_VOLUME_KEY_ACTION_NEW_SESSION, IVALUE_VOLUME_KEY_ACTION_NEW_SESSION)
+            .put(IVALUE_VOLUME_KEY_ACTION_PASTE, IVALUE_VOLUME_KEY_ACTION_PASTE)
+            .put(IVALUE_VOLUME_KEY_ACTION_SEND_KEYS, IVALUE_VOLUME_KEY_ACTION_SEND_KEYS)
+            .build();
+
+
+
 
 
     /** Defines the set for keys loaded by termux
@@ -536,7 +622,13 @@ public final class TermuxPropertyConstants {
         KEY_EXTRA_KEYS_ACTIVE_BACKGROUND,
         KEY_NIGHT_MODE,
         KEY_SOFT_KEYBOARD_TOGGLE_BEHAVIOUR,
-        KEY_VOLUME_KEYS_BEHAVIOUR
+        KEY_VOLUME_KEYS_BEHAVIOUR,
+        KEY_VOLUME_UP_ACTION,
+        KEY_VOLUME_UP_LONG_ACTION,
+        KEY_VOLUME_DOWN_ACTION,
+        KEY_VOLUME_DOWN_LONG_ACTION,
+        KEY_VOLUME_UP_SEND_KEYS,
+        KEY_VOLUME_DOWN_SEND_KEYS
     ));
 
     /** Defines the set for keys loaded by termux that have default boolean behaviour with false as default.

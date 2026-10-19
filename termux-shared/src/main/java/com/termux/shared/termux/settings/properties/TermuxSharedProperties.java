@@ -309,6 +309,14 @@ public abstract class TermuxSharedProperties {
                 return (String) getSoftKeyboardToggleBehaviourInternalPropertyValueFromValue(value);
             case TermuxPropertyConstants.KEY_VOLUME_KEYS_BEHAVIOUR:
                 return (String) getVolumeKeysBehaviourInternalPropertyValueFromValue(value);
+            case TermuxPropertyConstants.KEY_VOLUME_UP_ACTION:
+                return (String) getVolumeUpKeyActionInternalPropertyValueFromValue(value);
+            case TermuxPropertyConstants.KEY_VOLUME_UP_LONG_ACTION:
+                return (String) getVolumeUpKeyLongActionInternalPropertyValueFromValue(value);
+            case TermuxPropertyConstants.KEY_VOLUME_DOWN_ACTION:
+                return (String) getVolumeDownKeyActionInternalPropertyValueFromValue(value);
+            case TermuxPropertyConstants.KEY_VOLUME_DOWN_LONG_ACTION:
+                return (String) getVolumeDownKeyLongActionInternalPropertyValueFromValue(value);
 
             default:
                 // default false boolean behaviour
@@ -577,6 +585,50 @@ public abstract class TermuxSharedProperties {
      */
     public static String getVolumeKeysBehaviourInternalPropertyValueFromValue(String value) {
         return (String) SharedProperties.getDefaultIfNotInMap(TermuxPropertyConstants.KEY_VOLUME_KEYS_BEHAVIOUR, TermuxPropertyConstants.MAP_VOLUME_KEYS_BEHAVIOUR, SharedProperties.toLowerCase(value), TermuxPropertyConstants.DEFAULT_IVALUE_VOLUME_KEYS_BEHAVIOUR, true, LOG_TAG);
+    }
+
+    /**
+     * Returns the value itself if it is not {@code null}, otherwise returns
+     * {@link TermuxPropertyConstants#DEFAULT_IVALUE_VOLUME_KEY_ACTION}.
+     *
+     * @param value {@link String} value to convert.
+     * @return Returns the internal value for value.
+     */
+    public static String getVolumeUpKeyActionInternalPropertyValueFromValue(String value) {
+        return (String) SharedProperties.getDefaultIfNotInMap(TermuxPropertyConstants.KEY_VOLUME_UP_ACTION, TermuxPropertyConstants.MAP_VOLUME_KEY_ACTION, SharedProperties.toLowerCase(value), TermuxPropertyConstants.DEFAULT_IVALUE_VOLUME_KEY_ACTION, true, LOG_TAG);
+    }
+
+    /**
+     * Returns the value itself if it is not {@code null}, otherwise returns
+     * {@link TermuxPropertyConstants#DEFAULT_IVALUE_VOLUME_KEY_LONG_ACTION}.
+     *
+     * @param value {@link String} value to convert.
+     * @return Returns the internal value for value.
+     */
+    public static String getVolumeUpKeyLongActionInternalPropertyValueFromValue(String value) {
+        return (String) SharedProperties.getDefaultIfNotInMap(TermuxPropertyConstants.KEY_VOLUME_UP_LONG_ACTION, TermuxPropertyConstants.MAP_VOLUME_KEY_ACTION, SharedProperties.toLowerCase(value), TermuxPropertyConstants.DEFAULT_IVALUE_VOLUME_KEY_LONG_ACTION, true, LOG_TAG);
+    }
+
+    /**
+     * Returns the value itself if it is not {@code null}, otherwise returns
+     * {@link TermuxPropertyConstants#DEFAULT_IVALUE_VOLUME_KEY_ACTION}.
+     *
+     * @param value {@link String} value to convert.
+     * @return Returns the internal value for value.
+     */
+    public static String getVolumeDownKeyActionInternalPropertyValueFromValue(String value) {
+        return (String) SharedProperties.getDefaultIfNotInMap(TermuxPropertyConstants.KEY_VOLUME_DOWN_ACTION, TermuxPropertyConstants.MAP_VOLUME_KEY_ACTION, SharedProperties.toLowerCase(value), TermuxPropertyConstants.DEFAULT_IVALUE_VOLUME_KEY_ACTION, true, LOG_TAG);
+    }
+
+    /**
+     * Returns the value itself if it is not {@code null}, otherwise returns
+     * {@link TermuxPropertyConstants#DEFAULT_IVALUE_VOLUME_KEY_LONG_ACTION}.
+     *
+     * @param value {@link String} value to convert.
+     * @return Returns the internal value for value.
+     */
+    public static String getVolumeDownKeyLongActionInternalPropertyValueFromValue(String value) {
+        return (String) SharedProperties.getDefaultIfNotInMap(TermuxPropertyConstants.KEY_VOLUME_DOWN_LONG_ACTION, TermuxPropertyConstants.MAP_VOLUME_KEY_ACTION, SharedProperties.toLowerCase(value), TermuxPropertyConstants.DEFAULT_IVALUE_VOLUME_KEY_LONG_ACTION, true, LOG_TAG);
     }
 
 
@@ -872,6 +924,40 @@ public abstract class TermuxSharedProperties {
 
     public boolean areVirtualVolumeKeysDisabled() {
         return (boolean) TermuxPropertyConstants.IVALUE_VOLUME_KEY_BEHAVIOUR_VOLUME.equals(getInternalPropertyValue(TermuxPropertyConstants.KEY_VOLUME_KEYS_BEHAVIOUR, true));
+    }
+
+    /**
+     * Get the action that should be performed when the volume key is pressed, based on the
+     * `volume-up-action`, `volume-up-long-action`, `volume-down-action` or
+     * `volume-down-long-action` property. The value will be one of the
+     * {@link TermuxPropertyConstants#MAP_VOLUME_KEY_ACTION} values.
+     *
+     * @param isVolumeUp If the action is for the volume up key, otherwise the volume down key.
+     * @param longPress If the action is for a long press of the key, otherwise a single press.
+     * @return Returns the internal property value.
+     */
+    public String getVolumeKeyAction(boolean isVolumeUp, boolean longPress) {
+        String key;
+        if (isVolumeUp)
+            key = longPress ? TermuxPropertyConstants.KEY_VOLUME_UP_LONG_ACTION : TermuxPropertyConstants.KEY_VOLUME_UP_ACTION;
+        else
+            key = longPress ? TermuxPropertyConstants.KEY_VOLUME_DOWN_LONG_ACTION : TermuxPropertyConstants.KEY_VOLUME_DOWN_ACTION;
+
+        return (String) getInternalPropertyValue(key, true);
+    }
+
+    /**
+     * Get the key sequence that should be sent when the volume key action is
+     * {@link TermuxPropertyConstants#IVALUE_VOLUME_KEY_ACTION_SEND_KEYS}, based on the
+     * `volume-up-send-keys` or `volume-down-send-keys` property.
+     *
+     * @param isVolumeUp If the sequence is for the volume up key, otherwise the volume down key.
+     * @return Returns the internal property value. It may be {@code null} if the property is not
+     * defined in the properties file.
+     */
+    public String getVolumeKeySendKeys(boolean isVolumeUp) {
+        String key = isVolumeUp ? TermuxPropertyConstants.KEY_VOLUME_UP_SEND_KEYS : TermuxPropertyConstants.KEY_VOLUME_DOWN_SEND_KEYS;
+        return (String) getInternalPropertyValue(key, true);
     }
 
 

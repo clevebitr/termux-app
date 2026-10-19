@@ -290,6 +290,34 @@
                 <string name="termux_volume_keys_behaviour_virtual">Virtual (Default)</string>
                 <string name="termux_volume_keys_behaviour_volume">Literal volume keys</string>
 
+                <!-- Volume Key Actions -->
+                <string name="termux_volume_up_action_title">Volume Up Single Press</string>
+                <string name="termux_volume_up_long_action_title">Volume Up Long Press</string>
+                <string name="termux_volume_up_send_keys_title">Volume Up Key Sequence</string>
+                <string name="termux_volume_down_action_title">Volume Down Single Press</string>
+                <string name="termux_volume_down_long_action_title">Volume Down Long Press</string>
+                <string name="termux_volume_down_send_keys_title">Volume Down Key Sequence</string>
+
+                <string name="termux_volume_key_action_default">Default (virtual Ctrl/Fn key)</string>
+                <string name="termux_volume_key_action_none">Nothing (the key is swallowed)</string>
+                <string name="termux_volume_key_action_volume">Change the volume</string>
+                <string name="termux_volume_key_action_keyboard">Show/hide the soft keyboard</string>
+                <string name="termux_volume_key_action_toggle_extra_keys">Show/hide the extra keys row</string>
+                <string name="termux_volume_key_action_page_up">Scroll up (Page Up)</string>
+                <string name="termux_volume_key_action_page_down">Scroll down (Page Down)</string>
+                <string name="termux_volume_key_action_prev_session">Switch to the previous session</string>
+                <string name="termux_volume_key_action_next_session">Switch to the next session</string>
+                <string name="termux_volume_key_action_new_session">Create a new session</string>
+                <string name="termux_volume_key_action_paste">Paste the clipboard</string>
+                <string name="termux_volume_key_action_send_keys">Send a key sequence</string>
+
+                <string name="termux_volume_key_send_keys_message">The keys that will be sent to the terminal when the\ncorresponding action is \"Send a key sequence\". The keys must be\nseparated by spaces and use the same names as the `extra-keys`\nproperty, like ESC, TAB, PGUP, UP, F1 or CTRL c.\n\nA key may be prefixed with CTRL, ALT, SHIFT or FN to apply it as a\nmodifier to the next key only, so \"CTRL c\" is Ctrl+C while\n\"CTRL c d\" is Ctrl+C followed by D.</string>
+                <string name="termux_volume_key_actions_reset_title">Reset Volume Key Actions</string>
+                <string name="termux_volume_key_actions_reset_summary">Reset the volume key actions to their default values, so that the
+                    volume keys behave like the upstream termux app again. The actions are only used when
+                    the volume keys behaviour above is \"Virtual\".</string>
+                <string name="termux_volume_key_actions_reset_done">Volume key actions were reset to their default values</string>
+
                 <!-- Soft Keyboard Toggle Behaviour -->
                 <string name="termux_soft_keyboard_toggle_behaviour_title">Keyboard Toggle Button</string>
                 <string name="termux_soft_keyboard_toggle_behaviour_show_hide">Show/hide the keyboard (Default)</string>

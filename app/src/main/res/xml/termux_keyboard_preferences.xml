@@ -45,6 +45,58 @@
             app:useSimpleSummaryProvider="true" />
 
         <ListPreference
+            app:defaultValue="default"
+            app:entries="@array/termux_volume_key_action_entries"
+            app:entryValues="@array/termux_volume_key_action_values"
+            app:key="volume-up-action"
+            app:title="@string/termux_volume_up_action_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="none"
+            app:entries="@array/termux_volume_key_action_entries"
+            app:entryValues="@array/termux_volume_key_action_values"
+            app:key="volume-up-long-action"
+            app:title="@string/termux_volume_up_long_action_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:defaultValue="ESC"
+            app:dialogMessage="@string/termux_volume_key_send_keys_message"
+            app:key="volume-up-send-keys"
+            app:title="@string/termux_volume_up_send_keys_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="default"
+            app:entries="@array/termux_volume_key_action_entries"
+            app:entryValues="@array/termux_volume_key_action_values"
+            app:key="volume-down-action"
+            app:title="@string/termux_volume_down_action_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="none"
+            app:entries="@array/termux_volume_key_action_entries"
+            app:entryValues="@array/termux_volume_key_action_values"
+            app:key="volume-down-long-action"
+            app:title="@string/termux_volume_down_long_action_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:defaultValue="ESC"
+            app:dialogMessage="@string/termux_volume_key_send_keys_message"
+            app:key="volume-down-send-keys"
+            app:title="@string/termux_volume_down_send_keys_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <Preference
+            app:key="reset-volume-key-actions"
+            app:persistent="false"
+            app:title="@string/termux_volume_key_actions_reset_title"
+            app:summary="@string/termux_volume_key_actions_reset_summary" />
+
+        <ListPreference
             app:defaultValue="show/hide"
             app:entries="@array/termux_soft_keyboard_toggle_behaviour_entries"
             app:entryValues="@array/termux_soft_keyboard_toggle_behaviour_values"

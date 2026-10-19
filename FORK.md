@@ -26,6 +26,7 @@
 | 8 | 真斜体字体 + OSC 8 超链接可点 | `~/.termux/font-italic.ttf`；`terminal-onclick-url-open` | 无斜体字体则合成斜切；点击关 |
 | 9 | IME 收起额外按键行 / 手指拖拽按鼠标拖拽上报 / 焦点上报（`DECSET 1004`） | `hide-extra-keys-when-soft-keyboard-hidden`、`touch-drag-sends-mouse-drag` | 前两项关；1004 由程序请求 |
 | 10 | 多面板 extra keys / 左右滑切会话 / 会话列表显示 PID·进程·cwd | `extra-keys-panels`、`switch-session-on-swipe` | 面板需自行配置；滑切默认开 |
+| 11 | 音量键自定义动作（单击 / 长按，含唤醒软键盘等） | `volume-up-action`、`volume-up-long-action`、`volume-down-action`、`volume-down-long-action`、`volume-up-send-keys`、`volume-down-send-keys` | 保持上游：音量减=Ctrl、音量加=Fn |
 
 ---
 
@@ -504,9 +505,78 @@ switch-session-on-swipe=true
 
 ---
 
+## 11. 音量键自定义动作（单击 / 长按）
+
+上游的音量键只有两种命运：`volume-keys=virtual`（默认）时音量减当 Ctrl、音量加当 Fn（一张组合键表），
+或者 `volume-keys=volume` 时完全不接管。现在可以**逐键、按手势**指定音量键做什么。
+
+### 配置
+
+设置 → Termux → **终端键盘** → 按键行为（也直接写 `~/.termux/termux.properties`）：
+
+| 条目 | 属性 | 默认 |
+| --- | --- | --- |
+| 音量加键（单击） | `volume-up-action` | `default` |
+| 音量加键（长按） | `volume-up-long-action` | `none` |
+| 音量减键（单击） | `volume-down-action` | `default` |
+| 音量减键（长按） | `volume-down-long-action` | `none` |
+| 音量加键序列 | `volume-up-send-keys` | `ESC` |
+| 音量减键序列 | `volume-down-send-keys` | `ESC` |
+
+```properties
+# 例：音量减单击收放软键盘、长按调音量；音量加保持官方的 Fn 组合键
+volume-down-action=keyboard
+volume-down-long-action=volume
+volume-up-action=default
+```
+
+可取的动作值：
+
+| 值 | 作用 |
+| --- | --- |
+| `default` | **官方的虚拟键行为**：音量减=按住期间当 Ctrl，音量加=按住期间当 Fn（Fn 组合键表：音量加+W/A/S/D 方向键、+P/N 翻页、+1~0 F1~F10、+v 弹音量条等，与上游一致） |
+| `none` | 什么都不做（按键仍被吞掉，不会去调系统音量） |
+| `volume` | 弹系统音量条并真正调节音量（加/减方向自动对应） |
+| `keyboard` | 显示/隐藏软键盘 |
+| `toggle-extra-keys` | 显示/隐藏底部 extra keys 行 |
+| `page-up` / `page-down` | 向终端发 Page Up / Page Down（适合 less、man、vim） |
+| `prev-session` / `next-session` | 切到上/下一个会话（等价左右滑） |
+| `new-session` | 新建会话 |
+| `paste` | 粘贴剪贴板 |
+| `send-keys` | 发送 `volume-*-send-keys` 里配置的按键序列 |
+
+### 手势与生效规则
+
+* **单击**：动作在**抬键时**执行一次；**长按**：动作在按键开始重复（约 500ms，跟随系统长按判定）时执行一次，
+  此时不再执行单击动作。
+* 长按留默认的 `none` 时，长按**不会**抵消单击动作：按住久一点也还是触发单击动作（不会出现“没反应”）。
+* `default` 是修饰键，必须在**按下瞬间**生效（要和其它键组合），因此如果给它又配了一个 `none` 以外的长按动作，
+  按住超过 500ms 会额外触发那个长按动作；想把音量键当稳定的 Ctrl 用就把长按留成 `none`。
+* 只有在「按键行为 → 音量键」是**虚拟音量键（`volume-keys=virtual`，默认）**时这些动作才生效；
+  选了「真实的音量键」就是完全不接管（这是上游语义）。
+* 外接全键盘（`KEYBOARD_TYPE_ALPHABETIC`）仍然不抢音量键，和上游一致。
+* `send-keys` 的序列与 `extra-keys` 的 macro 语法相同：空格分隔，键名用 `ESC`/`TAB`/`PGUP`/`UP`/`F1` 这类
+  名字（全表见 `ExtraKeysConstants.PRIMARY_KEY_CODES_FOR_STRINGS`），也可以写普通文本；
+  键名前加 `CTRL`/`ALT`/`SHIFT`/`FN` 可当修饰键，但**只作用于紧随其后的一个键**：`CTRL c` 是 Ctrl+C，
+  `CTRL c d` 是 Ctrl+C 再跟一个 D。
+
+### 恢复默认
+
+设置页底部有 **恢复音量键默认行为**：把上面 6 个属性在文件里注释掉（行首变成 `#`，不删其它内容），
+即完全回到官方行为。每个下拉里选“默认 / 无动作”也能单项恢复。
+
+实现位置：`TermuxPropertyConstants`（`KEY_VOLUME_*_ACTION` / `KEY_VOLUME_*_SEND_KEYS`、`MAP_VOLUME_KEY_ACTION`）、
+`TermuxSharedProperties.getVolumeKeyAction()` / `getVolumeKeySendKeys()`、
+`TermuxTerminalViewClient.handleVolumeKey()`（手势状态机）/ `performVolumeKeyAction()`（动作分发）、
+`ExtraKeyButton(String, boolean, String)`（从序列字符串直接构造 macro 按钮）+
+`TerminalExtraKeys`（复用它的序列发送逻辑）、
+`app/src/main/res/xml/termux_keyboard_preferences.xml` + `TerminalKeyboardPreferencesFragment`（含序列项的条件显示）。
+
+---
+
 ## 验证情况（真机）
 
-以上改动都在本机（aarch64，Android 13 系 ROM）真机验证过：
+以下各项都在本机（aarch64，Android 13 系 ROM）真机验证过（§11 音量键自定义动作尚未真机验证）：
 
 * 备份 26s / 333MB / 43023 条目，校验通过；`--target-dir` 解包演练的符号链接与权限位正确。
 * 外观页 6 项、按键行为 6 项改完立即生效；打开设置页**不会**改写 `termux.properties`。

@@ -279,6 +279,33 @@
                 <string name="termux_volume_keys_behaviour_virtual">虚拟音量键（默认）</string>
                 <string name="termux_volume_keys_behaviour_volume">真实的音量键</string>
 
+                <!-- Volume Key Actions -->
+                <string name="termux_volume_up_action_title">音量加键（单击）</string>
+                <string name="termux_volume_up_long_action_title">音量加键（长按）</string>
+                <string name="termux_volume_up_send_keys_title">音量加键序列</string>
+                <string name="termux_volume_down_action_title">音量减键（单击）</string>
+                <string name="termux_volume_down_long_action_title">音量减键（长按）</string>
+                <string name="termux_volume_down_send_keys_title">音量减键序列</string>
+
+                <string name="termux_volume_key_action_default">默认（Ctrl/Fn 虚拟键）</string>
+                <string name="termux_volume_key_action_none">无动作（吞掉按键）</string>
+                <string name="termux_volume_key_action_volume">调整系统音量</string>
+                <string name="termux_volume_key_action_keyboard">显示/隐藏软键盘</string>
+                <string name="termux_volume_key_action_toggle_extra_keys">显示/隐藏虚拟键盘行</string>
+                <string name="termux_volume_key_action_page_up">向上滚动（Page Up）</string>
+                <string name="termux_volume_key_action_page_down">向下滚动（Page Down）</string>
+                <string name="termux_volume_key_action_prev_session">切换到上一个会话</string>
+                <string name="termux_volume_key_action_next_session">切换到下一个会话</string>
+                <string name="termux_volume_key_action_new_session">新建会话</string>
+                <string name="termux_volume_key_action_paste">粘贴剪贴板</string>
+                <string name="termux_volume_key_action_send_keys">发送按键序列</string>
+
+                <string name="termux_volume_key_send_keys_message">当对应动作为「发送按键序列」时，将要发给终端的按键。多个按键用\n空格分隔，键名与 `extra-keys` 属性一致，例如 ESC、TAB、PGUP、\nUP、F1 或 CTRL c。\n\n按键前可以加 CTRL、ALT、SHIFT 或 FN，只对紧随其后的一个按键\n生效，所以 \"CTRL c\" 是 Ctrl+C，而 \"CTRL c d\" 是 Ctrl+C 再跟一个 D。</string>
+                <string name="termux_volume_key_actions_reset_title">恢复音量键默认行为</string>
+                <string name="termux_volume_key_actions_reset_summary">把上面的音量键动作全部恢复为默认值，也就是恢复成官方 termux 的行为。
+                    只有上面的「音量键」选的是「虚拟音量键」时，这些动作才会生效。</string>
+                <string name="termux_volume_key_actions_reset_done">音量键动作已恢复为默认值</string>
+
                 <!-- Soft Keyboard Toggle Behaviour -->
                 <string name="termux_soft_keyboard_toggle_behaviour_title">键盘开关按钮</string>
                 <string name="termux_soft_keyboard_toggle_behaviour_show_hide">显示/隐藏键盘（默认）</string>

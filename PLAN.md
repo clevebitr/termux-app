@@ -3,7 +3,7 @@
 > 由 `plan` 工具维护，请勿直接编辑。步骤级进度以 `todo` 工具为准；决策与踩坑写入 DECISIONS.md。
 
 <!-- plan-bridge:state -->
-current: M6
+current: M7
 auto-breakpoint: false
 <!-- /plan-bridge:state -->
 
@@ -14,9 +14,10 @@ auto-breakpoint: false
 - [x] M3 — 设置页补齐开关（详见 #10-#12）
 - [x] M4 — 真斜体字体 + OSC 8 超链接可点
 - [x] M5 — 交互三连：键盘收起收行/拖拽滚轮/焦点上报1004（详见 #14）
-- [ ] M6 — 多面板 extra keys + 会话手势 + 会话列表信息
+- [x] M6 — 多面板 extra keys + 会话手势 + 会话列表信息（详见 #15）
+- [ ] M7 — 音量键自定义动作（单击/长按，详见 #17）
 
-## Current: M6 — 多面板 extra keys + 会话手势 + 会话列表信息
+## Current: M7 — 音量键自定义动作（单击/长按，详见 #17）
 
-goal: M6 标准：多面板 extra keys、滑切会话、列表 PID/cwd
-breakpoint: M6 断点：三项方案已定（#4365/#48/列表信息），从多面板开始实现
+goal: 音量键 4 动作 + 2 序列属性、设置页、恢复默认，默认=上游
+breakpoint: 待 CI 编译/lint + 真机验证音量键动作；未提交
