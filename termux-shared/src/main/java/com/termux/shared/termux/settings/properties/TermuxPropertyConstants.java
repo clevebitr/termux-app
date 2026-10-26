@@ -103,6 +103,9 @@ import java.util.Set;
  * - 0.25.0 (2026-10-19)
  *      - Add `KEY_VOLUME_UP_ACTION`, `KEY_VOLUME_UP_LONG_ACTION`, `KEY_VOLUME_DOWN_ACTION`,
  *          `KEY_VOLUME_DOWN_LONG_ACTION`, `KEY_VOLUME_UP_SEND_KEYS` and `KEY_VOLUME_DOWN_SEND_KEYS`.
+ *
+ * - 0.26.0 (2026-10-26)
+ *      - Add `KEY_EXTRA_KEYS_POPUP_HINTS`.
  */
 
 /**
@@ -432,6 +435,15 @@ public final class TermuxPropertyConstants {
 
 
 
+    /** Defines the key for whether the display text of the popup key of an extra keys button
+     * should be shown in a small font in the top right corner of the button, so that the user can
+     * see which key swiping up on the button will send instead of having to remember it. The hint
+     * is only shown for buttons created from the `extra-keys` or `extra-keys-panels` properties that
+     * have a `popup` defined. If disabled, the buttons look like they do in upstream Termux. */
+    public static final String KEY_EXTRA_KEYS_POPUP_HINTS =  "extra-keys-popup-hints"; // Default: "extra-keys-popup-hints"
+
+
+
     /** Defines the key for {@link NightMode}. */
     public static final String KEY_NIGHT_MODE = "night-mode"; // Default: "night-mode"
 
@@ -578,6 +590,7 @@ public final class TermuxPropertyConstants {
         KEY_DISABLE_HARDWARE_KEYBOARD_SHORTCUTS,
         KEY_DISABLE_TERMINAL_SESSION_CHANGE_TOAST,
         KEY_ENFORCE_CHAR_BASED_INPUT,
+        KEY_EXTRA_KEYS_POPUP_HINTS,
         KEY_EXTRA_KEYS_TEXT_ALL_CAPS,
         KEY_GBOARD_CJK_WORKAROUND,
         KEY_HIDE_EXTRA_KEYS_WHEN_SOFT_KEYBOARD_HIDDEN,
@@ -660,6 +673,7 @@ public final class TermuxPropertyConstants {
      * default: true
      */
     public static final Set<String> TERMUX_DEFAULT_TRUE_BOOLEAN_BEHAVIOUR_PROPERTIES_LIST = new HashSet<>(Arrays.asList(
+        KEY_EXTRA_KEYS_POPUP_HINTS,
         KEY_EXTRA_KEYS_TEXT_ALL_CAPS,
         KEY_RUN_TERMUX_AM_SOCKET_SERVER,
         KEY_SWITCH_SESSION_ON_SWIPE

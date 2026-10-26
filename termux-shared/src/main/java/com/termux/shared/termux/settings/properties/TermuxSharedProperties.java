@@ -757,6 +757,18 @@ public abstract class TermuxSharedProperties {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_TEXT_ALL_CAPS, true);
     }
 
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_EXTRA_KEYS_POPUP_HINTS} boolean value.
+     *
+     * If enabled, then the display text of the popup key of an extra keys button that has a `popup`
+     * defined is shown in a small font in the top right corner of the button, so that the user can
+     * see which key swiping up on the button will send. If disabled, the buttons look like they do
+     * in upstream Termux.
+     */
+    public boolean shouldExtraKeysPopupHintsBeShown() {
+        return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_POPUP_HINTS, true);
+    }
+
     public boolean shouldSoftKeyboardBeHiddenOnStartup() {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP, true);
     }

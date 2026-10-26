@@ -27,6 +27,7 @@
 | 9 | IME 收起额外按键行 / 手指拖拽按鼠标拖拽上报 / 焦点上报（`DECSET 1004`） | `hide-extra-keys-when-soft-keyboard-hidden`、`touch-drag-sends-mouse-drag` | 前两项关；1004 由程序请求 |
 | 10 | 多面板 extra keys / 左右滑切会话 / 会话列表显示 PID·进程·cwd | `extra-keys-panels`、`switch-session-on-swipe` | 面板需自行配置；滑切默认开 |
 | 11 | 音量键自定义动作（单击 / 长按，含唤醒软键盘等） | `volume-up-action`、`volume-up-long-action`、`volume-down-action`、`volume-down-long-action`、`volume-up-send-keys`、`volume-down-send-keys` | 保持上游：音量减=Ctrl、音量加=Fn |
+| 12 | 额外按键右上角显示上滑备用键 | `extra-keys-popup-hints`（设置页有开关） | **开**（唯一一个默认打开的新属性，见 §12 说明） |
 
 ---
 
@@ -571,6 +572,55 @@ volume-up-action=default
 `ExtraKeyButton(String, boolean, String)`（从序列字符串直接构造 macro 按钮）+
 `TerminalExtraKeys`（复用它的序列发送逻辑）、
 `app/src/main/res/xml/termux_keyboard_preferences.xml` + `TerminalKeyboardPreferencesFragment`（含序列项的条件显示）。
+
+---
+
+## 12. 额外按键右上角显示上滑备用键（`extra-keys-popup-hints`）
+
+上游的 extra keys 按键只有在**手指上滑**时才会弹出 popup 按键，按键本身没有任何提示，用户记不住
+哪个键有上滑功能、上滑出来的是哪个键。现在每个定义了 `popup` 的按键会在**右上角用小字**显示
+popup 键的显示文本：
+
+```
+┌──────────────────┐
+│              END │  ← 小字、半透明，即 popup 键的 display
+│        →         │  ← 主键
+└──────────────────┘
+```
+
+例如 `extra-keys` 里写 `{key: RIGHT, popup: END}`，右箭头键右上角就显示 `END` 对应的显示文本
+（默认样式下是 `⇲`，想看英文名就写成 `popup: {key: END, display: END}`）。
+
+```properties
+# 关闭提示（按键回到上游的外观）
+extra-keys-popup-hints = false
+```
+
+* 提示文本用的是 **popup 键的 display**，所以和上滑后弹出的那个按钮上显示的文字完全一致，
+  默认样式（`extra-keys-style=default`）、`all` 等风格下的箭头 / 图标都会同步变化。
+* 提示颜色是按键文字色降低 alpha（`POPUP_HINT_TEXT_ALPHA_RATIO = 0.6`），字号 `9sp`
+  （`POPUP_HINT_TEXT_SIZE_SP`），所以深色 / 浅色主题、Termux:Styling 换色后都自动跟随。
+* 提示是**不吃触摸**的 `TextView`：在提示覆盖的那一小块区域上滑，仍然会正常弹出 popup。
+* 只在按键有 popup 时出现，没有 popup 的按键外观与上游完全一致，格子宽度 / 行高也不变
+  （按键被放进一个 `FrameLayout` 容器里，容器继承原来的 `GridLayout` 权重参数）。
+* 和 §10 的多面板冲突：每个面板的按键都会各自生成提示，无需额外配置。
+
+**为什么默认打开**：这条属性是纯显示改进，关掉才能回到上游外观；其余新增属性仍然遵守
+“默认关闭或保持上游行为”的约定（见文首）。不想要就在设置页关掉，或写
+`extra-keys-popup-hints = false`。
+
+设置位置：设置 → Termux → 终端键盘 → **虚拟键盘显示 → 上滑备用键提示**（改完立即生效，
+因为 `TermuxPropertyPreferenceDataStore` 会发 `ACTION_RELOAD_STYLE`，回到终端时
+`TermuxActivity.reloadActivityStyling()` 重新 `reload()` 按键）。
+
+实现位置：
+`ExtraKeysView`（`mShowPopupHints` / `setShowPopupHints()`、`reload()` 里把按键包进 `FrameLayout`
+并加右上角 `TextView`、`createPopupHintView()` / `getPopupHintTextColor()` / `dpToPx()`）、
+`TermuxPropertyConstants`（`KEY_EXTRA_KEYS_POPUP_HINTS`，加入 `TERMUX_APP_PROPERTIES_LIST` 与
+`TERMUX_DEFAULT_TRUE_BOOLEAN_BEHAVIOUR_PROPERTIES_LIST`）、
+`TermuxSharedProperties.shouldExtraKeysPopupHintsBeShown()`、
+`TerminalToolbarViewPager`（创建面板时设置）、`TermuxActivity.reloadActivityStyling()`（改设置后设置）、
+`app/src/main/res/xml/termux_keyboard_preferences.xml` + `values/strings.xml` + `values-zh/strings.xml`。
 
 ---
 

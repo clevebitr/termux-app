@@ -1299,6 +1299,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             } else {
                 for (ExtraKeysView extraKeysView : mExtraKeysViews) {
                     extraKeysView.setButtonTextAllCaps(mProperties.shouldExtraKeysTextBeAllCaps());
+                    extraKeysView.setShowPopupHints(mProperties.shouldExtraKeysPopupHintsBeShown());
                     setExtraKeysViewColors(extraKeysView);
                     extraKeysView.reload(extraKeysView.getExtraKeysInfo(), mTerminalToolbarDefaultHeight);
                 }

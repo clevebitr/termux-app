@@ -365,6 +365,17 @@
                 <string name="termux_disable_hardware_keyboard_shortcuts_on">The key combinations are sent to the
                     terminal instead, so that the app does not intercept them.</string>
 
+            <!-- Extra Keys Display Category -->
+            <string name="termux_extra_keys_display_header">Extra Keys Display</string>
+            <string name="termux_extra_keys_display_summary">How the buttons of the extra keys row are shown</string>
+
+                <!-- Extra Keys Popup Hints -->
+                <string name="termux_extra_keys_popup_hints_title">Popup Key Hints</string>
+                <string name="termux_extra_keys_popup_hints_off">Only the key of the button is shown, the key sent by
+                    swiping up on it is not indicated.</string>
+                <string name="termux_extra_keys_popup_hints_on">The key sent by swiping up on a button is also shown in
+                    a small font in its top right corner, like END on the right arrow key. (Default)</string>
+
             <!-- Extra Keys Colors Category -->
             <string name="termux_extra_keys_colors_header">Extra Keys Colors</string>
             <string name="termux_extra_keys_colors_summary">Colors of the extra keys row drawn below the terminal,

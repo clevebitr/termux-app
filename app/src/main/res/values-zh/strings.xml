@@ -342,6 +342,16 @@
                 <string name="termux_disable_hardware_keyboard_shortcuts_off">Ctrl+Alt+C 这类新建会话的快捷键由应用处理。（默认）</string>
                 <string name="termux_disable_hardware_keyboard_shortcuts_on">这些组合键会直接发送给终端，应用不再拦截。</string>
 
+            <!-- Extra Keys Display Category -->
+            <string name="termux_extra_keys_display_header">虚拟键盘显示</string>
+            <string name="termux_extra_keys_display_summary">额外按键行按键的显示方式</string>
+
+                <!-- Extra Keys Popup Hints -->
+                <string name="termux_extra_keys_popup_hints_title">上滑备用键提示</string>
+                <string name="termux_extra_keys_popup_hints_off">按键只显示主键名，不提示上滑会发送哪个键。</string>
+                <string name="termux_extra_keys_popup_hints_on">在按键右上角用小字显示上滑会发送的键，
+                    例如右箭头键右上角显示 END。（默认）</string>
+
             <!-- Extra Keys Colors Category -->
             <string name="termux_extra_keys_colors_header">虚拟键盘配色</string>
             <string name="termux_extra_keys_colors_summary">终端下方额外按键行的颜色，默认跟随 termux 配色方案</string>

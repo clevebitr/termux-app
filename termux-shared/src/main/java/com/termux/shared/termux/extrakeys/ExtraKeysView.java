@@ -2,11 +2,13 @@ package com.termux.shared.termux.extrakeys;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,14 +21,17 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.stream.Collectors;
 
+import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.PopupWindow;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -188,6 +193,18 @@ public final class ExtraKeysView extends GridLayout {
     /** Defines whether text for the extra keys button should be all capitalized automatically. */
     protected boolean mButtonTextAllCaps = true;
 
+    /**
+     * Defines whether the display text of the popup key of an extra keys button that has a popup
+     * defined should be shown in a small font in the top right corner of the button, so that the
+     * user can see which key swiping up on the button will send.
+     */
+    protected boolean mShowPopupHints = true;
+
+    /** The text size in sp of the popup key hints shown in the top right corner of the buttons. */
+    public static final float POPUP_HINT_TEXT_SIZE_SP = 9f;
+    /** The alpha of the popup key hints, as a ratio of the alpha of the button text color. */
+    public static final float POPUP_HINT_TEXT_ALPHA_RATIO = 0.6f;
+
 
     /**
      * Defines the duration in milliseconds before a press turns into a long press. The default
@@ -347,6 +364,17 @@ public final class ExtraKeysView extends GridLayout {
     }
 
 
+    /** Get {@link #mShowPopupHints}. */
+    public boolean shouldShowPopupHints() {
+        return mShowPopupHints;
+    }
+
+    /** Set {@link #mShowPopupHints}. The buttons must be recreated for the change to take effect. */
+    public void setShowPopupHints(boolean showPopupHints) {
+        mShowPopupHints = showPopupHints;
+    }
+
+
     /** Get {@link #mLongPressTimeout}. */
     public int getLongPressTimeout() {
         return mLongPressTimeout;
@@ -502,11 +530,77 @@ public final class ExtraKeysView extends GridLayout {
                 param.setMargins(0, 0, 0, 0);
                 param.columnSpec = GridLayout.spec(col, GridLayout.FILL, 1.f);
                 param.rowSpec = GridLayout.spec(row, GridLayout.FILL, 1.f);
-                button.setLayoutParams(param);
 
-                addView(button);
+                // If the button has a popup, then show the display text of the popup key in a small
+                // font in the top right corner of the button, so that the user can see which key
+                // swiping up on the button will send. The button is wrapped in a container since a
+                // text view cannot host child views. The hint is not clickable, so that touches on
+                // it are passed on to the button below it, and the button remains the only
+                // accessibility node of the cell.
+                View cell = button;
+                ExtraKeyButton popupInfo = buttonInfo.getPopup();
+                if (mShowPopupHints && popupInfo != null) {
+                    FrameLayout container = new FrameLayout(getContext());
+
+                    button.setLayoutParams(new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+                    container.addView(button);
+
+                    FrameLayout.LayoutParams hintParams = new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+                    hintParams.gravity = Gravity.TOP | Gravity.END;
+                    hintParams.setMargins(0, dpToPx(1), dpToPx(3), 0);
+                    container.addView(createPopupHintView(popupInfo), hintParams);
+
+                    cell = container;
+                }
+
+                cell.setLayoutParams(param);
+                addView(cell);
             }
         }
+    }
+
+
+
+    /**
+     * Create the {@link TextView} that shows the display text of the popup key of a button in the
+     * top right corner of the button, when {@link #mShowPopupHints} is enabled.
+     *
+     * @param popupInfo The {@link ExtraKeyButton} of the popup, whose display text is shown.
+     * @return The created {@link TextView}.
+     */
+    @NonNull
+    protected TextView createPopupHintView(@NonNull ExtraKeyButton popupInfo) {
+        TextView hint = new TextView(getContext());
+        hint.setText(popupInfo.getDisplay());
+        hint.setAllCaps(mButtonTextAllCaps);
+        hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, POPUP_HINT_TEXT_SIZE_SP);
+        hint.setTextColor(getPopupHintTextColor());
+        hint.setSingleLine(true);
+        hint.setIncludeFontPadding(false);
+        hint.setPadding(0, 0, 0, 0);
+        // Touches on the hint must be handled by the button below it, since the hint only overlaps
+        // the top right corner of the button and swiping up on that area must still trigger the popup.
+        hint.setClickable(false);
+        hint.setFocusable(false);
+        hint.setDuplicateParentStateEnabled(false);
+        hint.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        return hint;
+    }
+
+    /**
+     * Get the text color of the popup key hints, which is the {@link #mButtonTextColor} with a
+     * reduced alpha so that the hint is less prominent than the main button text.
+     */
+    protected int getPopupHintTextColor() {
+        int alpha = Math.round(Color.alpha(mButtonTextColor) * POPUP_HINT_TEXT_ALPHA_RATIO);
+        return Color.argb(alpha, Color.red(mButtonTextColor), Color.green(mButtonTextColor), Color.blue(mButtonTextColor));
+    }
+
+    /** Convert a value in dp to pixels. */
+    protected int dpToPx(float dp) {
+        return (int) (dp * getResources().getDisplayMetrics().density + 0.5f);
     }
 
 

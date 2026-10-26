@@ -137,6 +137,20 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        app:key="extra_keys_display"
+        app:title="@string/termux_extra_keys_display_header"
+        app:summary="@string/termux_extra_keys_display_summary">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="extra-keys-popup-hints"
+            app:summaryOff="@string/termux_extra_keys_popup_hints_off"
+            app:summaryOn="@string/termux_extra_keys_popup_hints_on"
+            app:title="@string/termux_extra_keys_popup_hints_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
         app:key="extra_keys_colors"
         app:title="@string/termux_extra_keys_colors_header"
         app:summary="@string/termux_extra_keys_colors_summary">
