@@ -598,8 +598,12 @@ extra-keys-popup-hints = false
 
 * 提示文本用的是 **popup 键的 display**，所以和上滑后弹出的那个按钮上显示的文字完全一致，
   默认样式（`extra-keys-style=default`）、`all` 等风格下的箭头 / 图标都会同步变化。
-* 提示颜色是按键文字色降低 alpha（`POPUP_HINT_TEXT_ALPHA_RATIO = 0.6`），字号 `9sp`
-  （`POPUP_HINT_TEXT_SIZE_SP`），所以深色 / 浅色主题、Termux:Styling 换色后都自动跟随。
+* 提示颜色是按键文字色降低 alpha（`POPUP_HINT_TEXT_ALPHA_RATIO = 0.6`），字号是按键字号的
+  `POPUP_HINT_TEXT_SIZE_RATIO = 0.65` 倍，字体和字距直接从按键复制，所以深色 / 浅色主题、
+  Termux:Styling 换色、系统字号缩放后都能和主键风格保持一致。
+* 提示的垂直位置用 `MaterialButton.getInsetTop()` 偏移：按键的背景相对自己的 bounds 有上下
+  6dp 的 inset（`Widget.MaterialComponents.Button.TextButton` 的定义），不补偿的话提示就会
+  画在按钮背景外面。
 * 提示是**不吃触摸**的 `TextView`：在提示覆盖的那一小块区域上滑，仍然会正常弹出 popup。
 * 只在按键有 popup 时出现，没有 popup 的按键外观与上游完全一致，格子宽度 / 行高也不变
   （按键被放进一个 `FrameLayout` 容器里，容器继承原来的 `GridLayout` 权重参数）。

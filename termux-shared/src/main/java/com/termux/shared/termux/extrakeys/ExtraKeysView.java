@@ -200,8 +200,8 @@ public final class ExtraKeysView extends GridLayout {
      */
     protected boolean mShowPopupHints = true;
 
-    /** The text size in sp of the popup key hints shown in the top right corner of the buttons. */
-    public static final float POPUP_HINT_TEXT_SIZE_SP = 9f;
+    /** The text size of the popup key hints, as a ratio of the text size of the button. */
+    public static final float POPUP_HINT_TEXT_SIZE_RATIO = 0.65f;
     /** The alpha of the popup key hints, as a ratio of the alpha of the button text color. */
     public static final float POPUP_HINT_TEXT_ALPHA_RATIO = 0.6f;
 
@@ -549,8 +549,10 @@ public final class ExtraKeysView extends GridLayout {
                     FrameLayout.LayoutParams hintParams = new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
                     hintParams.gravity = Gravity.TOP | Gravity.END;
-                    hintParams.setMargins(0, dpToPx(1), dpToPx(3), 0);
-                    container.addView(createPopupHintView(popupInfo), hintParams);
+                    // The background of a MaterialButton is inset from its bounds, so the hint must
+                    // be offset by the same amount, otherwise it would be drawn above the button.
+                    hintParams.setMargins(0, button.getInsetTop() + dpToPx(1), dpToPx(3), 0);
+                    container.addView(createPopupHintView(button, popupInfo), hintParams);
 
                     cell = container;
                 }
@@ -567,15 +569,22 @@ public final class ExtraKeysView extends GridLayout {
      * Create the {@link TextView} that shows the display text of the popup key of a button in the
      * top right corner of the button, when {@link #mShowPopupHints} is enabled.
      *
+     * The text style is copied from the button, so that the hint does not look out of place, but
+     * the text size is scaled down and the text color is made translucent.
+     *
+     * @param button The {@link MaterialButton} that the hint is shown on top of.
      * @param popupInfo The {@link ExtraKeyButton} of the popup, whose display text is shown.
      * @return The created {@link TextView}.
      */
     @NonNull
-    protected TextView createPopupHintView(@NonNull ExtraKeyButton popupInfo) {
+    protected TextView createPopupHintView(@NonNull MaterialButton button, @NonNull ExtraKeyButton popupInfo) {
         TextView hint = new TextView(getContext());
         hint.setText(popupInfo.getDisplay());
         hint.setAllCaps(mButtonTextAllCaps);
-        hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, POPUP_HINT_TEXT_SIZE_SP);
+        hint.setTypeface(button.getTypeface());
+        hint.setTextSize(TypedValue.COMPLEX_UNIT_PX, button.getTextSize() * POPUP_HINT_TEXT_SIZE_RATIO);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+            hint.setLetterSpacing(button.getLetterSpacing());
         hint.setTextColor(getPopupHintTextColor());
         hint.setSingleLine(true);
         hint.setIncludeFontPadding(false);
