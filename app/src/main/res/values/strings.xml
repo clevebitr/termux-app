@@ -376,6 +376,13 @@
                 <string name="termux_extra_keys_popup_hints_on">The key sent by swiping up on a button is also shown in
                     a small font in its top right corner, like END on the right arrow key. (Default)</string>
 
+                <!-- Extra Keys Tile Background -->
+                <string name="termux_extra_keys_tile_background_title">Button Tiles</string>
+                <string name="termux_extra_keys_tile_background_off">The buttons have no visible background, like in
+                    the upstream Termux app.</string>
+                <string name="termux_extra_keys_tile_background_on">A rounded tile is drawn behind each button, like
+                    for the keys of the Gboard keyboard. The colors follow the color scheme. (Default)</string>
+
             <!-- Extra Keys Colors Category -->
             <string name="termux_extra_keys_colors_header">Extra Keys Colors</string>
             <string name="termux_extra_keys_colors_summary">Colors of the extra keys row drawn below the terminal,
@@ -386,6 +393,8 @@
                 <string name="termux_extra_keys_background_title">Background Color</string>
                 <string name="termux_extra_keys_active_foreground_title">Active Text Color</string>
                 <string name="termux_extra_keys_active_background_title">Active Background Color</string>
+                <string name="termux_extra_keys_tile_background_color_title">Button Tile Color</string>
+                <string name="termux_extra_keys_tile_active_background_color_title">Active Button Tile Color</string>
                 <string name="termux_extra_keys_color_follow_theme">Follow color scheme (Default)</string>
                 <string name="termux_extra_keys_color_custom">Custom color</string>
                 <string name="termux_extra_keys_color_invalid">Invalid color \"%1$s\", use a value like #RGB,

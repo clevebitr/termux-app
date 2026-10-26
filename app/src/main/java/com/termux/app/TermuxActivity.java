@@ -1093,12 +1093,17 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             TermuxPropertyConstants.KEY_EXTRA_KEYS_BACKGROUND, colorScheme.getExtraKeysBackgroundColor());
         int activeBackgroundColor = getExtraKeysColor(mProperties.getExtraKeysActiveBackground(),
             TermuxPropertyConstants.KEY_EXTRA_KEYS_ACTIVE_BACKGROUND, colorScheme.getExtraKeysActiveBackgroundColor());
+        int tileBackgroundColor = getExtraKeysColor(mProperties.getExtraKeysTileBackground(),
+            TermuxPropertyConstants.KEY_EXTRA_KEYS_TILE_BACKGROUND_COLOR, colorScheme.getExtraKeysTileBackgroundColor());
+        int tileActiveBackgroundColor = getExtraKeysColor(mProperties.getExtraKeysTileActiveBackground(),
+            TermuxPropertyConstants.KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND_COLOR, colorScheme.getExtraKeysTileActiveBackgroundColor());
 
         // The text color is also used by the terminal toolbar text input view, whose text color is
         // hardcoded to white in the layout and would not be visible if the toolbar background is light.
         mExtraKeysTextColor = textColor;
 
         extraKeysView.setButtonColors(textColor, activeTextColor, backgroundColor, activeBackgroundColor);
+        extraKeysView.setButtonTileColors(tileBackgroundColor, tileActiveBackgroundColor);
 
         // The extra keys view is hosted in the terminal toolbar view pager, which also contains the
         // text input view, and its background is hardcoded to black in the layout, which would show
@@ -1300,6 +1305,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 for (ExtraKeysView extraKeysView : mExtraKeysViews) {
                     extraKeysView.setButtonTextAllCaps(mProperties.shouldExtraKeysTextBeAllCaps());
                     extraKeysView.setShowPopupHints(mProperties.shouldExtraKeysPopupHintsBeShown());
+                    extraKeysView.setShowTileBackground(mProperties.shouldExtraKeysTileBackgroundBeShown());
                     setExtraKeysViewColors(extraKeysView);
                     extraKeysView.reload(extraKeysView.getExtraKeysInfo(), mTerminalToolbarDefaultHeight);
                 }

@@ -924,6 +924,41 @@ public abstract class TermuxSharedProperties {
         return (String) getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_ACTIVE_BACKGROUND, true);
     }
 
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_EXTRA_KEYS_TILE_BACKGROUND} boolean value.
+     *
+     * If enabled, then a rounded tile background is drawn behind each extra keys button, similar to
+     * the keys of the Gboard keyboard. The tile colors are defined by the
+     * `extra-keys-tile-background-color` and `extra-keys-tile-active-background-color` properties or
+     * the color scheme colors of the same names, and follow the termux color scheme by default.
+     */
+    public boolean shouldExtraKeysTileBackgroundBeShown() {
+        return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_TILE_BACKGROUND, true);
+    }
+
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_EXTRA_KEYS_TILE_BACKGROUND_COLOR} String value.
+     *
+     * It is the background color of the tiles drawn behind the extra keys buttons and overrides the
+     * `extra-keys-tile-background-color` color from the `colors.properties` file. The color can be
+     * defined as any of the formats supported by {@link android.graphics.Color#parseColor(String)}.
+     */
+    public String getExtraKeysTileBackground() {
+        return (String) getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_TILE_BACKGROUND_COLOR, true);
+    }
+
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND_COLOR} String value.
+     *
+     * It is the background color of the tiles drawn behind the extra keys buttons when they are
+     * active and overrides the `extra-keys-tile-active-background-color` color from the
+     * `colors.properties` file. The color can be defined as any of the formats supported by
+     * {@link android.graphics.Color#parseColor(String)}.
+     */
+    public String getExtraKeysTileActiveBackground() {
+        return (String) getInternalPropertyValue(TermuxPropertyConstants.KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND_COLOR, true);
+    }
+
     /** Get the {@link TermuxPropertyConstants#KEY_NIGHT_MODE} value from the properties file on disk. */
     public static String getNightMode(Context context) {
         return (String) TermuxSharedProperties.getTermuxInternalPropertyValue(context,

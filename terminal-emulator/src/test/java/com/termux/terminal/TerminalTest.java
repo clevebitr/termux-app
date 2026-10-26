@@ -359,6 +359,13 @@ public class TerminalTest extends TerminalTestCase {
 		assertEquals(colorScheme.mDefaultColors[TextStyle.COLOR_INDEX_CURSOR], colorScheme.getExtraKeysActiveForegroundColor());
 		assertEquals(0xff3f3f3f, colorScheme.getExtraKeysActiveBackgroundColor());
 
+		// The button tile colors must also be derived from the default color scheme. The tile colors are
+		// blended from the background and foreground colors, the active one from the tile color itself.
+		assertEquals(TerminalColorScheme.blendColors(0xff000000, 0xffffffff,
+			TerminalColorScheme.EXTRA_KEYS_TILE_BACKGROUND_COLOR_BLEND_RATIO), colorScheme.getExtraKeysTileBackgroundColor());
+		assertEquals(TerminalColorScheme.blendColors(colorScheme.getExtraKeysTileBackgroundColor(), 0xffffffff,
+			TerminalColorScheme.EXTRA_KEYS_ACTIVE_BACKGROUND_COLOR_BLEND_RATIO), colorScheme.getExtraKeysTileActiveBackgroundColor());
+
 		// The extra keys colors must follow the color scheme set by Termux:Styling. The active foreground
 		// color is derived from the cursor color, which is auto adjusted based on the perceived brightness
 		// of the background color, but that cannot be computed in unit tests since `android.graphics.Color`
@@ -371,6 +378,8 @@ public class TerminalTest extends TerminalTestCase {
 		assertEquals(0xffffffff, colorScheme.getExtraKeysBackgroundColor());
 		assertEquals(colorScheme.mDefaultColors[TextStyle.COLOR_INDEX_CURSOR], colorScheme.getExtraKeysActiveForegroundColor());
 		assertEquals(0xffbfbfbf, colorScheme.getExtraKeysActiveBackgroundColor());
+		assertEquals(TerminalColorScheme.blendColors(0xffffffff, 0xff000000,
+			TerminalColorScheme.EXTRA_KEYS_TILE_BACKGROUND_COLOR_BLEND_RATIO), colorScheme.getExtraKeysTileBackgroundColor());
 
 		// The active foreground color must default to the color defined by the `cursor` color.
 		props.clear();
@@ -388,11 +397,15 @@ public class TerminalTest extends TerminalTestCase {
 		props.setProperty(TerminalColorScheme.KEY_EXTRA_KEYS_BACKGROUND, "#00ff00");
 		props.setProperty(TerminalColorScheme.KEY_EXTRA_KEYS_ACTIVE_FOREGROUND, "#0000ff");
 		props.setProperty(TerminalColorScheme.KEY_EXTRA_KEYS_ACTIVE_BACKGROUND, "#123456");
+		props.setProperty(TerminalColorScheme.KEY_EXTRA_KEYS_TILE_BACKGROUND, "#654321");
+		props.setProperty(TerminalColorScheme.KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND, "#abcdef");
 		colorScheme.updateWith(props);
 		assertEquals(0xffff0000, colorScheme.getExtraKeysForegroundColor());
 		assertEquals(0xff00ff00, colorScheme.getExtraKeysBackgroundColor());
 		assertEquals(0xff0000ff, colorScheme.getExtraKeysActiveForegroundColor());
 		assertEquals(0xff123456, colorScheme.getExtraKeysActiveBackgroundColor());
+		assertEquals(0xff654321, colorScheme.getExtraKeysTileBackgroundColor());
+		assertEquals(0xffabcdef, colorScheme.getExtraKeysTileActiveBackgroundColor());
 
 		// Invalid extra keys colors must throw an exception.
 		props.clear();

@@ -148,6 +148,13 @@
             app:summaryOn="@string/termux_extra_keys_popup_hints_on"
             app:title="@string/termux_extra_keys_popup_hints_title" />
 
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="extra-keys-tile-background"
+            app:summaryOff="@string/termux_extra_keys_tile_background_off"
+            app:summaryOn="@string/termux_extra_keys_tile_background_on"
+            app:title="@string/termux_extra_keys_tile_background_title" />
+
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -170,6 +177,14 @@
         <com.termux.app.fragments.settings.termux.ColorPreference
             app:key="extra-keys-active-background"
             app:title="@string/termux_extra_keys_active_background_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="extra-keys-tile-background-color"
+            app:title="@string/termux_extra_keys_tile_background_color_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="extra-keys-tile-active-background-color"
+            app:title="@string/termux_extra_keys_tile_active_background_color_title" />
 
     </PreferenceCategory>
 

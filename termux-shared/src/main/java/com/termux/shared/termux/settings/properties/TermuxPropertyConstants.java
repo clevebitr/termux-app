@@ -106,6 +106,10 @@ import java.util.Set;
  *
  * - 0.26.0 (2026-10-26)
  *      - Add `KEY_EXTRA_KEYS_POPUP_HINTS`.
+ *
+ * - 0.27.0 (2026-10-26)
+ *      - Add `KEY_EXTRA_KEYS_TILE_BACKGROUND`, `KEY_EXTRA_KEYS_TILE_BACKGROUND_COLOR` and
+ *          `KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND_COLOR`.
  */
 
 /**
@@ -433,6 +437,20 @@ public final class TermuxPropertyConstants {
      * `background` color of the color scheme. */
     public static final String KEY_EXTRA_KEYS_ACTIVE_BACKGROUND =  "extra-keys-active-background"; // Default: "extra-keys-active-background"
 
+    /** Defines the key for the background color of the rounded tiles drawn behind the extra keys
+     * buttons, which overrides the `extra-keys-tile-background-color` color from the
+     * `colors.properties` file. The color can be defined as any of the formats supported by
+     * {@link android.graphics.Color#parseColor(String)}. If not defined, the color is derived from
+     * the background and foreground colors of the color scheme. */
+    public static final String KEY_EXTRA_KEYS_TILE_BACKGROUND_COLOR =  "extra-keys-tile-background-color"; // Default: "extra-keys-tile-background-color"
+
+    /** Defines the key for the background color of the rounded tiles drawn behind the extra keys
+     * buttons when they are active, which overrides the `extra-keys-tile-active-background-color`
+     * color from the `colors.properties` file. The color can be defined as any of the formats
+     * supported by {@link android.graphics.Color#parseColor(String)}. If not defined, the color is
+     * derived from the tile background color and the foreground color of the color scheme. */
+    public static final String KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND_COLOR =  "extra-keys-tile-active-background-color"; // Default: "extra-keys-tile-active-background-color"
+
 
 
     /** Defines the key for whether the display text of the popup key of an extra keys button
@@ -441,6 +459,15 @@ public final class TermuxPropertyConstants {
      * is only shown for buttons created from the `extra-keys` or `extra-keys-panels` properties that
      * have a `popup` defined. If disabled, the buttons look like they do in upstream Termux. */
     public static final String KEY_EXTRA_KEYS_POPUP_HINTS =  "extra-keys-popup-hints"; // Default: "extra-keys-popup-hints"
+
+
+
+    /** Defines the key for whether a rounded tile background should be drawn behind each extra keys
+     * button, similar to the keys of the Gboard keyboard, instead of the button having no visible
+     * background, which is the upstream behaviour. The color of the tiles is defined by the
+     * `extra-keys-tile-background-color` and `extra-keys-tile-active-background-color` properties or
+     * the color scheme colors of the same names, so that the tiles follow the termux color scheme. */
+    public static final String KEY_EXTRA_KEYS_TILE_BACKGROUND =  "extra-keys-tile-background"; // Default: "extra-keys-tile-background"
 
 
 
@@ -592,6 +619,7 @@ public final class TermuxPropertyConstants {
         KEY_ENFORCE_CHAR_BASED_INPUT,
         KEY_EXTRA_KEYS_POPUP_HINTS,
         KEY_EXTRA_KEYS_TEXT_ALL_CAPS,
+        KEY_EXTRA_KEYS_TILE_BACKGROUND,
         KEY_GBOARD_CJK_WORKAROUND,
         KEY_HIDE_EXTRA_KEYS_WHEN_SOFT_KEYBOARD_HIDDEN,
         KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP,
@@ -633,6 +661,8 @@ public final class TermuxPropertyConstants {
         KEY_EXTRA_KEYS_BACKGROUND,
         KEY_EXTRA_KEYS_ACTIVE_FOREGROUND,
         KEY_EXTRA_KEYS_ACTIVE_BACKGROUND,
+        KEY_EXTRA_KEYS_TILE_BACKGROUND_COLOR,
+        KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND_COLOR,
         KEY_NIGHT_MODE,
         KEY_SOFT_KEYBOARD_TOGGLE_BEHAVIOUR,
         KEY_VOLUME_KEYS_BEHAVIOUR,
@@ -675,6 +705,7 @@ public final class TermuxPropertyConstants {
     public static final Set<String> TERMUX_DEFAULT_TRUE_BOOLEAN_BEHAVIOUR_PROPERTIES_LIST = new HashSet<>(Arrays.asList(
         KEY_EXTRA_KEYS_POPUP_HINTS,
         KEY_EXTRA_KEYS_TEXT_ALL_CAPS,
+        KEY_EXTRA_KEYS_TILE_BACKGROUND,
         KEY_RUN_TERMUX_AM_SOCKET_SERVER,
         KEY_SWITCH_SESSION_ON_SWIPE
     ));

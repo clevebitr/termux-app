@@ -19,6 +19,12 @@ public final class TerminalColorScheme {
     public static final String KEY_EXTRA_KEYS_ACTIVE_FOREGROUND = "extra-keys-active-foreground";
     /** The key for the background color of the extra keys view buttons when they are active. */
     public static final String KEY_EXTRA_KEYS_ACTIVE_BACKGROUND = "extra-keys-active-background";
+    /** The key for the background color of the tiles that are drawn behind the extra keys view
+     * buttons when the `extra-keys-tile-background` property is enabled. */
+    public static final String KEY_EXTRA_KEYS_TILE_BACKGROUND = "extra-keys-tile-background-color";
+    /** The key for the background color of the tiles that are drawn behind the extra keys view
+     * buttons when they are active. */
+    public static final String KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND = "extra-keys-tile-active-background-color";
 
     /**
      * The ratio of the foreground color that is blended into the background color to get the
@@ -26,6 +32,15 @@ public final class TerminalColorScheme {
      * {@link #KEY_EXTRA_KEYS_ACTIVE_BACKGROUND} key is not defined.
      */
     public static final double EXTRA_KEYS_ACTIVE_BACKGROUND_COLOR_BLEND_RATIO = 0.25;
+
+    /**
+     * The ratio of the foreground color that is blended into the background color to get the
+     * default background color of the tiles that are drawn behind the extra keys view buttons, if
+     * the {@link #KEY_EXTRA_KEYS_TILE_BACKGROUND} key is not defined. It is intentionally lower
+     * than {@link #EXTRA_KEYS_ACTIVE_BACKGROUND_COLOR_BLEND_RATIO} so that the tiles are only
+     * slightly visible and the terminal colors are not drowned out.
+     */
+    public static final double EXTRA_KEYS_TILE_BACKGROUND_COLOR_BLEND_RATIO = 0.08;
 
     /** http://upload.wikimedia.org/wikipedia/en/1/15/Xterm_256color_chart.svg, but with blue color brighter. */
     private static final int[] DEFAULT_COLORSCHEME = {
@@ -100,6 +115,20 @@ public final class TerminalColorScheme {
      * {@link #EXTRA_KEYS_ACTIVE_BACKGROUND_COLOR_BLEND_RATIO} ratio.
      */
     private int mExtraKeysActiveBackgroundColor;
+    /**
+     * The background color of the tiles drawn behind the extra keys view buttons. A value of
+     * {@code 0} means that the color is not defined, in which case it defaults to the
+     * {@link #mDefaultColors} foreground color blended into the background color with the
+     * {@link #EXTRA_KEYS_TILE_BACKGROUND_COLOR_BLEND_RATIO} ratio.
+     */
+    private int mExtraKeysTileBackgroundColor;
+    /**
+     * The background color of the tiles drawn behind the extra keys view buttons when they are
+     * active. A value of {@code 0} means that the color is not defined, in which case it defaults to
+     * the foreground color blended into the tile background color with the
+     * {@link #EXTRA_KEYS_ACTIVE_BACKGROUND_COLOR_BLEND_RATIO} ratio.
+     */
+    private int mExtraKeysTileActiveBackgroundColor;
 
     public TerminalColorScheme() {
         reset();
@@ -111,6 +140,8 @@ public final class TerminalColorScheme {
         mExtraKeysBackgroundColor = 0;
         mExtraKeysActiveForegroundColor = 0;
         mExtraKeysActiveBackgroundColor = 0;
+        mExtraKeysTileBackgroundColor = 0;
+        mExtraKeysTileActiveBackgroundColor = 0;
     }
 
     public void updateWith(Properties props) {
@@ -134,6 +165,12 @@ public final class TerminalColorScheme {
                 continue;
             } else if (key.equals(KEY_EXTRA_KEYS_ACTIVE_BACKGROUND)) {
                 mExtraKeysActiveBackgroundColor = getColorValueForProperty(key, value);
+                continue;
+            } else if (key.equals(KEY_EXTRA_KEYS_TILE_BACKGROUND)) {
+                mExtraKeysTileBackgroundColor = getColorValueForProperty(key, value);
+                continue;
+            } else if (key.equals(KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND)) {
+                mExtraKeysTileActiveBackgroundColor = getColorValueForProperty(key, value);
                 continue;
             }
 
@@ -189,6 +226,12 @@ public final class TerminalColorScheme {
         if (mExtraKeysActiveBackgroundColor == 0)
             mExtraKeysActiveBackgroundColor = blendColors(mExtraKeysBackgroundColor, mExtraKeysForegroundColor,
                 EXTRA_KEYS_ACTIVE_BACKGROUND_COLOR_BLEND_RATIO);
+        if (mExtraKeysTileBackgroundColor == 0)
+            mExtraKeysTileBackgroundColor = blendColors(mExtraKeysBackgroundColor, mExtraKeysForegroundColor,
+                EXTRA_KEYS_TILE_BACKGROUND_COLOR_BLEND_RATIO);
+        if (mExtraKeysTileActiveBackgroundColor == 0)
+            mExtraKeysTileActiveBackgroundColor = blendColors(mExtraKeysTileBackgroundColor, mExtraKeysForegroundColor,
+                EXTRA_KEYS_ACTIVE_BACKGROUND_COLOR_BLEND_RATIO);
     }
 
     /** Get the text color for the extra keys view buttons. */
@@ -209,6 +252,17 @@ public final class TerminalColorScheme {
     /** Get the background color for the extra keys view buttons when they are active. */
     public int getExtraKeysActiveBackgroundColor() {
         return mExtraKeysActiveBackgroundColor;
+    }
+
+    /** Get the background color of the tiles drawn behind the extra keys view buttons. */
+    public int getExtraKeysTileBackgroundColor() {
+        return mExtraKeysTileBackgroundColor;
+    }
+
+    /** Get the background color of the tiles drawn behind the extra keys view buttons when they
+     * are active. */
+    public int getExtraKeysTileActiveBackgroundColor() {
+        return mExtraKeysTileActiveBackgroundColor;
     }
 
     /**

@@ -28,6 +28,7 @@
 | 10 | 多面板 extra keys / 左右滑切会话 / 会话列表显示 PID·进程·cwd | `extra-keys-panels`、`switch-session-on-swipe` | 面板需自行配置；滑切默认开 |
 | 11 | 音量键自定义动作（单击 / 长按，含唤醒软键盘等） | `volume-up-action`、`volume-up-long-action`、`volume-down-action`、`volume-down-long-action`、`volume-up-send-keys`、`volume-down-send-keys` | 保持上游：音量减=Ctrl、音量加=Fn |
 | 12 | 额外按键右上角显示上滑备用键 | `extra-keys-popup-hints`（设置页有开关） | **开**（唯一一个默认打开的新属性，见 §12 说明） |
+| 13 | Gboard 风格的按键块背景（圆角块 + 2dp 间隙） | `extra-keys-tile-background`；颜色 `extra-keys-tile-background-color` / `extra-keys-tile-active-background-color`（设置页有开关 + 调色板） | **开**，颜色跟随配色方案 |
 
 ---
 
@@ -625,6 +626,48 @@ extra-keys-popup-hints = false
 `TermuxSharedProperties.shouldExtraKeysPopupHintsBeShown()`、
 `TerminalToolbarViewPager`（创建面板时设置）、`TermuxActivity.reloadActivityStyling()`（改设置后设置）、
 `app/src/main/res/xml/termux_keyboard_preferences.xml` + `values/strings.xml` + `values-zh/strings.xml`。
+
+---
+
+## 13. Gboard 风格的按键块背景（`extra-keys-tile-background`）
+
+上游的 extra keys 按键只是浮在行背景上的文字，按下才有底色，平时看不出按键边界。开启这个特性后
+每个按键背后画一个 **4dp 圆角的方块**，块间留 **2dp 缝隙**（和 Gboard 平板很像），并且：
+
+* 颜色**跟随 termux 配色方案**：默认块色 = `background` 混入 `foreground` 8%
+  （`EXTRA_KEYS_TILE_BACKGROUND_COLOR_BLEND_RATIO`），按下色 = 块色再混入 `foreground` 25%
+  （`EXTRA_KEYS_ACTIVE_BACKGROUND_COLOR_BLEND_RATIO`）。所以换 Termux:Styling 主题、改
+  `colors.properties` 时按键块自动跟着变，深色主题是“亮一丢丢”，浅色主题是“暗一丢丢”。
+* 想固定颜色可以用两个新属性（也能在设置页的调色盘里选）：
+
+```properties
+# termux.properties（会覆盖 colors.properties 里的同名颜色）
+extra-keys-tile-background = true           # 关掉就回到上游的纯文字按键
+extra-keys-tile-background-color = #ff2a2a3a
+extra-keys-tile-active-background-color = #ff45475a
+```
+
+* 按下 / 激活（如 CTRL 打开）时用 `extra-keys-tile-active-background-color`，与行背景的
+  `extra-keys-active-background` 互不干扰——行背景仍然只在按键块外的那一圈可见。
+* 实现方式：`MaterialButton.setCornerRadius(4dp)` + 把按钮自己的 `inset*` 清零，缝隙由格子的
+  1dp margin 提供（相邻两块 = 2dp）；也就是说块本身就是按键的 background，所以按下高亮、
+  CTRL/ALT 激活高亮都是同一层，不会出现“块和按键不同步”。
+* 与 §12 共存：提示的垂直偏移用 `MaterialButton.getInsetTop()`（块模式下为 0）+ 2dp，
+  所以提示总在块里，不会被圆角切掉。
+* 默认开启：这是纯视觉改进，关掉即回到上游外观（与 §12 一致）。
+
+设置位置：设置 → Termux → 终端键盘 → **虚拟键盘显示 → 按键块背景**（开关）、
+**虚拟键盘配色 → 按键块颜色 / 按键块按下颜色**（调色盘）。改完立即生效。
+
+实现位置：`ExtraKeysView`（`mShowTileBackground` / `setShowTileBackground()`、
+`mButtonTileBackgroundColor` / `setButtonTileColors()`、`TILE_CORNER_RADIUS_DP` / `TILE_MARGIN_DP`、
+`getButtonBackgroundColor()` / `getActiveButtonBackgroundColor()`）、
+`TerminalColorScheme`（`KEY_EXTRA_KEYS_TILE_BACKGROUND`、`KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND`、
+`EXTRA_KEYS_TILE_BACKGROUND_COLOR_BLEND_RATIO` 及默认值推导）、
+`TermuxPropertyConstants`（`KEY_EXTRA_KEYS_TILE_BACKGROUND`、`KEY_EXTRA_KEYS_TILE_BACKGROUND_COLOR`、
+`KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND_COLOR`）、`TermuxSharedProperties`、
+`TermuxActivity.setExtraKeysViewColors()`、`app/src/main/res/xml/termux_keyboard_preferences.xml`（开关 +
+两个 `ColorPreference`）、`TerminalTest.testExtraKeysColors()`（新增颜色断言）。
 
 ---
 

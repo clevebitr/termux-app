@@ -205,6 +205,24 @@ public final class ExtraKeysView extends GridLayout {
     /** The alpha of the popup key hints, as a ratio of the alpha of the button text color. */
     public static final float POPUP_HINT_TEXT_ALPHA_RATIO = 0.6f;
 
+    /**
+     * Defines whether a rounded tile background should be drawn behind each button, similar to the
+     * keys of the Gboard keyboard, instead of the button having no visible background.
+     */
+    protected boolean mShowTileBackground = true;
+
+    /** The background color of the tile of a button, used when {@link #mShowTileBackground} is enabled. */
+    protected int mButtonTileBackgroundColor;
+    /** The background color of the tile of a button when it is pressed or active, used when
+     * {@link #mShowTileBackground} is enabled. */
+    protected int mButtonTileActiveBackgroundColor;
+
+    /** The corner radius in dp of the button tile background. */
+    public static final float TILE_CORNER_RADIUS_DP = 4f;
+    /** The margin in dp around the button tile background, the gap between two adjacent tiles is
+     * twice this value. */
+    public static final float TILE_MARGIN_DP = 1f;
+
 
     /**
      * Defines the duration in milliseconds before a press turns into a long press. The default
@@ -375,6 +393,34 @@ public final class ExtraKeysView extends GridLayout {
     }
 
 
+    /** Get {@link #mShowTileBackground}. */
+    public boolean shouldShowTileBackground() {
+        return mShowTileBackground;
+    }
+
+    /** Set {@link #mShowTileBackground}. The buttons must be recreated for the change to take effect. */
+    public void setShowTileBackground(boolean showTileBackground) {
+        mShowTileBackground = showTileBackground;
+    }
+
+    /** Get {@link #mButtonTileBackgroundColor}. */
+    public int getButtonTileBackgroundColor() {
+        return mButtonTileBackgroundColor;
+    }
+
+    /** Get {@link #mButtonTileActiveBackgroundColor}. */
+    public int getButtonTileActiveBackgroundColor() {
+        return mButtonTileActiveBackgroundColor;
+    }
+
+    /** Set the background colors of the button tiles, used when {@link #mShowTileBackground} is
+     * enabled. The buttons must be recreated for the change to take effect. */
+    public void setButtonTileColors(int buttonTileBackgroundColor, int buttonTileActiveBackgroundColor) {
+        mButtonTileBackgroundColor = buttonTileBackgroundColor;
+        mButtonTileActiveBackgroundColor = buttonTileActiveBackgroundColor;
+    }
+
+
     /** Get {@link #mLongPressTimeout}. */
     public int getLongPressTimeout() {
         return mLongPressTimeout;
@@ -455,6 +501,18 @@ public final class ExtraKeysView extends GridLayout {
                 }
 
                 button.setText(buttonInfo.getDisplay());
+
+                if (mShowTileBackground) {
+                    // The tile background is drawn by the button itself, so its corner radius is set
+                    // and its insets are removed, since the gap between the tiles is instead defined
+                    // by the margins of the cell.
+                    button.setCornerRadius(dpToPx(TILE_CORNER_RADIUS_DP));
+                    button.setInsetLeft(0);
+                    button.setInsetTop(0);
+                    button.setInsetRight(0);
+                    button.setInsetBottom(0);
+                }
+
                 // The background color is set here since it is otherwise only set when the button is
                 // touched in the OnTouchListener, and the initial state should match the colors
                 // returned by the current theme and color scheme, which may be changed at runtime
@@ -473,7 +531,7 @@ public final class ExtraKeysView extends GridLayout {
                 button.setOnTouchListener((view, event) -> {
                     switch (event.getAction()) {
                         case MotionEvent.ACTION_DOWN:
-                            view.setBackgroundColor(mButtonActiveBackgroundColor);
+                            view.setBackgroundColor(getActiveButtonBackgroundColor());
                             // Start long press scheduled executors which will be stopped in next MotionEvent
                             startScheduledExecutors(view, buttonInfo, button);
                             return true;
@@ -487,7 +545,7 @@ public final class ExtraKeysView extends GridLayout {
                                     showPopup(view, buttonInfo.getPopup());
                                 }
                                 if (mPopupWindow != null && event.getY() > 0) {
-                                    view.setBackgroundColor(mButtonActiveBackgroundColor);
+                                    view.setBackgroundColor(getActiveButtonBackgroundColor());
                                     dismissPopup();
                                 }
                             }
@@ -527,7 +585,8 @@ public final class ExtraKeysView extends GridLayout {
                 } else {
                     param.height = 0;
                 }
-                param.setMargins(0, 0, 0, 0);
+                int tileMargin = mShowTileBackground ? dpToPx(TILE_MARGIN_DP) : 0;
+                param.setMargins(tileMargin, tileMargin, tileMargin, tileMargin);
                 param.columnSpec = GridLayout.spec(col, GridLayout.FILL, 1.f);
                 param.rowSpec = GridLayout.spec(row, GridLayout.FILL, 1.f);
 
@@ -551,7 +610,9 @@ public final class ExtraKeysView extends GridLayout {
                     hintParams.gravity = Gravity.TOP | Gravity.END;
                     // The background of a MaterialButton is inset from its bounds, so the hint must
                     // be offset by the same amount, otherwise it would be drawn above the button.
-                    hintParams.setMargins(0, button.getInsetTop() + dpToPx(1), dpToPx(3), 0);
+                    // A little extra margin is added so that the hint does not overlap the rounded
+                    // corners of the button tile.
+                    hintParams.setMargins(0, button.getInsetTop() + dpToPx(2), dpToPx(4), 0);
                     container.addView(createPopupHintView(button, popupInfo), hintParams);
 
                     cell = container;
@@ -732,7 +793,7 @@ public final class ExtraKeysView extends GridLayout {
         button.setMinimumHeight(0);
         button.setWidth(width);
         button.setHeight(height);
-        button.setBackgroundColor(mButtonActiveBackgroundColor);
+        button.setBackgroundColor(getActiveButtonBackgroundColor());
         mPopupWindow = new PopupWindow(this);
         mPopupWindow.setWidth(LayoutParams.WRAP_CONTENT);
         mPopupWindow.setHeight(LayoutParams.WRAP_CONTENT);
@@ -802,21 +863,45 @@ public final class ExtraKeysView extends GridLayout {
      */
     void updateSpecialButtonStateColors(@NonNull MaterialButton button, boolean isActive) {
         button.setTextColor(isActive ? mButtonActiveTextColor : mButtonTextColor);
-        button.setBackgroundColor(isActive ? mButtonActiveBackgroundColor : mButtonBackgroundColor);
+        button.setBackgroundColor(isActive ? getActiveButtonBackgroundColor() : getButtonBackgroundColor());
     }
 
     /**
-     * Get the background color a button must have when it is not currently being touched, which is
-     * the active background color for an active {@link SpecialButton}, otherwise the normal one.
+     * Get the background color a button must have when it is not pressed, which is the active
+     * background color for an active {@link SpecialButton}, otherwise the normal one.
      *
      * @param buttonInfo The {@link ExtraKeyButton} for the button.
      * @return Returns the background color.
      */
     int getButtonIdleBackgroundColor(@NonNull ExtraKeyButton buttonInfo) {
-        if (!isSpecialButton(buttonInfo)) return mButtonBackgroundColor;
+        if (!isSpecialButton(buttonInfo)) return getButtonBackgroundColor();
 
         SpecialButtonState state = mSpecialButtons.get(SpecialButton.valueOf(buttonInfo.getKey()));
-        return (state != null && state.isActive) ? mButtonActiveBackgroundColor : mButtonBackgroundColor;
+        return (state != null && state.isActive) ? getActiveButtonBackgroundColor() : getButtonBackgroundColor();
+    }
+
+    /**
+     * Get the background color a button must have when it is not pressed or active, which is the
+     * color of the button tile if {@link #mShowTileBackground} is enabled, otherwise the normal
+     * background color of the extra keys view buttons.
+     *
+     * @return Returns the background color.
+     */
+    int getButtonBackgroundColor() {
+        if (mShowTileBackground && mButtonTileBackgroundColor != 0) return mButtonTileBackgroundColor;
+        return mButtonBackgroundColor;
+    }
+
+    /**
+     * Get the background color a button must have when it is pressed or active, which is the color
+     * of the button tile if {@link #mShowTileBackground} is enabled, otherwise the active background
+     * color of the extra keys view buttons.
+     *
+     * @return Returns the background color.
+     */
+    int getActiveButtonBackgroundColor() {
+        if (mShowTileBackground && mButtonTileActiveBackgroundColor != 0) return mButtonTileActiveBackgroundColor;
+        return mButtonActiveBackgroundColor;
     }
 
 

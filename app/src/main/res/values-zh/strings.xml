@@ -352,6 +352,12 @@
                 <string name="termux_extra_keys_popup_hints_on">在按键右上角用小字显示上滑会发送的键，
                     例如右箭头键右上角显示 END。（默认）</string>
 
+                <!-- Extra Keys Tile Background -->
+                <string name="termux_extra_keys_tile_background_title">按键块背景</string>
+                <string name="termux_extra_keys_tile_background_off">按键不加背景，和上游 Termux 一样只有文字。</string>
+                <string name="termux_extra_keys_tile_background_on">每个按键背后画一个圆角小块，
+                    类似 Gboard 的按键，颜色跟随配色方案。（默认）</string>
+
             <!-- Extra Keys Colors Category -->
             <string name="termux_extra_keys_colors_header">虚拟键盘配色</string>
             <string name="termux_extra_keys_colors_summary">终端下方额外按键行的颜色，默认跟随 termux 配色方案</string>
@@ -361,6 +367,8 @@
                 <string name="termux_extra_keys_background_title">背景颜色</string>
                 <string name="termux_extra_keys_active_foreground_title">激活时文字颜色</string>
                 <string name="termux_extra_keys_active_background_title">激活时背景颜色</string>
+                <string name="termux_extra_keys_tile_background_color_title">按键块颜色</string>
+                <string name="termux_extra_keys_tile_active_background_color_title">按键块按下颜色</string>
                 <string name="termux_extra_keys_color_follow_theme">跟随配色方案（默认）</string>
                 <string name="termux_extra_keys_color_custom">自定义颜色</string>
                 <string name="termux_extra_keys_color_invalid">颜色 \"%1$s\" 无效，请使用 #RGB、

@@ -65,6 +65,7 @@ public class TerminalToolbarViewPager {
                 extraKeysView.setExtraKeysViewClient(mActivity.getTermuxTerminalExtraKeys());
                 extraKeysView.setButtonTextAllCaps(mActivity.getProperties().shouldExtraKeysTextBeAllCaps());
                 extraKeysView.setShowPopupHints(mActivity.getProperties().shouldExtraKeysPopupHintsBeShown());
+                extraKeysView.setShowTileBackground(mActivity.getProperties().shouldExtraKeysTileBackgroundBeShown());
                 mActivity.addExtraKeysView(extraKeysView);
                 extraKeysView.reload(extraKeysPanels.get(position), mActivity.getTerminalToolbarDefaultHeight());
 
