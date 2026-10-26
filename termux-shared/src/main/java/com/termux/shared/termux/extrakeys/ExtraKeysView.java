@@ -507,9 +507,9 @@ public final class ExtraKeysView extends GridLayout {
                     // and its insets are removed, since the gap between the tiles is instead defined
                     // by the margins of the cell.
                     button.setCornerRadius(dpToPx(TILE_CORNER_RADIUS_DP));
-                    button.setInsetLeft(0);
+                    // The horizontal insets are already 0dp in the button style, the vertical ones
+                    // are 6dp and are removed so that the tile fills the cell height.
                     button.setInsetTop(0);
-                    button.setInsetRight(0);
                     button.setInsetBottom(0);
                 }
 
@@ -531,7 +531,7 @@ public final class ExtraKeysView extends GridLayout {
                 button.setOnTouchListener((view, event) -> {
                     switch (event.getAction()) {
                         case MotionEvent.ACTION_DOWN:
-                            view.setBackgroundColor(getActiveButtonBackgroundColor());
+                            view.setBackgroundColor(getEffectiveButtonActiveBackgroundColor());
                             // Start long press scheduled executors which will be stopped in next MotionEvent
                             startScheduledExecutors(view, buttonInfo, button);
                             return true;
@@ -545,7 +545,7 @@ public final class ExtraKeysView extends GridLayout {
                                     showPopup(view, buttonInfo.getPopup());
                                 }
                                 if (mPopupWindow != null && event.getY() > 0) {
-                                    view.setBackgroundColor(getActiveButtonBackgroundColor());
+                                    view.setBackgroundColor(getEffectiveButtonActiveBackgroundColor());
                                     dismissPopup();
                                 }
                             }
@@ -793,7 +793,7 @@ public final class ExtraKeysView extends GridLayout {
         button.setMinimumHeight(0);
         button.setWidth(width);
         button.setHeight(height);
-        button.setBackgroundColor(getActiveButtonBackgroundColor());
+        button.setBackgroundColor(getEffectiveButtonActiveBackgroundColor());
         mPopupWindow = new PopupWindow(this);
         mPopupWindow.setWidth(LayoutParams.WRAP_CONTENT);
         mPopupWindow.setHeight(LayoutParams.WRAP_CONTENT);
@@ -863,7 +863,7 @@ public final class ExtraKeysView extends GridLayout {
      */
     void updateSpecialButtonStateColors(@NonNull MaterialButton button, boolean isActive) {
         button.setTextColor(isActive ? mButtonActiveTextColor : mButtonTextColor);
-        button.setBackgroundColor(isActive ? getActiveButtonBackgroundColor() : getButtonBackgroundColor());
+        button.setBackgroundColor(isActive ? getEffectiveButtonActiveBackgroundColor() : getEffectiveButtonBackgroundColor());
     }
 
     /**
@@ -874,10 +874,10 @@ public final class ExtraKeysView extends GridLayout {
      * @return Returns the background color.
      */
     int getButtonIdleBackgroundColor(@NonNull ExtraKeyButton buttonInfo) {
-        if (!isSpecialButton(buttonInfo)) return getButtonBackgroundColor();
+        if (!isSpecialButton(buttonInfo)) return getEffectiveButtonBackgroundColor();
 
         SpecialButtonState state = mSpecialButtons.get(SpecialButton.valueOf(buttonInfo.getKey()));
-        return (state != null && state.isActive) ? getActiveButtonBackgroundColor() : getButtonBackgroundColor();
+        return (state != null && state.isActive) ? getEffectiveButtonActiveBackgroundColor() : getEffectiveButtonBackgroundColor();
     }
 
     /**
@@ -887,7 +887,7 @@ public final class ExtraKeysView extends GridLayout {
      *
      * @return Returns the background color.
      */
-    int getButtonBackgroundColor() {
+    int getEffectiveButtonBackgroundColor() {
         if (mShowTileBackground && mButtonTileBackgroundColor != 0) return mButtonTileBackgroundColor;
         return mButtonBackgroundColor;
     }
@@ -899,7 +899,7 @@ public final class ExtraKeysView extends GridLayout {
      *
      * @return Returns the background color.
      */
-    int getActiveButtonBackgroundColor() {
+    int getEffectiveButtonActiveBackgroundColor() {
         if (mShowTileBackground && mButtonTileActiveBackgroundColor != 0) return mButtonTileActiveBackgroundColor;
         return mButtonActiveBackgroundColor;
     }
