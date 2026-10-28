@@ -1024,6 +1024,12 @@ notification-position = top-end     # top-end | top-start | bottom-end | bottom-
 notification-max-visible = 3        # 1–8，超出的先关最旧的一条
 notification-duration = 4000        # 毫秒，0 = 不自动关闭（上限 120000）
 notification-width = 0              # dp，0 = 自适应（上限 320dp）
+notification-corner-radius = 0       # dp，0 = 直角（TUI 像素风默认）
+notification-elevation = 0           # dp，0 = 无阴影（平铺）
+notification-border-width = 1        # dp，整卡描边宽度，0 = 不描边
+notification-accent-width = 4        # dp，左侧色条宽度，0 = 不要色条
+notification-monospace = true        # 用终端等宽字体
+notification-body-max-lines = 2      # 正文最多几行（1–6）
 notification-background-color =     # 空 = 配色方案 background 向 foreground 混合 12%
 notification-foreground-color =     # 空 = 配色方案 foreground
 notification-accent-failure-color =     # 空 = theme:color1（红）
@@ -1089,6 +1095,19 @@ M8.1 只有渲染层，还没有接真实数据源，所以用测试入口：
   `TerminalView.scrollToCommandSequence(sequence)` 精确定位（不是「上一条命令」，即使之后又跑了
   别的命令也不会跳错）；命令来自别的会话时先切会话，分屏时切到显示该会话的窗格。跳不到（缓冲区
   已被顶掉）就退回 `scrollToPreviousCommand()`。
+
+### 默认外观：TUI 像素风
+
+默认值刻意做成「像终端的一部分」而不是 Material 卡片：**直角（`notification-corner-radius = 0`）、
+无阴影（`notification-elevation = 0`）、1dp 强调色描边、4dp 左侧色条、等宽字体**，背景是配色
+`background` 向 `foreground` 混 8% 的纯色块。想换成圆角卡片风只要：
+
+```properties
+notification-corner-radius = 8
+notification-elevation = 6
+notification-border-width = 0
+notification-accent-width = 4
+```
 
 ### 实现位置（M8.1 / M8.2）
 

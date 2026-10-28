@@ -83,6 +83,34 @@ public final class NotificationConfig {
     /** The maximum width of a card that fits its content, so that long text does not fill the terminal. */
     public static final int AUTO_MAX_WIDTH_DP = 320;
 
+    /**
+     * The radius of the corners of the cards in dp. The default is 0, since the cards look like part of
+     * the terminal with the square corners of a tui window instead of like material design cards.
+     */
+    public static final int DEFAULT_CORNER_RADIUS_DP = 0;
+    public static final int MIN_CORNER_RADIUS_DP = 0;
+    public static final int MAX_CORNER_RADIUS_DP = 32;
+
+    /** The elevation of the cards in dp, which is 0 for the flat look of a tui window. */
+    public static final int DEFAULT_ELEVATION_DP = 0;
+    public static final int MIN_ELEVATION_DP = 0;
+    public static final int MAX_ELEVATION_DP = 24;
+
+    /** The width of the border around the cards in dp, `0` for no border. */
+    public static final int DEFAULT_BORDER_WIDTH_DP = 1;
+    public static final int MIN_BORDER_WIDTH_DP = 0;
+    public static final int MAX_BORDER_WIDTH_DP = 8;
+
+    /** The width of the accent bar on the left edge of the cards in dp, `0` for no accent bar. */
+    public static final int DEFAULT_ACCENT_WIDTH_DP = 4;
+    public static final int MIN_ACCENT_WIDTH_DP = 0;
+    public static final int MAX_ACCENT_WIDTH_DP = 16;
+
+    /** The maximum number of lines of the body of a card. */
+    public static final int DEFAULT_BODY_MAX_LINES = 2;
+    public static final int MIN_BODY_MAX_LINES = 1;
+    public static final int MAX_BODY_MAX_LINES = 6;
+
     public static final int DEFAULT_MIN_DURATION_SECONDS = 0;
     public static final int MIN_MIN_DURATION_SECONDS = 0;
     public static final int MAX_MIN_DURATION_SECONDS = 3600;
@@ -102,6 +130,18 @@ public final class NotificationConfig {
     public int durationMs = DEFAULT_DURATION_MS;
     /** The width of the cards in dp, or {@link #WIDTH_AUTO} to fit their content. */
     public int widthDp = WIDTH_AUTO;
+    /** The radius of the corners of the cards in dp, 0 for the square corners of a tui window. */
+    public int cornerRadiusDp = DEFAULT_CORNER_RADIUS_DP;
+    /** The elevation of the cards in dp, 0 for the flat look of a tui window. */
+    public int elevationDp = DEFAULT_ELEVATION_DP;
+    /** The width of the border around the cards in dp, 0 for no border. */
+    public int borderWidthDp = DEFAULT_BORDER_WIDTH_DP;
+    /** The width of the accent bar on the left edge of the cards in dp, 0 for no accent bar. */
+    public int accentWidthDp = DEFAULT_ACCENT_WIDTH_DP;
+    /** Whether the text of the cards is drawn with the monospace font of the terminal. */
+    public boolean monospace = true;
+    /** The maximum number of lines of the body of a card. */
+    public int bodyMaxLines = DEFAULT_BODY_MAX_LINES;
 
     /** The background color of the cards, empty to derive it from the color scheme. */
     @NonNull
@@ -207,6 +247,17 @@ public final class NotificationConfig {
             DEFAULT_DURATION_MS, MIN_DURATION_MS, MAX_DURATION_MS);
         config.widthDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_WIDTH,
             WIDTH_AUTO, MIN_WIDTH_DP, MAX_WIDTH_DP);
+        config.cornerRadiusDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_CORNER_RADIUS,
+            DEFAULT_CORNER_RADIUS_DP, MIN_CORNER_RADIUS_DP, MAX_CORNER_RADIUS_DP);
+        config.elevationDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ELEVATION,
+            DEFAULT_ELEVATION_DP, MIN_ELEVATION_DP, MAX_ELEVATION_DP);
+        config.borderWidthDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_BORDER_WIDTH,
+            DEFAULT_BORDER_WIDTH_DP, MIN_BORDER_WIDTH_DP, MAX_BORDER_WIDTH_DP);
+        config.accentWidthDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ACCENT_WIDTH,
+            DEFAULT_ACCENT_WIDTH_DP, MIN_ACCENT_WIDTH_DP, MAX_ACCENT_WIDTH_DP);
+        config.monospace = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_MONOSPACE, true);
+        config.bodyMaxLines = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_BODY_MAX_LINES,
+            DEFAULT_BODY_MAX_LINES, MIN_BODY_MAX_LINES, MAX_BODY_MAX_LINES);
 
         config.backgroundColor = getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_BACKGROUND_COLOR, "").trim();
         config.foregroundColor = getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_FOREGROUND_COLOR, "").trim();

@@ -1,9 +1,12 @@
 package com.termux.app.notifications;
 
 import android.content.Context;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -25,6 +28,10 @@ import com.termux.terminal.TerminalNotification;
  * A single notification card, which shows the title, the body and an optional details line of a
  * {@link TerminalNotification} next to a colored accent bar on its left edge, like the notification
  * cards of `nvim-notify` and other tui notification plugins.
+ *
+ * The default style is flat and square like a tui window, so that the cards look like part of the
+ * terminal instead of like material design cards: no rounded corners, no elevation and a 1dp border in
+ * the accent color. All of it can be tuned with the style that {@link #setCardStyle} is given.
  *
  * The card is dismissed when it is clicked and {@link OnCardActionListener#onNotificationCardClicked}
  * is called, or when it is swiped sideways, when its close button is clicked or when it expires.
@@ -52,14 +59,46 @@ public class NotificationCardView extends FrameLayout {
         void onNotificationCardClosed(@NonNull NotificationCardView card, @NonNull TerminalNotification notification, boolean expired);
     }
 
-    /** The maximum number of lines of the body, so that a long message does not cover the terminal. */
-    private static final int MAX_BODY_LINES = 3;
+    /** The colors and metrics that a card is drawn with, resolved by the overlay from the configuration. */
+    public static final class Style {
+        public final int backgroundColor;
+        public final int foregroundColor;
+        public final int accentColor;
+        /** The radius of the corners in pixels, 0 for the square corners of a tui window. */
+        public final int cornerRadiusPx;
+        /** The elevation of the card in pixels, 0 for the flat look of a tui window. */
+        public final int elevationPx;
+        /** The width of the border around the card in pixels, 0 for no border. */
+        public final int borderWidthPx;
+        /** The width of the accent bar on the left edge of the card in pixels, 0 for no accent bar. */
+        public final int accentWidthPx;
+        /** Whether the text of the card is drawn with the monospace font of the terminal. */
+        public final boolean monospace;
+        /** The maximum number of lines of the body of the card. */
+        public final int bodyMaxLines;
 
-    private static final float CORNER_RADIUS_DP = 8;
-    private static final float CARD_ELEVATION_DP = 6;
+        public Style(int backgroundColor, int foregroundColor, int accentColor, int cornerRadiusPx,
+                     int elevationPx, int borderWidthPx, int accentWidthPx, boolean monospace, int bodyMaxLines) {
+            this.backgroundColor = backgroundColor;
+            this.foregroundColor = foregroundColor;
+            this.accentColor = accentColor;
+            this.cornerRadiusPx = Math.max(0, cornerRadiusPx);
+            this.elevationPx = Math.max(0, elevationPx);
+            this.borderWidthPx = Math.max(0, borderWidthPx);
+            this.accentWidthPx = Math.max(0, accentWidthPx);
+            this.monospace = monospace;
+            this.bodyMaxLines = Math.max(1, bodyMaxLines);
+        }
+    }
+
+    private static final float CARD_PADDING_HORIZONTAL_DP = 10;
+    private static final float CARD_PADDING_VERTICAL_DP = 7;
+    private static final float TITLE_TEXT_SIZE_SP = 13;
+    private static final float BODY_TEXT_SIZE_SP = 12;
+    private static final float META_TEXT_SIZE_SP = 10.5f;
 
     @NonNull
-    private final View mAccentBar;
+    private final LinearLayout mContent;
     @NonNull
     private final TextView mTitleView;
     @NonNull
@@ -68,6 +107,9 @@ public class NotificationCardView extends FrameLayout {
     private final TextView mMetaView;
     @NonNull
     private final TextView mCloseView;
+    /** The paint of the accent bar, which is drawn by the card itself instead of by a child view. */
+    @NonNull
+    private final Paint mAccentPaint = new Paint();
 
     @Nullable
     private TerminalNotification mNotification;
@@ -78,7 +120,10 @@ public class NotificationCardView extends FrameLayout {
     private int mFixedWidthPx;
     /** The maximum width of the card in pixels when it fits its content, or 0 to not limit it. */
     private int mMaxWidthPx;
-    private final int mCornerRadiusPx;
+    /** The width of the accent bar in pixels, 0 for none. */
+    private int mAccentWidthPx;
+    private boolean mMonospace;
+
     private final int mTouchSlopPx;
     private final int mDismissThresholdPx;
 
@@ -94,68 +139,62 @@ public class NotificationCardView extends FrameLayout {
     public NotificationCardView(@NonNull Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
 
-        mCornerRadiusPx = Math.round(ViewUtils.dpToPx(context, CORNER_RADIUS_DP));
         mTouchSlopPx = ViewConfiguration.get(context).getScaledTouchSlop();
         mDismissThresholdPx = dp(56);
 
-        setElevation(ViewUtils.dpToPx(context, CARD_ELEVATION_DP));
-        // A minimum width keeps a card with a single short word from looking cramped.
-        setMinimumWidth(dp(152));
         setClickable(true);
         setFocusable(true);
+        // A minimum width keeps a card with a single short word from looking cramped.
+        setMinimumWidth(dp(152));
 
-        mAccentBar = new View(context);
-        LayoutParams accentBarParams = new LayoutParams(dp(4), LayoutParams.MATCH_PARENT);
-        accentBarParams.gravity = Gravity.START;
-        mAccentBar.setLayoutParams(accentBarParams);
-        addView(mAccentBar);
-
-        LinearLayout content = new LinearLayout(context);
-        content.setOrientation(LinearLayout.HORIZONTAL);
-        // The start padding includes the width of the accent bar, which is drawn below the content.
-        content.setPadding(dp(4) + dp(10), dp(8), dp(2), dp(8));
-        content.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
-        addView(content);
+        mContent = new LinearLayout(context);
+        mContent.setOrientation(LinearLayout.HORIZONTAL);
+        mContent.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+        addView(mContent);
 
         LinearLayout texts = new LinearLayout(context);
         texts.setOrientation(LinearLayout.VERTICAL);
         texts.setLayoutParams(new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-        content.addView(texts);
+        mContent.addView(texts);
 
         mTitleView = new TextView(context);
-        mTitleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        mTitleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, TITLE_TEXT_SIZE_SP);
         mTitleView.setTypeface(Typeface.DEFAULT_BOLD);
         mTitleView.setMaxLines(2);
-        mTitleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        mTitleView.setEllipsize(TextUtils.TruncateAt.END);
         texts.addView(mTitleView, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
         mBodyView = new TextView(context);
-        mBodyView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        mBodyView.setMaxLines(MAX_BODY_LINES);
-        mBodyView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        mBodyView.setTextSize(TypedValue.COMPLEX_UNIT_SP, BODY_TEXT_SIZE_SP);
+        mBodyView.setEllipsize(TextUtils.TruncateAt.END);
         texts.addView(mBodyView, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
         mMetaView = new TextView(context);
-        mMetaView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        mMetaView.setTextSize(TypedValue.COMPLEX_UNIT_SP, META_TEXT_SIZE_SP);
         mMetaView.setMaxLines(1);
-        mMetaView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        mMetaView.setEllipsize(TextUtils.TruncateAt.END);
         texts.addView(mMetaView, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
         // The close symbol is a plain text view with the same glyph as the close button of the search
         // bar, so that no new drawable has to be added for every color scheme.
         mCloseView = new TextView(context);
         mCloseView.setText(R.string.action_search_close_symbol);
-        mCloseView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        mCloseView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         mCloseView.setGravity(Gravity.CENTER);
-        mCloseView.setPadding(dp(6), 0, dp(6), 0);
-        mCloseView.setMinWidth(dp(32));
-        mCloseView.setMinHeight(dp(32));
+        mCloseView.setPadding(dp(4), 0, dp(4), 0);
+        mCloseView.setMinWidth(dp(28));
+        mCloseView.setMinHeight(dp(28));
         mCloseView.setContentDescription(context.getString(R.string.notification_close));
         mCloseView.setClickable(true);
         mCloseView.setOnClickListener(v -> dismiss(false));
         LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
         closeParams.gravity = Gravity.TOP;
-        content.addView(mCloseView, closeParams);
+        mContent.addView(mCloseView, closeParams);
+
+        // Apply the default style, so that a card that is added to a layout without a style does not
+        // look broken, like in the layout preview of an ide.
+        setCardStyle(new Style(0xFF000000, 0xFFFFFFFF, 0xFFFF5252,
+            0, 0, dp(1), dp(4), true, 2));
     }
 
     /** Set the listener that is called when the user interacts with the card. */
@@ -194,29 +233,40 @@ public class NotificationCardView extends FrameLayout {
             : notification.getBody() != null ? notification.getBody() : "");
     }
 
-    /**
-     * Apply the colors of the notification cards.
-     *
-     * @param backgroundColor The background color of the card.
-     * @param foregroundColor The color of the title and the body of the card.
-     * @param accentColor The color of the accent bar on the left edge of the card.
-     */
-    public void setCardColors(int backgroundColor, int foregroundColor, int accentColor) {
+    /** Apply the colors and metrics of the card, like the corner radius and the border. */
+    public void setCardStyle(@NonNull Style style) {
         GradientDrawable background = new GradientDrawable();
         background.setShape(GradientDrawable.RECTANGLE);
-        background.setCornerRadius(mCornerRadiusPx);
-        background.setColor(backgroundColor);
+        background.setCornerRadius(style.cornerRadiusPx);
+        background.setColor(style.backgroundColor);
+        if (style.borderWidthPx > 0)
+            background.setStroke(style.borderWidthPx, style.accentColor);
         setBackground(background);
 
-        // Clip the accent bar, which is a rectangle, to the rounded corners of the card.
-        setClipToOutline(true);
+        setElevation(style.elevationPx);
 
-        mAccentBar.setBackgroundColor(accentColor);
+        mAccentWidthPx = style.accentWidthPx;
+        mAccentPaint.setColor(style.accentColor);
+        mAccentPaint.setStyle(Paint.Style.FILL);
 
-        mTitleView.setTextColor(foregroundColor);
-        mBodyView.setTextColor(foregroundColor);
-        mMetaView.setTextColor(withAlpha(foregroundColor, 0.65f));
-        mCloseView.setTextColor(withAlpha(foregroundColor, 0.65f));
+        mContent.setPadding(style.accentWidthPx + dp(CARD_PADDING_HORIZONTAL_DP), dp(CARD_PADDING_VERTICAL_DP),
+            dp(2), dp(CARD_PADDING_VERTICAL_DP));
+
+        mMonospace = style.monospace;
+        Typeface typeface = mMonospace ? Typeface.MONOSPACE : null;
+        mTitleView.setTypeface(mMonospace ? Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) : Typeface.DEFAULT_BOLD);
+        mBodyView.setTypeface(typeface);
+        mMetaView.setTypeface(typeface);
+        mCloseView.setTypeface(typeface);
+
+        mTitleView.setTextColor(style.foregroundColor);
+        mBodyView.setTextColor(style.foregroundColor);
+        mMetaView.setTextColor(withAlpha(style.foregroundColor, 0.65f));
+        mCloseView.setTextColor(withAlpha(style.foregroundColor, 0.65f));
+
+        mBodyView.setMaxLines(style.bodyMaxLines);
+
+        invalidate();
     }
 
     /** @return Whether the card is being animated away, so that it must not be dismissed again. */
@@ -246,6 +296,17 @@ public class NotificationCardView extends FrameLayout {
         setAlpha(0f);
         setTranslationX(horizontalOffsetPx);
         animate().alpha(1f).translationX(0f).setDuration(180).start();
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
+
+        // The accent bar is drawn by the card instead of by a child view, since a child view with
+        // `layout_height="match_parent"` would be measured with the `AT_MOST` spec of the card and
+        // would then take the whole available height, which made the card fill the screen.
+        if (mAccentWidthPx > 0)
+            canvas.drawRect(0, 0, mAccentWidthPx, getHeight(), mAccentPaint);
     }
 
     @Override
@@ -328,7 +389,7 @@ public class NotificationCardView extends FrameLayout {
         return (color & 0x00FFFFFF) | (colorAlpha << 24);
     }
 
-    private int dp(int dp) {
+    private int dp(float dp) {
         return Math.round(ViewUtils.dpToPx(getContext(), dp));
     }
 }

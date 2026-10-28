@@ -57,19 +57,6 @@ public class NotificationOverlayView extends FrameLayout {
     private static final float CARD_MARGIN_DP = 8;
     private static final float CARD_SLIDE_IN_OFFSET_DP = 24;
 
-    /** The set of colors that a card is drawn with, resolved from the configuration and the color scheme. */
-    private static final class CardColors {
-        final int background;
-        final int foreground;
-        final int accent;
-
-        CardColors(int background, int foreground, int accent) {
-            this.background = background;
-            this.foreground = foreground;
-            this.accent = accent;
-        }
-    }
-
     @NonNull
     private final LinearLayout mCardsContainer;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
@@ -137,7 +124,7 @@ public class NotificationOverlayView extends FrameLayout {
                 NotificationCardView card = (NotificationCardView) child;
                 applyCardWidth(card);
                 TerminalNotification notification = card.getNotification();
-                if (notification != null) applyCardColors(card, notification);
+                if (notification != null) applyCardStyle(card, notification);
             }
         }
     }
@@ -166,7 +153,7 @@ public class NotificationOverlayView extends FrameLayout {
         NotificationCardView card = new NotificationCardView(getContext());
         card.setOnCardActionListener(mCardActionListener);
         card.setNotification(notification);
-        applyCardColors(card, notification);
+        applyCardStyle(card, notification);
         applyCardWidth(card);
 
         // The newest card is added at the edge that it is shown at, so that the cards stack away from
@@ -194,7 +181,7 @@ public class NotificationOverlayView extends FrameLayout {
         if (card == null) return false;
 
         card.setNotification(notification);
-        applyCardColors(card, notification);
+        applyCardStyle(card, notification);
         scheduleExpiry(card, notification);
         return true;
     }
@@ -334,20 +321,25 @@ public class NotificationOverlayView extends FrameLayout {
         }
     }
 
-    /** Apply the colors of {@code notification} to {@code card}. */
-    private void applyCardColors(@NonNull NotificationCardView card, @NonNull TerminalNotification notification) {
-        CardColors colors = getCardColors(notification);
-        card.setCardColors(colors.background, colors.foreground, colors.accent);
+    /** Apply the colors and metrics of {@code notification} to {@code card}. */
+    private void applyCardStyle(@NonNull NotificationCardView card, @NonNull TerminalNotification notification) {
+        card.setCardStyle(getCardStyle(notification));
     }
 
-    /** @return The colors that the card of {@code notification} is drawn with. */
+    /** @return The style that the card of {@code notification} is drawn with. */
     @NonNull
-    private CardColors getCardColors(@NonNull TerminalNotification notification) {
+    private NotificationCardView.Style getCardStyle(@NonNull TerminalNotification notification) {
         int foreground = StatusBarColors.resolve(mConfig.foregroundColor, StatusBarColors.THEME_FOREGROUND);
         int background = getBackgroundColor(foreground);
         int accent = getAccentColor(notification.getKind());
 
-        return new CardColors(background, foreground, accent);
+        return new NotificationCardView.Style(background, foreground, accent,
+            Math.round(ViewUtils.dpToPx(getContext(), mConfig.cornerRadiusDp)),
+            Math.round(ViewUtils.dpToPx(getContext(), mConfig.elevationDp)),
+            Math.round(ViewUtils.dpToPx(getContext(), mConfig.borderWidthDp)),
+            Math.round(ViewUtils.dpToPx(getContext(), mConfig.accentWidthDp)),
+            mConfig.monospace,
+            mConfig.bodyMaxLines);
     }
 
     /**
@@ -362,7 +354,7 @@ public class NotificationOverlayView extends FrameLayout {
         int backgroundColor = StatusBarColors.getThemeColor(StatusBarColors.THEME_BACKGROUND);
         // Blend the background towards the foreground color, so that the cards are visible when the
         // terminal background and the cards would otherwise have the same color.
-        return TerminalColorScheme.blendColors(backgroundColor, foregroundColor, 0.12) | 0xFF000000;
+        return TerminalColorScheme.blendColors(backgroundColor, foregroundColor, 0.08);
     }
 
     /** @return The accent color of the cards of {@code kind}. */

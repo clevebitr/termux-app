@@ -457,6 +457,24 @@ public final class TermuxPropertyConstants {
     /** Defines the key for the text color of the notification cards */
     public static final String KEY_NOTIFICATION_FOREGROUND_COLOR = "notification-foreground-color"; // Default: "notification-foreground-color"
 
+    /** Defines the key for the radius of the corners of the notification cards in dp, `0` for square corners */
+    public static final String KEY_NOTIFICATION_CORNER_RADIUS = "notification-corner-radius"; // Default: "notification-corner-radius"
+
+    /** Defines the key for the elevation of the notification cards in dp, `0` for a flat look */
+    public static final String KEY_NOTIFICATION_ELEVATION = "notification-elevation"; // Default: "notification-elevation"
+
+    /** Defines the key for the width of the border around the notification cards in dp, `0` for no border */
+    public static final String KEY_NOTIFICATION_BORDER_WIDTH = "notification-border-width"; // Default: "notification-border-width"
+
+    /** Defines the key for the width of the accent bar on the left edge of the notification cards in dp */
+    public static final String KEY_NOTIFICATION_ACCENT_WIDTH = "notification-accent-width"; // Default: "notification-accent-width"
+
+    /** Defines the key for whether the notification cards are drawn with the monospace font of the terminal */
+    public static final String KEY_NOTIFICATION_MONOSPACE = "notification-monospace"; // Default: "notification-monospace"
+
+    /** Defines the key for the maximum number of lines of the body of a notification card */
+    public static final String KEY_NOTIFICATION_BODY_MAX_LINES = "notification-body-max-lines"; // Default: "notification-body-max-lines"
+
     /** Defines the key for the accent color of the cards of failed commands and notifications */
     public static final String KEY_NOTIFICATION_ACCENT_FAILURE_COLOR = "notification-accent-failure-color"; // Default: "notification-accent-failure-color"
 

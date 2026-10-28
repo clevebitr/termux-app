@@ -577,3 +577,37 @@ subshell**（约 0.5–1ms），可接受但别再往里加 fork。zsh 用 `pree
 找到）、`ExitCodeNotifierTest` 10 个（提示符截断、控制字符清理、忽略名单、耗时格式化）、
 `NotificationConfigTest` 10 个，全部通过；bash 集成用 `bash --norc -i` 喂命令实测
 `D;127;nonexistent_cmd_xyz` 正确。
+
+## 2026-10-19 — 坑：卡片高度撑满终端（`match_parent` 子 View 在 AT_MOST 下取满可用高度）
+
+真机装上第一版后，通知卡片**直接占满整个终端高度**。根因不是浮层或卡片容器，而是卡片里用
+「左侧 4dp 色条」这个子 `View` 实现的装饰：
+
+```xml
+<!-- 等价于代码里的 new LayoutParams(dp(4), LayoutParams.MATCH_PARENT) -->
+```
+
+卡片自己是 `wrap_content`，父级（垂直 LinearLayout）给它的高度规格是 `AT_MOST`；`FrameLayout`
+把 `MATCH_PARENT` 子 View 的规格也算成 `AT_MOST`，而 `View.getDefaultSize()` 在 `AT_MOST` 下会
+**返回 specSize（整个可用高度）**，于是色条撑满 → 卡片跟着撑满。经典陷阱，且 `wrap_content` 的
+父级越多越容易踩。
+
+**修法**：色条不再用子 View，改成卡片 `onDraw()` 里 `canvas.drawRect(0, 0, accentWidth, getHeight())`，
+完全不参与测量；内容区左内边距 = accentWidth + 10dp，在 `setCardStyle()` 里动态设。
+
+其它同类风险的写法（以后别用）：wrap_content 容器里放 `match_parent` 的纯装饰 `View`（分隔线、
+色条、背景块）。要么用 `drawable`/`onDraw` 画，要么给它固定高度。
+
+## 2026-10-19 — 通知卡片默认改成 TUI 像素风（真机第一版反馈）
+
+真机第一版（圆角 8dp + 6dp 阴影 + 混 12% 背景）被否，用户要「TUI / 直角像素风」。改成：
+
+* `notification-corner-radius = 0`、`notification-elevation = 0`、`notification-border-width = 1`
+  （`GradientDrawable.setStroke(1dp, accent)`）、`notification-accent-width = 4`、`notification-monospace = true`、
+  `notification-body-max-lines = 2`。样式全部由 `NotificationCardView.Style` 传入，不写死在 View 里。
+* 背景混色比例 0.12 → 0.08（有描边区分了，不需要那么亮）。
+* 卡片外观参数都做成了属性（上面 6 个键），M8.3 的设置页会直接暴露它们。
+
+真机已验证（注入 `OSC 133;D;2;make -j8` 到会话 pty）：内容正确、点卡片能跳到该命令并关闭卡片、
+位置在 overlay 状态栏下方不遮挡；**但高度撑满**（见上一条，已修）。
+

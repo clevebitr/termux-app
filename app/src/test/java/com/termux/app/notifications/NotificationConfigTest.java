@@ -49,6 +49,14 @@ public class NotificationConfigTest {
         Assert.assertEquals(NotificationConfig.DEFAULT_MAX_VISIBLE, config.maxVisible);
         Assert.assertEquals(NotificationConfig.DEFAULT_DURATION_MS, config.durationMs);
         Assert.assertEquals(NotificationConfig.WIDTH_AUTO, config.widthDp);
+        // The cards look like part of the terminal: square corners, flat, with a 1dp border and a
+        // 4dp accent bar, drawn with the monospace font of the terminal.
+        Assert.assertEquals(0, config.cornerRadiusDp);
+        Assert.assertEquals(0, config.elevationDp);
+        Assert.assertEquals(1, config.borderWidthDp);
+        Assert.assertEquals(4, config.accentWidthDp);
+        Assert.assertTrue(config.monospace);
+        Assert.assertEquals(NotificationConfig.DEFAULT_BODY_MAX_LINES, config.bodyMaxLines);
         Assert.assertEquals("", config.backgroundColor);
         Assert.assertEquals("", config.foregroundColor);
         Assert.assertEquals("", config.accentFailureColor);
@@ -69,6 +77,37 @@ public class NotificationConfigTest {
 
         Assert.assertFalse(config.backgroundEnabled);
         Assert.assertEquals(NotificationConfig.DEFAULT_HISTORY_SIZE, config.historySize);
+    }
+
+    @Test
+    public void testStyleProperties() {
+        NotificationConfig config = parse(
+            "notification-corner-radius", "8",
+            "notification-elevation", "4",
+            "notification-border-width", "0",
+            "notification-accent-width", "0",
+            "notification-monospace", "false",
+            "notification-body-max-lines", "4");
+
+        Assert.assertEquals(8, config.cornerRadiusDp);
+        Assert.assertEquals(4, config.elevationDp);
+        Assert.assertEquals(0, config.borderWidthDp);
+        Assert.assertEquals(0, config.accentWidthDp);
+        Assert.assertFalse(config.monospace);
+        Assert.assertEquals(4, config.bodyMaxLines);
+    }
+
+    @Test
+    public void testOutOfRangeStyleValuesFallBackToDefaults() {
+        Assert.assertEquals(NotificationConfig.DEFAULT_CORNER_RADIUS_DP,
+            parse("notification-corner-radius", "999").cornerRadiusDp);
+        Assert.assertEquals(NotificationConfig.DEFAULT_ELEVATION_DP,
+            parse("notification-elevation", "-1").elevationDp);
+        Assert.assertEquals(NotificationConfig.DEFAULT_ACCENT_WIDTH_DP,
+            parse("notification-accent-width", "99").accentWidthDp);
+        // A body without any line would be invisible, so 0 falls back to the minimum instead.
+        Assert.assertEquals(NotificationConfig.DEFAULT_BODY_MAX_LINES,
+            parse("notification-body-max-lines", "0").bodyMaxLines);
     }
 
     @Test
