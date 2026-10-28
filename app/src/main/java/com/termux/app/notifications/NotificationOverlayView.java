@@ -44,6 +44,15 @@ public class NotificationOverlayView extends FrameLayout {
         void onTerminalNotificationClicked(@NonNull TerminalNotification notification);
 
         /**
+         * Called when a button of a card is clicked.
+         *
+         * @param notification The notification of the card whose button was clicked.
+         * @param buttonIndex The index of the button, where the first button has the index 0.
+         */
+        default void onTerminalNotificationButtonClicked(@NonNull TerminalNotification notification, int buttonIndex) {
+        }
+
+        /**
          * Called when a card is closed by the user or because it expired.
          *
          * @param notification The notification of the card that was closed.
@@ -75,6 +84,11 @@ public class NotificationOverlayView extends FrameLayout {
         @Override
         public void onNotificationCardClicked(@NonNull NotificationCardView card, @NonNull TerminalNotification notification) {
             if (mListener != null) mListener.onTerminalNotificationClicked(notification);
+        }
+
+        @Override
+        public void onNotificationCardButtonClicked(@NonNull NotificationCardView card, @NonNull TerminalNotification notification, int buttonIndex) {
+            if (mListener != null) mListener.onTerminalNotificationButtonClicked(notification, buttonIndex);
         }
 
         @Override
@@ -340,7 +354,8 @@ public class NotificationOverlayView extends FrameLayout {
             Math.round(ViewUtils.dpToPx(getContext(), mConfig.accentWidthDp)),
             mConfig.monospace,
             mConfig.bodyMaxLines,
-            mConfig.fontSizeSp);
+            mConfig.fontSizeSp,
+            mConfig.oscIcons);
     }
 
     /**

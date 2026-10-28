@@ -1,6 +1,7 @@
 package com.termux.terminal;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.nio.charset.StandardCharsets;
 
@@ -58,5 +59,27 @@ public abstract class TerminalOutput {
     }
 
     public abstract void onColorsChanged();
+
+    /**
+     * Notify the terminal client that a terminal program requested a notification with `OSC 99`,
+     * `OSC 9` or `OSC 777`.
+     */
+    public void onTerminalNotification(@NonNull TerminalNotification notification) {
+    }
+
+    /**
+     * Notify the terminal client that a terminal program requested to close a notification with
+     * `OSC 99 ; i=<id> : p=close ;`.
+     */
+    public void onOsc99Close(@Nullable String id) {
+    }
+
+    /**
+     * Notify the terminal client that a terminal program asked which notifications are still shown with
+     * `OSC 99 ; i=<id> : p=alive ;`, so that it can answer with the ids of the notifications that it
+     * still shows.
+     */
+    public void onOsc99AliveQuery(@Nullable String id) {
+    }
 
 }

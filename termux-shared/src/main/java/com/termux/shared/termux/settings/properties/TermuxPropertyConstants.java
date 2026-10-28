@@ -520,6 +520,9 @@ public final class TermuxPropertyConstants {
     /** Defines the key for whether clicking a card sends an `OSC 99` activation report back to the program */
     public static final String KEY_NOTIFICATION_OSC_REPORT_CLICK = "notification-osc-report-click"; // Default: "notification-osc-report-click"
 
+    /** Defines the key for the maximum number of `OSC` notifications that are shown per second and session */
+    public static final String KEY_NOTIFICATION_OSC_RATE_LIMIT = "notification-osc-rate-limit"; // Default: "notification-osc-rate-limit"
+
     /** Defines the key for whether the icon data that a program sends with `OSC 99 ; p=icon` is shown */
     public static final String KEY_NOTIFICATION_OSC_ICONS = "notification-osc-icons"; // Default: "notification-osc-icons"
 

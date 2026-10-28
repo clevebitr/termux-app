@@ -63,6 +63,35 @@ public interface TerminalSessionClient {
     default void onCommandFinished(@NonNull TerminalSession session, int exitCode) {
     }
 
+    /**
+     * Called when a terminal program requested a notification with `OSC 99`, `OSC 9` or `OSC 777`.
+     *
+     * The default implementation does nothing, so that clients of other termux plugins do not need to be
+     * updated.
+     */
+    default void onTerminalNotification(@NonNull TerminalSession session, @NonNull TerminalNotification notification) {
+    }
+
+    /**
+     * Called when a terminal program requested to close a notification with
+     * `OSC 99 ; i=<id> : p=close ;`, so that the client can close its card.
+     *
+     * The default implementation does nothing.
+     */
+    default void onOsc99Close(@NonNull TerminalSession session, @Nullable String id) {
+    }
+
+    /**
+     * Called when a terminal program asked which notifications are still shown with
+     * `OSC 99 ; i=<id> : p=alive ;`. The client must answer with
+     * {@link TerminalNotificationProtocol#buildAliveResponse(String, java.util.Collection)} and write it
+     * to the session.
+     *
+     * The default implementation does nothing, in which case the program gets no answer.
+     */
+    default void onOsc99AliveQuery(@NonNull TerminalSession session, @Nullable String id) {
+    }
+
     void onColorsChanged(@NonNull TerminalSession session);
 
     void onTerminalCursorStateChange(boolean state);

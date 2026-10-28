@@ -1,5 +1,7 @@
 package com.termux.terminal;
 
+import android.graphics.Bitmap;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -48,6 +50,21 @@ public final class TerminalNotification {
         OSC
     }
 
+    /**
+     * When the terminal should honor an `OSC 99` notification, from the `o` metadata key.
+     *
+     * `ALWAYS` is the default of the protocol and the only value that the notification cards can honor,
+     * since the cards are only shown in the window of the app that the program runs in.
+     */
+    public enum Occasion {
+        /** Always show the notification. */
+        ALWAYS,
+        /** Only show the notification when the window does not have keyboard focus. */
+        UNFOCUSED,
+        /** Only show the notification when the window is not visible to the user. */
+        INVISIBLE
+    }
+
     /** The value of {@link #getExpiryMs()} to let the user configuration decide when the card is closed. */
     public static final long EXPIRY_DEFAULT = -1;
     /** The value of {@link #getExpiryMs()} to not close the card automatically. */
@@ -73,6 +90,8 @@ public final class TerminalNotification {
     private final long mExpiryMs;
     /** Whether the terminal must send an `OSC 99` close event back to the program when the card is closed. */
     private final boolean mReportClose;
+    /** Whether the terminal must send an `OSC 99` activation event back to the program when the card is clicked. */
+    private final boolean mReportActivation;
     /** The name of the application that sent the notification, from the `OSC 99` `f` metadata key. */
     @Nullable
     private final String mAppName;
@@ -82,6 +101,12 @@ public final class TerminalNotification {
     /** The labels of the buttons of the notification, from the `OSC 99` `p=buttons` payload. */
     @NonNull
     private final List<String> mButtons;
+    /** When the notification should be shown, from the `OSC 99` `o` metadata key. */
+    @NonNull
+    private final Occasion mOccasion;
+    /** The icon of the notification, from the `OSC 99` `p=icon` payload, or {@code null}. */
+    @Nullable
+    private final Bitmap mIcon;
 
     private TerminalNotification(@NonNull Builder builder) {
         mId = builder.mId;
@@ -93,9 +118,12 @@ public final class TerminalNotification {
         mTimestampMs = builder.mTimestampMs;
         mExpiryMs = builder.mExpiryMs;
         mReportClose = builder.mReportClose;
+        mReportActivation = builder.mReportActivation;
         mAppName = builder.mAppName;
         mTypes = Collections.unmodifiableList(new ArrayList<>(builder.mTypes));
         mButtons = Collections.unmodifiableList(new ArrayList<>(builder.mButtons));
+        mOccasion = builder.mOccasion;
+        mIcon = builder.mIcon;
     }
 
     /** @return The identifier of the notification, or {@code null} if it cannot be updated or closed by id. */
@@ -144,6 +172,10 @@ public final class TerminalNotification {
         return mReportClose;
     }
 
+    public boolean shouldReportActivation() {
+        return mReportActivation;
+    }
+
     /** @return The name of the application that sent the notification, or {@code null} if unknown. */
     @Nullable
     public String getAppName() {
@@ -162,9 +194,20 @@ public final class TerminalNotification {
         return mButtons;
     }
 
+    @NonNull
+    public Occasion getOccasion() {
+        return mOccasion;
+    }
+
+    /** @return The icon of the notification, or {@code null} if it does not have one. */
+    @Nullable
+    public Bitmap getIcon() {
+        return mIcon;
+    }
+
     /** @return Whether the notification has no title, body and details line, so that it must be ignored. */
     public boolean isEmpty() {
-        return isEmpty(mTitle) && isEmpty(mBody) && isEmpty(mMeta);
+        return isEmpty(mTitle) && isEmpty(mBody) && isEmpty(mMeta) && mIcon == null;
     }
 
     private static boolean isEmpty(@Nullable String value) {
@@ -175,7 +218,8 @@ public final class TerminalNotification {
     @Override
     public String toString() {
         return "TerminalNotification{id=" + mId + ", kind=" + mKind + ", source=" + mSource
-            + ", title=" + mTitle + ", body=" + mBody + ", meta=" + mMeta + "}";
+            + ", title=" + mTitle + ", body=" + mBody + ", meta=" + mMeta
+            + ", buttons=" + mButtons.size() + "}";
     }
 
     /** Builder for {@link TerminalNotification}. */
@@ -196,12 +240,17 @@ public final class TerminalNotification {
         private long mTimestampMs = System.currentTimeMillis();
         private long mExpiryMs = EXPIRY_DEFAULT;
         private boolean mReportClose = false;
+        private boolean mReportActivation = false;
         @Nullable
         private String mAppName;
         @NonNull
         private final List<String> mTypes = new ArrayList<>();
         @NonNull
         private final List<String> mButtons = new ArrayList<>();
+        @NonNull
+        private Occasion mOccasion = Occasion.ALWAYS;
+        @Nullable
+        private Bitmap mIcon;
 
         public Builder(@NonNull Kind kind, @NonNull Source source) {
             mKind = kind;
@@ -248,6 +297,11 @@ public final class TerminalNotification {
             return this;
         }
 
+        public Builder setReportActivation(boolean reportActivation) {
+            mReportActivation = reportActivation;
+            return this;
+        }
+
         public Builder setAppName(@Nullable String appName) {
             mAppName = appName;
             return this;
@@ -260,6 +314,16 @@ public final class TerminalNotification {
 
         public Builder addButton(@Nullable String label) {
             if (label != null && !label.trim().isEmpty()) mButtons.add(label.trim());
+            return this;
+        }
+
+        public Builder setOccasion(@NonNull Occasion occasion) {
+            mOccasion = occasion;
+            return this;
+        }
+
+        public Builder setIcon(@Nullable Bitmap icon) {
+            mIcon = icon;
             return this;
         }
 

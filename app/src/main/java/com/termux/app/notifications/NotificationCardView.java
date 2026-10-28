@@ -14,6 +14,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -49,6 +50,16 @@ public class NotificationCardView extends FrameLayout {
         void onNotificationCardClicked(@NonNull NotificationCardView card, @NonNull TerminalNotification notification);
 
         /**
+         * Called when a button of the card is clicked, like one of the buttons that a program sent with
+         * the `OSC 99` `p=buttons` payload.
+         *
+         * @param card The card whose button was clicked.
+         * @param notification The notification that the card shows.
+         * @param buttonIndex The index of the button, where the first button has the index 0.
+         */
+        void onNotificationCardButtonClicked(@NonNull NotificationCardView card, @NonNull TerminalNotification notification, int buttonIndex);
+
+        /**
          * Called when the card must be removed, because it was swiped away, its close button was
          * clicked or it expired.
          *
@@ -78,10 +89,12 @@ public class NotificationCardView extends FrameLayout {
         public final int bodyMaxLines;
         /** The font size of the title of the card in sp. */
         public final int fontSizeSp;
+        /** Whether the icon of the notification is shown, from the `notification-osc-icons` property. */
+        public final boolean showIcon;
 
         public Style(int backgroundColor, int foregroundColor, int accentColor, int cornerRadiusPx,
                      int elevationPx, int borderWidthPx, int accentWidthPx, boolean monospace, int bodyMaxLines,
-                     int fontSizeSp) {
+                     int fontSizeSp, boolean showIcon) {
             this.backgroundColor = backgroundColor;
             this.foregroundColor = foregroundColor;
             this.accentColor = accentColor;
@@ -92,6 +105,7 @@ public class NotificationCardView extends FrameLayout {
             this.monospace = monospace;
             this.bodyMaxLines = Math.max(1, bodyMaxLines);
             this.fontSizeSp = Math.max(6, fontSizeSp);
+            this.showIcon = showIcon;
         }
     }
 
@@ -103,6 +117,12 @@ public class NotificationCardView extends FrameLayout {
 
     @NonNull
     private final LinearLayout mContent;
+    /** The container of the buttons that a program sent with the `OSC 99` `p=buttons` payload. */
+    @NonNull
+    private final LinearLayout mButtonsContainer;
+    /** The icon that a program sent with the `OSC 99` `p=icon` payload. */
+    @NonNull
+    private final ImageView mIconView;
     @NonNull
     private final TextView mTitleView;
     @NonNull
@@ -127,6 +147,9 @@ public class NotificationCardView extends FrameLayout {
     /** The width of the accent bar in pixels, 0 for none. */
     private int mAccentWidthPx;
     private boolean mMonospace;
+    /** The style that the card was last drawn with, which is needed when the buttons are rebuilt. */
+    @Nullable
+    private Style mStyle;
 
     private final int mTouchSlopPx;
     private final int mDismissThresholdPx;
@@ -152,14 +175,27 @@ public class NotificationCardView extends FrameLayout {
         setMinimumWidth(dp(152));
 
         mContent = new LinearLayout(context);
-        mContent.setOrientation(LinearLayout.HORIZONTAL);
+        mContent.setOrientation(LinearLayout.VERTICAL);
         mContent.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
         addView(mContent);
+
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+        mContent.addView(row);
+
+        mIconView = new ImageView(context);
+        mIconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        mIconView.setVisibility(View.GONE);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(16), dp(16));
+        iconParams.gravity = Gravity.TOP;
+        iconParams.setMarginEnd(dp(6));
+        row.addView(mIconView, iconParams);
 
         LinearLayout texts = new LinearLayout(context);
         texts.setOrientation(LinearLayout.VERTICAL);
         texts.setLayoutParams(new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-        mContent.addView(texts);
+        row.addView(texts);
 
         mTitleView = new TextView(context);
         mTitleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, TITLE_TEXT_SIZE_SP);
@@ -193,12 +229,19 @@ public class NotificationCardView extends FrameLayout {
         mCloseView.setOnClickListener(v -> dismiss(false));
         LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
         closeParams.gravity = Gravity.TOP;
-        mContent.addView(mCloseView, closeParams);
+        row.addView(mCloseView, closeParams);
+
+        mButtonsContainer = new LinearLayout(context);
+        mButtonsContainer.setOrientation(LinearLayout.HORIZONTAL);
+        mButtonsContainer.setVisibility(View.GONE);
+        LinearLayout.LayoutParams buttonsParams = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+        buttonsParams.topMargin = dp(6);
+        mContent.addView(mButtonsContainer, buttonsParams);
 
         // Apply the default style, so that a card that is added to a layout without a style does not
         // look broken, like in the layout preview of an ide.
         setCardStyle(new Style(0xFF000000, 0xFFFFFFFF, 0xFFFF5252,
-            0, 0, dp(1), dp(4), true, 2, 13));
+            0, 0, dp(1), dp(4), true, 2, 13, false));
     }
 
     /** Set the listener that is called when the user interacts with the card. */
@@ -235,10 +278,78 @@ public class NotificationCardView extends FrameLayout {
 
         setContentDescription(notification.getTitle() != null ? notification.getTitle()
             : notification.getBody() != null ? notification.getBody() : "");
+
+        updateIcon();
+        updateButtons();
+    }
+
+    /** Show the icon of the notification if it has one and the configuration allows it. */
+    private void updateIcon() {
+        boolean show = mNotification != null && mNotification.getIcon() != null
+            && mStyle != null && mStyle.showIcon;
+        if (!show) {
+            mIconView.setVisibility(View.GONE);
+            mIconView.setImageDrawable(null);
+            return;
+        }
+
+        mIconView.setImageBitmap(mNotification.getIcon());
+        mIconView.setVisibility(View.VISIBLE);
+    }
+
+    /** Rebuild the buttons that a program sent with the `OSC 99` `p=buttons` payload. */
+    private void updateButtons() {
+        mButtonsContainer.removeAllViews();
+
+        if (mNotification == null || mNotification.getButtons().isEmpty() || mStyle == null) {
+            mButtonsContainer.setVisibility(View.GONE);
+            return;
+        }
+
+        float textSizeSp = Math.max(6, mStyle.fontSizeSp - 2.5f);
+        for (int i = 0; i < mNotification.getButtons().size(); i++) {
+            final int buttonIndex = i;
+            String label = mNotification.getButtons().get(i);
+
+            TextView button = new TextView(getContext());
+            button.setText(label);
+            button.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp);
+            button.setTextColor(mStyle.foregroundColor);
+            if (mStyle.monospace) button.setTypeface(Typeface.MONOSPACE);
+            button.setSingleLine(true);
+            button.setEllipsize(TextUtils.TruncateAt.END);
+            button.setGravity(Gravity.CENTER);
+            button.setPadding(dp(8), dp(4), dp(8), dp(4));
+            button.setClickable(true);
+            button.setContentDescription(label);
+
+            // The buttons are drawn like the card itself, with square corners and a 1dp accent border.
+            GradientDrawable background = new GradientDrawable();
+            background.setShape(GradientDrawable.RECTANGLE);
+            background.setCornerRadius(mStyle.cornerRadiusPx);
+            background.setStroke(Math.max(1, dp(1)), mStyle.accentColor);
+            background.setColor(Color.TRANSPARENT);
+            button.setBackground(background);
+
+            button.setOnClickListener(v -> {
+                if (mListener != null && mNotification != null) {
+                    mListener.onNotificationCardButtonClicked(this, mNotification, buttonIndex);
+                }
+            });
+
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            params.setMarginEnd(dp(6));
+            mButtonsContainer.addView(button, params);
+        }
+
+        mButtonsContainer.setVisibility(View.VISIBLE);
     }
 
     /** Apply the colors and metrics of the card, like the corner radius and the border. */
     public void setCardStyle(@NonNull Style style) {
+        mStyle = style;
+
         GradientDrawable background = new GradientDrawable();
         background.setShape(GradientDrawable.RECTANGLE);
         background.setCornerRadius(style.cornerRadiusPx);
@@ -276,6 +387,9 @@ public class NotificationCardView extends FrameLayout {
         mCloseView.setTextColor(withAlpha(style.foregroundColor, 0.65f));
 
         mBodyView.setMaxLines(style.bodyMaxLines);
+
+        updateIcon();
+        updateButtons();
 
         invalidate();
     }

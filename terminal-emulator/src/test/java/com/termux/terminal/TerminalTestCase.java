@@ -26,6 +26,12 @@ public abstract class TerminalTestCase extends TestCase {
 		/** The exit codes of the commands that finished, from `OSC 133;D;<exit code>`. */
 		public final List<Integer> commandExitCodes = new ArrayList<>();
 		public final List<TerminalCommandResult> commandResults = new ArrayList<>();
+		/** The notifications that the terminal programs requested with `OSC 99`, `OSC 9` or `OSC 777`. */
+		public final List<TerminalNotification> notifications = new ArrayList<>();
+		/** The ids of the notifications that a program asked to close with `OSC 99 ; p=close`. */
+		public final List<String> closedNotificationIds = new ArrayList<>();
+		/** The ids that a program asked the list of living notifications for with `OSC 99 ; p=alive`. */
+		public final List<String> aliveNotificationQueries = new ArrayList<>();
 		public int bellsRung = 0;
 		public int colorsChanged = 0;
 
@@ -70,6 +76,21 @@ public abstract class TerminalTestCase extends TestCase {
 		@Override
 		public void onCommandFinished(int exitCode) {
 			commandExitCodes.add(exitCode);
+		}
+
+		@Override
+		public void onTerminalNotification(TerminalNotification notification) {
+			notifications.add(notification);
+		}
+
+		@Override
+		public void onOsc99Close(String id) {
+			closedNotificationIds.add(id);
+		}
+
+		@Override
+		public void onOsc99AliveQuery(String id) {
+			aliveNotificationQueries.add(id);
 		}
 
 		@Override

@@ -200,6 +200,16 @@ public final class NotificationConfig {
     public boolean oscReportClick = true;
     /** Whether the icon data that a program sends with `OSC 99 ; p=icon` is shown in the card. */
     public boolean oscIcons = false;
+    /**
+     * The maximum number of `OSC` notifications that are shown per second and session, or 0 to show all
+     * of them. It keeps a program that spams notifications from blocking the terminal, since a card has
+     * to be laid out for every notification.
+     */
+    public int oscRateLimit = DEFAULT_OSC_RATE_LIMIT;
+
+    public static final int DEFAULT_OSC_RATE_LIMIT = 3;
+    public static final int MIN_OSC_RATE_LIMIT = 0;
+    public static final int MAX_OSC_RATE_LIMIT = 100;
 
     /** Whether a system notification is shown for the notifications that are received while the app is not visible. */
     public boolean backgroundEnabled = false;
@@ -298,6 +308,8 @@ public final class NotificationConfig {
         config.oscAllowApp.addAll(getList(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_ALLOW_APP, ""));
         config.oscReportClick = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_REPORT_CLICK, true);
         config.oscIcons = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_ICONS, false);
+        config.oscRateLimit = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_RATE_LIMIT,
+            DEFAULT_OSC_RATE_LIMIT, MIN_OSC_RATE_LIMIT, MAX_OSC_RATE_LIMIT);
 
         config.backgroundEnabled = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_BACKGROUND_ENABLED, false);
         config.historySize = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_HISTORY_SIZE,

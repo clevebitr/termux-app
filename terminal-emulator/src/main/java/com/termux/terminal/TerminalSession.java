@@ -8,6 +8,7 @@ import android.system.Os;
 import android.system.OsConstants;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.io.File;
 import java.io.FileDescriptor;
@@ -294,6 +295,21 @@ public final class TerminalSession extends TerminalOutput {
     @Override
     public void onCommandFinished(@NonNull TerminalCommandResult result) {
         mClient.onCommandFinished(this, result);
+    }
+
+    @Override
+    public void onTerminalNotification(@NonNull TerminalNotification notification) {
+        mClient.onTerminalNotification(this, notification);
+    }
+
+    @Override
+    public void onOsc99Close(@Nullable String id) {
+        mClient.onOsc99Close(this, id);
+    }
+
+    @Override
+    public void onOsc99AliveQuery(@Nullable String id) {
+        mClient.onOsc99AliveQuery(this, id);
     }
 
     @Override

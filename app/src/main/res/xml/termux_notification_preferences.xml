@@ -138,6 +138,50 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        app:key="notification_osc"
+        app:title="@string/termux_notification_osc_header">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:key="notification-osc-enabled"
+            app:summaryOff="@string/termux_notification_osc_enabled_off"
+            app:summaryOn="@string/termux_notification_osc_enabled_on"
+            app:title="@string/termux_notification_osc_enabled_title" />
+
+        <EditTextPreference
+            app:dialogMessage="@string/termux_notification_osc_allow_app_dialog_message"
+            app:key="notification-osc-allow-app"
+            app:summary="@string/termux_notification_osc_allow_app_summary"
+            app:title="@string/termux_notification_osc_allow_app_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="notification-osc-report-click"
+            app:summaryOff="@string/termux_notification_osc_report_click_off"
+            app:summaryOn="@string/termux_notification_osc_report_click_on"
+            app:title="@string/termux_notification_osc_report_click_title" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:key="notification-osc-icons"
+            app:summaryOff="@string/termux_notification_osc_icons_off"
+            app:summaryOn="@string/termux_notification_osc_icons_on"
+            app:title="@string/termux_notification_osc_icons_title" />
+
+        <SeekBarPreference
+            app:defaultValue="3"
+            app:key="notification-osc-rate-limit"
+            android:max="20"
+            android:min="0"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_notification_osc_rate_limit_summary"
+            app:title="@string/termux_notification_osc_rate_limit_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
         app:key="notification_exit_code"
         app:title="@string/termux_notification_exit_code_header">
 

@@ -103,9 +103,16 @@ public final class ExitCodeNotifier {
             .build();
 
         int commandSequence = result.getCommandSequence();
-        Runnable onClickAction = commandSequence != 0 ? () -> mActivity.jumpToCommand(session, commandSequence) : null;
+        if (commandSequence == 0) return mManager.notify(notification);
 
-        return mManager.notify(notification, onClickAction);
+        TerminalNotificationManager.NotificationActions actions = new TerminalNotificationManager.NotificationActions() {
+            @Override
+            public void onNotificationClicked(@NonNull TerminalNotification notification) {
+                mActivity.jumpToCommand(session, commandSequence);
+            }
+        };
+
+        return mManager.notify(notification, actions);
     }
 
     /**

@@ -670,3 +670,39 @@ subshell**（约 0.5–1ms），可接受但别再往里加 fork。zsh 用 `pree
   `reloadActivityStyling()` 里重读，重建只会闪屏。
 * 「发送测试通知」不放设置页：卡片属于运行中的 `TermuxActivity`，在设置页触发看不到效果，仍放长按菜单。
 
+## 2026-10-19 — M8.4 OSC 9/99/777：协议细节与四个坑
+
+**范围**：OSC 99 完整实现（分块、base64、`i/d/e/p/u/w/c/a/o/f/t`、按钮、图标、`p=?`/`p=alive`/`p=close`、
+点击/按钮/关闭回报）+ OSC 9（纯正文）+ OSC 777（`notify;<title>;<body>`）。OSC 通道默认关，每会话每秒
+默认 3 条限流。
+
+**协议细节（实测得出的结论）**：
+
+1. **`p=close` / `p=?` / `p=alive` 都在 metadata 里**，所以完整的序列是 `OSC 99 ; i=x:p=close ; <空负载>`，
+   **第二个分号不能少**（规范原文：两个分号必须始终存在）。但很多手写脚本会漏掉它，所以解析器对
+   「没有第二个分号」做了容错：整个参数都当 metadata、负载为空。
+2. **分块方向**：kitty 自己的 `kitten notify` 是「先 base64 编码、再把编码后的字符串切块」，所以正确
+   做法是**把各块的原始负载字符串拼起来、最后整体解码**，而不是每块单独解码（否则中间块的 base64
+   padding 会炸）。「先切块再编码」的发送方（每块独立 padding）不支持，文档里写明。
+3. **id 必须净化**再回写（`[a-zA-Z0-9_-+.]` 之外全删），否则程序可以用 `i=` 注入转义序列。净化后为空
+   就当没有 id。**查询应答**在没有 id 时按规范用 `i=0`。
+4. **`o=unfocused` 的语义是反的**：它表示「只在窗口没有键盘焦点时才显示」。卡片只在 App 窗口里，
+   所以实现为「窗口有焦点就不显示」；`invisible` 同理（可见时不显示）。
+
+**实现上的坑**：
+
+* **`mSession` 的类型是 `TerminalOutput` 而不是 `TerminalSession`**，所以新增的三个回调必须加在
+  `TerminalOutput`（默认空实现）+ `TerminalSession`（转发给 client）两处，不能只加在 session 上。
+* **`a=report` 的回报要写到「发起通知的那个会话」**，所以 `NotificationActions` 必须捕获 session；
+  同时卡片更新（同 id 第二条）会把 notification 换成**新实例**，而 actions 表是按 identity 存的 →
+  更新后点击会查不到 actions。修法：`putActions()` 里先把「同 id 的旧实例」的 actions 删掉。
+* **卡片按钮不能触发卡片本身的点击**：按钮是 `TextView`（clickable），触摸被它消费，所以不会冒泡到
+  卡片的 `performClick()`（那里会 dismiss）。卡片体点击会 dismiss，按钮点击不 dismiss（可以在同一张卡上
+  连点多个按钮）。
+* **字符串资源里不能写 `\\033` 这种示例**：aapt 直接报 `Invalid unicode escape sequence in string`
+  （`processDebugResources`/`mergeDebugResources` 失败）。示例改成纯文字描述 + 文档里写 printf。
+* **图标解码放在 terminal-emulator 层**（`BitmapFactory`），上限 96KB 编码长度；`notification-osc-icons`
+  只控制「显示不显示」，解码照做，这样查询应答里宣告 `icon` 是诚实的。
+* 限流用 `SystemClock.uptimeMillis()` + `WeakHashMap<TerminalSession, ArrayDeque<Long>>`（避免会话结束后
+  泄漏）；`WeakHashMap.computeIfAbsent` 是 API 24+，minSdk 21 所以手写 get/put。
+

@@ -754,4 +754,20 @@
     <string name="termux_notification_duration_30s">30 seconds</string>
     <string name="termux_notification_duration_never">Keep until closed</string>
 
+    <string name="termux_notification_osc_header">Notifications from programs (OSC 9 / 99 / 777)</string>
+    <string name="termux_notification_osc_enabled_title">Show notifications requested by programs</string>
+    <string name="termux_notification_osc_enabled_on">Any program can show a card by printing an OSC 9, OSC 99 or OSC 777 escape code, like a build script that prints one when it is done. See the documentation for the printf example.</string>
+    <string name="termux_notification_osc_enabled_off">Escape codes that request a notification are ignored.</string>
+    <string name="termux_notification_osc_allow_app_title">Allowed programs</string>
+    <string name="termux_notification_osc_allow_app_summary">The names that programs report with the OSC 99 f key, separated by commas. Empty allows every program.</string>
+    <string name="termux_notification_osc_allow_app_dialog_message">Enter the application names separated by commas, like nvim,build. Leave empty or enter * to allow every program.</string>
+    <string name="termux_notification_osc_report_click_title">Report clicks and closes</string>
+    <string name="termux_notification_osc_report_click_on">The program is told when its notification is clicked, a button is clicked or the card is closed, if it asked for it.</string>
+    <string name="termux_notification_osc_report_click_off">The program is never told what happened to its notification.</string>
+    <string name="termux_notification_osc_icons_title">Show icons</string>
+    <string name="termux_notification_osc_icons_on">The icon that a program sends with the OSC 99 p=icon payload is shown in the card.</string>
+    <string name="termux_notification_osc_icons_off">The icon data of programs is decoded but not shown.</string>
+    <string name="termux_notification_osc_rate_limit_title">Maximum per second and session</string>
+    <string name="termux_notification_osc_rate_limit_summary">Additional notifications are dropped, so that a program that spams notifications cannot block the terminal. 0 disables the limit.</string>
+
 </resources>

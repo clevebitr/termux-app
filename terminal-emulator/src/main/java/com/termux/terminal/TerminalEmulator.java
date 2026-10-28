@@ -1,5 +1,7 @@
 package com.termux.terminal;
 
+import androidx.annotation.Nullable;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Locale;
@@ -288,6 +290,9 @@ public final class TerminalEmulator {
      * The max length for {@link #mTerminalControlArgs} used by {@link #collectTerminalControlArgs(int)}.
      */
     private int mTerminalControlArgsMaxLength = TERMINAL_CONTROL_ARGS__DEFAULT_MAX_LENGTH;
+
+    /** The assembler of the `OSC 99`, `OSC 9` and `OSC 777` desktop notifications. */
+    private final TerminalNotificationAssembler mNotificationAssembler = new TerminalNotificationAssembler();
 
     /** The terminal control arguments string buffer, like for OSC, DCS, APC commands. */
     private StringBuilder mTerminalControlArgs = new StringBuilder(TERMINAL_CONTROL_ARGS__INITIAL_CAPACITY);
@@ -2790,6 +2795,20 @@ public final class TerminalEmulator {
     }
 
     /**
+     * Apply the {@link TerminalNotificationAssembler.Result} of a notification escape code, like by
+     * writing the response of a support query back to the program and by telling the session about the
+     * notification that the program requested.
+     */
+    private void deliverNotificationResult(@Nullable TerminalNotificationAssembler.Result result) {
+        if (result == null) return;
+
+        if (result.response != null) mSession.write(result.response);
+        if (result.notification != null) mSession.onTerminalNotification(result.notification);
+        if (result.closeId != null) mSession.onOsc99Close(result.closeId);
+        if (result.aliveRequestId != null) mSession.onOsc99AliveQuery(result.aliveRequestId);
+    }
+
+    /**
      * Do {@link #ESC_OSC}. Check its docs for more info.
      *
      * This handles Set Text Parameters commands.
@@ -2902,6 +2921,15 @@ public final class TerminalEmulator {
                         }
                     }
                 }
+                break;
+            case 9: // iTerm2 desktop notification, `OSC 9 ; <message>`.
+                deliverNotificationResult(mNotificationAssembler.handleOsc9(textParameter));
+                break;
+            case 99: // kitty desktop notification, `OSC 99 ; <metadata> ; <payload>`.
+                deliverNotificationResult(mNotificationAssembler.handleOsc99(textParameter));
+                break;
+            case 777: // urxvt desktop notification, `OSC 777 ; notify ; <title> ; <body>`.
+                deliverNotificationResult(mNotificationAssembler.handleOsc777(textParameter));
                 break;
             case 52: {
                 // Manipulate Selection Data. Skip the optional first selection parameter(s).

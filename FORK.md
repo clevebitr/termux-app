@@ -38,6 +38,7 @@
 | 20 | 终端内通知卡片（右上角 nvim-notify 风格，失败命令 / App 事件 / OSC 9·99·777） | `notification-*` 属性或设置 → 通知 | **默认关闭**（关时行为与上游一致） |
 | 21 | 可配置的长按菜单 + 文本选择浮条项 + `SEARCH`/`SPLIT_*` 虚拟键 | `terminal-menu-*`、`selection-toolbar-items` 或设置 → 长按菜单 | 菜单 11 项；浮条 复制/粘贴/更多；风格 TUI 像素风 |
 | 22 | 设置页 GUI：通知 / 长按菜单（含可调序的双区列表编辑器） | 设置 → Termux → 通知 / 长按菜单 | 与属性等价，改完立即生效 |
+| 23 | 程序主动发通知：OSC 99（分块/图标/按钮/查询/关闭/回报）、OSC 9、OSC 777 | `notification-osc-*` 或设置 → 通知 → 程序主动发送的通知 | OSC 通道**默认关**，限流 3 条/秒/会话 |
 
 ---
 
@@ -1238,6 +1239,7 @@ extra-keys = [['SEARCH', {key: 'SPLIT_V', display: 'V'}, {key: 'SPLIT_H', displa
 外观     宽度（0=自适应）/ 字号 / 命令行最多行数 / 圆角 / 描边宽度 / 色条宽度 /
          等宽字体 / 背景色·文字色·4 个强调色（ColorPreference，支持 theme:color4）
 失败命令 通道开关 / 显示 cwd / 显示会话名 / 最短耗时（秒）/ 忽略命令（逗号分隔，可弹框编辑）
+程序通知 通道开关 / 允许的程序 / 回报点击与关闭 / 显示图标 / 每秒每会话最多几条
 ```
 
 「自动消失时间」用**预设下拉**（值仍是毫秒，写进 `notification-duration`），默认 2 秒。
@@ -1285,6 +1287,78 @@ extra-keys = [['SEARCH', {key: 'SPLIT_V', display: 'V'}, {key: 'SPLIT_H', displa
 
 ---
 
+## 23. 程序主动发通知：OSC 99 / OSC 9 / OSC 777
+
+任何程序都能让终端弹通知卡片，这是这套卡片真正的「通用通知渠道」（失败命令只是它的一个数据源）：
+
+```sh
+# osc9（iTerm2 风格，只有一句正文）
+printf '\033]9;Build finished\007'
+
+# osc777（urxvt 风格，标题 + 正文）
+printf '\033]777;notify;make;3 targets failed\007'
+
+# osc99（kitty 协议，功能最全）
+printf '\033]99;i=build-1:p=title;Build finished\007'
+printf '\033]99;i=build-1:p=body;3 targets failed: a.o b.o c.o\007'
+printf '\033]99;i=build-1:u=2:p=buttons;Retry\u2028Show log\007'
+```
+
+> 注意：`\u2028` 是按钮之间的分隔符（Unicode LINE SEPARATOR）。在 zsh/bash 里可以用
+> `printf '\342\200\250'` 或 `$'\u2028'` 生成。
+
+### 支持的 OSC 99 元数据
+
+| 键 | 是否实现 | 说明 |
+| --- | --- | --- |
+| `i=` | ✅ | 通知 id：相同 id 的第二条会**更新**同一张卡片；`p=close` 用它关卡片；回报里原样带回 |
+| `d=0/1` | ✅ | 分块：`d=0` 的块先攒着，`d=1`（或省略）时成一条通知 |
+| `e=1` | ✅ | 负载是 base64（分块时按 kitty 的做法「先编码再切块」，最后整体解码） |
+| `p=title/body/buttons/icon/close/?/alive` | ✅ | 见下 |
+| `u=0/1/2` | ✅ | 紧急度：`2` → 红（同失败命令），其余 → 蓝 |
+| `w=<ms>` | ✅ | `-1` 用 `notification-duration`，`0` 常驻，`>0` 指定毫秒 |
+| `c=1` | ✅ | 卡片关闭时回报 `p=close`（需 `notification-osc-report-click=true`） |
+| `a=report` | ✅ | 点击卡片/按钮时回报（需 `notification-osc-report-click=true`） |
+| `o=always/unfocused/invisible` | ✅ | `unfocused`/`invisible` 时只在窗口失焦/不可见时才显示 |
+| `f=` / `t=` | ✅ | 应用名 / 类型（base64）；`f` 用于 `notification-osc-allow-app` 过滤 |
+| `s=` `n=` `g=` | ⛔ | 声音名、系统图标名、图标缓存键：解析但忽略（卡片不播音效，也不用系统图标主题） |
+
+`p=buttons` 的按钮会渲染成卡片底部一排直角小按钮，点击回报 `OSC 99 ; i=<id> ; <按钮序号>`。
+`p=icon`（PNG/JPEG，≤ 64KB 编码后）由 `BitmapFactory` 解码，`notification-osc-icons=true` 时在卡片里
+显示成 16dp 图标；否则解码后丢弃。`p=?` 的支持查询会被**立即回应**（宣告 `a`,`c`,`o`,`p`,`s`,`u`,`w`），
+`p=alive` 会用当前仍在显示的卡片 id 回应，`p=close` 直接关掉对应卡片。
+
+### 防刷屏与过滤
+
+```properties
+notification-osc-enabled = false     # 总开关（默认关）
+notification-osc-allow-app =         # 空或 * = 允许所有；否则按 OSC 99 的 f= 应用名（大小写不敏感）
+notification-osc-report-click = true # 是否把点击/按钮/关闭回报给程序
+notification-osc-icons = false       # 是否显示 p=icon 图标
+notification-osc-rate-limit = 3      # 每秒每会话最多几条，0 = 不限；超出的直接丢弃并 log
+```
+
+限流是**每会话**的滑动窗口（1 秒窗口），所以一个程序刷屏不会把终端主线程卡死，也不会影响别的会话。
+
+### 已知限制
+
+* 单块负载超过 128KB 会整条丢弃（协议本身建议 ≤2048 字节/块）。
+* 通过 tmux 时，tmux 可能吞掉 OSC 99（需要 `allow-passthrough` 等设置），未做特殊处理。
+* 卡片只在 App 窗口里显示，所以 `o=unfocused`/`o=invisible` 的实现是「窗口聚焦/可见时不显示」，与后台通知（M8.5）无关。
+* 回报写入的是**发起通知的那个会话**的 pty，所以点别的会话发来的卡片也能正确回报。
+
+### 实现位置
+
+* `terminal-emulator/.../TerminalNotificationAssembler.java`：OSC 99 状态机（分块/元数据/base64/按钮/图标/查询/关闭/alive）、OSC 9、OSC 777。
+* `terminal-emulator/.../TerminalNotificationProtocol.java`：所有回写序列（点击/按钮/关闭回报、`p=?` 与 `p=alive` 应答、id 净化）。
+* `terminal-emulator/.../TerminalEmulator.java`：`doOsc()` 的 `case 9 / 99 / 777`；`TerminalOutput` / `TerminalSession` / `TerminalSessionClient` 新增 `onTerminalNotification` / `onOsc99Close` / `onOsc99AliveQuery`（都是默认空实现，插件不受影响）。
+* `app/.../notifications/OscNotificationHandler.java`：开关/白名单/occasion/限流、回报、alive 应答。
+* `app/.../notifications/NotificationCardView.java`：按钮行 + 16dp 图标；`TerminalNotificationManager` 的 `NotificationActions`（点击/按钮/关闭三种回调）。
+* 设置页：`xml/termux_notification_preferences.xml` 的「程序主动发送的通知」分类。
+* 单测：`TerminalNotificationAssemblerTest`（24 个用例：分块、base64、按钮、元数据、查询/关闭/alive、OSC 9/777、id 净化、控制字符）。
+
+---
+
 ## 验证情况（真机）
 以下各项都在本机（aarch64，Android 13 系 ROM）真机验证过（§11 音量键自定义动作 §14 终端内边距尚未真机验证）：
 
@@ -1295,6 +1369,8 @@ extra-keys = [['SEARCH', {key: 'SPLIT_V', display: 'V'}, {key: 'SPLIT_H', displa
   真机上的搜索栏交互（软键盘、返回键、与长按选择共存）和剪贴板读写尚未真机验证。
 * §17 命令标记：`CommandMarksTest`（21 个）全绿；bash 集成在本地用 `bash --norc -i` 起真实交互
   shell 验证过（`D;0`/`D;1;cmd`/`A`/`C` 顺序、退出码与命令行正确）。真机上的刻度点击、失败提示尚未验证。
+* §23 OSC 通知：`TerminalNotificationAssemblerTest` 24 个用例全绿，`:app` 编译通过；真机上的
+  卡片按钮/图标/回报/限流尚未验证（可以用 `printf` 手测）。
 * §22 设置页：**已通过** `:app:processDebugResources` + `:app:compileDebugJavaWithJavac` + 单测；
   真机上的控件交互（SeekBar 越界、双区编辑器调序、改完返回是否立即生效）尚未验证。
 * §20 通知卡片：M8.1（渲染层）+ M8.2（失败命令通道）**已通过** `./gradlew :app:compileDebugJavaWithJavac`

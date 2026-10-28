@@ -721,4 +721,20 @@
     <string name="termux_notification_duration_30s">30 秒</string>
     <string name="termux_notification_duration_never">常驻（不自动消失）</string>
 
+    <string name="termux_notification_osc_header">程序主动发送的通知（OSC 9 / 99 / 777）</string>
+    <string name="termux_notification_osc_enabled_title">显示程序请求的通知</string>
+    <string name="termux_notification_osc_enabled_on">任何程序都可以打印 OSC 9 / 99 / 777 转义序列来弹卡片，比如构建脚本跑完后弹一条。printf 的例子见文档。</string>
+    <string name="termux_notification_osc_enabled_off">请求通知的转义序列会被忽略。</string>
+    <string name="termux_notification_osc_allow_app_title">允许的程序</string>
+    <string name="termux_notification_osc_allow_app_summary">程序用 OSC 99 的 f 键上报的名称，逗号分隔。留空 = 允许所有程序。</string>
+    <string name="termux_notification_osc_allow_app_dialog_message">输入程序名，逗号分隔，例如 nvim,build。留空或输入 * 表示允许所有程序。</string>
+    <string name="termux_notification_osc_report_click_title">回报点击与关闭</string>
+    <string name="termux_notification_osc_report_click_on">当卡片被点击、按钮被点击或卡片关闭时，如果程序要求过，就告诉程序。</string>
+    <string name="termux_notification_osc_report_click_off">完全不向程序回报通知的交互结果。</string>
+    <string name="termux_notification_osc_icons_title">显示图标</string>
+    <string name="termux_notification_osc_icons_on">显示程序用 OSC 99 的 p=icon 负载发来的图标。</string>
+    <string name="termux_notification_osc_icons_off">图标数据会被解码但不显示。</string>
+    <string name="termux_notification_osc_rate_limit_title">每秒每个会话最多几条</string>
+    <string name="termux_notification_osc_rate_limit_summary">超出的通知直接丢弃，防止程序刷屏把终端卡住。0 = 不限。</string>
+
 </resources>

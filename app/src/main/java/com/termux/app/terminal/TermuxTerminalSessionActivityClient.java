@@ -18,6 +18,7 @@ import androidx.annotation.Nullable;
 
 import com.termux.R;
 import com.termux.app.notifications.ExitCodeNotifier;
+import com.termux.app.notifications.OscNotificationHandler;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.interact.ShareUtils;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
@@ -31,6 +32,7 @@ import com.termux.shared.termux.terminal.io.BellHandler;
 import com.termux.shared.logger.Logger;
 import com.termux.terminal.TerminalColors;
 import com.termux.terminal.TerminalCommandResult;
+import com.termux.terminal.TerminalNotification;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.terminal.TextStyle;
@@ -48,6 +50,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
     /** Shows the notification cards of the commands that exit with a non-zero exit code. */
     private final ExitCodeNotifier mExitCodeNotifier;
+    /** Shows the notification cards that terminal programs request with `OSC 99`, `OSC 9` or `OSC 777`. */
+    private final OscNotificationHandler mOscNotificationHandler;
 
     /** The maximum number of sessions that can be created from the app. */
     public static final int MAX_SESSIONS = 8;
@@ -68,6 +72,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     public TermuxTerminalSessionActivityClient(TermuxActivity activity) {
         this.mActivity = activity;
         this.mExitCodeNotifier = new ExitCodeNotifier(activity, activity.getTerminalNotificationManager());
+        this.mOscNotificationHandler = new OscNotificationHandler(activity, activity.getTerminalNotificationManager());
     }
 
     /**
@@ -276,6 +281,21 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         if (session != mActivity.getCurrentSession()) return;
 
         mActivity.showToast(mActivity.getString(R.string.msg_command_failed, result.getExitCode()), false);
+    }
+
+    @Override
+    public void onTerminalNotification(@NonNull TerminalSession session, @NonNull TerminalNotification notification) {
+        mOscNotificationHandler.onTerminalNotification(session, notification);
+    }
+
+    @Override
+    public void onOsc99Close(@NonNull TerminalSession session, @Nullable String id) {
+        mOscNotificationHandler.onOsc99Close(id);
+    }
+
+    @Override
+    public void onOsc99AliveQuery(@NonNull TerminalSession session, @Nullable String id) {
+        mOscNotificationHandler.onOsc99AliveQuery(session, id);
     }
 
     @Override
