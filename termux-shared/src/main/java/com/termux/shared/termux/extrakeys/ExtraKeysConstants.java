@@ -94,6 +94,12 @@ public class ExtraKeysConstants {
             put("KEYBOARD", "⌨"); // U+2328 ⌨ KEYBOARD not well known but easy to understand
             put("PASTE", "⎘"); // U+2398
             put("SCROLL", "⇳"); // U+21F3
+            // Fork additions, handled by the app in TermuxTerminalExtraKeys. Users can show a different
+            // label with the `display` key of the extra keys property, like {key: SEARCH, display: FIND}.
+            put("SEARCH", "⌕"); // U+2315 ⌕ TELEPHONE RECORDER, used as a search symbol by many fonts
+            put("SPLIT_V", "⬓"); // U+2B13 ⬓ SQUARE WITH BOTTOM HALF BLACK, a split into top and bottom
+            put("SPLIT_H", "◫"); // U+25EB ◫ WHITE SQUARE WITH VERTICAL BISECTING LINE, a split into left and right
+            put("SPLIT_CLOSE", "✕"); // U+2715 ✕ MULTIPLICATION X, closes the split screen
         }};
 
         public static final ExtraKeyDisplayMap LESS_KNOWN_CHARACTERS_DISPLAY = new ExtraKeyDisplayMap() {{

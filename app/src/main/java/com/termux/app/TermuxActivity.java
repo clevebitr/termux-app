@@ -41,6 +41,9 @@ import android.widget.Toast;
 import com.termux.R;
 import com.termux.app.api.file.FileReceiverActivity;
 import com.termux.app.notifications.NotificationOverlayView;
+import com.termux.app.terminal.menu.TerminalMenuAction;
+import com.termux.app.terminal.menu.TerminalMenuConfig;
+import com.termux.app.terminal.menu.TerminalMenuDialog;
 import com.termux.app.notifications.TerminalNotificationManager;
 import com.termux.app.statusbar.StatusBarConfig;
 import com.termux.app.statusbar.StatusBarController;
@@ -97,6 +100,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Properties;
 
 /**
  * A terminal emulator activity.
@@ -217,6 +221,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     /** The number of test notifications that were sent, so that each one shows a different kind. */
     private int mTestNotificationCount;
 
+    /** The configuration of the terminal context menu and of the text selection toolbar. */
+    private TerminalMenuConfig mTerminalMenuConfig = new TerminalMenuConfig();
+
     /**
      * The terminal extra keys view.
      */
@@ -304,25 +311,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private float mTerminalToolbarDefaultHeight;
 
 
-    private static final int CONTEXT_MENU_SELECT_URL_ID = 0;
-    private static final int CONTEXT_MENU_SHARE_TRANSCRIPT_ID = 1;
-    private static final int CONTEXT_MENU_SHARE_SELECTED_TEXT = 10;
-    private static final int CONTEXT_MENU_AUTOFILL_USERNAME = 11;
-    private static final int CONTEXT_MENU_AUTOFILL_PASSWORD = 2;
-    private static final int CONTEXT_MENU_RESET_TERMINAL_ID = 3;
-    private static final int CONTEXT_MENU_KILL_PROCESS_ID = 4;
-    private static final int CONTEXT_MENU_STYLING_ID = 5;
-    private static final int CONTEXT_MENU_TOGGLE_KEEP_SCREEN_ON = 6;
-    private static final int CONTEXT_MENU_HELP_ID = 7;
-    private static final int CONTEXT_MENU_SETTINGS_ID = 8;
-    private static final int CONTEXT_MENU_REPORT_ID = 9;
-    private static final int CONTEXT_MENU_SEARCH_ID = 12;
-    private static final int CONTEXT_MENU_PREVIOUS_COMMAND_ID = 13;
-    private static final int CONTEXT_MENU_NEXT_COMMAND_ID = 14;
-    private static final int CONTEXT_MENU_SPLIT_SCREEN_VERTICAL_ID = 15;
-    private static final int CONTEXT_MENU_SPLIT_SCREEN_HORIZONTAL_ID = 16;
-    private static final int CONTEXT_MENU_CLOSE_SPLIT_SCREEN_ID = 17;
-    private static final int CONTEXT_MENU_SEND_TEST_NOTIFICATION_ID = 18;
 
     private static final String ARG_TERMINAL_TOOLBAR_TEXT_INPUT = "terminal_toolbar_text_input";
     private static final String ARG_ACTIVITY_RECREATED = "activity_recreated";
@@ -363,6 +351,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         setTerminalPadding();
         setUpStatusBar();
         setUpNotificationOverlay();
+        reloadTerminalMenuConfig();
 
         mTermuxActivityRootView = findViewById(R.id.activity_termux_root_view);
         mTermuxActivityRootView.setActivity(this);
@@ -724,6 +713,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * @param orientation Either {@link LinearLayout#VERTICAL} for panes above each other or
      *                    {@link LinearLayout#HORIZONTAL} for panes next to each other.
      */
+    /** @return The orientation of the split screen panes, either {@link LinearLayout#VERTICAL} or {@link LinearLayout#HORIZONTAL}. */
+    public int getSplitScreenOrientation() {
+        return mSplitScreenOrientation;
+    }
+
     public void setSplitScreen(boolean enabled, int orientation) {
         if (orientation != LinearLayout.VERTICAL && orientation != LinearLayout.HORIZONTAL) return;
         mSplitScreenOrientation = orientation;
@@ -1297,6 +1291,133 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         mNotificationManager.notifyForTesting(notification);
     }
 
+    /** Reload the configuration of the terminal context menu and of the text selection toolbar. */
+    private void reloadTerminalMenuConfig() {
+        Properties properties = null;
+        TermuxAppSharedProperties sharedProperties = TermuxAppSharedProperties.getProperties();
+        if (sharedProperties != null) properties = sharedProperties.getProperties(false);
+
+        mTerminalMenuConfig = TerminalMenuConfig.parse(properties);
+    }
+
+    /** @return The configuration of the terminal context menu and of the text selection toolbar. */
+    @NonNull
+    public TerminalMenuConfig getTerminalMenuConfig() {
+        return mTerminalMenuConfig;
+    }
+
+    /**
+     * Show the terminal context menu, which is a styled dialog instead of the system context menu, with
+     * the actions and the order that the `terminal-menu-items` property defines.
+     *
+     * The actions that cannot be used are not shown, like the action that shares the selected text when
+     * no text is selected, so that the menu only shows what the user can actually do.
+     */
+    public void showTerminalMenu() {
+        TerminalSession session = getCurrentSession();
+        if (session == null || mTerminalView == null) return;
+
+        boolean autoFillEnabled = mTerminalView.isAutoFillEnabled();
+        boolean hasSelectedText = !DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText());
+        boolean notificationsEnabled = mNotificationManager != null && mNotificationManager.isEnabled();
+
+        List<TerminalMenuDialog.Item> items = new ArrayList<>();
+        for (TerminalMenuAction action : mTerminalMenuConfig.menuItems) {
+            switch (action) {
+                case SPLIT_CLOSE:
+                    if (!isSplitScreenEnabled()) continue;
+                    break;
+                case SHARE_SELECTED_TEXT:
+                    if (!hasSelectedText) continue;
+                    break;
+                case AUTOFILL_USERNAME:
+                case AUTOFILL_PASSWORD:
+                    if (!autoFillEnabled) continue;
+                    break;
+                case TEST_NOTIFICATION:
+                    if (!notificationsEnabled) continue;
+                    break;
+                default:
+                    break;
+            }
+
+            boolean enabled = action != TerminalMenuAction.KILL_PROCESS || session.isRunning();
+            items.add(new TerminalMenuDialog.Item(action, action.getTitle(this, session), enabled));
+        }
+
+        if (items.isEmpty()) return;
+
+        TerminalMenuDialog.show(this, mTerminalMenuConfig, items, this::onTerminalMenuActionSelected,
+            () -> mTerminalView.unsetStoredSelectedText());
+    }
+
+    /** Run the action of an item of the terminal context menu. */
+    private void onTerminalMenuActionSelected(@NonNull TerminalMenuAction action) {
+        TerminalSession session = getCurrentSession();
+
+        switch (action) {
+            case SEARCH:
+                showTerminalSearch();
+                break;
+            case PREVIOUS_COMMAND:
+                mTerminalView.scrollToPreviousCommand();
+                break;
+            case NEXT_COMMAND:
+                mTerminalView.scrollToNextCommand();
+                break;
+            case SPLIT_VERTICAL:
+                setSplitScreen(true, LinearLayout.VERTICAL);
+                break;
+            case SPLIT_HORIZONTAL:
+                setSplitScreen(true, LinearLayout.HORIZONTAL);
+                break;
+            case SPLIT_CLOSE:
+                setSplitScreen(false, mSplitScreenOrientation);
+                break;
+            case SELECT_URL:
+                mTermuxTerminalViewClient.showUrlSelection();
+                break;
+            case SHARE_TRANSCRIPT:
+                mTermuxTerminalViewClient.shareSessionTranscript();
+                break;
+            case SHARE_SELECTED_TEXT:
+                mTermuxTerminalViewClient.shareSelectedText();
+                break;
+            case AUTOFILL_USERNAME:
+                mTerminalView.requestAutoFillUsername();
+                break;
+            case AUTOFILL_PASSWORD:
+                mTerminalView.requestAutoFillPassword();
+                break;
+            case RESET_TERMINAL:
+                onResetTerminalSession(session);
+                break;
+            case KILL_PROCESS:
+                showKillSessionDialog(session);
+                break;
+            case STYLING:
+                showStylingDialog();
+                break;
+            case KEEP_SCREEN_ON:
+                toggleKeepScreenOn();
+                break;
+            case HELP:
+                ActivityUtils.startActivity(this, new Intent(this, HelpActivity.class));
+                break;
+            case SETTINGS:
+                ActivityUtils.startActivity(this, new Intent(this, SettingsActivity.class));
+                break;
+            case REPORT:
+                mTermuxTerminalViewClient.reportIssueFromTranscript();
+                break;
+            case TEST_NOTIFICATION:
+                sendTestNotification();
+                break;
+            default:
+                break;
+        }
+    }
+
     /**
      * Show or hide the status bar and apply its position and overlay from the `status-bar-position`
      * and `status-bar-overlay` properties.
@@ -1621,119 +1742,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
 
 
-    @Override
-    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
-        TerminalSession currentSession = getCurrentSession();
-        if (currentSession == null) return;
-
-        boolean autoFillEnabled = mTerminalView.isAutoFillEnabled();
-
-        menu.add(Menu.NONE, CONTEXT_MENU_SEARCH_ID, Menu.NONE, R.string.action_search_terminal);
-        menu.add(Menu.NONE, CONTEXT_MENU_PREVIOUS_COMMAND_ID, Menu.NONE, R.string.action_previous_command);
-        menu.add(Menu.NONE, CONTEXT_MENU_NEXT_COMMAND_ID, Menu.NONE, R.string.action_next_command);
-        menu.add(Menu.NONE, CONTEXT_MENU_SPLIT_SCREEN_VERTICAL_ID, Menu.NONE, R.string.action_split_screen_vertical);
-        menu.add(Menu.NONE, CONTEXT_MENU_SPLIT_SCREEN_HORIZONTAL_ID, Menu.NONE, R.string.action_split_screen_horizontal);
-        if (isSplitScreenEnabled())
-            menu.add(Menu.NONE, CONTEXT_MENU_CLOSE_SPLIT_SCREEN_ID, Menu.NONE, R.string.action_split_screen_close);
-        if (mNotificationManager != null && mNotificationManager.isEnabled())
-            menu.add(Menu.NONE, CONTEXT_MENU_SEND_TEST_NOTIFICATION_ID, Menu.NONE, R.string.action_send_test_notification);
-        menu.add(Menu.NONE, CONTEXT_MENU_SELECT_URL_ID, Menu.NONE, R.string.action_select_url);
-        menu.add(Menu.NONE, CONTEXT_MENU_SHARE_TRANSCRIPT_ID, Menu.NONE, R.string.action_share_transcript);
-        if (!DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText()))
-            menu.add(Menu.NONE, CONTEXT_MENU_SHARE_SELECTED_TEXT, Menu.NONE, R.string.action_share_selected_text);
-        if (autoFillEnabled)
-            menu.add(Menu.NONE, CONTEXT_MENU_AUTOFILL_USERNAME, Menu.NONE, R.string.action_autofill_username);
-        if (autoFillEnabled)
-            menu.add(Menu.NONE, CONTEXT_MENU_AUTOFILL_PASSWORD, Menu.NONE, R.string.action_autofill_password);
-        menu.add(Menu.NONE, CONTEXT_MENU_RESET_TERMINAL_ID, Menu.NONE, R.string.action_reset_terminal);
-        menu.add(Menu.NONE, CONTEXT_MENU_KILL_PROCESS_ID, Menu.NONE, getResources().getString(R.string.action_kill_process, getCurrentSession().getPid())).setEnabled(currentSession.isRunning());
-        menu.add(Menu.NONE, CONTEXT_MENU_STYLING_ID, Menu.NONE, R.string.action_style_terminal);
-        menu.add(Menu.NONE, CONTEXT_MENU_TOGGLE_KEEP_SCREEN_ON, Menu.NONE, R.string.action_toggle_keep_screen_on).setCheckable(true).setChecked(mPreferences.shouldKeepScreenOn());
-        menu.add(Menu.NONE, CONTEXT_MENU_HELP_ID, Menu.NONE, R.string.action_open_help);
-        menu.add(Menu.NONE, CONTEXT_MENU_SETTINGS_ID, Menu.NONE, R.string.action_open_settings);
-        menu.add(Menu.NONE, CONTEXT_MENU_REPORT_ID, Menu.NONE, R.string.action_report_issue);
-    }
-
-    /** Hook system menu to show context menu instead. */
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        mTerminalView.showContextMenu();
-        return false;
-    }
-
-    @Override
-    public boolean onContextItemSelected(MenuItem item) {
-        TerminalSession session = getCurrentSession();
-
-        switch (item.getItemId()) {
-            case CONTEXT_MENU_SEARCH_ID:
-                showTerminalSearch();
-                return true;
-            case CONTEXT_MENU_PREVIOUS_COMMAND_ID:
-                mTerminalView.scrollToPreviousCommand();
-                return true;
-            case CONTEXT_MENU_NEXT_COMMAND_ID:
-                mTerminalView.scrollToNextCommand();
-                return true;
-            case CONTEXT_MENU_SPLIT_SCREEN_VERTICAL_ID:
-                setSplitScreen(true, LinearLayout.VERTICAL);
-                return true;
-            case CONTEXT_MENU_SPLIT_SCREEN_HORIZONTAL_ID:
-                setSplitScreen(true, LinearLayout.HORIZONTAL);
-                return true;
-            case CONTEXT_MENU_CLOSE_SPLIT_SCREEN_ID:
-                setSplitScreen(false, mSplitScreenOrientation);
-                return true;
-            case CONTEXT_MENU_SEND_TEST_NOTIFICATION_ID:
-                sendTestNotification();
-                return true;
-            case CONTEXT_MENU_SELECT_URL_ID:
-                mTermuxTerminalViewClient.showUrlSelection();
-                return true;
-            case CONTEXT_MENU_SHARE_TRANSCRIPT_ID:
-                mTermuxTerminalViewClient.shareSessionTranscript();
-                return true;
-            case CONTEXT_MENU_SHARE_SELECTED_TEXT:
-                mTermuxTerminalViewClient.shareSelectedText();
-                return true;
-            case CONTEXT_MENU_AUTOFILL_USERNAME:
-                mTerminalView.requestAutoFillUsername();
-                return true;
-            case CONTEXT_MENU_AUTOFILL_PASSWORD:
-                mTerminalView.requestAutoFillPassword();
-                return true;
-            case CONTEXT_MENU_RESET_TERMINAL_ID:
-                onResetTerminalSession(session);
-                return true;
-            case CONTEXT_MENU_KILL_PROCESS_ID:
-                showKillSessionDialog(session);
-                return true;
-            case CONTEXT_MENU_STYLING_ID:
-                showStylingDialog();
-                return true;
-            case CONTEXT_MENU_TOGGLE_KEEP_SCREEN_ON:
-                toggleKeepScreenOn();
-                return true;
-            case CONTEXT_MENU_HELP_ID:
-                ActivityUtils.startActivity(this, new Intent(this, HelpActivity.class));
-                return true;
-            case CONTEXT_MENU_SETTINGS_ID:
-                ActivityUtils.startActivity(this, new Intent(this, SettingsActivity.class));
-                return true;
-            case CONTEXT_MENU_REPORT_ID:
-                mTermuxTerminalViewClient.reportIssueFromTranscript();
-                return true;
-            default:
-                return super.onContextItemSelected(item);
-        }
-    }
-
-    @Override
-    public void onContextMenuClosed(Menu menu) {
-        super.onContextMenuClosed(menu);
-        // onContextMenuClosed() is triggered twice if back button is pressed to dismiss instead of tap for some reason
-        mTerminalView.onContextMenuClosed(menu);
-    }
 
     private void showKillSessionDialog(TerminalSession session) {
         if (session == null) return;
@@ -2155,6 +2163,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             mNotificationManager.reload();
             updateNotificationOverlayLayout();
         }
+
+        // Reload the `terminal-menu-*` and `selection-toolbar-items` properties.
+        reloadTerminalMenuConfig();
 
         // Update the terminal toolbar visibility in case the `hide-extra-keys-when-soft-keyboard-hidden`
         // property was changed or disabled while the soft keyboard was hidden, since the layout may not

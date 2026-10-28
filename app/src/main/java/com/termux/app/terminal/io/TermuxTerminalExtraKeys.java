@@ -3,6 +3,7 @@ package com.termux.app.terminal.io;
 import android.annotation.SuppressLint;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -192,6 +193,16 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
         } else if ("PASTE".equals(key)) {
             if(mTermuxTerminalSessionActivityClient != null)
                 mTermuxTerminalSessionActivityClient.onPasteTextFromClipboard(null);
+        } else if ("SEARCH".equals(key)) {
+            mActivity.showTerminalSearch();
+        } else if ("SPLIT_V".equals(key)) {
+            // A second press changes the orientation of the panes instead of closing the split screen,
+            // so that the key can be used to switch between the two layouts.
+            mActivity.setSplitScreen(true, LinearLayout.VERTICAL);
+        } else if ("SPLIT_H".equals(key)) {
+            mActivity.setSplitScreen(true, LinearLayout.HORIZONTAL);
+        } else if ("SPLIT_CLOSE".equals(key)) {
+            mActivity.setSplitScreen(false, mActivity.getSplitScreenOrientation());
         }  else if ("SCROLL".equals(key)) {
             TerminalView terminalView = mActivity.getTerminalView();
             if (terminalView != null && terminalView.mEmulator != null)

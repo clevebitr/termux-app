@@ -611,3 +611,37 @@ subshell**（约 0.5–1ms），可接受但别再往里加 fork。zsh 用 `pree
 真机已验证（注入 `OSC 133;D;2;make -j8` 到会话 pty）：内容正确、点卡片能跳到该命令并关闭卡片、
 位置在 overlay 状态栏下方不遮挡；**但高度撑满**（见上一条，已修）。
 
+## 2026-10-19 — 长按菜单/选择浮条/虚拟键三个改造的取舍
+
+**需求澄清结论**（用户原话里的“长按弹窗只有复制和更多”指的是**文本选择浮条**，不是那串长菜单）：
+
+1. 长菜单（「更多…」里那串）→ 换成**自定义样式的 Dialog**，项与顺序由 `terminal-menu-items` 决定；
+2. 选择浮条 → **保留系统 ActionMode**（不自己画浮条），只把项做成可配 + 主题里改配色；
+3. 搜索/分屏 → **新增特殊键名**（`SEARCH`/`SPLIT_V`/`SPLIT_H`/`SPLIT_CLOSE`），默认 extra keys 布局不动；
+4. 通知停留时间默认 4000 → **2000ms**，仍由 `notification-duration` 配；
+5. 这轮**不做设置页**，全部只走 `termux.properties`（M8.3 统一做 GUI）。
+
+**关键实现点 / 坑**：
+
+* `TerminalViewClient` 新增两个默认方法，所以 Termux:Float 等插件不改也能编：
+  `getTextSelectionToolbarActions()`（默认 copy/paste/more）与 `onShowContextMenu(view)`（默认 false →
+  仍然走系统菜单）。App 的 client 返回 true 并弹自己的 Dialog。
+* `TextSelectionCursorController.ACTION_COPY/PASTE/MORE` 原来是**实例** final 字段，改成
+  `public static final` 才能从 client/配置里引用；它们是编译期常量，所以 JVM 单测里引用不会触发
+  android 类加载。
+* `ACTION_MORE` 原来直接调 `terminalView.showContextMenu()`，现在调新增的
+  `TerminalView.showTerminalContextMenu()`（先问 client，再回退系统菜单）；鼠标右键那条路径也改了。
+* 删掉了 `TermuxActivity.onCreateContextMenu()` / `onContextItemSelected()` / `onContextMenuClosed()`
+  和 18 个 `CONTEXT_MENU_*_ID` 常量 —— 它们只服务系统菜单。副作用：工具栏 EditText 长按菜单里
+  不再混入终端菜单项（原来其实是个 bug）。
+* 选中的文本存在 `TextSelectionCursorController#mStoredSelectedText`，`showTerminalContextMenu()` 之后
+  要靠 `TerminalView.onContextMenuClosed()` 清掉；Dialog 没有 `Menu`，所以在
+  `dialog.setOnDismissListener()` 里调 `mTerminalView.unsetStoredSelectedText()`，否则
+  `share-selected-text` 会永远可用。
+* 列表为空要**回退默认**（浮条）/允许为空（长菜单）：浮条空了用户就复制不了文本。
+* ActionMode 的背景是 XML drawable，`?attr/termuxActivityDrawerBackground` 只能跟随 App 的
+  日/夜主题，**拿不到运行时 `colors.properties`**；要跟随配色方案只能自制浮条（用户选了保留系统
+  ActionMode，所以接受这个限制并写进 FORK.md）。
+* `SEARCH`/`SPLIT_*` 的默认符号放在 `ExtraKeysConstants.WELL_KNOWN_CHARACTERS_DISPLAY`，用户可用
+  `{key: SEARCH, display: FIND}` 覆盖，不需要新机制。
+

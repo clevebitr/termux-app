@@ -36,6 +36,7 @@
 | 18 | 分屏（上下 / 左右，可拖动分隔条，两个独立会话） | 长按菜单 → 分屏 | 默认关闭 |
 | 19 | 状态栏（时间 / 电量 / 内存 / CPU / 网络 / IP / 代理，可配图标、图表、配色、位置、点击动作） | `status-bar-*` 属性或设置 → 状态栏 | 默认关闭 |
 | 20 | 终端内通知卡片（右上角 nvim-notify 风格，失败命令 / App 事件 / OSC 9·99·777） | `notification-*` 属性（M8.3 起有设置页） | **默认关闭**（关时行为与上游一致） |
+| 21 | 可配置的长按菜单 + 文本选择浮条项 + `SEARCH`/`SPLIT_*` 虚拟键 | `terminal-menu-*`、`selection-toolbar-items` | 菜单 11 项；浮条 复制/粘贴/更多；风格 TUI 像素风 |
 
 ---
 
@@ -1022,7 +1023,7 @@ notification-enabled = false        # 总开关，默认关（关时一切通知
 # 外观
 notification-position = top-end     # top-end | top-start | bottom-end | bottom-start
 notification-max-visible = 3        # 1–8，超出的先关最旧的一条
-notification-duration = 4000        # 毫秒，0 = 不自动关闭（上限 120000）
+notification-duration = 2000        # 毫秒，0 = 不自动关闭（上限 120000）
 notification-width = 0              # dp，0 = 自适应（上限 320dp）
 notification-corner-radius = 0       # dp，0 = 直角（TUI 像素风默认）
 notification-elevation = 0           # dp，0 = 无阴影（平铺）
@@ -1134,6 +1135,91 @@ notification-accent-width = 4
 * `terminal-view/.../TerminalView.java`：`scrollToCommandSequence(int)`。
 * `app/src/main/res/raw/termux_shell_integration_{bash,zsh}.sh`：`D` 带上命令行（脚本 v2），
   `TermuxShellIntegration.isInstalledVersionOutdated()` 用于提示重新安装。
+
+---
+
+## 21. 可配置的长按菜单 / 文本选择浮条 / `SEARCH`·`SPLIT_*` 虚拟键
+
+### 21.1 长按菜单改成可配置的自定义对话框（`terminal-menu-items`）
+
+上游长按文字 → 选字 → 系统 `ActionMode` 浮条（复制/粘贴/更多…）→ 点「更多…」才弹系统 context
+menu（一长串）。本 fork 把「更多…」那个菜单换成**自己画的对话框**：
+
+* **样式**：直角、1dp 强调色描边、等宽字体、右侧小图标，背景/文字色默认取 `colors.properties`
+  （`theme:background` / `theme:foreground` / `theme:color4`），换 Termux:Styling 主题自动跟随。
+* **项与顺序可配**：`terminal-menu-items` 一条逗号列表，**顺序就是显示顺序**，不写就不显示。
+* **不可用的项自动隐藏**：`split-close` 只在已分屏时出现；`share-selected-text` 只在有选中文本时
+  出现；`autofill-*` 只在终端视图开启 autofill 时出现；`test-notification` 只在通知卡片开启时出现。
+* **`kill-process`** 的标题带会话 PID，会话已结束时置灰。
+
+```properties
+# 默认值（11 项）
+terminal-menu-items = search,previous-command,next-command,split-vertical,split-horizontal,select-url,share-transcript,reset-terminal,kill-process,settings,report
+
+# 全部可用 id（新增的靠后，默认不显示，需要就自己加）：
+#   search / previous-command / next-command
+#   split-vertical / split-horizontal / split-close
+#   select-url / share-transcript / share-selected-text
+#   autofill-username / autofill-password
+#   reset-terminal / kill-process / styling / keep-screen-on
+#   help / settings / report / test-notification
+
+# 样式
+terminal-menu-font-size = 13        # sp，8–24
+terminal-menu-corner-radius = 0     # dp，0 = 直角
+terminal-menu-border-width = 1      # dp，0 = 不描边
+terminal-menu-monospace = true      # 等宽字体
+terminal-menu-show-icons = true     # 每项右侧的符号
+terminal-menu-background-color =    # 空 = 配色 background 混 10% foreground
+terminal-menu-foreground-color =    # 空 = 配色 foreground
+terminal-menu-accent-color =        # 空 = theme:color4（描边 + 按下高亮）
+```
+
+实现：`app/.../terminal/menu/TerminalMenuAction.java`（id ↔ 文案 ↔ 图标）、`TerminalMenuConfig.java`
+（解析）、`TerminalMenuDialog.java`（对话框）。入口统一到 `TermuxActivity.showTerminalMenu()`，
+由 `TerminalView.showTerminalContextMenu()` → `TerminalViewClient.onShowContextMenu()` 钩子触发，
+所以鼠标右键、菜单键、`Ctrl+Alt+M`、浮条「更多…」全都走同一套。**旧的系统 context menu
+（`onCreateContextMenu`）已删除。**
+
+### 21.2 文本选择浮条可配（`selection-toolbar-items`）
+
+浮条仍然是系统的 `ActionMode`（位置、选择手柄、滚动都由系统管），但**显示哪些项、什么顺序**由属性
+决定，并且样式在主题里改成了直角 + 1dp 描边：
+
+```properties
+selection-toolbar-items = copy,paste,more     # 默认；可用 id: copy / paste / more
+```
+
+* 列表为空或全是未知 id 时**回退到默认三项**，否则用户就复制不了选中的文本了。
+* 浮条配色只能跟随 App 主题（`actionModeBackground` 是 XML drawable，拿不到运行时
+  `colors.properties` 的颜色），这是系统限制；要完全跟随配色方案就得换成自制浮条（未做）。
+* 实现：`TerminalViewClient.getTextSelectionToolbarActions()`（默认返回三项）→
+  `TextSelectionCursorController` 按返回的顺序建菜单。
+
+### 21.3 虚拟键盘新增特殊键：`SEARCH` / `SPLIT_V` / `SPLIT_H` / `SPLIT_CLOSE`
+
+和 `KEYBOARD`、`DRAWER`、`PASTE`、`SCROLL` 一样由 App 侧处理（`TermuxTerminalExtraKeys`），
+写进 `extra-keys` / `extra-keys-panels` 即可用，**默认布局不变**：
+
+```properties
+extra-keys = [ \
+  ['ESC','/','-','SEARCH','UP','END','PGUP','KEYBOARD'], \
+  ['TAB','CTRL','ALT','SPLIT_V','DOWN','SPLIT_H','PGDN','SPLIT_CLOSE'] \
+]
+```
+
+| 键 | 默认符号 | 行为 |
+| --- | --- | --- |
+| `SEARCH` | `⌕` | 打开终端内搜索栏并聚焦（等于 `Ctrl+Alt+F`） |
+| `SPLIT_V` | `⬓` | 上下分屏；已分屏时**只切换方向**，不关闭 |
+| `SPLIT_H` | `◫` | 左右分屏；已分屏时只切换方向 |
+| `SPLIT_CLOSE` | `✕` | 关闭分屏 |
+
+符号可以自己换（extra keys 本来就支持 `display`）：
+
+```properties
+extra-keys = [['SEARCH', {key: 'SPLIT_V', display: 'V'}, {key: 'SPLIT_H', display: 'H'}]] 
+```
 
 ---
 

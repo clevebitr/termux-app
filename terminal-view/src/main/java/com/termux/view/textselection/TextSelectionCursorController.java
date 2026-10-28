@@ -18,6 +18,9 @@ import com.termux.terminal.WcWidth;
 import com.termux.view.R;
 import com.termux.view.TerminalView;
 
+import java.util.Arrays;
+import java.util.List;
+
 public class TextSelectionCursorController implements CursorController {
 
     private final TerminalView terminalView;
@@ -30,9 +33,9 @@ public class TextSelectionCursorController implements CursorController {
     private int mSelX1 = -1, mSelX2 = -1, mSelY1 = -1, mSelY2 = -1;
 
     private ActionMode mActionMode;
-    public final int ACTION_COPY = 1;
-    public final int ACTION_PASTE = 2;
-    public final int ACTION_MORE = 3;
+    public static final int ACTION_COPY = 1;
+    public static final int ACTION_PASTE = 2;
+    public static final int ACTION_MORE = 3;
 
     public TextSelectionCursorController(TerminalView terminalView) {
         this.terminalView = terminalView;
@@ -114,9 +117,30 @@ public class TextSelectionCursorController implements CursorController {
                 int show = MenuItem.SHOW_AS_ACTION_IF_ROOM | MenuItem.SHOW_AS_ACTION_WITH_TEXT;
 
                 ClipboardManager clipboard = (ClipboardManager) terminalView.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
-                menu.add(Menu.NONE, ACTION_COPY, Menu.NONE, R.string.copy_text).setShowAsAction(show);
-                menu.add(Menu.NONE, ACTION_PASTE, Menu.NONE, R.string.paste_text).setEnabled(clipboard != null && clipboard.hasPrimaryClip()).setShowAsAction(show);
-                menu.add(Menu.NONE, ACTION_MORE, Menu.NONE, R.string.text_selection_more);
+                boolean canPaste = clipboard != null && clipboard.hasPrimaryClip();
+
+                // The actions and their order come from the client, so that the user can configure which
+                // buttons are shown in the floating toolbar with the `selection-toolbar-items` property.
+                List<Integer> actions = terminalView.mClient != null
+                    ? terminalView.mClient.getTextSelectionToolbarActions()
+                    : Arrays.asList(ACTION_COPY, ACTION_PASTE, ACTION_MORE);
+
+                for (int action : actions) {
+                    switch (action) {
+                        case ACTION_COPY:
+                            menu.add(Menu.NONE, ACTION_COPY, Menu.NONE, R.string.copy_text).setShowAsAction(show);
+                            break;
+                        case ACTION_PASTE:
+                            menu.add(Menu.NONE, ACTION_PASTE, Menu.NONE, R.string.paste_text).setEnabled(canPaste).setShowAsAction(show);
+                            break;
+                        case ACTION_MORE:
+                            menu.add(Menu.NONE, ACTION_MORE, Menu.NONE, R.string.text_selection_more);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+
                 return true;
             }
 
@@ -150,7 +174,7 @@ public class TextSelectionCursorController implements CursorController {
                         // The text selection needs to be stopped before showing context menu,
                         // otherwise handles will show above popup
                         terminalView.stopTextSelectionMode();
-                        terminalView.showContextMenu();
+                        terminalView.showTerminalContextMenu();
                         break;
                 }
 

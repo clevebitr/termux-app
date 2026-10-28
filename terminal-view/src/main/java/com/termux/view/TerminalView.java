@@ -802,6 +802,21 @@ public final class TerminalView extends View {
         removeCallbacks(mOutputRedrawRunnable);
     }
 
+    /**
+     * Show the context menu of the terminal.
+     *
+     * The client is given the chance to show its own menu with
+     * {@link TerminalViewClient#onShowContextMenu(TerminalView)}, like a styled dialog that the user can
+     * configure, and only the system context menu of the view is shown if it does not.
+     *
+     * @return Always {@code true}, since either the client or the view shows a menu.
+     */
+    public boolean showTerminalContextMenu() {
+        if (mClient != null && mClient.onShowContextMenu(this)) return true;
+        showContextMenu();
+        return true;
+    }
+
     /** This must be called by the hosting activity in {@link Activity#onContextMenuClosed(Menu)}
      * when context menu for the {@link TerminalView} is started by
      * {@link TextSelectionCursorController#ACTION_MORE} is closed. */
@@ -939,7 +954,7 @@ public final class TerminalView extends View {
             return true;
         } else if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
             if (event.isButtonPressed(MotionEvent.BUTTON_SECONDARY)) {
-                if (action == MotionEvent.ACTION_DOWN) showContextMenu();
+                if (action == MotionEvent.ACTION_DOWN) showTerminalContextMenu();
                 return true;
             } else if (event.isButtonPressed(MotionEvent.BUTTON_TERTIARY)) {
                 ClipboardManager clipboardManager = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);

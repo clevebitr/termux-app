@@ -72,7 +72,7 @@ public final class NotificationConfig {
     public static final int MIN_MAX_VISIBLE = 1;
     public static final int MAX_MAX_VISIBLE = 8;
 
-    public static final int DEFAULT_DURATION_MS = 4000;
+    public static final int DEFAULT_DURATION_MS = 2000;
     public static final int MIN_DURATION_MS = 0;
     public static final int MAX_DURATION_MS = 120000;
 

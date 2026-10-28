@@ -527,6 +527,40 @@ public final class TermuxPropertyConstants {
     public static final String KEY_NOTIFICATION_HISTORY_SIZE = "notification-history-size"; // Default: "notification-history-size"
 
 
+    /**
+     * Defines the key for the ids of the actions that are shown in the terminal context menu, separated
+     * by commas, in the order they are shown. See {@code TerminalMenuAction} for the supported ids.
+     */
+    public static final String KEY_TERMINAL_MENU_ITEMS = "terminal-menu-items"; // Default: "terminal-menu-items"
+
+    /** Defines the key for the actions of the floating text selection toolbar, separated by commas */
+    public static final String KEY_TERMINAL_MENU_SELECTION_TOOLBAR_ITEMS = "selection-toolbar-items"; // Default: "selection-toolbar-items"
+
+    /** Defines the key for the font size of the terminal context menu in sp */
+    public static final String KEY_TERMINAL_MENU_FONT_SIZE = "terminal-menu-font-size"; // Default: "terminal-menu-font-size"
+
+    /** Defines the key for the radius of the corners of the terminal context menu in dp, `0` for square corners */
+    public static final String KEY_TERMINAL_MENU_CORNER_RADIUS = "terminal-menu-corner-radius"; // Default: "terminal-menu-corner-radius"
+
+    /** Defines the key for the width of the border around the terminal context menu in dp */
+    public static final String KEY_TERMINAL_MENU_BORDER_WIDTH = "terminal-menu-border-width"; // Default: "terminal-menu-border-width"
+
+    /** Defines the key for whether the terminal context menu is drawn with the monospace font of the terminal */
+    public static final String KEY_TERMINAL_MENU_MONOSPACE = "terminal-menu-monospace"; // Default: "terminal-menu-monospace"
+
+    /** Defines the key for whether the items of the terminal context menu show an icon on their right edge */
+    public static final String KEY_TERMINAL_MENU_SHOW_ICONS = "terminal-menu-show-icons"; // Default: "terminal-menu-show-icons"
+
+    /** Defines the key for the background color of the terminal context menu */
+    public static final String KEY_TERMINAL_MENU_BACKGROUND_COLOR = "terminal-menu-background-color"; // Default: "terminal-menu-background-color"
+
+    /** Defines the key for the text color of the terminal context menu */
+    public static final String KEY_TERMINAL_MENU_FOREGROUND_COLOR = "terminal-menu-foreground-color"; // Default: "terminal-menu-foreground-color"
+
+    /** Defines the key for the accent color of the terminal context menu, like the color of its border */
+    public static final String KEY_TERMINAL_MENU_ACCENT_COLOR = "terminal-menu-accent-color"; // Default: "terminal-menu-accent-color"
+
+
 
     /**
      * Defines the key for whether the terminal program is allowed to use the `OSC 52` escape to

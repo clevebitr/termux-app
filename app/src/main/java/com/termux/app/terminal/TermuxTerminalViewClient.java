@@ -324,7 +324,7 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
             } else if (unicodeChar == 'f' /* find */) {
                 mActivity.showTerminalSearch();
             } else if (unicodeChar == 'm'/* menu */) {
-                mTerminalView.showContextMenu();
+                mActivity.showTerminalMenu();
             } else if (unicodeChar == 'r'/* rename */) {
                 mTermuxTerminalSessionActivityClient.renameSession(currentSession);
             } else if (unicodeChar == 'c'/* create */) {
@@ -555,6 +555,24 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     @Override
     public boolean onLongPress(MotionEvent event) {
         return false;
+    }
+
+    /**
+     * Show the styled terminal context menu of the app instead of the system context menu, so that its
+     * items and their order can be configured with the `terminal-menu-items` property and it can be
+     * drawn with the colors of the termux color scheme.
+     */
+    @Override
+    public boolean onShowContextMenu(@NonNull TerminalView view) {
+        mActivity.showTerminalMenu();
+        return true;
+    }
+
+    /** The actions of the floating text selection toolbar, from the `selection-toolbar-items` property. */
+    @NonNull
+    @Override
+    public List<Integer> getTextSelectionToolbarActions() {
+        return mActivity.getTerminalMenuConfig().selectionToolbarActions;
     }
 
 

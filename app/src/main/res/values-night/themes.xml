@@ -18,6 +18,12 @@
              selecting text on pre-6.0 (non-floating toolbar). -->
         <item name="android:windowActionModeOverlay">true</item>
 
+        <!-- The floating text selection toolbar, styled like the tui windows of the fork with square
+             corners and a 1dp border instead of the material design pill. -->
+        <item name="actionModeBackground">@drawable/terminal_action_mode_background</item>
+        <item name="actionModeSplitBackground">@drawable/terminal_action_mode_background</item>
+        <item name="actionMenuTextColor">?attr/termuxActivityDrawerImageTint</item>
+
         <item name="android:windowTranslucentStatus">true</item>
         <item name="android:windowTranslucentNavigation">true</item>
 
