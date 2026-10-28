@@ -29,6 +29,13 @@
 | 11 | 音量键自定义动作（单击 / 长按，含唤醒软键盘等） | `volume-up-action`、`volume-up-long-action`、`volume-down-action`、`volume-down-long-action`、`volume-up-send-keys`、`volume-down-send-keys` | 保持上游：音量减=Ctrl、音量加=Fn |
 | 12 | 额外按键右上角显示上滑备用键 | `extra-keys-popup-hints`（设置页有开关） | **开**（唯一一个默认打开的新属性，见 §12 说明） |
 | 13 | Gboard 风格的按键块背景（圆角块 + 2dp 间隙） | `extra-keys-tile-background`；颜色 `extra-keys-tile-background-color` / `extra-keys-tile-active-background-color`（设置页有开关 + 调色板） | **开**，颜色跟随配色方案 |
+| 14 | 终端内边距（类似 Windows Terminal 的 padding） | `terminal-padding-top` / `-bottom` / `-left` / `-right`（dp，0–100，设置页有 4 个滑条） | 0（关闭） |
+| 15 | 终端内搜索（回滚历史里查找，全部匹配高亮 + 上下跳转） | 长按菜单 → 搜索；`Ctrl+Alt+F` | 按需打开 |
+| 16 | OSC 52 剪贴板（可禁止写入 / 允许程序读取剪贴板） | `terminal-osc52-clipboard`（`write` / `read-write` / `off`，设置页有下拉） | `write`（与上游一致） |
+| 17 | 命令标记（OSC 133）：跳转上/下一条命令、右边缘刻度、失败通知（v2 集成额外上报执行的命令行） | 设置页安装 shell 集成（写入 `~/.bashrc`/`~/.zshrc`） | 需手动安装集成，未安装时无任何变化 |
+| 18 | 分屏（上下 / 左右，可拖动分隔条，两个独立会话） | 长按菜单 → 分屏 | 默认关闭 |
+| 19 | 状态栏（时间 / 电量 / 内存 / CPU / 网络 / IP / 代理，可配图标、图表、配色、位置、点击动作） | `status-bar-*` 属性或设置 → 状态栏 | 默认关闭 |
+| 20 | 终端内通知卡片（右上角 nvim-notify 风格，失败命令 / App 事件 / OSC 9·99·777） | `notification-*` 属性（M8.3 起有设置页） | **默认关闭**（关时行为与上游一致） |
 
 ---
 
@@ -671,9 +678,468 @@ extra-keys-tile-active-background-color = #ff45475a
 
 ---
 
-## 验证情况（真机）
+## 14. 终端内边距（`terminal-padding-*`）
 
-以下各项都在本机（aarch64，Android 13 系 ROM）真机验证过（§11 音量键自定义动作尚未真机验证）：
+类似 Windows Terminal 的 padding：让终端内容与世界边缘留白。和上游的
+`terminal-margin-horizontal` / `terminal-margin-vertical` 不同，padding 只缩**终端视口**，
+底部 extra keys 工具栏和左侧会话抽屉仍是通栏；margin 缩的是整个内容区（含工具栏/抽屉）。两者可叠加。
+
+```properties
+# 单位 dp，取值 0-100，默认 0（保持上游外观）
+terminal-padding-top=0
+terminal-padding-bottom=0
+terminal-padding-left=8
+terminal-padding-right=8
+```
+
+* padding 区域显示**终端背景色**（即 `colors.properties` 的 `background`，包括半透明配色），
+  看起来像一圈画框。
+* 行列数按缩小后的尺寸重新计算（程序会收到 `SIGWINCH`），所以 `tput cols/lines`、vim/tmux 的
+  布局都会跟着变；最大 100dp，极端值下终端至少保留 4 行 4 列。
+* 与全屏/状态栏无关；横竖屏都生效（值固定为 dp，不随方向变化）。
+* 设置 → Termux → **终端视图** → **终端内边距**（上/下/左/右 4 个滑条，0–100），
+  改完返回终端立即生效（会触发一次终端 resize）。
+
+**实现**：`activity_termux.xml` 里给 `TerminalView` 套了一层 `FrameLayout#terminal_view_container`，
+`TermuxActivity.setTerminalPadding()` 只对容器 `setPadding()`。这样终端视图自己的坐标体系完全不变，
+绘制、触摸定位、文本选择手柄、IME 光标都不用感知 padding；padding 区域本来就是 decor view 的
+背景色（终端背景由 `updateWindowBackgroundColor()` 设在窗口上，`TerminalRenderer` 不填背景），
+所以不需要额外给容器设背景。
+
+实现位置：`activity_termux.xml`、`TermuxActivity.setTerminalPadding()` /
+`reloadActivityStyling()` / `onCreate()`、`TermuxPropertyConstants`（4 个 key）+
+`TermuxSharedProperties.getTerminalPadding*()`、`TermuxPropertyPreferenceDataStore`（新增 int 支持）、
+`termux_terminal_view_preferences.xml`（4 个 `SeekBarPreference`）。
+
+---
+
+## 15. 终端内搜索（回滚历史查找）
+
+上游 Termux 没有“在回看里搜索”的功能。现在可以在屏幕 + transcript（回滚历史）里查找文本：
+
+* **打开方式**：长按终端 → 菜单中选择 **搜索**（菜单也可以 `Ctrl+Alt+M` 打开）；
+  外接键盘直接按 **`Ctrl+Alt+F`**。
+* 输入框边输边搜（**忽略大小写**），所有匹配都会高亮，当前匹配用更深的橙色标出，
+  右下角显示 `当前/总数`。
+* 初始会跳到**最近**的一个匹配（通常就是屏幕上看到的那个），按 `↑` / `↓`（或键盘 Enter）
+  在匹配间前后跳转并**循环**，视图会自动滚到匹配所在行（包括 transcript 里的行）。
+* 按返回键关闭搜索栏（不会退出 App），高亮同时清除。
+* 切换会话时会自动在新会话里重新搜索。
+
+限制：
+
+* 只做字面量匹配，不支持正则；最多返回 5000 个匹配（防止极端情况下卡顿）。
+* 搜索的是**逻辑行**：自动换行的行会被拼起来，所以跨行的长路径/URL 也能搜到，跨行匹配会拆成
+  每行一段分别高亮。
+* 搜索栏是覆盖在终端顶部的浮层（不改变终端行列数，不会触发 `SIGWINCH`）。
+
+实现位置：`TerminalBuffer.findAllMatches()` / `SearchMatch`（逐逻辑行匹配、按行列排序、大小写折叠用
+逐字符 `Character.toLowerCase()` 保证列映射不被长度变化破坏）、`TerminalRenderer.setSearchHighlights()`
+（按行二分推进 + 文字之前画高亮矩形）、`TerminalView.setSearchQuery()` / `findNextSearchMatch()` /
+`clearSearch()`（resize 后重新匹配并保持当前匹配位置）、`activity_termux.xml` 的
+`terminal_search_bar`、`TermuxActivity.showTerminalSearch()` / `hideTerminalSearch()`、
+`TermuxTerminalViewClient.onKeyDown()`（`Ctrl+Alt+F`）。
+
+---
+
+## 16. OSC 52 剪贴板（`terminal-osc52-clipboard`）
+
+上游其实**已经支持 OSC 52 写入**（tmux/vim 里复制会写进系统剪贴板），这次补上的是**可控性**和
+**读取方向**：
+
+```properties
+# write（默认，和上游完全一致）：程序可以写剪贴板
+# read-write：程序还可以用 `OSC 52 ; c ; ?` 读剪贴板
+# off：完全忽略 OSC 52（程序无法再覆盖你的剪贴板）
+terminal-osc52-clipboard=write
+```
+
+设置 → Termux → **终端视图** → 剪贴板 → **OSC 52 剪贴板**（下拉）。
+
+* **写入**（`\e]52;c;<base64>\a`）：tmux `set -g set-clipboard on`、vim `set clipboard=unnamed`
+  这类场景不用改任何配置，默认就能用。
+* **读取**（`\e]52;c;?\a`）：只在 `read-write` 下响应，返回 `OSC 52 ; c ; <base64> ST`；
+  请求里的选择目标（`c` / `p` / `cp` …）会原样回显。响应上限 100KB（和写入上限一致），
+  避免把超大内容写进 pty 卡住终端。
+* **默认不允许读取**是刻意的：读取是无提示的，SSH 到别人的机器后，远端程序可以把你剪贴板里
+  的密码/私钥读走。需要时再开。
+* `off` 适合完全不信任 OSC 52 的场合（例如只在本地用、或者经常连不可信主机）。
+* 非法 base64 / 缺参数的 OSC 52 只记一条日志，不影响终端。
+
+实现位置：`TerminalEmulator.doOsc()` 的 `case 52`（区分写入与 `?` 读取）、`TerminalBase64`
+（terminal-emulator 内的纯 Java Base64，因为 `android.util.Base64` 在 JVM 单测里是个空壳）、
+`TerminalOutput.getClipboardText()` / `TerminalSessionClient.getClipboardText()`（默认返回
+`null`，插件里的其他 client 不需要改动）、`TermuxTerminalSessionActivityClient.onCopyTextToClipboard()`
+/ `getClipboardText()`、`TermuxPropertyConstants.KEY_TERMINAL_OSC52_CLIPBOARD` +
+`TermuxSharedProperties.isTerminalOsc52ClipboardWriteAllowed()` / `...ReadAllowed()`。
+
+---
+
+## 17. 命令标记 / shell 集成（OSC 133）
+
+上游没有 shell 集成，所以终端不知道「一条命令从哪里开始、到哪里结束、是否失败」。装上随 App
+打包的 shell 集成后，命令会发出 `OSC 133;A`（提示符开始）、`OSC 133;C`（命令开始执行）、
+`OSC 133;D;<退出码>`（命令结束），Termux 就能：
+
+* **跳到上一条 / 下一条命令**：长按菜单 →「上一条命令 / 下一条命令」，或把音量键动作设成
+  `prev-command` / `next-command`；跳到下一条时如果已经没有更下面的命令，会回到当前提示符。
+* **右边缘命令刻度**：每条命令在终端右侧画一个小竖条，成功是半透明前景色、失败是红色、
+  正在运行是更淡的颜色。**点刻度可以直接跳到那条命令**（右侧 16dp 是触摸区，不影响选择文本）。
+* **失败命令提示**：命令退出码非 0 时，优先弹右上角的**通知卡片**（§20，需要
+  `notification-enabled = true`），否则回退到上游那个短 toast（`命令退出码 127`）。注意 `grep`、
+  `diff`、`test` 这类命令按设计会返回非 0，卡片可以用 `notification-exit-code-ignore-commands` 过滤掉。
+* **命令行上报（脚本 v2）**：集成的 `OSC 133;D;<退出码>` 后面多带一个参数
+  `;D;<退出码>;<命令行>`，其它终端会忽略它，Termux 用它把命令行显示在通知卡片里（bash 用
+  `builtin history 1` 取，zsh 用 `preexec` 的 `$1`，都不改 `PS1`）。控制字符会被替换成空格，多行
+  命令因此合并成一行。**从旧版本升级后需要在设置页点一次「安装 shell 集成」重新写入脚本**，否则
+  卡片里只能看到退出码（设置页会自动把安装项标成「已安装的 shell 集成是旧版本」）。
+* 标记存放在**行对象**里（`TerminalRow#mCommandMark`），所以滚动、回看、改变行数都跟着文字走；
+  改变列数的 reflow 也会把标记带到新行（只保留进行中命令的退出码这件事会丢，见 DECISIONS）。
+* 标记以**提示符行**为锚点（`OSC 133;A` 所在行），所以跳转/刻度落在 `user@host:~$ ls` 这一行；
+  如果 shell 只发 `C` 不发 `A`，则回退到输出首行。
+
+### 安装 / 卸载
+
+设置 → Termux → **终端视图** → **Shell 集成**：
+
+* **安装 shell 集成**：把 `~/.termux/shell-integration.bash` 和 `.zsh` 写入，并在 `~/.bashrc`
+  末尾追加一段带 `# >>> termux-shell-integration >>>` 标记的块（`~/.zshrc` 存在时才写它），
+  内容只有一行 `[ -f ... ] && . ...`。**不会**修改 `PS1`，也不会覆盖已有的 `PROMPT_COMMAND`/`PS0`
+  （只前置/保留），重复安装不会重复追加。
+* **卸载 shell 集成**：删除那段标记块和脚本文件，rc 文件的其它内容保持不动。
+* 装完要**重开会话**或执行 `source ~/.bashrc` 才生效（当前会话里实时生效需要手动 source）。
+* bash 集成用 `PS0` 发 `C`（bash 4.4+）；更老的 bash 仍然有提示符和退出码标记，只是没有命令开始
+  标记。zsh 集成用 `precmd`/`preexec` 钩子（`add-zsh-hook`，与已有钩子共存）。
+* 通过 **tmux** 运行时，tmux 可能会吞掉这些 OSC 序列（`allow-passthrough` 等），没有做特殊处理。
+
+实现位置：`TerminalEmulator.doOsc()` 的 `case 133`、`TerminalBuffer.markPromptStart()` /
+`markCommandStart()` / `markCommandFinished()`（`COMMAND_MARK_*` 位与行内序列号防行复用）、
+`TerminalRow.mCommandMark`（`clear()` 时清零）、`TerminalRenderer` 右边缘刻度、
+`TerminalView.scrollToPreviousCommand()` / `scrollToNextCommand()` / 刻度点击（16dp 触摸区）、
+`TerminalSessionClient.onCommandFinished()`（默认空实现，插件不受影响）、
+`TermuxTerminalSessionActivityClient.onCommandFinished()`（失败 toast）、
+`TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_PREV_COMMAND/NEXT_COMMAND`、
+`app/src/main/res/raw/termux_shell_integration_{bash,zsh}.sh`、`TermuxShellIntegration`（安装/卸载）、
+`TerminalViewPreferencesFragment`（设置项）。
+
+---
+
+## 18. 分屏（上下 / 左右）
+
+长按菜单 →「分屏（上下）/ 分屏（左右）」，已经分屏时菜单里多一个「关闭分屏」。两个窗格是
+**两个独立的会话**，互不影响：
+
+```
+┌───────────────────────────┐
+│ pane 0（当前活动窗格，有 1dp 边框）│
+├───────────────────────────┤  ← 6dp 分隔条，可拖动改变比例（20%–80%）
+│ pane 1                    │
+├───────────────────────────┤
+│ ESC TAB CTRL ALT  ← →     │  ← 工具栏跟随活动窗格
+└───────────────────────────┘
+```
+
+* **开分屏时**第二个窗格显示一个「当前没被第一个窗格显示」的运行中会话；只有一个会话时会新建一个
+  （受 8 个会话上限限制，超了会提示）。关闭分屏**不会**杀掉第二个窗格里的进程，它仍在会话抽屉里。
+* **点哪个窗格，哪个就成为活动窗格**：软键盘、extra keys、长按菜单、搜索、新建/切换会话、
+  音量键动作、剪贴板粘贴全部作用于活动窗格；活动窗格画 1dp 边框，会话抽屉的选中项也跟着走。
+* 在会话抽屉里选中「另一个窗格正在显示」的会话时，两个窗格的会话**互换**（一个会话不能同时挂在
+  两个终端视图上，否则两边网格尺寸不同会互相 resize）。
+* 分隔条可拖动（40ms 节流，拖动时两个会话各自收到 `SIGWINCH`），比例在 20%–80% 之间；
+  上下/左右切换时保留比例。
+* 只有活动窗格的会话会收到 `DECSET 1004` 焦点事件（切窗格时旧窗格发失焦、新窗格同步当前焦点）。
+* **两个窗格都是实时刷新的**：非活动窗格收到输出同样会重绘（不是挂起/延迟到切回来才画），
+  但重绘节流到 **50ms**（`INACTIVE_PANE_REDRAW_INTERVAL_MS`，0 = 每帧都画），避免刷屏的
+  非活动窗格抢主线程。非活动窗格的重绘**保持滚动位置**（往上翻看时内容在视口下滚动，不会被
+  拽回底部），也不更新无障碍描述（`getText()` 很贵）；点中它之后下一次输出仍按上游语义回到底部。
+  分隔条拖动、互换会话、开关分屏、从后台回前台都会立即补刷一次。
+* 分屏状态**不持久化**：Activity 重建（换主题等）后回到单窗格，但两个会话都还在服务里。
+
+实现位置：`activity_termux.xml`（`terminal_panes_container` + `terminal_pane_0/1` +
+`terminal_split_divider` + 第二个 `TerminalView`）、`TermuxActivity`
+（`setSplitScreen()` / `setActiveTerminalPane()` / `updateSplitScreenLayout()` /
+`swapTerminalPaneSessions()` / 分隔条 `OnTouchListener` / `setTerminalPadding()` 现在作用于两个窗格）、
+`TermuxTerminalViewClient`（每个窗格一个实例，所有回调作用于**自己的**视图；
+`setSoftKeyboardState()` 只允许活动窗格抢焦点）、
+`TerminalExtraKeys.setTerminalView()`（extra keys 点击时改投活动窗格）、
+`TermuxTerminalSessionActivityClient`（字体/字号应用到所有窗格视图；`setCurrentSession()` 处理互换；
+`onTextChanged()` 按 `getTerminalViewForSession()` 分发到对应窗格，活动窗格走 `onScreenUpdated()`、
+非活动窗格走 `TerminalView#onScreenOutput()` / `onScreenOutputThrottled()`）。
+
+---
+
+## 19. 状态栏（`status-bar-*`）
+
+类似 GNOME 顶栏 / 桌面任务栏插件的常驻信息栏，显示设备状态，**默认关闭**。所有值都用 App 侧的
+系统 API 采集（不依赖 `termux-api` 插件，也不需要 root）：
+
+```
+┌────────────────────────────────────────────┐
+│ 🕒12:34  🔋85%  🧠3.2/11G  ⚙23%  ⇅1.2M/s │  ← status-bar-height=24dp
+├────────────────────────────────────────────┤
+│ user@host:~$                               │
+```
+
+* **段（segment）**：`clock` 时间、`battery` 电量/温度/充电状态、`memory` 内存、`cpu` CPU 使用率、
+  `net` 网络速率/累计流量、`ip` IP 地址、`proxy` 系统代理。`status-bar-segments` 决定**显示哪些、按什么顺序**。
+* **位置**：`status-bar-position=top|bottom`。**占位式**（默认）把状态栏的高度加到终端区的
+  padding 上，终端视图因此**真的变小**（`tput lines` 变少、程序收到 `SIGWINCH`），而不是被遮住或
+  被挤压；`status-bar-overlay=true` 则浮在终端上方/下方、**不改变行列数**（会遮住顶部/底部若干行）。
+* **层级**：状态栏位于会话抽屉的**内容区**里（`DrawerLayout` → `FrameLayout#terminal_content_container`
+  → 状态栏 + 终端区），所以**抽屉永远画在状态栏之上**，打开侧边栏时不会被状态栏挡住；软键盘弹出、
+  分屏、旋转、改 `terminal-padding-*` 时都跟着内容区自适应，不需要额外刷新。
+* **样式**：高度、字号、左右内边距、对齐（`start`/`center`/`end`）、段间分隔符、图标开关与图标在文字前/后。
+  每段还可以：自定义格式、加标签、仅文字 / 仅图表 / 文字 + 图表（`Sparkline` 折线图，32 个采样点）、
+  单独配色、单独刷新间隔、超阈值变色、点击动作。
+* **配色联动**：颜色值支持 `theme:<name>`，直接取当前 `colors.properties` 配色方案里的颜色
+  （`background`、`foreground`、`cursor`、`color0`–`color255`），所以改用 Termux:Styling 换配色后
+  状态栏会自动跟着变；也可以写 `#aarrggbb` 固定颜色。段没设颜色就跟随 `status-bar-foreground-color`。
+
+### 配置（`~/.termux/termux.properties`）
+
+```properties
+# 总开关 / 位置 / 是否浮层
+status-bar-enabled = true
+status-bar-position = top          # top | bottom
+status-bar-overlay = false         # true = 浮在终端上，不占行列
+
+# 外观
+status-bar-height = 24             # dp，14–120
+status-bar-font-size = 11          # sp，5–32
+status-bar-padding-horizontal = 8  # dp，0–64
+status-bar-align = start           # start | center | end
+status-bar-separator = "  "        # 段之间的字符串，支持 \t \n
+status-bar-show-icons = true
+status-bar-icons-position = start  # start（文字前）| end（文字后）
+
+# 配色（空 = 跟随配色方案；支持 theme:background / theme:color4 等）
+status-bar-background-color = theme:background
+status-bar-foreground-color = theme:foreground
+
+# 显示哪些段、什么顺序（未知 id 会被忽略并记日志）
+status-bar-segments = clock,battery,memory,cpu,net,ip,proxy
+
+# 每段：enabled / format / label / color / style / action / interval / warn-above / warn-below / warn-color
+status-bar-segment-battery-format = %p
+status-bar-segment-battery-action = battery-settings
+status-bar-segment-battery-warn-below = 20
+status-bar-segment-battery-warn-color = #ffff5252
+status-bar-segment-cpu-style = text-chart
+status-bar-segment-net-format = ↓%rx ↑%tx (%rxTotal/%txTotal)
+status-bar-segment-net-interval = 1000
+status-bar-segment-ip-format = %if %4
+status-bar-segment-proxy-format = %t %p
+```
+
+### 各段的格式占位符
+
+| 段 | 占位符 |
+| --- | --- |
+| `clock` | Java `SimpleDateFormat` 模式，默认 `HH:mm`（如 `HH:mm:ss`、`E HH:mm`） |
+| `battery` | `%p` 百分比、`%t` 温度（°C）、`%s` 充电状态（charging/discharging/full/not-charging） |
+| `memory` | `%p` 百分比、`%u` 已用、`%a` 可用、`%t` 总量（自动 G/M/K） |
+| `cpu` | `%p` 使用率、`%f` 当前平均频率、`%m` 最高频率、`%c` 核心数 |
+| `net` | `%rx` 下行速率、`%tx` 上行速率、`%rxTotal` 累计下行、`%txTotal` 累计上行 |
+| `ip` | `%4` IPv4、`%6` IPv6、`%i` 首选地址、`%if` 网卡名（`wlan0` / `rmnet_data0` …） |
+| `proxy` | `%p` 主机:端口、`%h` 主机、`%o` 端口、`%t` 类型（`none` / `http` / `pac`） |
+
+`%%` 输出一个 `%`；未知占位符原样保留。`label` 会显示在数值前面（如 `label=CPU` → `CPU 23%`）。
+
+### 点击动作（`status-bar-segment-<id>-action`）
+
+`none`（默认）、`wifi-settings`、`battery-settings`、`data-settings`、`app-settings`、`new-session`。
+
+### 设置页
+
+设置 → Termux → **状态栏**：总开关、位置、覆盖模式、高度/字号/内边距滑条、对齐、图标开关与位置、
+分隔符、段列表、配色（含 `theme:xxx` 手输）、以及 7 个段各自的分组（开关/格式/标签/样式/动作/颜色）。
+改完返回终端立即生效，不需要重启 App。
+
+### 实现注意（踩过的坑）
+
+* 状态栏的属性**不走** `TERMUX_APP_PROPERTIES_LIST` 那套类型化解析，所以读配置必须用
+  `TermuxAppSharedProperties.getProperties(false)`（直接读文件）。`getProperties(true)` 返回的内存缓存
+  只包含 `TERMUX_APP_PROPERTIES_LIST` 里的键，`status-bar-*` 会被过滤掉，表现为"文件里配了但界面不显示"。
+* `StatusBarView` 是被布局 XML 引用的，必须有 `(Context, AttributeSet)` 构造函数，否则 `setContentView()`
+  直接抛 `InflateException`（有单测 `CustomViewConstructorTest` 守着）。
+* 位置为 `bottom` 时，状态栏只在**终端工具栏可见**时锚到工具栏，否则用 `ALIGN_PARENT_BOTTOM`
+  （`RelativeLayout` 会丢弃锚点是 `GONE` 的规则）。
+
+### 数据来源与已知限制
+
+* **CPU**：优先读 `/proc/stat` 两次采样算使用率；**Android 9+ 对 App 屏蔽了 `/proc/stat`**
+  （本机实测 `Permission denied`），此时自动回退到 `/sys/devices/system/cpu/cpufreq/policy*/` 的
+  `scaling_cur_freq / cpuinfo_max_freq` 作为「频率占用率」近似值；两者都不可用时显示 `-`。
+* **内存**：读 `/proc/meminfo` 的 `MemTotal - MemAvailable`（比 `ActivityManager.MemoryInfo` 更贴近实际），
+  读不到才回退 `ActivityManager`。
+* **网络**：`TrafficStats.getTotalRxBytes/TxBytes()`，是**整机**流量（含其它 App），不是 Termux 进程的；
+  速率由两次采样时间差算出，首次显示 `-`。
+* **IP**：`ConnectivityManager.getLinkProperties(activeNetwork)`，读不到时枚举网卡；手机数据网络的
+  IPv6 会显示完整地址（可能很长，建议 `%4`）。**不显示 SSID**（需要额外 `ACCESS_WIFI_STATE` 权限）。
+* **代理**：`ConnectivityManager.getDefaultProxy()`（API 23+，含 PAC 判定），回退 `http.proxyHost`。
+  只反映系统全局代理，不反映 shell 里的 `http_proxy` 环境变量。
+* **电量**：读 `ACTION_BATTERY_CHANGED` 的 sticky intent；Android 14 起非前台 App 可能取不到，此时显示 `-`。
+* 刷新是**分段的**：时间 1s、CPU/网络/内存 2–3s、电量 10s、IP/代理 5s（都可用
+  `status-bar-segment-<id>-interval` 覆盖），Activity 不可见时定时器停掉，不耗电。
+* 上下分屏时状态栏作用于整个窗口（不在每个窗格各画一条）。
+
+实现位置：`app/src/main/java/com/termux/app/statusbar/`（`StatusBarConfig` 解析属性、`StatusBarColors`
+解析 `theme:` 配色、`StatusBarMetrics` 采集系统数据、`SparklineView` 折线图、`StatusBarView` 视图与
+分段布局、`StatusBarController` 定时刷新）、`activity_termux.xml`（`terminal_content_container` 里的 `status_bar_view`）、
+`TermuxActivity`（`setUpStatusBar()` / `updateStatusBarLayout()` / `setTerminalPadding()` /
+`onStatusBarSegmentClicked()`，
+以及在 `onStart`/`onStop`/`reloadActivityStyling`/`updateExtraKeysViewColors` 里的挂钩）、
+`TermuxPropertyConstants`（`status-bar-*` 常量）、`StatusBarPreferencesFragment` +
+`xml/termux_status_bar_preferences.xml`（设置页）、`ColorPreference`（支持手输 `theme:xxx`）、
+`res/drawable/ic_status_*.xml`（7 个手绘矢量图标）、`app/src/test/.../StatusBarTest.java`（12 个用例）+ `CustomViewConstructorTest`（校验布局里的自定义 View 都有 `(Context, AttributeSet)` 构造函数，防止 `InflateException` 崩溃）。
+
+---
+
+## 20. 终端内通知卡片（`notification-*`）
+
+类似 `nvim-notify` / 桌面通知的**右上角卡片浮层**，用来替代「命令失败只弹一个系统 toast」的做法。
+浮动在终端之上、**不改变终端行列数**（和搜索栏、状态栏同一层，都在会话抽屉的内容区里，所以抽屉
+永远画在卡片之上）。
+
+```
+┌────────────────────────────────────┐
+│ user@host:~$ make -j8              │
+│ src/a.c:12:5: error: ...           │
+│                   ╭──────────────╮ │
+│                   │▌ 退出码 1     │ │  ← 左侧 4dp 色条（失败=color1）
+│                   │▌ make -j8    │ │
+│                   │▌ ~/repo ·12s │ │
+│                   ╰──────────────╯ │
+│ user@host:~$ _                     │
+└────────────────────────────────────┘
+```
+
+### 配置（`~/.termux/termux.properties`）
+
+```properties
+notification-enabled = false        # 总开关，默认关（关时一切通知都不显示，行为与上游一致）
+
+# 外观
+notification-position = top-end     # top-end | top-start | bottom-end | bottom-start
+notification-max-visible = 3        # 1–8，超出的先关最旧的一条
+notification-duration = 4000        # 毫秒，0 = 不自动关闭（上限 120000）
+notification-width = 0              # dp，0 = 自适应（上限 320dp）
+notification-background-color =     # 空 = 配色方案 background 向 foreground 混合 12%
+notification-foreground-color =     # 空 = 配色方案 foreground
+notification-accent-failure-color =     # 空 = theme:color1（红）
+notification-accent-success-color =     # 空 = theme:color2（绿）
+notification-accent-warning-color =     # 空 = theme:color3（黄）
+notification-accent-info-color =        # 空 = theme:color4（蓝）
+
+# 通道一：失败命令（默认开）
+notification-exit-code-enabled = true
+notification-exit-code-show-cwd = true
+notification-exit-code-show-session = true
+notification-exit-code-min-duration = 0          # 秒，>0 时只提示慢命令
+notification-exit-code-ignore-commands = grep,test,diff,true,false,rg,fd,[
+
+# 通道二：App 事件（默认关）
+notification-events-enabled = false
+notification-events = session-exit,bell,title,plugin-result
+
+# 通道三：程序自己发的 OSC 通知（默认关）
+notification-osc-enabled = false
+notification-osc-allow-app =        # 空/* = 全允许，否则按 OSC 99 的 f= 应用名过滤
+notification-osc-report-click = true
+notification-osc-icons = false
+
+# 后台兜底与历史（默认关）
+notification-background-enabled = false
+notification-history-size = 50
+```
+
+颜色值支持 `#rgb` / `#aarrggbb` 和 `theme:background`、`theme:foreground`、`theme:color0`–`color255`，
+和 `status-bar-*` 的取值规则完全一致（复用 `StatusBarColors`），所以换 Termux:Styling 主题后卡片自动跟着变。
+
+### 怎么先看效果
+
+M8.1 只有渲染层，还没有接真实数据源，所以用测试入口：
+
+1. `~/.termux/termux.properties` 里加 `notification-enabled = true`；
+2. `termux-reload-settings`（或在终端外重开 App）；
+3. 长按终端 → 菜单里多出「**发送测试通知**」，每点一次轮换显示 失败 / 成功 / 警告 / 信息 四种卡片。
+
+### 失败命令卡片的内容与过滤（M8.2）
+
+```
+╭──────────────────────────────╮
+│▌ 命令退出码 1                │  ← 标题（复用上游 toast 的文案）
+│▌ make -j8                    │  ← 命令行（来自 shell 集成；旧集成则从缓冲区的
+│▌ ~/repos/app · 12.3s · bash  │     提示符行里抠，剥掉 PS1 的启发式见下）
+╰──────────────────────────────╯
+```
+
+* **命令行来源（双路）**：优先用 `133;D;<code>;<cmd>` 上报的文本；没有（旧集成 / 只发退出码的
+  shell）就回退到「命令锚点行」的缓冲区文本，并按 `$ `、`# `、`% `、`❯ `、`➜ `、`λ `、`» `、`> `
+  这些提示符结尾做截断（只在行首 120 字符内认，避免把命令里的 `$ ` 当提示符）。回退结果可能仍带
+  提示符残留，属已知限制。
+* **耗时**：`OSC 133;C` 的时间戳（`System.nanoTime()`）到 `133;D` 的差；bash 4.4 以下没有 `PS0`
+  就没有 `C` 标记，此时不显示耗时。
+* **cwd**：用 `$HOME` 缩写成 `~`，由 `notification-exit-code-show-cwd` 控制；会话名由
+  `notification-exit-code-show-session` 控制（只显示用户重命名过的会话）。
+* **过滤**：`notification-exit-code-ignore-commands`（默认 `grep,test,diff,true,false,rg,fd,[`）
+  按「命令名」匹配（去掉路径、跳过 `env`/`command`/`exec` 等前缀）；`notification-exit-code-min-duration`
+  （秒）用来只在慢命令失败时提示。
+* **点卡片 = 跳到那条命令**：命令行标记里存了**命令序列号**，点卡片时用
+  `TerminalView.scrollToCommandSequence(sequence)` 精确定位（不是「上一条命令」，即使之后又跑了
+  别的命令也不会跳错）；命令来自别的会话时先切会话，分屏时切到显示该会话的窗格。跳不到（缓冲区
+  已被顶掉）就退回 `scrollToPreviousCommand()`。
+
+### 实现位置（M8.1 / M8.2）
+
+* `terminal-emulator/.../TerminalNotification.java`：通知模型（kind/source/title/body/meta/expiry id 等），
+  不含 android view，方便给 OSC 解析器和事件生成器写单测。
+* `app/.../notifications/NotificationConfig.java`：解析 `notification-*`（同 `status-bar-*`，
+  **不进** `TERMUX_APP_PROPERTIES_LIST`，必须用 `getProperties(false)` 直读文件）。
+* `app/.../notifications/NotificationOverlayView.java`：卡片栈、角落定位、最大条数、自动消失、
+  `notification-duration` 与 `OSC 99 w=` 共存、颜色解析（`theme:`）。
+* `app/.../notifications/NotificationCardView.java`：单张卡片（左侧色条 + 标题/正文/详情 + ✕），
+  点按 = 触发动作、左右滑动 = 关闭、`clipToOutline` 让色条跟随圆角。
+* `app/.../notifications/TerminalNotificationManager.java`：读配置、按通道开关决定是否显示。
+* `app/src/main/res/layout/activity_termux.xml`：`notification_overlay`（放在 `terminal_content_container`
+  里、状态栏之后，所以画在状态栏之上，用 `setStatusBarInsetPx()` 让开状态栏高度）。
+* `TermuxActivity`：`setUpNotificationOverlay()` / `updateNotificationOverlayLayout()` /
+  `sendTestNotification()` / `jumpToCommand()` / `getTerminalNotificationManager()`、长按菜单项、
+  `reloadActivityStyling` 里重载配置。
+* `app/.../notifications/ExitCodeNotifier.java`：把 `TerminalCommandResult` 变成卡片（命令行、
+  耗时、cwd、会话名、忽略名单、最小耗时、点击动作）。
+* `terminal-emulator/.../TerminalCommandResult.java`：`133;D` 的解析结果（退出码 / 命令行 / 耗时 /
+  命令序列号）；`TerminalBuffer` 记录命令起始时间、`getCommandTextForSequence()`、
+  `getCommandMarkSequence()`；`TerminalSessionClient` 新增
+  `onCommandFinished(session, TerminalCommandResult)`（默认转调旧的 `int` 版本，插件无感）。
+* `terminal-view/.../TerminalView.java`：`scrollToCommandSequence(int)`。
+* `app/src/main/res/raw/termux_shell_integration_{bash,zsh}.sh`：`D` 带上命令行（脚本 v2），
+  `TermuxShellIntegration.isInstalledVersionOutdated()` 用于提示重新安装。
+
+---
+
+## 验证情况（真机）
+以下各项都在本机（aarch64，Android 13 系 ROM）真机验证过（§11 音量键自定义动作 §14 终端内边距尚未真机验证）：
+
+* §14 终端内边距：**已通过**本地 `./gradlew :app:compileDebugJavaWithJavac` 编译与相关单测，
+  但视觉/触摸/文本选择手柄/软键盘光标尚未在真机上验证。
+* §15 终端搜索 / §16 OSC 52：**已通过**本地编译；`TerminalBufferSearchTest`（9 个）、
+  `TerminalBase64Test`（6 个）、`OperatingSystemControlTest` 的 OSC 52 用例全部通过。
+  真机上的搜索栏交互（软键盘、返回键、与长按选择共存）和剪贴板读写尚未真机验证。
+* §17 命令标记：`CommandMarksTest`（21 个）全绿；bash 集成在本地用 `bash --norc -i` 起真实交互
+  shell 验证过（`D;0`/`D;1;cmd`/`A`/`C` 顺序、退出码与命令行正确）。真机上的刻度点击、失败提示尚未验证。
+* §20 通知卡片：M8.1（渲染层）+ M8.2（失败命令通道）**已通过** `./gradlew :app:compileDebugJavaWithJavac`
+  与单测——`NotificationConfigTest`（10 个）、`ExitCodeNotifierTest`（10 个）、`CommandMarksTest`（21 个，
+  含 `D;<code>;<cmd>` 解析、耗时/序列号、缓冲区取命令行、滚动后仍能定位）。以下**尚未真机验证**：
+  卡片观感（圆角/阴影/动画/配色联动）、点击跳转（含分屏与跨会话）、左右滑动关闭、自动消失、
+  与搜索栏/状态栏/软键盘叠放。
+* §19 状态栏：**只通过本地编译 + 单测**（`StatusBarTest` 12 个用例全绿），尚未真机验证（重点：
+  占位/覆盖两种模式下的终端行列数、设置页改完是否立即生效、`theme:` 配色是否跟随 Termux:Styling 换色、
+  分段刷新间隔下的耗电与帧率、`/proc/stat` 不可用时的 CPU 回退值是否合理）。
+* §18 分屏：**只通过本地编译**，尚未真机验证（重点：点窗格切活动窗格时的键盘、分隔条拖动、
+  会话抽屉选中另一个窗格的会话时的互换）。非活动窗格的实时重绘（`onScreenOutput()` / 50ms 节流）
+  同样只通过本地编译，真机上要看：非活动窗格刷屏时帧率与主线程占用、往上翻看后不被拽回底部、
+  互换/开关分屏/回前台后画面立即是最新的。
 
 * 备份 26s / 333MB / 43023 条目，校验通过；`--target-dir` 解包演练的符号链接与权限位正确。
 * 外观页 6 项、按键行为 6 项改完立即生效；打开设置页**不会**改写 `termux.properties`。
