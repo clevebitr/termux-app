@@ -7,6 +7,8 @@ import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
 
+import androidx.annotation.NonNull;
+
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
@@ -275,6 +277,11 @@ public final class TerminalSession extends TerminalOutput {
     }
 
     @Override
+    public String getClipboardText() {
+        return mClient.getClipboardText();
+    }
+
+    @Override
     public void onPasteTextFromClipboard() {
         mClient.onPasteTextFromClipboard(this);
     }
@@ -282,6 +289,11 @@ public final class TerminalSession extends TerminalOutput {
     @Override
     public void onBell() {
         mClient.onBell(this);
+    }
+
+    @Override
+    public void onCommandFinished(@NonNull TerminalCommandResult result) {
+        mClient.onCommandFinished(this, result);
     }
 
     @Override

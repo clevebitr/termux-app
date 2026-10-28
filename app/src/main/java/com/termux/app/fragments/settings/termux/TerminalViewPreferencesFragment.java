@@ -4,10 +4,13 @@ import android.content.Context;
 import android.os.Bundle;
 
 import androidx.annotation.Keep;
+import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.terminal.TermuxShellIntegration;
+import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 
 @Keep
@@ -22,6 +25,33 @@ public class TerminalViewPreferencesFragment extends PreferenceFragmentCompat {
         preferenceManager.setPreferenceDataStore(TerminalViewPreferencesDataStore.getInstance(context));
 
         setPreferencesFromResource(R.xml.termux_terminal_view_preferences, rootKey);
+
+        Preference installPreference = findPreference("shell_integration_install");
+        if (installPreference != null) {
+            // The installed scripts of an older app version do not report the command line of a
+            // command, so the user is told to install them again to get it in the notification cards.
+            if (TermuxShellIntegration.isInstalledVersionOutdated())
+                installPreference.setSummary(R.string.termux_terminal_view_shell_integration_install_outdated_summary);
+
+            installPreference.setOnPreferenceClickListener(preference -> {
+                boolean success = TermuxShellIntegration.install(context);
+                Logger.showToast(context, context.getString(success
+                    ? R.string.msg_shell_integration_installed
+                    : R.string.msg_shell_integration_install_failed), true);
+                return true;
+            });
+        }
+
+        Preference uninstallPreference = findPreference("shell_integration_uninstall");
+        if (uninstallPreference != null) {
+            uninstallPreference.setOnPreferenceClickListener(preference -> {
+                boolean success = TermuxShellIntegration.uninstall(context);
+                Logger.showToast(context, context.getString(success
+                    ? R.string.msg_shell_integration_uninstalled
+                    : R.string.msg_shell_integration_uninstall_failed), true);
+                return true;
+            });
+        }
     }
 
 }

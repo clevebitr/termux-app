@@ -71,4 +71,14 @@
             <item>enable/disable</item>
         </string-array>
 
+
+    <!-- Terminal View Preferences -->
+
+        <!-- OSC 52 Clipboard -->
+        <string-array name="termux_terminal_view_osc52_clipboard_values">
+            <item>write</item>
+            <item>read-write</item>
+            <item>off</item>
+        </string-array>
+
 </resources>

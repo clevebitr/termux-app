@@ -17,6 +17,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.R;
+import com.termux.app.notifications.ExitCodeNotifier;
+import com.termux.shared.data.DataUtils;
 import com.termux.shared.interact.ShareUtils;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.shared.termux.interact.TextInputDialogUtils;
@@ -28,9 +30,11 @@ import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 import com.termux.shared.termux.terminal.io.BellHandler;
 import com.termux.shared.logger.Logger;
 import com.termux.terminal.TerminalColors;
+import com.termux.terminal.TerminalCommandResult;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.terminal.TextStyle;
+import com.termux.view.TerminalView;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -42,7 +46,18 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
     private final TermuxActivity mActivity;
 
-    private static final int MAX_SESSIONS = 8;
+    /** Shows the notification cards of the commands that exit with a non-zero exit code. */
+    private final ExitCodeNotifier mExitCodeNotifier;
+
+    /** The maximum number of sessions that can be created from the app. */
+    public static final int MAX_SESSIONS = 8;
+
+    /**
+     * The interval in milliseconds between two redraws of the pane that is not the active pane, so
+     * that a pane that is flooded with output cannot take main thread time away from the active
+     * pane. A value of 0 redraws the inactive pane on every screen update, like the active pane.
+     */
+    private static final long INACTIVE_PANE_REDRAW_INTERVAL_MS = 50;
 
     private SoundPool mBellSoundPool;
 
@@ -52,6 +67,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
     public TermuxTerminalSessionActivityClient(TermuxActivity activity) {
         this.mActivity = activity;
+        this.mExitCodeNotifier = new ExitCodeNotifier(activity, activity.getTerminalNotificationManager());
     }
 
     /**
@@ -77,6 +93,10 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         // The current terminal session may have changed while being away, force
         // a refresh of the displayed terminal.
         mActivity.getTerminalView().onScreenUpdated();
+
+        // The pane that is not the active pane was not redrawn while the activity was not visible.
+        TerminalView inactivePaneView = mActivity.getInactiveTerminalPaneView();
+        if (inactivePaneView != null) inactivePaneView.onScreenOutput();
     }
 
     /**
@@ -123,7 +143,16 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     public void onTextChanged(@NonNull TerminalSession changedSession) {
         if (!mActivity.isVisible()) return;
 
-        if (mActivity.getCurrentSession() == changedSession) mActivity.getTerminalView().onScreenUpdated();
+        TerminalView changedView = mActivity.getTerminalViewForSession(changedSession);
+        if (changedView == null) return;
+
+        if (changedView == mActivity.getTerminalView()) {
+            changedView.onScreenUpdated();
+        } else {
+            // Both panes of a split screen are updated in real time, but the pane that is not the
+            // active pane is redrawn at most once per interval, instead of on every screen update.
+            changedView.onScreenOutputThrottled(INACTIVE_PANE_REDRAW_INTERVAL_MS);
+        }
     }
 
     @Override
@@ -189,7 +218,39 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     public void onCopyTextToClipboard(@NonNull TerminalSession session, String text) {
         if (!mActivity.isVisible()) return;
 
+        // A terminal program, like a remote shell, could otherwise silently overwrite the clipboard,
+        // so copying is disabled if the `terminal-osc52-clipboard` property is set to `off`.
+        if (!mActivity.getProperties().isTerminalOsc52ClipboardWriteAllowed()) return;
+
         ShareUtils.copyTextToClipboard(mActivity, text);
+    }
+
+    /**
+     * Return the clipboard text if the terminal program is allowed to read it with the `OSC 52`
+     * escape, which requires the `terminal-osc52-clipboard` property to be set to `read-write`.
+     * Reading is disabled by default, since a program could otherwise read everything the user has
+     * copied without any confirmation.
+     */
+    @Override
+    public String getClipboardText() {
+        if (!mActivity.isVisible()) return null;
+        if (!mActivity.getProperties().isTerminalOsc52ClipboardReadAllowed()) return null;
+
+        String text;
+        try {
+            text = ShareUtils.getTextStringFromClipboardIfSet(mActivity, false);
+        } catch (Exception e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to read the clipboard for an OSC 52 request", e);
+            return null;
+        }
+        if (text == null) return null;
+
+        // The response is written to the pty and could block the terminal if it is very large, so
+        // limit it to the same size that is accepted when the clipbooard is written.
+        if (text.length() > DataUtils.TRANSACTION_SIZE_LIMIT_IN_BYTES)
+            text = text.substring(0, DataUtils.TRANSACTION_SIZE_LIMIT_IN_BYTES);
+
+        return text;
     }
 
     @Override
@@ -199,6 +260,22 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         String text = ShareUtils.getTextStringFromClipboardIfSet(mActivity, true);
         if (text != null)
             mActivity.getTerminalView().mEmulator.paste(text);
+    }
+
+    @Override
+    public void onCommandFinished(@NonNull TerminalSession session, @NonNull TerminalCommandResult result) {
+        // The notification cards are shown for the commands of all sessions, since the overlay is
+        // shown over the whole terminal and the card says which session its command ran in.
+        if (mExitCodeNotifier.onCommandFinished(session, result)) return;
+
+        // Fall back to the toast of the upstream app when the cards are disabled, which is only shown
+        // for the current session since the user probably does not want to be interrupted by the
+        // commands of the other sessions.
+        if (result.getExitCode() == 0) return;
+        if (!mActivity.isVisible()) return;
+        if (session != mActivity.getCurrentSession()) return;
+
+        mActivity.showToast(mActivity.getString(R.string.msg_command_failed, result.getExitCode()), false);
     }
 
     @Override
@@ -298,6 +375,15 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     public void setCurrentSession(TerminalSession session) {
         if (session == null) return;
 
+        // A session cannot be attached to the two terminal views of a split screen at the same time,
+        // since the views would resize it differently. So if the session is already shown in the
+        // other pane, swap the sessions of the panes instead, so that the requested session is shown
+        // in the active pane.
+        if (mActivity.isSplitScreenEnabled() && session == mActivity.getInactiveTerminalPaneSession()) {
+            mActivity.swapTerminalPaneSessions();
+            return;
+        }
+
         TerminalSession previousSession = mActivity.getCurrentSession();
 
         if (mActivity.getTerminalView().attachSession(session)) {
@@ -319,6 +405,10 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         // be stale, like current session not selected or scrolled to.
         checkAndScrollToSession(session);
         updateBackgroundColor();
+
+        // Attaching the session clears the search, since its matches refer to the previous session's
+        // buffer, so apply the query of the search bar to the new session.
+        mActivity.refreshTerminalSearch();
     }
 
     void notifyOfSessionChange() {
@@ -555,7 +645,9 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
                 }
             }
 
-            mActivity.getTerminalView().setTypeface(newTypeface, newItalicTypeface);
+            // Apply the font to the view of every pane, since the typeface is per view.
+            for (TerminalView terminalView : mActivity.getTerminalViews())
+                terminalView.setTypeface(newTypeface, newItalicTypeface);
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Error in checkForFontAndColors()", e);
         }

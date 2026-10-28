@@ -1,12 +1,17 @@
 package com.termux.terminal;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.HashMap;
 
 import android.graphics.Bitmap;
 import android.graphics.Rect;
+
+import androidx.annotation.Nullable;
 
 import android.os.SystemClock;
 
@@ -217,6 +222,310 @@ public final class TerminalBuffer {
         return mActiveTranscriptRows + mScreenRows;
     }
 
+    /** The maximum number of matches that {@link #findAllMatches(String)} will return. */
+    public static final int MAX_SEARCH_MATCHES = 5000;
+
+    /** The mark of a row where a shell prompt started, from `OSC 133;A`. */
+    public static final int COMMAND_MARK_PROMPT_START = 1;
+    /** The mark of a row where a command started, from `OSC 133;C`, which is the row that is jumped to. */
+    public static final int COMMAND_MARK_COMMAND_START = 1 << 1;
+    /** The mark of a command that finished with exit code 0, from `OSC 133;D;0`. */
+    public static final int COMMAND_MARK_COMMAND_SUCCEEDED = 1 << 2;
+    /** The mark of a command that finished with a non-zero exit code, from `OSC 133;D;<code>`. */
+    public static final int COMMAND_MARK_COMMAND_FAILED = 1 << 3;
+
+    /** The row on which the last prompt started, from `OSC 133;A`, or {@code null} if there was none. */
+    private TerminalRow mPromptStartRow;
+    /** The sequence number of {@link #mPromptStartRow}, to detect if the row has been reused. */
+    private int mPromptStartSequence;
+    /** The row on which the currently running command started, or {@code null} if no command is running. */
+    private TerminalRow mRunningCommandRow;
+    /** The sequence number of {@link #mRunningCommandRow}, to detect if the row has been reused. */
+    private int mRunningCommandSequence;
+    /**
+     * The time the running command started, from {@link System#nanoTime()}, or 0 if no command is
+     * running. {@link System#nanoTime()} is used instead of {@link System#currentTimeMillis()} since
+     * it is monotonic and is not affected by the system clock being changed, and since it is
+     * available in the plain jvm unit tests of this module, unlike {@code android.os.SystemClock}.
+     */
+    private long mRunningCommandStartNanos;
+    /** The last command sequence number that was handed out. */
+    private int mCommandSequence;
+
+    /** Returns the command marks of the external row as a bit mask of the `COMMAND_MARK_*` constants. */
+    public int getCommandMark(int externalRow) {
+        if (externalRow < -mActiveTranscriptRows || externalRow >= mScreenRows) return 0;
+        TerminalRow line = mLines[externalToInternalRow(externalRow)];
+        return line == null ? 0 : line.mCommandMark;
+    }
+
+    /**
+     * Returns the command mark sequence number of the external row, which is used to find the row of
+     * a command again after the content of the buffer has scrolled.
+     */
+    public int getCommandMarkSequence(int externalRow) {
+        if (externalRow < -mActiveTranscriptRows || externalRow >= mScreenRows) return 0;
+        TerminalRow line = mLines[externalToInternalRow(externalRow)];
+        return line == null ? 0 : line.mCommandMarkSequence;
+    }
+
+    /**
+     * Returns the text of the row that a command is anchored on, which is the row with the shell
+     * prompt and the command that was typed, for the command with {@code commandSequence}.
+     *
+     * The row may also contain the shell prompt before the command, since the shell integration does
+     * not report where the prompt ends, so the caller must strip it based on its own knowledge of the
+     * prompt, or leave it in place when it cannot be recognized.
+     *
+     * @param commandSequence The sequence number of the command, from {@link TerminalCommandResult#getCommandSequence()}.
+     * @return The text of the row of the command, or {@code null} if the row is no longer in the
+     *         buffer, which happens when the output of the command was longer than the whole buffer.
+     */
+    @Nullable
+    public String getCommandTextForSequence(int commandSequence) {
+        if (commandSequence == 0) return null;
+
+        for (int row = -mActiveTranscriptRows; row < mScreenRows; row++) {
+            if (getCommandMarkSequence(row) != commandSequence) continue;
+            return getSelectedText(0, row, mColumns - 1, row);
+        }
+
+        return null;
+    }
+
+    /**
+     * @return How long the running command has been running in milliseconds, or -1 if the command
+     *         start was not reported, like by bash before version 4.4, which does not set `PS0`.
+     */
+    public long getRunningCommandDurationMs() {
+        if (mRunningCommandStartNanos == 0) return -1;
+        return (System.nanoTime() - mRunningCommandStartNanos) / 1000000L;
+    }
+
+    /** @return The sequence number of the running command, or 0 if no command is running. */
+    public int getRunningCommandSequence() {
+        return mRunningCommandRow == null ? 0 : mRunningCommandSequence;
+    }
+
+    /** Add the {@code mark} bits to the command marks of the external row. */
+    public void setCommandMark(int externalRow, int mark) {
+        if (externalRow < -mActiveTranscriptRows || externalRow >= mScreenRows) return;
+        allocateFullLineIfNecessary(externalToInternalRow(externalRow)).mCommandMark |= (byte) mark;
+    }
+
+    /** Mark the external row as the start of a shell prompt, from `OSC 133;A`. */
+    public void markPromptStart(int externalRow) {
+        TerminalRow line = allocateFullLineIfNecessary(externalToInternalRow(externalRow));
+        line.mCommandMark |= COMMAND_MARK_PROMPT_START;
+        line.mCommandMarkSequence = ++mCommandSequence;
+        mPromptStartRow = line;
+        mPromptStartSequence = line.mCommandMarkSequence;
+    }
+
+    /**
+     * Mark the start of a command, from `OSC 133;C`, and remember the row on which its exit status
+     * will be stored when it finishes.
+     *
+     * If the prompt row of the command is still in the buffer, then the command is anchored on it
+     * instead of on the row where the output starts, so that jumping to or marking a command shows
+     * the line with the prompt and the command that was typed. In that case the {@code externalRow}
+     * is not marked at all, so that a command does not produce two marks.
+     */
+    public void markCommandStart(int externalRow) {
+        mRunningCommandStartNanos = System.nanoTime();
+
+        TerminalRow promptRow = mPromptStartRow;
+        if (promptRow != null && promptRow.mCommandMarkSequence == mPromptStartSequence) {
+            mRunningCommandRow = promptRow;
+            mRunningCommandSequence = mPromptStartSequence;
+            return;
+        }
+
+        TerminalRow line = allocateFullLineIfNecessary(externalToInternalRow(externalRow));
+        line.mCommandMark |= COMMAND_MARK_COMMAND_START;
+        line.mCommandMarkSequence = ++mCommandSequence;
+        mRunningCommandRow = line;
+        mRunningCommandSequence = line.mCommandMarkSequence;
+    }
+
+    /**
+     * Store the exit status of the last started command on its row, from `OSC 133;D;<exit code>`.
+     *
+     * Does nothing if no command was started since the last one finished, or if its row has been
+     * reused for other content since then, which happens if the output of the command was longer
+     * than the whole buffer.
+     */
+    public void markCommandFinished(int exitCode) {
+        TerminalRow line = mRunningCommandRow;
+        mRunningCommandRow = null;
+        mRunningCommandStartNanos = 0;
+        if (line == null || line.mCommandMarkSequence != mRunningCommandSequence) return;
+        line.mCommandMark |= exitCode == 0 ? COMMAND_MARK_COMMAND_SUCCEEDED : COMMAND_MARK_COMMAND_FAILED;
+    }
+
+    /** Clear all command marks of the buffer, like when the terminal is reset. */
+    public void clearCommandMarks() {
+        mPromptStartRow = null;
+        mPromptStartSequence = 0;
+        mRunningCommandRow = null;
+        mRunningCommandSequence = 0;
+        mRunningCommandStartNanos = 0;
+        for (TerminalRow line : mLines) {
+            if (line != null) {
+                line.mCommandMark = 0;
+                line.mCommandMarkSequence = 0;
+            }
+        }
+    }
+
+    /** A range of columns in a row that matches a search query. */
+    public static final class SearchMatch {
+        /** The external row of the match, which is negative for transcript rows. */
+        public final int row;
+        /** The first column of the match. */
+        public final int startColumn;
+        /** The column after the last column of the match, exclusive. */
+        public final int endColumn;
+
+        SearchMatch(int row, int startColumn, int endColumn) {
+            this.row = row;
+            this.startColumn = startColumn;
+            this.endColumn = endColumn;
+        }
+
+        @Override
+        public String toString() {
+            return "SearchMatch[row=" + row + ", startColumn=" + startColumn + ", endColumn=" + endColumn + "]";
+        }
+    }
+
+    /**
+     * A logical line of text, with the row, column and width of every character. A logical line may
+     * span multiple rows if it was wrapped, in which case the rows are concatenated without a
+     * separator so that a search query can match text that wrapped.
+     */
+    private static final class SearchableLine {
+        final StringBuilder text = new StringBuilder();
+        int[] rows = new int[64];
+        int[] columns = new int[64];
+        int[] widths = new int[64];
+        int count;
+
+        void append(int codePoint, int row, int column, int width) {
+            int charCount = Character.charCount(codePoint);
+            if (count + charCount > rows.length) {
+                int newLength = Math.max(rows.length * 2, count + charCount);
+                rows = Arrays.copyOf(rows, newLength);
+                columns = Arrays.copyOf(columns, newLength);
+                widths = Arrays.copyOf(widths, newLength);
+            }
+            for (int i = 0; i < charCount; i++) {
+                rows[count] = row;
+                columns[count] = column;
+                widths[count] = width;
+                count++;
+            }
+            text.appendCodePoint(codePoint);
+        }
+    }
+
+    /**
+     * Find all non-overlapping matches of {@code query} in the screen and the transcript, ignoring
+     * case, sorted by row and then column. A match that spans multiple rows because of line wrapping
+     * is returned as one {@link SearchMatch} per row. At most {@link #MAX_SEARCH_MATCHES} matches
+     * are returned.
+     */
+    public List<SearchMatch> findAllMatches(String query) {
+        if (query == null || query.isEmpty()) return Collections.emptyList();
+
+        char[] needle = new char[query.length()];
+        for (int i = 0; i < needle.length; i++) needle[i] = Character.toLowerCase(query.charAt(i));
+
+        List<SearchMatch> matches = new ArrayList<>();
+        SearchableLine line = new SearchableLine();
+
+        int row = -mActiveTranscriptRows;
+        while (row < mScreenRows && matches.size() < MAX_SEARCH_MATCHES) {
+            line.text.setLength(0);
+            line.count = 0;
+
+            int lastRow = row;
+            while (true) {
+                TerminalRow lineObject = allocateFullLineIfNecessary(externalToInternalRow(lastRow));
+                char[] chars = lineObject.mText;
+                int spaceUsed = lineObject.getSpaceUsed();
+                int charIndex = 0;
+                int column = 0;
+                while (charIndex < spaceUsed && column < mColumns) {
+                    char c = chars[charIndex];
+                    int codePoint;
+                    int charsForCodePoint;
+                    if (Character.isHighSurrogate(c) && charIndex + 1 < spaceUsed) {
+                        codePoint = Character.toCodePoint(c, chars[charIndex + 1]);
+                        charsForCodePoint = 2;
+                    } else {
+                        codePoint = c;
+                        charsForCodePoint = 1;
+                    }
+                    int width = WcWidth.width(codePoint);
+                    line.append(codePoint, lastRow, column, width);
+                    column += width;
+                    charIndex += charsForCodePoint;
+                }
+
+                if (!getLineWrap(lastRow) || lastRow >= mScreenRows - 1) break;
+                lastRow++;
+            }
+            row = lastRow + 1;
+
+            findMatchesInLine(line, needle, matches);
+        }
+
+        return matches;
+    }
+
+    /** Find the matches of {@code needle} in the logical {@code line}, ignoring case, and add them to {@code matches}. */
+    private static void findMatchesInLine(SearchableLine line, char[] needle, List<SearchMatch> matches) {
+        // Rows are padded with spaces to the full width when they are cleared, so the trailing spaces
+        // must be ignored, otherwise a query that ends with a space would match the padding of a row.
+        int length = line.count;
+        while (length > 0 && line.text.charAt(length - 1) == ' ') length--;
+        if (length < needle.length) return;
+
+        // Lowercase character by character instead of using String.toLowerCase(), since that may
+        // change the length of the text and break the mapping of characters to columns.
+        char[] lowered = new char[length];
+        for (int i = 0; i < length; i++) lowered[i] = Character.toLowerCase(line.text.charAt(i));
+        String loweredText = new String(lowered);
+        String loweredNeedle = new String(needle);
+
+        int from = 0;
+        while (from <= length - needle.length) {
+            int matchIndex = loweredText.indexOf(loweredNeedle, from);
+            if (matchIndex < 0) return;
+            int matchEnd = matchIndex + needle.length;
+
+            // A match may span multiple rows if the line was wrapped, in which case one range per
+            // row is added, since the rows are drawn separately.
+            int charIndex = matchIndex;
+            while (charIndex < matchEnd) {
+                int matchRow = line.rows[charIndex];
+                int startColumn = line.columns[charIndex];
+                int endColumn = startColumn + Math.max(1, line.widths[charIndex]);
+                int nextCharIndex = charIndex + 1;
+                while (nextCharIndex < matchEnd && line.rows[nextCharIndex] == matchRow) {
+                    endColumn = Math.max(endColumn, line.columns[nextCharIndex] + Math.max(1, line.widths[nextCharIndex]));
+                    nextCharIndex++;
+                }
+                matches.add(new SearchMatch(matchRow, startColumn, endColumn));
+                if (matches.size() >= MAX_SEARCH_MATCHES) return;
+                charIndex = nextCharIndex;
+            }
+
+            from = matchEnd;
+        }
+    }
+
     /**
      * Convert a row value from the public external coordinate system to our internal private coordinate system.
      *
@@ -348,6 +657,11 @@ public final class TerminalBuffer {
                     skippedBlankLines = 0;
                 }
 
+                // Mark the row on which the content of this old line starts, so that command marks
+                // survive a reflow that changes the number of columns.
+                final byte oldCommandMark = oldLine.mCommandMark;
+                boolean commandMarkCopied = false;
+
                 int lastNonSpaceIndex = 0;
                 boolean justToCursor = false;
                 if (cursorAtThisRow || oldLine.mLineWrap) {
@@ -385,6 +699,11 @@ public final class TerminalBuffer {
                             currentOutputExternalRow++;
                         }
                         currentOutputExternalColumn = 0;
+                    }
+
+                    if (!commandMarkCopied && oldCommandMark != 0) {
+                        allocateFullLineIfNecessary(externalToInternalRow(currentOutputExternalRow)).mCommandMark |= oldCommandMark;
+                        commandMarkCopied = true;
                     }
 
                     int offsetDueToCombiningChar = ((displayWidth <= 0 && currentOutputExternalColumn > 0) ? 1 : 0);
@@ -592,6 +911,9 @@ public final class TerminalBuffer {
         }
         mActiveTranscriptRows = 0;
         clearTerminalBitmaps();
+        // The prompt and the running command, if any, started in the dropped transcript rows.
+        mPromptStartRow = null;
+        mRunningCommandRow = null;
     }
 
 

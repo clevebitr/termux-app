@@ -86,6 +86,22 @@ abstract class TermuxPropertyPreferenceDataStore extends PreferenceDataStore {
         return stringValue;
     }
 
+    @Override
+    public void putInt(String key, int value) {
+        if (isLastReadValue(key, String.valueOf(value))) return;
+
+        setTermuxPropertyValue(key, String.valueOf(value));
+    }
+
+    @Override
+    public int getInt(String key, int defValue) {
+        String value = TermuxSharedProperties.getTermuxPropertyValue(mContext, key);
+        int intValue = DataUtils.isNullOrEmpty(value) ? defValue : DataUtils.getIntFromString(value, defValue);
+
+        setLastReadValue(key, String.valueOf(intValue));
+        return intValue;
+    }
+
     /** Remember the value read for the {@code key}, so that a preference persisting it again can be
      * recognized as a no-op. */
     protected void setLastReadValue(String key, @Nullable String value) {

@@ -110,6 +110,16 @@ import java.util.Set;
  * - 0.27.0 (2026-10-26)
  *      - Add `KEY_EXTRA_KEYS_TILE_BACKGROUND`, `KEY_EXTRA_KEYS_TILE_BACKGROUND_COLOR` and
  *          `KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND_COLOR`.
+ *
+ * - 0.28.0 (2026-10-27)
+ *      - Add `KEY_TERMINAL_PADDING_LEFT`, `KEY_TERMINAL_PADDING_TOP`, `KEY_TERMINAL_PADDING_RIGHT`
+ *          and `KEY_TERMINAL_PADDING_BOTTOM`.
+ *
+ * - 0.29.0 (2026-10-27)
+ *      - Add `KEY_TERMINAL_OSC52_CLIPBOARD` and `MAP_TERMINAL_OSC52_CLIPBOARD`.
+ *
+ * - 0.30.0 (2026-10-27)
+ *      - Add `IVALUE_VOLUME_KEY_ACTION_PREV_COMMAND` and `IVALUE_VOLUME_KEY_ACTION_NEXT_COMMAND`.
  */
 
 /**
@@ -314,6 +324,212 @@ public final class TermuxPropertyConstants {
     public static final int IVALUE_TERMINAL_MARGIN_VERTICAL_MIN = 0;
     public static final int IVALUE_TERMINAL_MARGIN_VERTICAL_MAX = 100;
     public static final int DEFAULT_IVALUE_TERMINAL_MARGIN_VERTICAL = 0;
+
+
+
+    /**
+     * Defines the key for the padding on the left of the terminal view in dp units. Unlike the
+     * `terminal-margin-*` properties, which inset the whole app content, including the terminal
+     * toolbar and the sessions drawer, the padding insets the terminal view only, so that it reduces
+     * the number of terminal rows and columns instead of moving the whole content, like the padding
+     * of the Windows Terminal. The padding area shows the terminal background color.
+     */
+    public static final String KEY_TERMINAL_PADDING_LEFT =  "terminal-padding-left"; // Default: "terminal-padding-left"
+
+    /** Defines the key for the padding on the top of the terminal view in dp units */
+    public static final String KEY_TERMINAL_PADDING_TOP =  "terminal-padding-top"; // Default: "terminal-padding-top"
+
+    /** Defines the key for the padding on the right of the terminal view in dp units */
+    public static final String KEY_TERMINAL_PADDING_RIGHT =  "terminal-padding-right"; // Default: "terminal-padding-right"
+
+    /** Defines the key for the padding on the bottom of the terminal view in dp units */
+    public static final String KEY_TERMINAL_PADDING_BOTTOM =  "terminal-padding-bottom"; // Default: "terminal-padding-bottom"
+
+    public static final int IVALUE_TERMINAL_PADDING_MIN = 0;
+    public static final int IVALUE_TERMINAL_PADDING_MAX = 100;
+    public static final int DEFAULT_IVALUE_TERMINAL_PADDING = 0;
+
+
+
+    /* status bar */
+
+    /**
+     * Defines the key for whether the status bar is shown above or below the terminal, which shows
+     * information like the time, the battery level, the memory and cpu usage, the network traffic
+     * and the ip and proxy of the device, like the top bar of a desktop environment.
+     *
+     * The status bar and all its options are documented in FORK.md. The per segment options use the
+     * `status-bar-segment-<id>-<option>` key pattern, which are also read from the properties file
+     * but are not part of this list, since they are parsed by the app instead of the shared library.
+     */
+    public static final String KEY_STATUS_BAR_ENABLED =  "status-bar-enabled"; // Default: "status-bar-enabled"
+
+    /** Defines the key for whether the status bar is shown above (`top`) or below (`bottom`) the terminal */
+    public static final String KEY_STATUS_BAR_POSITION =  "status-bar-position"; // Default: "status-bar-position"
+
+    /** Defines the key for whether the status bar is drawn over the terminal instead of insetting it */
+    public static final String KEY_STATUS_BAR_OVERLAY =  "status-bar-overlay"; // Default: "status-bar-overlay"
+
+    /** Defines the key for the height of the status bar in dp units */
+    public static final String KEY_STATUS_BAR_HEIGHT =  "status-bar-height"; // Default: "status-bar-height"
+
+    /** Defines the key for the font size of the status bar text in sp units */
+    public static final String KEY_STATUS_BAR_FONT_SIZE =  "status-bar-font-size"; // Default: "status-bar-font-size"
+
+    /** Defines the key for the horizontal padding of the status bar in dp units */
+    public static final String KEY_STATUS_BAR_PADDING_HORIZONTAL =  "status-bar-padding-horizontal"; // Default: "status-bar-padding-horizontal"
+
+    /** Defines the key for the string that is shown between two segments of the status bar */
+    public static final String KEY_STATUS_BAR_SEPARATOR =  "status-bar-separator"; // Default: "status-bar-separator"
+
+    /** Defines the key for the alignment of the segments of the status bar, `start`, `center` or `end` */
+    public static final String KEY_STATUS_BAR_ALIGN =  "status-bar-align"; // Default: "status-bar-align"
+
+    /** Defines the key for the background color of the status bar, a `theme:<name>` or `#aarrggbb` value */
+    public static final String KEY_STATUS_BAR_BACKGROUND_COLOR =  "status-bar-background-color"; // Default: "status-bar-background-color"
+
+    /** Defines the key for the text color of the status bar, a `theme:<name>` or `#aarrggbb` value */
+    public static final String KEY_STATUS_BAR_FOREGROUND_COLOR =  "status-bar-foreground-color"; // Default: "status-bar-foreground-color"
+
+    /** Defines the key for whether the icons of the segments are shown */
+    public static final String KEY_STATUS_BAR_SHOW_ICONS =  "status-bar-show-icons"; // Default: "status-bar-show-icons"
+
+    /** Defines the key for whether the icons are shown before (`start`) or after (`end`) the text */
+    public static final String KEY_STATUS_BAR_ICONS_POSITION =  "status-bar-icons-position"; // Default: "status-bar-icons-position"
+
+    /** Defines the key for the ids of the segments that are shown, separated by commas */
+    public static final String KEY_STATUS_BAR_SEGMENTS =  "status-bar-segments"; // Default: "status-bar-segments"
+
+    /**
+     * Defines the prefix of the keys for the options of a segment of the status bar, so that an
+     * option of the battery segment is defined by the `status-bar-segment-battery-format` key.
+     */
+    public static final String KEY_STATUS_BAR_SEGMENT_PREFIX = "status-bar-segment-";
+
+    /** Defines the suffix of the key for whether a segment is shown */
+    public static final String KEY_STATUS_BAR_SEGMENT_SUFFIX_ENABLED = "enabled";
+    /** Defines the suffix of the key for the format of the value of a segment */
+    public static final String KEY_STATUS_BAR_SEGMENT_SUFFIX_FORMAT = "format";
+    /** Defines the suffix of the key for the label that is shown before the value of a segment */
+    public static final String KEY_STATUS_BAR_SEGMENT_SUFFIX_LABEL = "label";
+    /** Defines the suffix of the key for the color of a segment */
+    public static final String KEY_STATUS_BAR_SEGMENT_SUFFIX_COLOR = "color";
+    /** Defines the suffix of the key for the style of a segment, `text`, `chart` or `text-chart` */
+    public static final String KEY_STATUS_BAR_SEGMENT_SUFFIX_STYLE = "style";
+    /** Defines the suffix of the key for the action that is run when a segment is clicked */
+    public static final String KEY_STATUS_BAR_SEGMENT_SUFFIX_ACTION = "action";
+    /** Defines the suffix of the key for the refresh interval of a segment in milliseconds */
+    public static final String KEY_STATUS_BAR_SEGMENT_SUFFIX_INTERVAL = "interval";
+    /** Defines the suffix of the key for the value above which a segment is drawn with the warning color */
+    public static final String KEY_STATUS_BAR_SEGMENT_SUFFIX_WARN_ABOVE = "warn-above";
+    /** Defines the suffix of the key for the value below which a segment is drawn with the warning color */
+    public static final String KEY_STATUS_BAR_SEGMENT_SUFFIX_WARN_BELOW = "warn-below";
+    /** Defines the suffix of the key for the warning color of a segment */
+    public static final String KEY_STATUS_BAR_SEGMENT_SUFFIX_WARN_COLOR = "warn-color";
+
+
+
+    /**
+     * Defines the key for whether the notification cards that are shown in the top right corner of
+     * the terminal are enabled.
+     *
+     * The notification cards and all their options are documented in FORK.md. Like the
+     * `status-bar-*` keys, the `notification-*` keys are parsed by the app instead of the shared
+     * library, so they are not part of {@link #TERMUX_APP_PROPERTIES_LIST}.
+     */
+    public static final String KEY_NOTIFICATION_ENABLED = "notification-enabled"; // Default: "notification-enabled"
+
+    /** Defines the key for the corner of the terminal that the notification cards are shown in */
+    public static final String KEY_NOTIFICATION_POSITION = "notification-position"; // Default: "notification-position"
+
+    /** Defines the key for the maximum number of notification cards that are shown at the same time */
+    public static final String KEY_NOTIFICATION_MAX_VISIBLE = "notification-max-visible"; // Default: "notification-max-visible"
+
+    /** Defines the key for how long a notification card is shown for in milliseconds, or `0` to not close it */
+    public static final String KEY_NOTIFICATION_DURATION = "notification-duration"; // Default: "notification-duration"
+
+    /** Defines the key for the width of the notification cards in dp, or `0` to fit their content */
+    public static final String KEY_NOTIFICATION_WIDTH = "notification-width"; // Default: "notification-width"
+
+    /** Defines the key for the background color of the notification cards */
+    public static final String KEY_NOTIFICATION_BACKGROUND_COLOR = "notification-background-color"; // Default: "notification-background-color"
+
+    /** Defines the key for the text color of the notification cards */
+    public static final String KEY_NOTIFICATION_FOREGROUND_COLOR = "notification-foreground-color"; // Default: "notification-foreground-color"
+
+    /** Defines the key for the accent color of the cards of failed commands and notifications */
+    public static final String KEY_NOTIFICATION_ACCENT_FAILURE_COLOR = "notification-accent-failure-color"; // Default: "notification-accent-failure-color"
+
+    /** Defines the key for the accent color of the cards of successful commands and notifications */
+    public static final String KEY_NOTIFICATION_ACCENT_SUCCESS_COLOR = "notification-accent-success-color"; // Default: "notification-accent-success-color"
+
+    /** Defines the key for the accent color of the cards of warnings, like an exited session */
+    public static final String KEY_NOTIFICATION_ACCENT_WARNING_COLOR = "notification-accent-warning-color"; // Default: "notification-accent-warning-color"
+
+    /** Defines the key for the accent color of informational notification cards */
+    public static final String KEY_NOTIFICATION_ACCENT_INFO_COLOR = "notification-accent-info-color"; // Default: "notification-accent-info-color"
+
+    /** Defines the key for whether a card is shown when a command exits with a non-zero exit code */
+    public static final String KEY_NOTIFICATION_EXIT_CODE_ENABLED = "notification-exit-code-enabled"; // Default: "notification-exit-code-enabled"
+
+    /** Defines the key for whether the working directory is shown in the card of a finished command */
+    public static final String KEY_NOTIFICATION_EXIT_CODE_SHOW_CWD = "notification-exit-code-show-cwd"; // Default: "notification-exit-code-show-cwd"
+
+    /** Defines the key for whether the session name is shown in the card of a finished command */
+    public static final String KEY_NOTIFICATION_EXIT_CODE_SHOW_SESSION = "notification-exit-code-show-session"; // Default: "notification-exit-code-show-session"
+
+    /** Defines the key for the minimum duration in seconds a command must run to show a card for it */
+    public static final String KEY_NOTIFICATION_EXIT_CODE_MIN_DURATION = "notification-exit-code-min-duration"; // Default: "notification-exit-code-min-duration"
+
+    /** Defines the key for the commands that do not show a card when they exit, separated by commas */
+    public static final String KEY_NOTIFICATION_EXIT_CODE_IGNORE_COMMANDS = "notification-exit-code-ignore-commands"; // Default: "notification-exit-code-ignore-commands"
+
+    /** Defines the key for whether the cards of app events, like an exited session, are enabled */
+    public static final String KEY_NOTIFICATION_EVENTS_ENABLED = "notification-events-enabled"; // Default: "notification-events-enabled"
+
+    /** Defines the key for the app events that show a card when they happen, separated by commas */
+    public static final String KEY_NOTIFICATION_EVENTS = "notification-events"; // Default: "notification-events"
+
+    /** Defines the key for whether the cards of `OSC 9`, `OSC 99` and `OSC 777` notifications are enabled */
+    public static final String KEY_NOTIFICATION_OSC_ENABLED = "notification-osc-enabled"; // Default: "notification-osc-enabled"
+
+    /** Defines the key for the applications whose `OSC` notifications are shown, separated by commas */
+    public static final String KEY_NOTIFICATION_OSC_ALLOW_APP = "notification-osc-allow-app"; // Default: "notification-osc-allow-app"
+
+    /** Defines the key for whether clicking a card sends an `OSC 99` activation report back to the program */
+    public static final String KEY_NOTIFICATION_OSC_REPORT_CLICK = "notification-osc-report-click"; // Default: "notification-osc-report-click"
+
+    /** Defines the key for whether the icon data that a program sends with `OSC 99 ; p=icon` is shown */
+    public static final String KEY_NOTIFICATION_OSC_ICONS = "notification-osc-icons"; // Default: "notification-osc-icons"
+
+    /** Defines the key for whether a system notification is shown when the app is not in the foreground */
+    public static final String KEY_NOTIFICATION_BACKGROUND_ENABLED = "notification-background-enabled"; // Default: "notification-background-enabled"
+
+    /** Defines the key for the number of notifications that are kept in the recent notifications list */
+    public static final String KEY_NOTIFICATION_HISTORY_SIZE = "notification-history-size"; // Default: "notification-history-size"
+
+
+
+    /**
+     * Defines the key for whether the terminal program is allowed to use the `OSC 52` escape to
+     * read and/or write the system clipboard.
+     *
+     * Reading the clipboard is disabled by default, since a program, like a remote shell, could
+     * otherwise read everything the user has copied without any confirmation.
+     */
+    public static final String KEY_TERMINAL_OSC52_CLIPBOARD =  "terminal-osc52-clipboard"; // Default: "terminal-osc52-clipboard"
+    public static final String IVALUE_TERMINAL_OSC52_CLIPBOARD_WRITE = "write";
+    public static final String IVALUE_TERMINAL_OSC52_CLIPBOARD_READ_WRITE = "read-write";
+    public static final String IVALUE_TERMINAL_OSC52_CLIPBOARD_OFF = "off";
+    public static final String DEFAULT_IVALUE_TERMINAL_OSC52_CLIPBOARD = IVALUE_TERMINAL_OSC52_CLIPBOARD_WRITE;
+
+    /** Defines the bidirectional map for the `terminal-osc52-clipboard` values and their internal values */
+    public static final ImmutableBiMap<String, String> MAP_TERMINAL_OSC52_CLIPBOARD =
+        new ImmutableBiMap.Builder<String, String>()
+            .put(IVALUE_TERMINAL_OSC52_CLIPBOARD_WRITE, IVALUE_TERMINAL_OSC52_CLIPBOARD_WRITE)
+            .put(IVALUE_TERMINAL_OSC52_CLIPBOARD_READ_WRITE, IVALUE_TERMINAL_OSC52_CLIPBOARD_READ_WRITE)
+            .put(IVALUE_TERMINAL_OSC52_CLIPBOARD_OFF, IVALUE_TERMINAL_OSC52_CLIPBOARD_OFF)
+            .build();
 
 
 
@@ -567,6 +783,10 @@ public final class TermuxPropertyConstants {
     public static final String IVALUE_VOLUME_KEY_ACTION_PAGE_UP = "page-up";
     /** Defines the internal value for the action that sends the Page Down key */
     public static final String IVALUE_VOLUME_KEY_ACTION_PAGE_DOWN = "page-down";
+    /** Defines the internal value for the action that scrolls to the previous command (shell integration) */
+    public static final String IVALUE_VOLUME_KEY_ACTION_PREV_COMMAND = "prev-command";
+    /** Defines the internal value for the action that scrolls to the next command (shell integration) */
+    public static final String IVALUE_VOLUME_KEY_ACTION_NEXT_COMMAND = "next-command";
     /** Defines the internal value for the action that switches to the previous session */
     public static final String IVALUE_VOLUME_KEY_ACTION_PREV_SESSION = "prev-session";
     /** Defines the internal value for the action that switches to the next session */
@@ -596,6 +816,8 @@ public final class TermuxPropertyConstants {
             .put(IVALUE_VOLUME_KEY_ACTION_TOGGLE_EXTRA_KEYS, IVALUE_VOLUME_KEY_ACTION_TOGGLE_EXTRA_KEYS)
             .put(IVALUE_VOLUME_KEY_ACTION_PAGE_UP, IVALUE_VOLUME_KEY_ACTION_PAGE_UP)
             .put(IVALUE_VOLUME_KEY_ACTION_PAGE_DOWN, IVALUE_VOLUME_KEY_ACTION_PAGE_DOWN)
+            .put(IVALUE_VOLUME_KEY_ACTION_PREV_COMMAND, IVALUE_VOLUME_KEY_ACTION_PREV_COMMAND)
+            .put(IVALUE_VOLUME_KEY_ACTION_NEXT_COMMAND, IVALUE_VOLUME_KEY_ACTION_NEXT_COMMAND)
             .put(IVALUE_VOLUME_KEY_ACTION_PREV_SESSION, IVALUE_VOLUME_KEY_ACTION_PREV_SESSION)
             .put(IVALUE_VOLUME_KEY_ACTION_NEXT_SESSION, IVALUE_VOLUME_KEY_ACTION_NEXT_SESSION)
             .put(IVALUE_VOLUME_KEY_ACTION_NEW_SESSION, IVALUE_VOLUME_KEY_ACTION_NEW_SESSION)
@@ -640,6 +862,10 @@ public final class TermuxPropertyConstants {
         KEY_TERMINAL_CURSOR_STYLE,
         KEY_TERMINAL_MARGIN_HORIZONTAL,
         KEY_TERMINAL_MARGIN_VERTICAL,
+        KEY_TERMINAL_PADDING_LEFT,
+        KEY_TERMINAL_PADDING_TOP,
+        KEY_TERMINAL_PADDING_RIGHT,
+        KEY_TERMINAL_PADDING_BOTTOM,
         KEY_TERMINAL_TRANSCRIPT_ROWS,
 
         /* float */
@@ -665,6 +891,7 @@ public final class TermuxPropertyConstants {
         KEY_EXTRA_KEYS_TILE_ACTIVE_BACKGROUND_COLOR,
         KEY_NIGHT_MODE,
         KEY_SOFT_KEYBOARD_TOGGLE_BEHAVIOUR,
+        KEY_TERMINAL_OSC52_CLIPBOARD,
         KEY_VOLUME_KEYS_BEHAVIOUR,
         KEY_VOLUME_UP_ACTION,
         KEY_VOLUME_UP_LONG_ACTION,

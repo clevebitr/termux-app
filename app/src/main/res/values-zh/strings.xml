@@ -294,6 +294,8 @@
                 <string name="termux_volume_key_action_toggle_extra_keys">显示/隐藏虚拟键盘行</string>
                 <string name="termux_volume_key_action_page_up">向上滚动（Page Up）</string>
                 <string name="termux_volume_key_action_page_down">向下滚动（Page Down）</string>
+                <string name="termux_volume_key_action_prev_command">跳到上一条命令（需要 shell 集成）</string>
+                <string name="termux_volume_key_action_next_command">跳到下一条命令（需要 shell 集成）</string>
                 <string name="termux_volume_key_action_prev_session">切换到上一个会话</string>
                 <string name="termux_volume_key_action_next_session">切换到下一个会话</string>
                 <string name="termux_volume_key_action_new_session">新建会话</string>
@@ -407,6 +409,31 @@
 
 
     <!-- Terminal View Preferences -->
+    <!-- Shell Integration Command Marks -->
+    <string name="action_previous_command">上一条命令</string>
+    <string name="action_next_command">下一条命令</string>
+    <string name="msg_command_failed">命令退出码 %1$d</string>
+
+
+    <!-- Split Screen -->
+    <string name="action_split_screen_vertical">分屏（上下）</string>
+    <string name="action_split_screen_horizontal">分屏（左右）</string>
+    <string name="action_split_screen_close">关闭分屏</string>
+
+
+    <!-- Terminal Search -->
+    <string name="action_search_terminal">搜索</string>
+    <string name="action_search_terminal_hint">在终端中搜索</string>
+    <string name="action_search_results">%1$d/%2$d</string>
+    <string name="action_search_previous">上一个匹配</string>
+    <string name="action_search_next">下一个匹配</string>
+    <string name="action_search_close">关闭搜索</string>
+    <string name="action_search_previous_symbol" translatable="false">\u2191</string>
+    <string name="action_search_next_symbol" translatable="false">\u2193</string>
+    <string name="action_search_close_symbol" translatable="false">\u2715</string>
+
+
+    <!-- Terminal View Preferences -->
         <string name="termux_terminal_view_preferences_title">终端视图</string>
         <string name="termux_terminal_view_preferences_summary">终端视图相关设置</string>
 
@@ -425,6 +452,50 @@
                 <string name="termux_terminal_view_switch_session_on_swipe_off">在终端上左右滑动不会切换会话。</string>
                 <string name="termux_terminal_view_switch_session_on_swipe_on">在终端上左右滑动会切换到上一个/下一个会话。
                     选择文本时以及终端程序开启了鼠标跟踪时不会触发。（默认）</string>
+
+            <!-- Padding Category -->
+            <string name="termux_terminal_view_padding_header">终端内边距</string>
+            <string name="termux_terminal_view_padding_summary">单位 dp，0–100。让终端内容与窗口边缘留白，
+                类似 Windows Terminal 的 padding。底部虚拟键盘行与会话抽屉不受影响。</string>
+
+                <!-- Terminal Padding Top -->
+                <string name="termux_terminal_view_padding_top_title">上边距</string>
+
+                <!-- Terminal Padding Bottom -->
+                <string name="termux_terminal_view_padding_bottom_title">下边距</string>
+
+                <!-- Terminal Padding Left -->
+                <string name="termux_terminal_view_padding_left_title">左边距</string>
+
+                <!-- Terminal Padding Right -->
+                <string name="termux_terminal_view_padding_right_title">右边距</string>
+
+            <!-- Clipboard Category -->
+            <string name="termux_terminal_view_clipboard_header">剪贴板</string>
+
+                <!-- OSC 52 Clipboard -->
+                <string name="termux_terminal_view_osc52_clipboard_title">OSC 52 剪贴板</string>
+                <string name="termux_terminal_view_osc52_clipboard_write">允许终端程序写入剪贴板（默认）</string>
+                <string name="termux_terminal_view_osc52_clipboard_read_write">允许终端程序读写剪贴板（较不安全，远程主机可能读到你复制的全部内容）</string>
+                <string name="termux_terminal_view_osc52_clipboard_off">忽略终端程序的 OSC 52 剪贴板请求</string>
+
+            <!-- Shell Integration Category -->
+            <string name="termux_terminal_view_shell_integration_header">Shell 集成</string>
+            <string name="termux_terminal_view_shell_integration_install_title">安装 shell 集成</string>
+            <string name="termux_terminal_view_shell_integration_install_summary">把 OSC 133 命令标记写入
+                ~/.bashrc（若存在 ~/.zshrc 也写入），之后可以跳转命令、点击右侧标记、看到失败的
+                命令。重开会话或执行 `source ~/.bashrc` 生效。</string>
+            <string name="termux_terminal_view_shell_integration_install_outdated_summary">已安装的 shell 集成是旧版本。重新安装一次，通知卡片才能显示执行的命令。</string>
+            <string name="termux_terminal_view_shell_integration_uninstall_title">卸载 shell 集成</string>
+            <string name="termux_terminal_view_shell_integration_uninstall_summary">从 rc 文件里删除添加的
+                配置块和脚本，rc 文件的其它内容不动。</string>
+
+            <!-- Shell Integration Messages -->
+            <string name="msg_shell_integration_installed">shell 集成已安装。重开会话或执行
+                `source ~/.bashrc` 生效。</string>
+            <string name="msg_shell_integration_uninstalled">shell 集成已卸载。</string>
+            <string name="msg_shell_integration_install_failed">安装 shell 集成失败。</string>
+            <string name="msg_shell_integration_uninstall_failed">卸载 shell 集成失败。</string>
 
 
 
@@ -458,4 +529,99 @@
     <!-- Donate Preference -->
     <string name="donate_preference_title">捐赠</string>
 
+
+    <!-- 状态栏 -->
+    <string name="termux_status_bar_preferences_title">状态栏</string>
+    <string name="termux_status_bar_preferences_summary">在终端上方或下方显示时间、电量、内存、CPU、网络、IP 和代理</string>
+
+    <string name="termux_status_bar_general_header">基本</string>
+    <string name="termux_status_bar_enabled_title">显示状态栏</string>
+    <string name="termux_status_bar_enabled_on">状态栏已显示</string>
+    <string name="termux_status_bar_enabled_off">状态栏已隐藏</string>
+    <string name="termux_status_bar_position_title">位置</string>
+    <string name="termux_status_bar_overlay_title">覆盖模式</string>
+    <string name="termux_status_bar_overlay_on">状态栏浮在终端上方，不改变终端行列数</string>
+    <string name="termux_status_bar_overlay_off">状态栏占用空间，终端行列数相应减少</string>
+    <string name="termux_status_bar_height_title">高度（dp）</string>
+    <string name="termux_status_bar_height_summary">状态栏的高度，单位 dp</string>
+    <string name="termux_status_bar_font_size_title">字号（sp）</string>
+    <string name="termux_status_bar_font_size_summary">各段文字的字号，单位 sp</string>
+    <string name="termux_status_bar_padding_title">左右内边距（dp）</string>
+    <string name="termux_status_bar_padding_summary">状态栏左右两侧的内边距，单位 dp</string>
+    <string name="termux_status_bar_align_title">对齐</string>
+    <string name="termux_status_bar_show_icons_title">显示图标</string>
+    <string name="termux_status_bar_show_icons_on">每段显示一个图标</string>
+    <string name="termux_status_bar_show_icons_off">只显示文字</string>
+    <string name="termux_status_bar_icons_position_title">图标位置</string>
+    <string name="termux_status_bar_separator_title">分隔符</string>
+    <string name="termux_status_bar_separator_summary">两段之间显示的字符串，\\t、\\n 会以转义形式写入配置文件</string>
+    <string name="termux_status_bar_segments_title">显示的段</string>
+    <string name="termux_status_bar_segments_summary">要显示的段 id，按顺序逗号分隔：clock、battery、memory、cpu、net、ip、proxy</string>
+
+    <string name="termux_status_bar_colors_header">配色</string>
+    <string name="termux_status_bar_colors_summary">未指定颜色时使用终端配色方案的颜色，所以状态栏会跟随 Termux:Styling</string>
+    <string name="termux_status_bar_background_color_title">背景色</string>
+    <string name="termux_status_bar_foreground_color_title">文字与图标颜色</string>
+
+    <string name="termux_status_bar_segment_clock">时间</string>
+    <string name="termux_status_bar_segment_battery">电池</string>
+    <string name="termux_status_bar_segment_memory">内存</string>
+    <string name="termux_status_bar_segment_cpu">CPU</string>
+    <string name="termux_status_bar_segment_net">网络</string>
+    <string name="termux_status_bar_segment_ip">IP 地址</string>
+    <string name="termux_status_bar_segment_proxy">代理</string>
+
+    <string name="termux_status_bar_segment_enabled_title">显示该段</string>
+    <string name="termux_status_bar_segment_enabled_on">该段在「显示的段」列表中时才会显示</string>
+    <string name="termux_status_bar_segment_enabled_off">该段不显示</string>
+    <string name="termux_status_bar_segment_format_title">格式</string>
+    <string name="termux_status_bar_segment_clock_format_summary">Java SimpleDateFormat 模式，如 HH:mm:ss 或 E HH:mm</string>
+    <string name="termux_status_bar_segment_battery_format_summary">%p 百分比、%t 温度、%s 充电状态</string>
+    <string name="termux_status_bar_segment_memory_format_summary">%p 百分比、%u 已用、%a 可用、%t 总量</string>
+    <string name="termux_status_bar_segment_cpu_format_summary">%p 使用率百分比、%f 当前频率、%m 最高频率、%c 核心数</string>
+    <string name="termux_status_bar_segment_net_format_summary">%rx 下载速率、%tx 上传速率、%rxTotal 累计下行、%txTotal 累计上行</string>
+    <string name="termux_status_bar_segment_ip_format_summary">%4 IPv4、%6 IPv6、%i 首选地址、%if 网卡名</string>
+    <string name="termux_status_bar_segment_proxy_format_summary">%p 主机加端口、%h 主机、%o 端口、%t 类型（none、http、pac）</string>
+    <string name="termux_status_bar_segment_label_title">标签</string>
+    <string name="termux_status_bar_segment_label_summary">显示在数值前的标签，如 CPU</string>
+    <string name="termux_status_bar_segment_style_title">样式</string>
+    <string name="termux_status_bar_segment_action_title">点击动作</string>
+    <string name="termux_status_bar_segment_color_title">颜色</string>
+
+    <string name="msg_status_bar_action_failed">执行状态栏段的动作 \"%1$s\" 失败</string>
+
+    <string name="termux_status_bar_position_top">顶部</string>
+    <string name="termux_status_bar_position_bottom">底部</string>
+    <string name="termux_status_bar_align_start">靠左</string>
+    <string name="termux_status_bar_align_center">居中</string>
+    <string name="termux_status_bar_align_end">靠右</string>
+    <string name="termux_status_bar_icons_position_start">文字前</string>
+    <string name="termux_status_bar_icons_position_end">文字后</string>
+    <string name="termux_status_bar_style_text">仅文字</string>
+    <string name="termux_status_bar_style_chart">仅图表</string>
+    <string name="termux_status_bar_style_text_chart">文字 + 图表</string>
+    <string name="termux_status_bar_action_none">无</string>
+    <string name="termux_status_bar_action_wifi_settings">打开 WLAN 设置</string>
+    <string name="termux_status_bar_action_battery_settings">打开电池设置</string>
+    <string name="termux_status_bar_action_data_settings">打开移动数据设置</string>
+    <string name="termux_status_bar_action_app_settings">打开应用信息</string>
+    <string name="termux_status_bar_action_new_session">新建会话</string>
+    <string name="termux_color_preference_hint">#RRGGBB 或 theme:color4</string>
+
+
+    <!-- Notification Cards -->
+    <string name="notification_close">关闭通知</string>
+    <string name="action_send_test_notification">发送测试通知</string>
+    <string name="notification_meta_separator" translatable="false">\u00b7</string>
+    <string name="notification_test_title_failed_command">退出码 %1$d</string>
+    <string name="notification_test_title_succeeded_command">命令成功</string>
+    <string name="notification_test_title_session_exited">会话已退出</string>
+    <string name="notification_test_title_osc">构建完成</string>
+    <string name="notification_test_body_osc">所有任务已完成，耗时 8.2s</string>
+    <string name="notification_test_body_succeeded_command" translatable="false">git push origin master</string>
+    <string name="notification_test_meta_command" translatable="false">make -j8</string>
+    <string name="notification_test_meta_osc_app" translatable="false">nvim</string>
+    <string name="notification_test_meta_cwd" translatable="false">~/repos/termux-app</string>
+    <string name="notification_test_meta_duration" translatable="false">12.3s</string>
+    <string name="notification_test_meta_session" translatable="false">bash</string>
 </resources>

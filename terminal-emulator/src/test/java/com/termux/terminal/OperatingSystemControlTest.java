@@ -1,7 +1,6 @@
 package com.termux.terminal;
 
-import android.util.Base64;
-
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -138,9 +137,49 @@ public class OperatingSystemControlTest extends TerminalTestCase {
 		assertIndexColorsMatch(TerminalColors.COLOR_SCHEME.mDefaultColors);
 	}
 
-	public void disabledTestSetClipboard() {
-		// Cannot run this as a unit test since Base64 is a android.util class.
-		enterString("\033]52;c;" + Base64.encodeToString("Hello, world".getBytes(), 0) + "\007");
+	public void testSetClipboard() {
+		withTerminalSized(10, 10);
+		enterString("\033]52;c;" + TerminalBase64.encodeToString("Hello, world".getBytes(StandardCharsets.UTF_8)) + "\007");
+		assertEquals(1, mOutput.clipboardPuts.size());
+		assertEquals("Hello, world", mOutput.clipboardPuts.get(0));
+	}
+
+	public void testSetClipboardWithEmptySelection() {
+		withTerminalSized(10, 10);
+		enterString("\033]52;;" + TerminalBase64.encodeToString("Hello".getBytes(StandardCharsets.UTF_8)) + "\007");
+		assertEquals("Hello", mOutput.clipboardPuts.get(0));
+	}
+
+	public void testSetClipboardWithInvalidBase64IsIgnored() {
+		withTerminalSized(10, 10);
+		enterString("\033]52;c;not*valid*base64\007");
+		enterString("\033]52;c\007"); // No data at all.
+		assertEquals(0, mOutput.clipboardPuts.size());
+	}
+
+	public void testGetClipboard() {
+		withTerminalSized(10, 10);
+		mOutput.clipboardText = "Hello, world";
+		enterString("\033]52;c;?\007");
+		assertEquals(1, mOutput.clipboardReads);
+		// The response must be terminated with `ST` instead of `BEL`, so that it can be parsed even
+		// if the clipboard contains control characters.
+		assertEquals("\033]52;c;SGVsbG8sIHdvcmxk\033\\", mOutput.getOutputAndClear());
+	}
+
+	public void testGetClipboardWithMultipleSelectionTargets() {
+		withTerminalSized(10, 10);
+		mOutput.clipboardText = "abc";
+		enterString("\033]52;cp;?\033\\");
+		assertEquals("\033]52;cp;YWJj\033\\", mOutput.getOutputAndClear());
+	}
+
+	public void testGetClipboardIsIgnoredIfClientDoesNotAllowReadingIt() {
+		withTerminalSized(10, 10);
+		mOutput.clipboardText = null;
+		enterString("\033]52;c;?\007");
+		assertEquals(1, mOutput.clipboardReads);
+		assertEquals("", mOutput.getOutputAndClear());
 	}
 
 	public void testResettingTerminalResetsColor() throws Exception {

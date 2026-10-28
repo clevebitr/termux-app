@@ -1,7 +1,5 @@
 package com.termux.terminal;
 
-import android.util.Base64;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Locale;
@@ -2905,15 +2903,31 @@ public final class TerminalEmulator {
                     }
                 }
                 break;
-            case 52: // Manipulate Selection Data. Skip the optional first selection parameter(s).
-                int startIndex = textParameter.indexOf(";") + 1;
-                try {
-                    String clipboardText = new String(Base64.decode(textParameter.substring(startIndex), Base64.DEFAULT), StandardCharsets.UTF_8);
-                    mSession.onCopyTextToClipboard(clipboardText);
-                } catch (Exception e) {
-                    Logger.logError(mClient, LOG_TAG, "OSC Manipulate selection, invalid string '" + textParameter + "'");
+            case 52: {
+                // Manipulate Selection Data. Skip the optional first selection parameter(s).
+                // `OSC 52 ; Pc ; <base64>` sets the clipboard and `OSC 52 ; Pc ; ?` reads it.
+                int separatorIndex = textParameter.indexOf(";");
+                if (separatorIndex < 0) break;
+
+                String selection = textParameter.substring(0, separatorIndex);
+                String data = textParameter.substring(separatorIndex + 1);
+                if (data.equals("?")) {
+                    // Reading the clipboard is only possible if the client allows it, since a program
+                    // like a remote shell could otherwise read everything the user has copied.
+                    String clipboardText = mSession.getClipboardText();
+                    if (clipboardText != null) {
+                        mSession.write("\033]52;" + selection + ";" + TerminalBase64.encodeToString(clipboardText.getBytes(StandardCharsets.UTF_8)) + "\033\\");
+                    }
+                } else {
+                    try {
+                        String clipboardText = new String(TerminalBase64.decode(data), StandardCharsets.UTF_8);
+                        mSession.onCopyTextToClipboard(clipboardText);
+                    } catch (Exception e) {
+                        Logger.logError(mClient, LOG_TAG, "OSC Manipulate selection, invalid string '" + textParameter + "'");
+                    }
                 }
                 break;
+            }
             case 104:
                 // "104;$c" → Reset Color Number $c. It is reset to the color specified by the corresponding X
                 // resource. Any number of c parameters may be given. These parameters correspond to the ANSI colors 0-7,
@@ -2949,6 +2963,59 @@ public final class TerminalEmulator {
                 break;
             case 119: // Reset highlight color.
                 break;
+            case 133: {
+                // Shell integration prompt and command marks, so that the user can jump between the
+                // commands in the transcript and see which of them failed.
+                // - https://gitlab.freedesktop.org/Per_Bothner/specifications/blob/master/proposals/semantic-prompts.md
+                if (textParameter.isEmpty()) break;
+
+                // Only the first character is the mark type, additional `;key=value` parameters are
+                // used by other terminals for their own features and are ignored.
+                switch (textParameter.charAt(0)) {
+                    case 'A': // The prompt starts here.
+                        mScreen.markPromptStart(mCursorRow);
+                        break;
+                    case 'B': // The prompt ends here and the user can type the command.
+                        // Not needed, since only the prompt start is used.
+                        break;
+                    case 'C': // The command line was accepted and its output starts here.
+                        mScreen.markCommandStart(mCursorRow);
+                        break;
+                    case 'D': { // The command finished, optionally with `;D;<exit code>;<command>`.
+                        int exitCode = 0;
+                        String command = null;
+                        int exitCodeSeparatorIndex = textParameter.indexOf(';');
+                        if (exitCodeSeparatorIndex >= 0) {
+                            // Any additional `;` separated parameters after the exit code are ignored,
+                            // except for the second one, which the shell integration scripts of the
+                            // fork use to report the command line that was executed, so that the
+                            // terminal can show it in a notification without having to guess it.
+                            String exitCodeString = textParameter.substring(exitCodeSeparatorIndex + 1);
+                            int nextSeparatorIndex = exitCodeString.indexOf(';');
+                            if (nextSeparatorIndex >= 0) {
+                                String commandParameter = exitCodeString.substring(nextSeparatorIndex + 1).trim();
+                                if (!commandParameter.isEmpty()) command = commandParameter;
+                                exitCodeString = exitCodeString.substring(0, nextSeparatorIndex);
+                            }
+                            try {
+                                exitCode = Integer.parseInt(exitCodeString.trim());
+                            } catch (NumberFormatException e) {
+                                // Ignore the exit code if it is invalid.
+                            }
+                        }
+
+                        // The duration and the sequence number must be read before the command is
+                        // marked as finished, since that clears the running command state.
+                        TerminalCommandResult result = new TerminalCommandResult(exitCode, command,
+                            mScreen.getRunningCommandDurationMs(), mScreen.getRunningCommandSequence());
+
+                        mScreen.markCommandFinished(exitCode);
+                        mSession.onCommandFinished(result);
+                        break;
+                    }
+                }
+                break;
+            }
             case 1337: // iTerm image
                 // - https://iterm2.com/documentation-images.html
                 // - https://iterm2.com/documentation-escape-codes.html
@@ -3576,6 +3643,7 @@ public final class TerminalEmulator {
         clearOscTypeVariables();
         mITermImage = null;
         mCurrentHyperlinkUri = null;
+        mScreen.clearCommandMarks();
     }
 
     public String getSelectedText(int x1, int y1, int x2, int y2) {

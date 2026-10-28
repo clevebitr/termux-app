@@ -280,6 +280,14 @@ public abstract class TermuxSharedProperties {
                 return (int) getTerminalMarginHorizontalInternalPropertyValueFromValue(value);
             case TermuxPropertyConstants.KEY_TERMINAL_MARGIN_VERTICAL:
                 return (int) getTerminalMarginVerticalInternalPropertyValueFromValue(value);
+            case TermuxPropertyConstants.KEY_TERMINAL_PADDING_LEFT:
+                return (int) getTerminalPaddingInternalPropertyValueFromValue(TermuxPropertyConstants.KEY_TERMINAL_PADDING_LEFT, value);
+            case TermuxPropertyConstants.KEY_TERMINAL_PADDING_TOP:
+                return (int) getTerminalPaddingInternalPropertyValueFromValue(TermuxPropertyConstants.KEY_TERMINAL_PADDING_TOP, value);
+            case TermuxPropertyConstants.KEY_TERMINAL_PADDING_RIGHT:
+                return (int) getTerminalPaddingInternalPropertyValueFromValue(TermuxPropertyConstants.KEY_TERMINAL_PADDING_RIGHT, value);
+            case TermuxPropertyConstants.KEY_TERMINAL_PADDING_BOTTOM:
+                return (int) getTerminalPaddingInternalPropertyValueFromValue(TermuxPropertyConstants.KEY_TERMINAL_PADDING_BOTTOM, value);
             case TermuxPropertyConstants.KEY_TERMINAL_TRANSCRIPT_ROWS:
                 return (int) getTerminalTranscriptRowsInternalPropertyValueFromValue(value);
 
@@ -305,6 +313,8 @@ public abstract class TermuxSharedProperties {
                 return (String) getExtraKeysStyleInternalPropertyValueFromValue(value);
             case TermuxPropertyConstants.KEY_NIGHT_MODE:
                 return (String) getNightModeInternalPropertyValueFromValue(value);
+            case TermuxPropertyConstants.KEY_TERMINAL_OSC52_CLIPBOARD:
+                return (String) getTerminalOsc52ClipboardInternalPropertyValueFromValue(value);
             case TermuxPropertyConstants.KEY_SOFT_KEYBOARD_TOGGLE_BEHAVIOUR:
                 return (String) getSoftKeyboardToggleBehaviourInternalPropertyValueFromValue(value);
             case TermuxPropertyConstants.KEY_VOLUME_KEYS_BEHAVIOUR:
@@ -439,6 +449,27 @@ public abstract class TermuxSharedProperties {
 
     /**
      * Returns the int for the value if its not null and is between
+     * {@link TermuxPropertyConstants#IVALUE_TERMINAL_PADDING_MIN} and
+     * {@link TermuxPropertyConstants#IVALUE_TERMINAL_PADDING_MAX},
+     * otherwise returns {@link TermuxPropertyConstants#DEFAULT_IVALUE_TERMINAL_PADDING}.
+     *
+     * @param key The {@link TermuxPropertyConstants} key for the padding, like
+     *            {@link TermuxPropertyConstants#KEY_TERMINAL_PADDING_LEFT}, so that log messages
+     *            contain the correct key.
+     * @param value The {@link String} value to convert.
+     * @return Returns the internal value for value.
+     */
+    public static int getTerminalPaddingInternalPropertyValueFromValue(String key, String value) {
+        return SharedProperties.getDefaultIfNotInRange(key,
+            DataUtils.getIntFromString(value, TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_PADDING),
+            TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_PADDING,
+            TermuxPropertyConstants.IVALUE_TERMINAL_PADDING_MIN,
+            TermuxPropertyConstants.IVALUE_TERMINAL_PADDING_MAX,
+            true, true, LOG_TAG);
+    }
+
+    /**
+     * Returns the int for the value if its not null and is between
      * {@link TermuxPropertyConstants#IVALUE_TERMINAL_TRANSCRIPT_ROWS_MIN} and
      * {@link TermuxPropertyConstants#IVALUE_TERMINAL_TRANSCRIPT_ROWS_MAX},
      * otherwise returns {@link TermuxPropertyConstants#DEFAULT_IVALUE_TERMINAL_TRANSCRIPT_ROWS}.
@@ -513,6 +544,20 @@ public abstract class TermuxSharedProperties {
      */
     public static String getBackKeyBehaviourInternalPropertyValueFromValue(String value) {
         return (String) SharedProperties.getDefaultIfNotInMap(TermuxPropertyConstants.KEY_BACK_KEY_BEHAVIOUR, TermuxPropertyConstants.MAP_BACK_KEY_BEHAVIOUR, SharedProperties.toLowerCase(value), TermuxPropertyConstants.DEFAULT_IVALUE_BACK_KEY_BEHAVIOUR, true, LOG_TAG);
+    }
+
+    /**
+     * Returns the value if its not null and is present in
+     * {@link TermuxPropertyConstants#MAP_TERMINAL_OSC52_CLIPBOARD},
+     * otherwise returns {@link TermuxPropertyConstants#DEFAULT_IVALUE_TERMINAL_OSC52_CLIPBOARD}.
+     *
+     * @param value The {@link String} value to convert.
+     * @return Returns the internal value for value.
+     */
+    public static String getTerminalOsc52ClipboardInternalPropertyValueFromValue(String value) {
+        return (String) SharedProperties.getDefaultIfNotInMap(TermuxPropertyConstants.KEY_TERMINAL_OSC52_CLIPBOARD,
+            TermuxPropertyConstants.MAP_TERMINAL_OSC52_CLIPBOARD, SharedProperties.toLowerCase(value),
+            TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_OSC52_CLIPBOARD, true, LOG_TAG);
     }
 
     /**
@@ -858,6 +903,34 @@ public abstract class TermuxSharedProperties {
 
     public int getTerminalMarginVertical() {
         return (int) getInternalPropertyValue(TermuxPropertyConstants.KEY_TERMINAL_MARGIN_VERTICAL, true);
+    }
+
+    public int getTerminalPaddingLeft() {
+        return (int) getInternalPropertyValue(TermuxPropertyConstants.KEY_TERMINAL_PADDING_LEFT, true);
+    }
+
+    public int getTerminalPaddingTop() {
+        return (int) getInternalPropertyValue(TermuxPropertyConstants.KEY_TERMINAL_PADDING_TOP, true);
+    }
+
+    public int getTerminalPaddingRight() {
+        return (int) getInternalPropertyValue(TermuxPropertyConstants.KEY_TERMINAL_PADDING_RIGHT, true);
+    }
+
+    public int getTerminalPaddingBottom() {
+        return (int) getInternalPropertyValue(TermuxPropertyConstants.KEY_TERMINAL_PADDING_BOTTOM, true);
+    }
+
+    public String getTerminalOsc52Clipboard() {
+        return (String) getInternalPropertyValue(TermuxPropertyConstants.KEY_TERMINAL_OSC52_CLIPBOARD, true);
+    }
+
+    public boolean isTerminalOsc52ClipboardWriteAllowed() {
+        return !TermuxPropertyConstants.IVALUE_TERMINAL_OSC52_CLIPBOARD_OFF.equals(getTerminalOsc52Clipboard());
+    }
+
+    public boolean isTerminalOsc52ClipboardReadAllowed() {
+        return TermuxPropertyConstants.IVALUE_TERMINAL_OSC52_CLIPBOARD_READ_WRITE.equals(getTerminalOsc52Clipboard());
     }
 
     public int getTerminalTranscriptRows() {

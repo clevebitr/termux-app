@@ -55,14 +55,13 @@ class AppearancePreferencesDataStore extends TermuxPropertyPreferenceDataStore {
 
     @Override
     public void putInt(String key, int value) {
-        if (isLastReadValue(key, String.valueOf(value))) return;
-
         if (KEY_TERMINAL_TOOLBAR_HEIGHT.equals(key)) {
+            if (isLastReadValue(key, String.valueOf(value))) return;
             setTermuxPropertyValue(key, String.valueOf(value / 100f));
             return;
         }
 
-        setTermuxPropertyValue(key, String.valueOf(value));
+        super.putInt(key, value);
     }
 
     @Override

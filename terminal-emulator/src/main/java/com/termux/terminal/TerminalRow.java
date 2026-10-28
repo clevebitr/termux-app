@@ -47,6 +47,17 @@ public final class TerminalRow {
     private int mSpaceUsed;
     /** If this row has been line wrapped due to text output at the end of line. */
     boolean mLineWrap;
+    /**
+     * The command marks of this row, as a bit mask of the `TerminalBuffer#COMMAND_MARK_*` constants.
+     * The marks are stored on the row itself so that they move with the row when the screen scrolls.
+     */
+    byte mCommandMark;
+    /**
+     * The sequence number of the command that was started on this row, used to detect if the row has
+     * been reused for other content before the command finished, in which case its exit status must
+     * not be stored on it anymore.
+     */
+    int mCommandMarkSequence;
     /** The style bits of each cell in the row. See {@link TextStyle}. */
     final long[] mStyle;
     /**
@@ -169,6 +180,10 @@ public final class TerminalRow {
         mSpaceUsed = mColumns;
         mHasNonOneWidthOrSurrogateChars = false;
         mHasTerminalBitmap = false;
+        // The row is reused for new content, so the command marks of its previous content must be
+        // dropped, otherwise ticks would be drawn for commands that are no longer in the buffer.
+        mCommandMark = 0;
+        mCommandMarkSequence = 0;
     }
 
     // https://github.com/steven676/Android-Terminal-Emulator/commit/9a47042620bec87617f0b4f5d50568535668fe26

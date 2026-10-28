@@ -305,6 +305,8 @@
                 <string name="termux_volume_key_action_toggle_extra_keys">Show/hide the extra keys row</string>
                 <string name="termux_volume_key_action_page_up">Scroll up (Page Up)</string>
                 <string name="termux_volume_key_action_page_down">Scroll down (Page Down)</string>
+                <string name="termux_volume_key_action_prev_command">Scroll to the previous command (shell integration)</string>
+                <string name="termux_volume_key_action_next_command">Scroll to the next command (shell integration)</string>
                 <string name="termux_volume_key_action_prev_session">Switch to the previous session</string>
                 <string name="termux_volume_key_action_next_session">Switch to the next session</string>
                 <string name="termux_volume_key_action_new_session">Create a new session</string>
@@ -436,6 +438,31 @@
 
 
     <!-- Terminal View Preferences -->
+    <!-- Shell Integration Command Marks -->
+    <string name="action_previous_command">Previous Command</string>
+    <string name="action_next_command">Next Command</string>
+    <string name="msg_command_failed">Command exited with code %1$d</string>
+
+
+    <!-- Split Screen -->
+    <string name="action_split_screen_vertical">Split screen (top/bottom)</string>
+    <string name="action_split_screen_horizontal">Split screen (left/right)</string>
+    <string name="action_split_screen_close">Close split screen</string>
+
+
+    <!-- Terminal Search -->
+    <string name="action_search_terminal">Search</string>
+    <string name="action_search_terminal_hint">Search terminal</string>
+    <string name="action_search_results">%1$d/%2$d</string>
+    <string name="action_search_previous">Previous match</string>
+    <string name="action_search_next">Next match</string>
+    <string name="action_search_close">Close search</string>
+    <string name="action_search_previous_symbol" translatable="false">\u2191</string>
+    <string name="action_search_next_symbol" translatable="false">\u2193</string>
+    <string name="action_search_close_symbol" translatable="false">\u2715</string>
+
+
+    <!-- Terminal View Preferences -->
         <string name="termux_terminal_view_preferences_title">Terminal View</string>
         <string name="termux_terminal_view_preferences_summary">Preferences for terminal view</string>
 
@@ -456,6 +483,52 @@
                 <string name="termux_terminal_view_switch_session_on_swipe_on">A horizontal swipe on the terminal
                     switches to the previous or next session. It is not used while selecting text or while a
                     terminal program is using mouse tracking. (Default)</string>
+
+            <!-- Padding Category -->
+            <string name="termux_terminal_view_padding_header">Terminal Padding</string>
+            <string name="termux_terminal_view_padding_summary">In dp units, 0–100. Insets the
+                terminal grid from the window edge, like the padding of Windows Terminal. The terminal
+                toolbar and the sessions drawer are not padded.</string>
+
+                <!-- Terminal Padding Top -->
+                <string name="termux_terminal_view_padding_top_title">Padding Top</string>
+
+                <!-- Terminal Padding Bottom -->
+                <string name="termux_terminal_view_padding_bottom_title">Padding Bottom</string>
+
+                <!-- Terminal Padding Left -->
+                <string name="termux_terminal_view_padding_left_title">Padding Left</string>
+
+                <!-- Terminal Padding Right -->
+                <string name="termux_terminal_view_padding_right_title">Padding Right</string>
+
+            <!-- Clipboard Category -->
+            <string name="termux_terminal_view_clipboard_header">Clipboard</string>
+
+                <!-- OSC 52 Clipboard -->
+                <string name="termux_terminal_view_osc52_clipboard_title">OSC 52 Clipboard</string>
+                <string name="termux_terminal_view_osc52_clipboard_write">Terminal programs may write the clipboard (Default)</string>
+                <string name="termux_terminal_view_osc52_clipboard_read_write">Terminal programs may read and write the clipboard (Less secure, a remote shell could read everything you copied)</string>
+                <string name="termux_terminal_view_osc52_clipboard_off">Ignore OSC 52 clipboard requests from terminal programs</string>
+
+            <!-- Shell Integration Category -->
+            <string name="termux_terminal_view_shell_integration_header">Shell Integration</string>
+            <string name="termux_terminal_view_shell_integration_install_title">Install shell integration</string>
+            <string name="termux_terminal_view_shell_integration_install_summary">Adds OSC 133 command marks to
+                ~/.bashrc (and ~/.zshrc if it exists), so that commands can be jumped to, tapped on the
+                right edge and seen when they fail. Open a new session or run `source ~/.bashrc` to
+                apply it.</string>
+            <string name="termux_terminal_view_shell_integration_install_outdated_summary">The installed shell integration is older than the one of the app. Install it again so that the notification cards show the command that was run.</string>
+            <string name="termux_terminal_view_shell_integration_uninstall_title">Uninstall shell integration</string>
+            <string name="termux_terminal_view_shell_integration_uninstall_summary">Removes the block added to
+                the rc files and the scripts. The rest of the files is left untouched.</string>
+
+            <!-- Shell Integration Messages -->
+            <string name="msg_shell_integration_installed">Shell integration installed. Open a new session or run
+                `source ~/.bashrc` to apply it.</string>
+            <string name="msg_shell_integration_uninstalled">Shell integration uninstalled.</string>
+            <string name="msg_shell_integration_install_failed">Failed to install the shell integration.</string>
+            <string name="msg_shell_integration_uninstall_failed">Failed to uninstall the shell integration.</string>
 
 
 
@@ -489,4 +562,99 @@
     <!-- Donate Preference -->
     <string name="donate_preference_title">Donate</string>
 
+
+    <!-- Status Bar -->
+    <string name="termux_status_bar_preferences_title">Status bar</string>
+    <string name="termux_status_bar_preferences_summary">Show the time, battery, memory, cpu, network, ip and proxy above or below the terminal</string>
+
+    <string name="termux_status_bar_general_header">General</string>
+    <string name="termux_status_bar_enabled_title">Show status bar</string>
+    <string name="termux_status_bar_enabled_on">The status bar is shown</string>
+    <string name="termux_status_bar_enabled_off">The status bar is hidden</string>
+    <string name="termux_status_bar_position_title">Position</string>
+    <string name="termux_status_bar_overlay_title">Overlay</string>
+    <string name="termux_status_bar_overlay_on">The status bar is drawn over the terminal, which keeps all of its rows</string>
+    <string name="termux_status_bar_overlay_off">The status bar insets the terminal, which has fewer rows</string>
+    <string name="termux_status_bar_height_title">Height (dp)</string>
+    <string name="termux_status_bar_height_summary">Height of the status bar in dp units</string>
+    <string name="termux_status_bar_font_size_title">Font size (sp)</string>
+    <string name="termux_status_bar_font_size_summary">Font size of the segment text in sp units</string>
+    <string name="termux_status_bar_padding_title">Horizontal padding (dp)</string>
+    <string name="termux_status_bar_padding_summary">Padding of the status bar on its left and right sides in dp units</string>
+    <string name="termux_status_bar_align_title">Alignment</string>
+    <string name="termux_status_bar_show_icons_title">Show icons</string>
+    <string name="termux_status_bar_show_icons_on">An icon is shown for every segment</string>
+    <string name="termux_status_bar_show_icons_off">Only text is shown for the segments</string>
+    <string name="termux_status_bar_icons_position_title">Icon position</string>
+    <string name="termux_status_bar_separator_title">Separator</string>
+    <string name="termux_status_bar_separator_summary">The string that is shown between two segments, a \\t or \\n is stored escaped in the properties file</string>
+    <string name="termux_status_bar_segments_title">Segments</string>
+    <string name="termux_status_bar_segments_summary">The ids of the segments that are shown, in order, separated by commas: clock, battery, memory, cpu, net, ip, proxy</string>
+
+    <string name="termux_status_bar_colors_header">Colors</string>
+    <string name="termux_status_bar_colors_summary">A color of the terminal color scheme is used if no color is set, so the status bar follows Termux:Styling</string>
+    <string name="termux_status_bar_background_color_title">Background color</string>
+    <string name="termux_status_bar_foreground_color_title">Text and icon color</string>
+
+    <string name="termux_status_bar_segment_clock">Clock</string>
+    <string name="termux_status_bar_segment_battery">Battery</string>
+    <string name="termux_status_bar_segment_memory">Memory</string>
+    <string name="termux_status_bar_segment_cpu">CPU</string>
+    <string name="termux_status_bar_segment_net">Network</string>
+    <string name="termux_status_bar_segment_ip">IP address</string>
+    <string name="termux_status_bar_segment_proxy">Proxy</string>
+
+    <string name="termux_status_bar_segment_enabled_title">Show segment</string>
+    <string name="termux_status_bar_segment_enabled_on">The segment is shown while its id is listed in the segments option</string>
+    <string name="termux_status_bar_segment_enabled_off">The segment is not shown</string>
+    <string name="termux_status_bar_segment_format_title">Format</string>
+    <string name="termux_status_bar_segment_clock_format_summary">A java SimpleDateFormat pattern, like HH:mm:ss or E HH:mm</string>
+    <string name="termux_status_bar_segment_battery_format_summary">%p percent, %t temperature, %s charging status</string>
+    <string name="termux_status_bar_segment_memory_format_summary">%p percent, %u used, %a available, %t total</string>
+    <string name="termux_status_bar_segment_cpu_format_summary">%p usage in percent, %f current frequency, %m max frequency, %c core count</string>
+    <string name="termux_status_bar_segment_net_format_summary">%rx receive rate, %tx send rate, %rxTotal received bytes, %txTotal sent bytes</string>
+    <string name="termux_status_bar_segment_ip_format_summary">%4 IPv4 address, %6 IPv6 address, %i best address, %if interface</string>
+    <string name="termux_status_bar_segment_proxy_format_summary">%p host and port, %h host, %o port, %t type (none, http, pac)</string>
+    <string name="termux_status_bar_segment_label_title">Label</string>
+    <string name="termux_status_bar_segment_label_summary">A label that is shown before the value, like CPU</string>
+    <string name="termux_status_bar_segment_style_title">Style</string>
+    <string name="termux_status_bar_segment_action_title">Click action</string>
+    <string name="termux_status_bar_segment_color_title">Color</string>
+
+    <string name="msg_status_bar_action_failed">Failed to run the action \"%1$s\" of the status bar segment</string>
+
+    <string name="termux_status_bar_position_top">Top</string>
+    <string name="termux_status_bar_position_bottom">Bottom</string>
+    <string name="termux_status_bar_align_start">Left</string>
+    <string name="termux_status_bar_align_center">Center</string>
+    <string name="termux_status_bar_align_end">Right</string>
+    <string name="termux_status_bar_icons_position_start">Before the text</string>
+    <string name="termux_status_bar_icons_position_end">After the text</string>
+    <string name="termux_status_bar_style_text">Text only</string>
+    <string name="termux_status_bar_style_chart">Chart only</string>
+    <string name="termux_status_bar_style_text_chart">Text and chart</string>
+    <string name="termux_status_bar_action_none">None</string>
+    <string name="termux_status_bar_action_wifi_settings">Open WLAN settings</string>
+    <string name="termux_status_bar_action_battery_settings">Open battery settings</string>
+    <string name="termux_status_bar_action_data_settings">Open mobile data settings</string>
+    <string name="termux_status_bar_action_app_settings">Open app info</string>
+    <string name="termux_status_bar_action_new_session">Create a new session</string>
+    <string name="termux_color_preference_hint">#RRGGBB or theme:color4</string>
+
+
+    <!-- Notification Cards -->
+    <string name="notification_close">Close notification</string>
+    <string name="action_send_test_notification">Send test notification</string>
+    <string name="notification_meta_separator" translatable="false">\u00b7</string>
+    <string name="notification_test_title_failed_command">Exit code %1$d</string>
+    <string name="notification_test_title_succeeded_command">Command succeeded</string>
+    <string name="notification_test_title_session_exited">Session exited</string>
+    <string name="notification_test_title_osc">Build finished</string>
+    <string name="notification_test_body_osc">All tasks finished in 8.2s</string>
+    <string name="notification_test_body_succeeded_command" translatable="false">git push origin master</string>
+    <string name="notification_test_meta_command" translatable="false">make -j8</string>
+    <string name="notification_test_meta_osc_app" translatable="false">nvim</string>
+    <string name="notification_test_meta_cwd" translatable="false">~/repos/termux-app</string>
+    <string name="notification_test_meta_duration" translatable="false">12.3s</string>
+    <string name="notification_test_meta_session" translatable="false">bash</string>
 </resources>

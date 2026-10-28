@@ -48,6 +48,32 @@ public final class TerminalRenderer {
 
     private final float[] asciiMeasures = new float[127];
 
+    /** The color of a search match, drawn behind the text, with alpha so that the text stays readable. */
+    private static final int SEARCH_MATCH_COLOR = 0x66FFC107;
+    /** The color of the search match that is currently selected, which is drawn stronger. */
+    private static final int SEARCH_CURRENT_MATCH_COLOR = 0xAAFF9800;
+
+    /** The color of the command mark of a command that finished with a non-zero exit code. */
+    private static final int COMMAND_MARK_FAILED_COLOR = 0xCCFF5252;
+    /** The alpha of the command mark of a command that finished successfully. */
+    private static final int COMMAND_MARK_SUCCEEDED_ALPHA = 0x66;
+    /** The alpha of the command mark of a command that has not finished yet. */
+    private static final int COMMAND_MARK_RUNNING_ALPHA = 0x33;
+    /** The maximum width of a command mark in pixels, so that it does not get too thick with large fonts. */
+    private static final float COMMAND_MARK_MAX_WIDTH = 4f;
+
+    /**
+     * The search matches that must be highlighted, sorted by row, with parallel arrays for the
+     * columns, or empty arrays if no search is active. The arrays are owned by the caller and must
+     * not be modified while they are set.
+     */
+    private int[] mSearchMatchRows = new int[0];
+    private int[] mSearchMatchStartColumns = new int[0];
+    private int[] mSearchMatchEndColumns = new int[0];
+    private int mSearchMatchCount = 0;
+    /** The index of the search match that is currently selected, or -1 if none is. */
+    private int mSearchCurrentMatchIndex = -1;
+
     public TerminalRenderer(int textSize, Typeface typeface) {
         this(textSize, typeface, null);
     }
@@ -86,6 +112,22 @@ public final class TerminalRenderer {
         }
     }
 
+    /**
+     * Set the search matches that must be highlighted, sorted by row, with parallel arrays for the
+     * start and end columns of each match. The arrays are owned by the caller and must not be
+     * modified while they are set. Passing empty arrays clears the highlights.
+     *
+     * @param currentMatchIndex The index of the match that is currently selected, which is drawn
+     *                          with a stronger color, or -1 if no match is selected.
+     */
+    public void setSearchHighlights(int[] rows, int[] startColumns, int[] endColumns, int currentMatchIndex) {
+        mSearchMatchRows = rows;
+        mSearchMatchStartColumns = startColumns;
+        mSearchMatchEndColumns = endColumns;
+        mSearchMatchCount = rows == null ? 0 : rows.length;
+        mSearchCurrentMatchIndex = currentMatchIndex;
+    }
+
     /** Render the terminal to a canvas with at a specified row scroll, and an optional rectangular selection. */
     public final void render(TerminalEmulator mEmulator, Canvas canvas, int topRow,
                              int selectionY1, int selectionY2, int selectionX1, int selectionX2) {
@@ -103,8 +145,16 @@ public final class TerminalRenderer {
             canvas.drawColor(palette[TextStyle.COLOR_INDEX_FOREGROUND], PorterDuff.Mode.SRC);
 
         float heightOffset = mFontLineSpacingAndAscent;
+        int searchMatchIndex = 0;
         for (int row = topRow; row < endRow; row++) {
             heightOffset += mFontLineSpacing;
+
+            // The search matches are sorted by row, so skip the ones of the rows that have already
+            // been drawn, and draw the highlights of this row before its text so that the text is
+            // drawn on top of them.
+            while (searchMatchIndex < mSearchMatchCount && mSearchMatchRows[searchMatchIndex] < row)
+                searchMatchIndex++;
+            drawSearchHighlights(canvas, row, heightOffset, searchMatchIndex);
 
             final int cursorX = (row == cursorRow && cursorVisible) ? cursorCol : -1;
             int selx1 = -1, selx2 = -1;
@@ -211,6 +261,40 @@ public final class TerminalRenderer {
             }
             drawTextRun(canvas, line, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun, lastRunStartIndex, charsSinceLastRun,
                 measuredWidthForRun, cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection, lastRunHasHyperlink);
+
+            // Draw the command mark of the row on the right edge, on top of the text, so that the user
+            // can see where the commands of the shell integration are and which of them failed.
+            drawCommandMark(canvas, heightOffset, screen.getCommandMark(row), palette[TextStyle.COLOR_INDEX_FOREGROUND]);
+        }
+    }
+
+    /** Draw a small vertical mark on the right edge of the canvas for the command marks of a row. */
+    private void drawCommandMark(Canvas canvas, float y, int commandMark, int foregroundColor) {
+        if ((commandMark & (TerminalBuffer.COMMAND_MARK_PROMPT_START | TerminalBuffer.COMMAND_MARK_COMMAND_START)) == 0)
+            return;
+
+        final int alpha;
+        if ((commandMark & TerminalBuffer.COMMAND_MARK_COMMAND_FAILED) != 0) {
+            mTextPaint.setColor(COMMAND_MARK_FAILED_COLOR);
+        } else if ((commandMark & TerminalBuffer.COMMAND_MARK_COMMAND_SUCCEEDED) != 0) {
+            alpha = COMMAND_MARK_SUCCEEDED_ALPHA;
+            mTextPaint.setColor((foregroundColor & 0x00FFFFFF) | (alpha << 24));
+        } else {
+            alpha = COMMAND_MARK_RUNNING_ALPHA;
+            mTextPaint.setColor((foregroundColor & 0x00FFFFFF) | (alpha << 24));
+        }
+
+        final float markWidth = Math.min(COMMAND_MARK_MAX_WIDTH, Math.max(2f, mFontWidth / 4f));
+        final float right = canvas.getWidth() - 1f;
+        canvas.drawRect(right - markWidth, y - mFontLineSpacing + 1f, right, y - 1f, mTextPaint);
+    }
+
+    /** Draw the background of the search matches of {@code row} that start at {@code startIndex}. */
+    private void drawSearchHighlights(Canvas canvas, int row, float y, int startIndex) {
+        for (int i = startIndex; i < mSearchMatchCount && mSearchMatchRows[i] == row; i++) {
+            mTextPaint.setColor(i == mSearchCurrentMatchIndex ? SEARCH_CURRENT_MATCH_COLOR : SEARCH_MATCH_COLOR);
+            canvas.drawRect(mSearchMatchStartColumns[i] * mFontWidth, y - mFontLineSpacing,
+                mSearchMatchEndColumns[i] * mFontWidth, y, mTextPaint);
         }
     }
 

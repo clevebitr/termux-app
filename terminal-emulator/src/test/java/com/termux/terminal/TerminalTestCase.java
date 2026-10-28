@@ -20,6 +20,12 @@ public abstract class TerminalTestCase extends TestCase {
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		public final List<ChangedTitle> titleChanges = new ArrayList<>();
 		public final List<String> clipboardPuts = new ArrayList<>();
+		/** The text returned for `OSC 52` clipboard read requests, or null to disallow reading it. */
+		public String clipboardText;
+		public int clipboardReads = 0;
+		/** The exit codes of the commands that finished, from `OSC 133;D;<exit code>`. */
+		public final List<Integer> commandExitCodes = new ArrayList<>();
+		public final List<TerminalCommandResult> commandResults = new ArrayList<>();
 		public int bellsRung = 0;
 		public int colorsChanged = 0;
 
@@ -44,9 +50,27 @@ public abstract class TerminalTestCase extends TestCase {
 			clipboardPuts.add(text);
 		}
 
+		@Override
+		public String getClipboardText() {
+			clipboardReads++;
+			return clipboardText;
+		}
+
         @Override
         public void onPasteTextFromClipboard() {
         }
+
+		@Override
+		public void onCommandFinished(TerminalCommandResult result) {
+			commandResults.add(result);
+			// Keep filling the exit codes, so that the tests that only check them do not have to change.
+			onCommandFinished(result.getExitCode());
+		}
+
+		@Override
+		public void onCommandFinished(int exitCode) {
+			commandExitCodes.add(exitCode);
+		}
 
 		@Override
 		public void onBell() {

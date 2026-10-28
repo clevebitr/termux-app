@@ -18,9 +18,19 @@ import static com.termux.shared.termux.extrakeys.ExtraKeysConstants.PRIMARY_KEY_
 
 public class TerminalExtraKeys implements ExtraKeysView.IExtraKeysView {
 
-    private final TerminalView mTerminalView;
+    /**
+     * The terminal view that the keys are sent to. It can be changed with {@link #setTerminalView(TerminalView)}
+     * when the active terminal view changes, like when split screen is enabled and the user switches
+     * to the other pane.
+     */
+    private TerminalView mTerminalView;
 
     public TerminalExtraKeys(@NonNull TerminalView terminalView) {
+        mTerminalView = terminalView;
+    }
+
+    /** Set the terminal view that the keys are sent to. */
+    public void setTerminalView(@NonNull TerminalView terminalView) {
         mTerminalView = terminalView;
     }
 

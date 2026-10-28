@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat;
 import androidx.preference.Preference;
 
 import com.termux.R;
+import com.termux.app.statusbar.StatusBarColors;
 import com.termux.shared.data.DataUtils;
 
 /**
@@ -193,7 +194,7 @@ public class ColorPreference extends Preference {
 
         final EditText editText = new EditText(context);
         editText.setSingleLine(true);
-        editText.setHint("#RRGGBB");
+        editText.setHint(R.string.termux_color_preference_hint);
         if (currentValue != null) editText.setText(currentValue);
         editText.setSelection(editText.getText().length());
 
@@ -208,12 +209,21 @@ public class ColorPreference extends Preference {
             String value = editText.getText().toString().trim();
 
             if (!value.isEmpty()) {
-                try {
-                    // Validate the color value, like `#RGB`, `#ARGB`, `#RRGGBB` or `#AARRGGBB`.
-                    Color.parseColor(value);
-                } catch (IllegalArgumentException e) {
-                    Toast.makeText(context, context.getString(R.string.termux_extra_keys_color_invalid, value), Toast.LENGTH_LONG).show();
-                    return;
+                // A value can be a color of the termux color scheme, like `theme:color4`, so that
+                // the color follows the `colors.properties` file set by Termux:Styling.
+                if (StatusBarColors.isThemeColorReference(value)) {
+                    if (!StatusBarColors.isValidThemeColorReference(value)) {
+                        Toast.makeText(context, context.getString(R.string.termux_extra_keys_color_invalid, value), Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                } else {
+                    try {
+                        // Validate the color value, like `#RGB`, `#ARGB`, `#RRGGBB` or `#AARRGGBB`.
+                        Color.parseColor(value);
+                    } catch (IllegalArgumentException e) {
+                        Toast.makeText(context, context.getString(R.string.termux_extra_keys_color_invalid, value), Toast.LENGTH_LONG).show();
+                        return;
+                    }
                 }
             }
 

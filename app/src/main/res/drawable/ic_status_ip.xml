@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A globe, used as the icon of the `ip` status bar segment. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M12,3 A9,9 0 1,1 11.99,3"
+        android:fillColor="#00000000"
+        android:strokeColor="#ffffffff"
+        android:strokeWidth="1.6" />
+    <path
+        android:pathData="M12,3 C8.5,6 8.5,18 12,21 C15.5,18 15.5,6 12,3 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#ffffffff"
+        android:strokeWidth="1.4" />
+    <path
+        android:pathData="M3.2,9 L20.8,9 M3.2,15 L20.8,15"
+        android:fillColor="#00000000"
+        android:strokeColor="#ffffffff"
+        android:strokeWidth="1.4" />
+</vector>

@@ -1,0 +1,420 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        app:key="status_bar_general"
+        app:title="@string/termux_status_bar_general_header">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:key="status-bar-enabled"
+            app:summaryOff="@string/termux_status_bar_enabled_off"
+            app:summaryOn="@string/termux_status_bar_enabled_on"
+            app:title="@string/termux_status_bar_enabled_title" />
+
+        <ListPreference
+            app:defaultValue="top"
+            app:entries="@array/termux_status_bar_position_entries"
+            app:entryValues="@array/termux_status_bar_position_values"
+            app:key="status-bar-position"
+            app:title="@string/termux_status_bar_position_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:key="status-bar-overlay"
+            app:summaryOff="@string/termux_status_bar_overlay_off"
+            app:summaryOn="@string/termux_status_bar_overlay_on"
+            app:title="@string/termux_status_bar_overlay_title" />
+
+        <SeekBarPreference
+            android:max="120"
+            android:min="14"
+            app:defaultValue="24"
+            app:key="status-bar-height"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_status_bar_height_summary"
+            app:title="@string/termux_status_bar_height_title" />
+
+        <SeekBarPreference
+            android:max="32"
+            android:min="5"
+            app:defaultValue="11"
+            app:key="status-bar-font-size"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_status_bar_font_size_summary"
+            app:title="@string/termux_status_bar_font_size_title" />
+
+        <SeekBarPreference
+            android:max="64"
+            android:min="0"
+            app:defaultValue="8"
+            app:key="status-bar-padding-horizontal"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_status_bar_padding_summary"
+            app:title="@string/termux_status_bar_padding_title" />
+
+        <ListPreference
+            app:defaultValue="start"
+            app:entries="@array/termux_status_bar_align_entries"
+            app:entryValues="@array/termux_status_bar_align_values"
+            app:key="status-bar-align"
+            app:title="@string/termux_status_bar_align_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="status-bar-show-icons"
+            app:summaryOff="@string/termux_status_bar_show_icons_off"
+            app:summaryOn="@string/termux_status_bar_show_icons_on"
+            app:title="@string/termux_status_bar_show_icons_title" />
+
+        <ListPreference
+            app:defaultValue="start"
+            app:entries="@array/termux_status_bar_icons_position_entries"
+            app:entryValues="@array/termux_status_bar_icons_position_values"
+            app:key="status-bar-icons-position"
+            app:title="@string/termux_status_bar_icons_position_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:defaultValue="  "
+            app:key="status-bar-separator"
+            app:summary="@string/termux_status_bar_separator_summary"
+            app:title="@string/termux_status_bar_separator_title" />
+
+        <EditTextPreference
+            app:defaultValue="clock,battery,memory,cpu,net"
+            app:key="status-bar-segments"
+            app:summary="@string/termux_status_bar_segments_summary"
+            app:title="@string/termux_status_bar_segments_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="status_bar_colors"
+        app:title="@string/termux_status_bar_colors_header"
+        app:summary="@string/termux_status_bar_colors_summary">
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="status-bar-background-color"
+            app:title="@string/termux_status_bar_background_color_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="status-bar-foreground-color"
+            app:title="@string/termux_status_bar_foreground_color_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="status_bar_clock"
+        app:title="@string/termux_status_bar_segment_clock">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="status-bar-segment-clock-enabled"
+            app:summaryOff="@string/termux_status_bar_segment_enabled_off"
+            app:summaryOn="@string/termux_status_bar_segment_enabled_on"
+            app:title="@string/termux_status_bar_segment_enabled_title" />
+
+        <EditTextPreference
+            app:defaultValue="HH:mm"
+            app:key="status-bar-segment-clock-format"
+            app:summary="@string/termux_status_bar_segment_clock_format_summary"
+            app:title="@string/termux_status_bar_segment_format_title" />
+
+        <EditTextPreference
+            app:key="status-bar-segment-clock-label"
+            app:summary="@string/termux_status_bar_segment_label_summary"
+            app:title="@string/termux_status_bar_segment_label_title" />
+
+        <ListPreference
+            app:defaultValue="text"
+            app:entries="@array/termux_status_bar_style_entries"
+            app:entryValues="@array/termux_status_bar_style_values"
+            app:key="status-bar-segment-clock-style"
+            app:title="@string/termux_status_bar_segment_style_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="none"
+            app:entries="@array/termux_status_bar_action_entries"
+            app:entryValues="@array/termux_status_bar_action_values"
+            app:key="status-bar-segment-clock-action"
+            app:title="@string/termux_status_bar_segment_action_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="status-bar-segment-clock-color"
+            app:title="@string/termux_status_bar_segment_color_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="status_bar_battery"
+        app:title="@string/termux_status_bar_segment_battery">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="status-bar-segment-battery-enabled"
+            app:summaryOff="@string/termux_status_bar_segment_enabled_off"
+            app:summaryOn="@string/termux_status_bar_segment_enabled_on"
+            app:title="@string/termux_status_bar_segment_enabled_title" />
+
+        <EditTextPreference
+            app:defaultValue="%p"
+            app:key="status-bar-segment-battery-format"
+            app:summary="@string/termux_status_bar_segment_battery_format_summary"
+            app:title="@string/termux_status_bar_segment_format_title" />
+
+        <EditTextPreference
+            app:key="status-bar-segment-battery-label"
+            app:summary="@string/termux_status_bar_segment_label_summary"
+            app:title="@string/termux_status_bar_segment_label_title" />
+
+        <ListPreference
+            app:defaultValue="text"
+            app:entries="@array/termux_status_bar_style_entries"
+            app:entryValues="@array/termux_status_bar_style_values"
+            app:key="status-bar-segment-battery-style"
+            app:title="@string/termux_status_bar_segment_style_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="none"
+            app:entries="@array/termux_status_bar_action_entries"
+            app:entryValues="@array/termux_status_bar_action_values"
+            app:key="status-bar-segment-battery-action"
+            app:title="@string/termux_status_bar_segment_action_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="status-bar-segment-battery-color"
+            app:title="@string/termux_status_bar_segment_color_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="status_bar_memory"
+        app:title="@string/termux_status_bar_segment_memory">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="status-bar-segment-memory-enabled"
+            app:summaryOff="@string/termux_status_bar_segment_enabled_off"
+            app:summaryOn="@string/termux_status_bar_segment_enabled_on"
+            app:title="@string/termux_status_bar_segment_enabled_title" />
+
+        <EditTextPreference
+            app:defaultValue="%u/%t"
+            app:key="status-bar-segment-memory-format"
+            app:summary="@string/termux_status_bar_segment_memory_format_summary"
+            app:title="@string/termux_status_bar_segment_format_title" />
+
+        <EditTextPreference
+            app:key="status-bar-segment-memory-label"
+            app:summary="@string/termux_status_bar_segment_label_summary"
+            app:title="@string/termux_status_bar_segment_label_title" />
+
+        <ListPreference
+            app:defaultValue="text-chart"
+            app:entries="@array/termux_status_bar_style_entries"
+            app:entryValues="@array/termux_status_bar_style_values"
+            app:key="status-bar-segment-memory-style"
+            app:title="@string/termux_status_bar_segment_style_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="none"
+            app:entries="@array/termux_status_bar_action_entries"
+            app:entryValues="@array/termux_status_bar_action_values"
+            app:key="status-bar-segment-memory-action"
+            app:title="@string/termux_status_bar_segment_action_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="status-bar-segment-memory-color"
+            app:title="@string/termux_status_bar_segment_color_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="status_bar_cpu"
+        app:title="@string/termux_status_bar_segment_cpu">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="status-bar-segment-cpu-enabled"
+            app:summaryOff="@string/termux_status_bar_segment_enabled_off"
+            app:summaryOn="@string/termux_status_bar_segment_enabled_on"
+            app:title="@string/termux_status_bar_segment_enabled_title" />
+
+        <EditTextPreference
+            app:defaultValue="%p"
+            app:key="status-bar-segment-cpu-format"
+            app:summary="@string/termux_status_bar_segment_cpu_format_summary"
+            app:title="@string/termux_status_bar_segment_format_title" />
+
+        <EditTextPreference
+            app:key="status-bar-segment-cpu-label"
+            app:summary="@string/termux_status_bar_segment_label_summary"
+            app:title="@string/termux_status_bar_segment_label_title" />
+
+        <ListPreference
+            app:defaultValue="text-chart"
+            app:entries="@array/termux_status_bar_style_entries"
+            app:entryValues="@array/termux_status_bar_style_values"
+            app:key="status-bar-segment-cpu-style"
+            app:title="@string/termux_status_bar_segment_style_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="none"
+            app:entries="@array/termux_status_bar_action_entries"
+            app:entryValues="@array/termux_status_bar_action_values"
+            app:key="status-bar-segment-cpu-action"
+            app:title="@string/termux_status_bar_segment_action_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="status-bar-segment-cpu-color"
+            app:title="@string/termux_status_bar_segment_color_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="status_bar_net"
+        app:title="@string/termux_status_bar_segment_net">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="status-bar-segment-net-enabled"
+            app:summaryOff="@string/termux_status_bar_segment_enabled_off"
+            app:summaryOn="@string/termux_status_bar_segment_enabled_on"
+            app:title="@string/termux_status_bar_segment_enabled_title" />
+
+        <EditTextPreference
+            app:defaultValue="↓%rx ↑%tx"
+            app:key="status-bar-segment-net-format"
+            app:summary="@string/termux_status_bar_segment_net_format_summary"
+            app:title="@string/termux_status_bar_segment_format_title" />
+
+        <EditTextPreference
+            app:key="status-bar-segment-net-label"
+            app:summary="@string/termux_status_bar_segment_label_summary"
+            app:title="@string/termux_status_bar_segment_label_title" />
+
+        <ListPreference
+            app:defaultValue="text-chart"
+            app:entries="@array/termux_status_bar_style_entries"
+            app:entryValues="@array/termux_status_bar_style_values"
+            app:key="status-bar-segment-net-style"
+            app:title="@string/termux_status_bar_segment_style_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="none"
+            app:entries="@array/termux_status_bar_action_entries"
+            app:entryValues="@array/termux_status_bar_action_values"
+            app:key="status-bar-segment-net-action"
+            app:title="@string/termux_status_bar_segment_action_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="status-bar-segment-net-color"
+            app:title="@string/termux_status_bar_segment_color_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="status_bar_ip"
+        app:title="@string/termux_status_bar_segment_ip">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="status-bar-segment-ip-enabled"
+            app:summaryOff="@string/termux_status_bar_segment_enabled_off"
+            app:summaryOn="@string/termux_status_bar_segment_enabled_on"
+            app:title="@string/termux_status_bar_segment_enabled_title" />
+
+        <EditTextPreference
+            app:defaultValue="%4"
+            app:key="status-bar-segment-ip-format"
+            app:summary="@string/termux_status_bar_segment_ip_format_summary"
+            app:title="@string/termux_status_bar_segment_format_title" />
+
+        <EditTextPreference
+            app:key="status-bar-segment-ip-label"
+            app:summary="@string/termux_status_bar_segment_label_summary"
+            app:title="@string/termux_status_bar_segment_label_title" />
+
+        <ListPreference
+            app:defaultValue="text"
+            app:entries="@array/termux_status_bar_style_entries"
+            app:entryValues="@array/termux_status_bar_style_values"
+            app:key="status-bar-segment-ip-style"
+            app:title="@string/termux_status_bar_segment_style_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="none"
+            app:entries="@array/termux_status_bar_action_entries"
+            app:entryValues="@array/termux_status_bar_action_values"
+            app:key="status-bar-segment-ip-action"
+            app:title="@string/termux_status_bar_segment_action_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="status-bar-segment-ip-color"
+            app:title="@string/termux_status_bar_segment_color_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="status_bar_proxy"
+        app:title="@string/termux_status_bar_segment_proxy">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="status-bar-segment-proxy-enabled"
+            app:summaryOff="@string/termux_status_bar_segment_enabled_off"
+            app:summaryOn="@string/termux_status_bar_segment_enabled_on"
+            app:title="@string/termux_status_bar_segment_enabled_title" />
+
+        <EditTextPreference
+            app:defaultValue="%p"
+            app:key="status-bar-segment-proxy-format"
+            app:summary="@string/termux_status_bar_segment_proxy_format_summary"
+            app:title="@string/termux_status_bar_segment_format_title" />
+
+        <EditTextPreference
+            app:key="status-bar-segment-proxy-label"
+            app:summary="@string/termux_status_bar_segment_label_summary"
+            app:title="@string/termux_status_bar_segment_label_title" />
+
+        <ListPreference
+            app:defaultValue="text"
+            app:entries="@array/termux_status_bar_style_entries"
+            app:entryValues="@array/termux_status_bar_style_values"
+            app:key="status-bar-segment-proxy-style"
+            app:title="@string/termux_status_bar_segment_style_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="none"
+            app:entries="@array/termux_status_bar_action_entries"
+            app:entryValues="@array/termux_status_bar_action_values"
+            app:key="status-bar-segment-proxy-action"
+            app:title="@string/termux_status_bar_segment_action_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="status-bar-segment-proxy-color"
+            app:title="@string/termux_status_bar_segment_color_title" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

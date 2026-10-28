@@ -252,3 +252,98 @@ gh secret set TERMUX_KEY_PASSWORD      --repo <owner>/termux-app
 1. 先卸载官方 Termux **和所有官方插件**（签名不同不能共存），卸载前备份 `$PREFIX`（见 §4.4）
 2. 装主 App，再装插件
 3. `termux-api` 这个 apt 包照常在 Termux 里 `pkg install termux-api`
+
+---
+
+## 6. 在 Termux 里本机构建（可行，比 CI 快）
+
+> 以前本地没法编译（没有 JDK / SDK）；现在的 Termux 里 `openjdk-21` + `android-sdk`
+> （`$PREFIX/opt/android-sdk`，含 platforms 34/35 与 build-tools 35.0.0）都装好了，
+> Gradle wrapper 也能正常下载运行，可以只在本地做编译/单测验证，不必等 CI。
+
+```sh
+cd ~/termux-app
+export ANDROID_HOME=$PREFIX/opt/android-sdk
+export ANDROID_SDK_ROOT=$ANDROID_HOME
+
+# 编译主 App（含 terminal-view / terminal-shared / terminal-emulator）
+./gradlew :app:compileDebugJavaWithJavac \
+  -x downloadBootstraps \
+  -Pandroid.aapt2FromMavenOverride=$ANDROID_HOME/build-tools/35.0.0/aapt2
+
+# 单测
+./gradlew test -x downloadBootstraps \
+  -Pandroid.aapt2FromMavenOverride=$ANDROID_HOME/build-tools/35.0.0/aapt2
+```
+
+两个参数的原因：
+
+* `-x downloadBootstraps`：`app/build.gradle` 把 `downloadBootstraps` 挂在 `javaCompile` 上，
+  它会从 GitHub 下 4 个 bootstrap zip 塞进 assets。编译/单测不需要它，网络差时它会让整个
+  task graph 直接失败（`SocketException: Unexpected end of file`）。
+* `-Pandroid.aapt2FromMavenOverride=...`：Maven 上的 aapt2 只有 linux-x86_64 版，在 arm64
+  Termux 上会报 `AAPT2 aapt2-8.x Daemon #0: Daemon startup failed`。换成本机 build-tools
+  里的 aapt2 即可（AGP 会警告版本不一致，但能正常出包）。
+
+第一次运行会下载 AGP/依赖并自动安装 SDK Platform 36（约 8 分钟），之后增量编译 15–60 秒。
+已知：`app:testDebugUnitTest` 里的 `FileReceiverActivityTest` 在本机会因为 Robolectric 的
+`ShadowActivityThread.reset: ActivityThread not set` 在 teardown 阶段 NPE 失败（与本仓库改动无关，
+单独跑该测试同样失败），CI 上正常；其余单测全绿。
+
+`assembleDebug` 需要 bootstrap zip（`-x` 掉也能出包，但首次启动没有环境可装），CI 的
+`fork-latest` Release 仍然是最省事的出包方式。
+
+### 在本机出一个能装的 APK（arm64）
+
+`assembleDebug` 除了 Java 编译，还要把 bootstrap zip **嵌进 `libtermux-bootstrap.so`**
+（`app/src/main/cpp/termux-bootstrap-zip.S` 里 `.incbin`），所以需要：
+
+1. 当前 ABI 的 bootstrap zip（`downloadBootstraps` 会一次下 4 个，网络差时很容易失败；
+   只想给自己手机装的话，手下一个就够，注意校验 sha256）：
+
+```sh
+cd ~/termux-app
+curl -L --retry 3 -o app/src/main/cpp/bootstrap-aarch64.zip \
+  "https://github.com/termux/termux-packages/releases/download/bootstrap-2026.02.12-r1%2Bapt.android-7/bootstrap-aarch64.zip"
+sha256sum app/src/main/cpp/bootstrap-aarch64.zip
+# 必须是 ea2aeba8819e517db711f8c32369e89e7c52cee73e07930ff91185e1ab93f4f3（aarch64 / apt-android-7）
+```
+
+2. **能跑的 NDK**：Gradle 自动下的 NDK r29 只有 `linux-x86_64` 工具链，在 aarch64 的 Termux 上
+   `ndk-build` 直接报 `ERROR: Unknown host CPU architecture: aarch64`。Termux 的 `android-ndk`
+   包（r27b）带 `linux-aarch64` 预编译工具链，把它挂到 SDK 里再用 `-PndkVersion` 指过去即可：
+
+```sh
+ln -sfn $PREFIX/opt/android-ndk $PREFIX/opt/android-sdk/ndk/27.1.12297006
+```
+
+3. 只构建当前 ABI（否则另外 3 个 ABI 会因为缺 zip 而失败）：
+
+```sh
+export ANDROID_HOME=$PREFIX/opt/android-sdk
+./gradlew :app:assembleDebug -x downloadBootstraps \
+  -PndkVersion=27.1.12297006 \
+  -Pandroid.injected.build.abi=arm64-v8a \
+  -Pandroid.injected.testOnly=false \
+  -Pandroid.aapt2FromMavenOverride=$ANDROID_HOME/build-tools/35.0.0/aapt2
+```
+
+`-Pandroid.injected.testOnly=false` 必须加：一旦用了任何 `android.injected.*`（如上面的 ABI），
+AGP 会把 debug 包标成 `android:testOnly="true"`，系统安装器会拒绝并提示
+**「该安装包是测试版本，请联系开发者」**。可以用以下命令确认（没有 testOnly 那一行才对）：
+
+```sh
+$ANDROID_HOME/build-tools/35.0.0/aapt2 dump xmltree --file AndroidManifest.xml \
+  app/build/intermediates/apk/debug/termux-app_apt-android-7-debug_arm64-v8a.apk | grep testOnly
+```
+
+产物（注意：用了 `android.injected.build.abi` 时不会落到 `app/build/outputs/apk/`，而在）：
+
+```
+app/build/intermediates/apk/debug/termux-app_apt-android-7-debug_arm64-v8a.apk
+```
+
+签名是仓库里的 `testkey_untrusted.jks`（SHA-256 `b6da0148…e5e1`，和官方 GitHub 版同一把公开密钥），
+所以能直接覆盖安装官方 GitHub 版或本 fork 的 testkey CI 包；F-Droid/Play 签名版装不上（要先卸载，
+记得先备份，见 §4.4）。**装机会杀掉正在运行的 Termux 进程**，在文件管理器里点安装或
+`adb install -r` 都行，但别在需要保留当前会话时从 App 内部装。

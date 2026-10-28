@@ -69,6 +69,8 @@
             <item>@string/termux_volume_key_action_toggle_extra_keys</item>
             <item>@string/termux_volume_key_action_page_up</item>
             <item>@string/termux_volume_key_action_page_down</item>
+            <item>@string/termux_volume_key_action_prev_command</item>
+            <item>@string/termux_volume_key_action_next_command</item>
             <item>@string/termux_volume_key_action_prev_session</item>
             <item>@string/termux_volume_key_action_next_session</item>
             <item>@string/termux_volume_key_action_new_session</item>
@@ -84,6 +86,8 @@
             <item>toggle-extra-keys</item>
             <item>page-up</item>
             <item>page-down</item>
+            <item>prev-command</item>
+            <item>next-command</item>
             <item>prev-session</item>
             <item>next-session</item>
             <item>new-session</item>
@@ -102,4 +106,82 @@
             <item>enable/disable</item>
         </string-array>
 
+
+    <!-- Terminal View Preferences -->
+
+        <!-- OSC 52 Clipboard -->
+        <string-array name="termux_terminal_view_osc52_clipboard_entries">
+            <item>@string/termux_terminal_view_osc52_clipboard_write</item>
+            <item>@string/termux_terminal_view_osc52_clipboard_read_write</item>
+            <item>@string/termux_terminal_view_osc52_clipboard_off</item>
+        </string-array>
+
+        <string-array name="termux_terminal_view_osc52_clipboard_values">
+            <item>write</item>
+            <item>read-write</item>
+            <item>off</item>
+        </string-array>
+
+
+    <string-array name="termux_status_bar_position_entries">
+        <item>@string/termux_status_bar_position_top</item>
+        <item>@string/termux_status_bar_position_bottom</item>
+    </string-array>
+
+    <string-array name="termux_status_bar_position_values">
+        <item>top</item>
+        <item>bottom</item>
+    </string-array>
+
+    <string-array name="termux_status_bar_align_entries">
+        <item>@string/termux_status_bar_align_start</item>
+        <item>@string/termux_status_bar_align_center</item>
+        <item>@string/termux_status_bar_align_end</item>
+    </string-array>
+
+    <string-array name="termux_status_bar_align_values">
+        <item>start</item>
+        <item>center</item>
+        <item>end</item>
+    </string-array>
+
+    <string-array name="termux_status_bar_icons_position_entries">
+        <item>@string/termux_status_bar_icons_position_start</item>
+        <item>@string/termux_status_bar_icons_position_end</item>
+    </string-array>
+
+    <string-array name="termux_status_bar_icons_position_values">
+        <item>start</item>
+        <item>end</item>
+    </string-array>
+
+    <string-array name="termux_status_bar_style_entries">
+        <item>@string/termux_status_bar_style_text</item>
+        <item>@string/termux_status_bar_style_chart</item>
+        <item>@string/termux_status_bar_style_text_chart</item>
+    </string-array>
+
+    <string-array name="termux_status_bar_style_values">
+        <item>text</item>
+        <item>chart</item>
+        <item>text-chart</item>
+    </string-array>
+
+    <string-array name="termux_status_bar_action_entries">
+        <item>@string/termux_status_bar_action_none</item>
+        <item>@string/termux_status_bar_action_wifi_settings</item>
+        <item>@string/termux_status_bar_action_battery_settings</item>
+        <item>@string/termux_status_bar_action_data_settings</item>
+        <item>@string/termux_status_bar_action_app_settings</item>
+        <item>@string/termux_status_bar_action_new_session</item>
+    </string-array>
+
+    <string-array name="termux_status_bar_action_values">
+        <item>none</item>
+        <item>wifi-settings</item>
+        <item>battery-settings</item>
+        <item>data-settings</item>
+        <item>app-settings</item>
+        <item>new-session</item>
+    </string-array>
 </resources>

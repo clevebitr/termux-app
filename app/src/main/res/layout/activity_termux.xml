@@ -23,15 +23,101 @@
             android:layout_above="@+id/terminal_toolbar_view_pager"
             android:layout_height="match_parent">
 
-            <com.termux.view.TerminalView
-                android:id="@+id/terminal_view"
+            <!-- The terminal content is wrapped in a FrameLayout so that the status bar can be
+                 shown at its top or bottom edge, inside the drawer content, so that the sessions
+                 drawer is drawn over the status bar and the status bar does not cover it. -->
+            <FrameLayout
+                android:id="@+id/terminal_content_container"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+            <!-- The terminal views of the panes are wrapped in a container so that the
+                 `terminal-padding-*` properties and the status bar can inset the terminal grid
+                 without having to make the terminal view itself aware of the padding in its drawing,
+                 touch coordinate, text selection and input connection code. The padding area shows
+                 the window background, which is set to the terminal background color, so it looks
+                 like a frame around the terminal. The second pane and the divider are only shown
+                 when split screen is enabled, and their layout params are set programmatically for
+                 the orientation. -->
+            <LinearLayout
+                android:id="@+id/terminal_panes_container"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:defaultFocusHighlightEnabled="false"
-                android:focusableInTouchMode="true"
-                android:scrollbarThumbVertical="@drawable/terminal_scroll_shape"
-                android:scrollbars="vertical"
-                tools:ignore="UnusedAttribute" />
+                android:orientation="vertical">
+
+                <FrameLayout
+                    android:id="@+id/terminal_pane_0"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1">
+
+                    <com.termux.view.TerminalView
+                        android:id="@+id/terminal_view"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:defaultFocusHighlightEnabled="false"
+                        android:focusableInTouchMode="true"
+                        android:scrollbarThumbVertical="@drawable/terminal_scroll_shape"
+                        android:scrollbars="vertical"
+                        tools:ignore="UnusedAttribute" />
+
+                </FrameLayout>
+
+                <View
+                    android:id="@+id/terminal_split_divider"
+                    android:layout_width="match_parent"
+                    android:layout_height="4dp"
+                    android:background="#40808080"
+                    android:visibility="gone" />
+
+                <FrameLayout
+                    android:id="@+id/terminal_pane_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:visibility="gone">
+
+                    <com.termux.view.TerminalView
+                        android:id="@+id/terminal_view_2"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:defaultFocusHighlightEnabled="false"
+                        android:focusableInTouchMode="true"
+                        android:scrollbarThumbVertical="@drawable/terminal_scroll_shape"
+                        android:scrollbars="vertical"
+                        tools:ignore="UnusedAttribute" />
+
+                </FrameLayout>
+
+            </LinearLayout>
+
+            <!-- The status bar that shows information like the time, the battery level and the
+                 network traffic, like the top bar of a desktop environment. Its gravity, height and
+                 elevation are set programmatically from the `status-bar-*` properties. When it does
+                 not overlay the terminal, the panes container is inset by its height, so that the
+                 terminal is resized and has fewer rows instead of being covered or pushed over the
+                 soft keyboard area. It is the last child of the content container, so that it is
+                 drawn over the terminal when it is an overlay. -->
+            <com.termux.app.statusbar.StatusBarView
+                android:id="@+id/status_bar_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+
+            <!-- The overlay that shows the notification cards in a corner of the terminal, like the
+                 notifications of nvim-notify and other tui notification plugins. It is hosted in the
+                 content container like the status bar, so that the sessions drawer is drawn over it,
+                 and it is an overlay so that the terminal is not resized and the rows that the
+                 terminal programs see do not change while a card is shown. Its gravity, margins and
+                 width are set programmatically from the `notification-*` properties. -->
+            <com.termux.app.notifications.NotificationOverlayView
+                android:id="@+id/notification_overlay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|end"
+                android:visibility="gone" />
+
+            </FrameLayout>
 
             <LinearLayout
                 android:id="@+id/left_drawer"
@@ -101,6 +187,78 @@
             android:layout_height="37.5dp"
             android:background="@color/black"
             android:layout_alignParentBottom="true" />
+
+        <!-- The search bar is overlayed on top of the terminal view, so that the terminal does not
+             have to be resized when it is shown, which would change the terminal grid size. -->
+        <LinearLayout
+            android:id="@+id/terminal_search_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:background="?attr/termuxActivityDrawerBackground"
+            android:elevation="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="2dp"
+            android:paddingBottom="2dp"
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/terminal_search_text_input"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="@string/action_search_terminal_hint"
+                android:imeOptions="actionSearch"
+                android:importantForAutofill="no"
+                android:inputType="text"
+                android:maxLines="1"
+                android:textColor="?android:attr/textColorPrimary"
+                android:textColorHint="?android:attr/textColorHint"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/terminal_search_results"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/terminal_search_previous_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_search_previous"
+                android:minWidth="40dp"
+                android:padding="0dp"
+                android:text="@string/action_search_previous_symbol" />
+
+            <Button
+                android:id="@+id/terminal_search_next_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_search_next"
+                android:minWidth="40dp"
+                android:padding="0dp"
+                android:text="@string/action_search_next_symbol" />
+
+            <Button
+                android:id="@+id/terminal_search_close_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_search_close"
+                android:minWidth="40dp"
+                android:padding="0dp"
+                android:text="@string/action_search_close_symbol" />
+
+        </LinearLayout>
 
     </RelativeLayout>
 

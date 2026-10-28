@@ -39,7 +39,10 @@ import android.widget.Scroller;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
+import java.util.List;
+
 import com.termux.terminal.KeyHandler;
+import com.termux.terminal.TerminalBuffer;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.textselection.TextSelectionCursorController;
@@ -72,6 +75,17 @@ public final class TerminalView extends View {
     int mTopRow;
     int[] mDefaultSelectors = new int[]{-1,-1,-1,-1};
 
+    /** Whether a redraw requested by {@link #onScreenOutputThrottled(long)} is already scheduled. */
+    private boolean mOutputRedrawPending;
+    /** The runnable that performs a redraw requested by {@link #onScreenOutputThrottled(long)}. */
+    private final Runnable mOutputRedrawRunnable = new Runnable() {
+        @Override
+        public void run() {
+            mOutputRedrawPending = false;
+            onScreenOutput();
+        }
+    };
+
     float mScaleFactor = 1.f;
     final GestureAndScaleRecognizer mGestureRecognizer;
 
@@ -94,6 +108,25 @@ public final class TerminalView extends View {
 
     /** If non-zero, this is the last unicode code point received if that was a combining character. */
     int mCombiningAccent;
+
+    /** The query of the current search, or {@code null} if no search is active. */
+    private String mSearchQuery;
+    /** The matches of {@link #mSearchQuery} in the screen and transcript, sorted by row and column. */
+    private TerminalBuffer.SearchMatch[] mSearchMatches = new TerminalBuffer.SearchMatch[0];
+    /** The index in {@link #mSearchMatches} of the match that is currently selected, or -1 if none is. */
+    private int mSearchMatchIndex = -1;
+    /** Flattened copies of {@link #mSearchMatches} that are passed to {@link TerminalRenderer}. */
+    private int[] mSearchMatchRows = new int[0];
+    private int[] mSearchMatchStartColumns = new int[0];
+    private int[] mSearchMatchEndColumns = new int[0];
+
+    /** The width in dp of the strip on the right edge where the command marks can be tapped. */
+    private static final float COMMAND_MARK_TOUCH_STRIP_WIDTH_DP = 16f;
+    /** Whether a touch on the command mark strip on the right edge is in progress. */
+    private boolean mIsCommandMarkStripTouchInProgress;
+    private float mCommandMarkStripTouchDownY;
+    /** The command row that will be jumped to when the strip touch is released. */
+    private int mCommandMarkStripTouchRow;
 
     /**
      * The current AutoFill type returned for {@link View#getAutofillType()} by {@link #getAutofillType()}.
@@ -364,6 +397,10 @@ public final class TerminalView extends View {
         mTermSession = session;
         mEmulator = null;
         mCombiningAccent = 0;
+        // A redraw that was scheduled by the previous session's output is not wanted anymore.
+        cancelPendingOutputRedraw();
+        // The search matches refer to rows of the previous session's buffer.
+        clearSearch();
 
         // The emulator's cached value will be read in `updateSize()` when emulator is set.
         setTopRow(0, false);
@@ -702,6 +739,69 @@ public final class TerminalView extends View {
         if (mAccessibilityEnabled) setContentDescription(getText());
     }
 
+    /**
+     * Redraw the view for new output of a session that is shown in a pane that is not the active
+     * pane, so that both panes of a split screen update in real time like two separate terminal
+     * windows on a desktop.
+     *
+     * Unlike {@link #onScreenUpdated()}, this keeps the scroll position of the view instead of
+     * snapping to the bottom, so that a view that is scrolled back into the transcript keeps
+     * showing the same rows while new rows are added below it. The accessibility content
+     * description is not updated either, since computing it is expensive and a pane that is not the
+     * active pane is not being interacted with.
+     *
+     * This relies on the invariant that a session is attached to at most one view, since the scroll
+     * counter of the emulator is consumed here.
+     */
+    public void onScreenOutput() {
+        if (mEmulator == null) return;
+
+        cancelPendingOutputRedraw();
+
+        int rowsInHistory = mEmulator.getScreen().getActiveTranscriptRows();
+        int rowShift = mEmulator.getScrollCounter();
+        mEmulator.clearScrollCounter();
+
+        if (mTopRow < -rowsInHistory) {
+            // The rows that were scrolled past have been trimmed from the transcript.
+            setTopRow(-rowsInHistory);
+        } else if (mTopRow != 0) {
+            // Keep the rows that are visible in the viewport stable while rows are added below them,
+            // the same way as onScreenUpdated() does when text is being selected.
+            setTopRow(Math.min(0, mTopRow - rowShift));
+            if (isSelectingText() && rowShift > 0) decrementYTextSelectionCursors(rowShift);
+        }
+
+        invalidate();
+    }
+
+    /**
+     * Like {@link #onScreenOutput()}, but the redraw is delayed by up to {@code minIntervalMs}
+     * milliseconds, so that a pane that is not the active pane is not redrawn on every frame when
+     * it is flooded with output, which would take main thread time away from the active pane. A
+     * {@code minIntervalMs} of 0 redraws immediately. Redraws are coalesced, so at most one redraw
+     * is scheduled at a time, and at most one frame is drawn per {@code minIntervalMs}.
+     */
+    public void onScreenOutputThrottled(long minIntervalMs) {
+        if (mEmulator == null) return;
+
+        if (minIntervalMs <= 0) {
+            onScreenOutput();
+            return;
+        }
+
+        if (mOutputRedrawPending) return;
+        mOutputRedrawPending = true;
+        postDelayed(mOutputRedrawRunnable, minIntervalMs);
+    }
+
+    /** Cancel a redraw that was scheduled by {@link #onScreenOutputThrottled(long)}. */
+    private void cancelPendingOutputRedraw() {
+        if (!mOutputRedrawPending) return;
+        mOutputRedrawPending = false;
+        removeCallbacks(mOutputRedrawRunnable);
+    }
+
     /** This must be called by the hosting activity in {@link Activity#onContextMenuClosed(Menu)}
      * when context menu for the {@link TerminalView} is started by
      * {@link TextSelectionCursorController#ACTION_MORE} is closed. */
@@ -822,6 +922,8 @@ public final class TerminalView extends View {
     public boolean onTouchEvent(MotionEvent event) {
         if (mEmulator == null) return true;
         final int action = event.getAction();
+
+        if (handleCommandMarkStripTouchEvent(event)) return true;
 
         if (action == MotionEvent.ACTION_CANCEL && mIsMouseDragFromTouchInProgress) {
             // Release the button press that was reported for a drag with a finger, since the gesture was
@@ -1238,6 +1340,20 @@ public final class TerminalView extends View {
 
             scrollTo(0, 0);
             invalidate();
+
+            // The search matches refer to rows of the previous buffer layout, since the reflow of
+            // the resize changes the rows, so recompute them and keep the selected match as close
+            // to its previous location as possible.
+            if (mSearchQuery != null) {
+                int previousRow = -1, previousColumn = 0;
+                if (mSearchMatchIndex >= 0 && mSearchMatchIndex < mSearchMatches.length) {
+                    TerminalBuffer.SearchMatch previousMatch = mSearchMatches[mSearchMatchIndex];
+                    previousRow = previousMatch.row;
+                    previousColumn = previousMatch.startColumn;
+                }
+                setSearchQuery(mSearchQuery);
+                if (previousRow != -1) selectSearchMatchAtOrAfter(previousRow, previousColumn);
+            }
         }
     }
 
@@ -1299,6 +1415,265 @@ public final class TerminalView extends View {
         if (updateEmulator && mEmulator != null) {
             mEmulator.setTopRow(mTopRow);
         }
+    }
+
+
+
+    /**
+     * Set the search query and highlight all of its matches in the screen and the transcript,
+     * ignoring case. The most recent match is selected and scrolled into view, since that is
+     * usually the one being looked for. Passing an empty query clears the search.
+     *
+     * @param query The text to search for.
+     * @return The number of matches found.
+     */
+    public int setSearchQuery(@Nullable String query) {
+        mSearchQuery = (query == null || query.isEmpty()) ? null : query;
+        if (mSearchQuery == null || mEmulator == null) {
+            clearSearch();
+            return 0;
+        }
+
+        List<TerminalBuffer.SearchMatch> matches = mEmulator.getScreen().findAllMatches(mSearchQuery);
+        mSearchMatches = matches.toArray(new TerminalBuffer.SearchMatch[0]);
+
+        int count = mSearchMatches.length;
+        mSearchMatchRows = new int[count];
+        mSearchMatchStartColumns = new int[count];
+        mSearchMatchEndColumns = new int[count];
+        for (int i = 0; i < count; i++) {
+            TerminalBuffer.SearchMatch match = mSearchMatches[i];
+            mSearchMatchRows[i] = match.row;
+            mSearchMatchStartColumns[i] = match.startColumn;
+            mSearchMatchEndColumns[i] = match.endColumn;
+        }
+
+        mSearchMatchIndex = count > 0 ? count - 1 : -1;
+        updateSearchHighlights();
+        if (mSearchMatchIndex >= 0) scrollToSearchMatch(mSearchMatchIndex);
+        invalidate();
+        return count;
+    }
+
+    /** @return The number of matches of the current search query, or 0 if no search is active. */
+    public int getSearchMatchCount() {
+        return mSearchMatches.length;
+    }
+
+    /** @return The index of the currently selected search match, or -1 if none is selected. */
+    public int getSearchMatchIndex() {
+        return mSearchMatchIndex;
+    }
+
+    /**
+     * Select the next or the previous search match, wrapping around at the end, and scroll it into
+     * view.
+     *
+     * @param forward Whether to select the next match instead of the previous one.
+     * @return The index of the selected match, or -1 if there are no matches.
+     */
+    public int findNextSearchMatch(boolean forward) {
+        int count = mSearchMatches.length;
+        if (count == 0) return -1;
+
+        if (mSearchMatchIndex < 0) {
+            mSearchMatchIndex = forward ? 0 : count - 1;
+        } else {
+            mSearchMatchIndex = (mSearchMatchIndex + (forward ? 1 : -1) + count) % count;
+        }
+
+        updateSearchHighlights();
+        scrollToSearchMatch(mSearchMatchIndex);
+        invalidate();
+        return mSearchMatchIndex;
+    }
+
+    /** Clear the current search and its highlights. */
+    public void clearSearch() {
+        mSearchQuery = null;
+        mSearchMatches = new TerminalBuffer.SearchMatch[0];
+        mSearchMatchIndex = -1;
+        mSearchMatchRows = new int[0];
+        mSearchMatchStartColumns = new int[0];
+        mSearchMatchEndColumns = new int[0];
+        updateSearchHighlights();
+        invalidate();
+    }
+
+    private void updateSearchHighlights() {
+        mRenderer.setSearchHighlights(mSearchMatchRows, mSearchMatchStartColumns, mSearchMatchEndColumns, mSearchMatchIndex);
+    }
+
+    /** Select the match at or after {@code row} and {@code column}, and scroll it into view. */
+    private void selectSearchMatchAtOrAfter(int row, int column) {
+        int count = mSearchMatches.length;
+        if (count == 0) return;
+
+        int index = count - 1;
+        for (int i = 0; i < count; i++) {
+            TerminalBuffer.SearchMatch match = mSearchMatches[i];
+            if (match.row > row || (match.row == row && match.startColumn >= column)) {
+                index = i;
+                break;
+            }
+        }
+
+        mSearchMatchIndex = index;
+        updateSearchHighlights();
+        scrollToSearchMatch(index);
+        invalidate();
+    }
+
+    /** @return Whether the external row is the start of a command, which is what command jumps scroll to. */
+    private boolean isCommandRow(int row) {
+        if (mEmulator == null) return false;
+        int mark = mEmulator.getScreen().getCommandMark(row);
+        return (mark & (TerminalBuffer.COMMAND_MARK_PROMPT_START | TerminalBuffer.COMMAND_MARK_COMMAND_START)) != 0;
+    }
+
+    /**
+     * Scroll to the start of the previous command in the transcript, as reported by the shell
+     * integration with `OSC 133`.
+     *
+     * @return Whether a previous command was found.
+     */
+    public boolean scrollToPreviousCommand() {
+        if (mEmulator == null) return false;
+        int minRow = -mEmulator.getScreen().getActiveTranscriptRows();
+        for (int row = mTopRow - 1; row >= minRow; row--) {
+            if (isCommandRow(row)) {
+                scrollToCommandRow(row);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Scroll to the start of the next command below the visible rows, or to the bottom of the
+     * transcript if there is none, so that the user can get back to the current prompt.
+     *
+     * @return Whether the view was scrolled.
+     */
+    public boolean scrollToNextCommand() {
+        if (mEmulator == null) return false;
+        for (int row = mTopRow + mEmulator.mRows; row < mEmulator.mRows; row++) {
+            if (isCommandRow(row)) {
+                scrollToCommandRow(row);
+                return true;
+            }
+        }
+        if (mTopRow != 0) {
+            scrollToCommandRow(0);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Scroll to the command with the sequence number {@code commandSequence}, which is used to jump
+     * to the command that a notification card is about.
+     *
+     * Unlike {@link #scrollToPreviousCommand()}, the row is looked up by the sequence number of the
+     * command that is stored on its row, so that the command can be jumped to even when other commands
+     * have finished in the meantime.
+     *
+     * @return Whether the row of the command is still in the buffer and was scrolled to.
+     */
+    public boolean scrollToCommandSequence(int commandSequence) {
+        if (mEmulator == null || commandSequence == 0) return false;
+
+        int minRow = -mEmulator.getScreen().getActiveTranscriptRows();
+        for (int row = minRow; row < mEmulator.mRows; row++) {
+            if (mEmulator.getScreen().getCommandMarkSequence(row) != commandSequence) continue;
+            scrollToCommandRow(row);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Handle a touch on the strip on the right edge where the command marks are drawn. A tap on the
+     * strip scrolls to the command mark nearest to the tapped row.
+     *
+     * @return Whether the event was handled.
+     */
+    private boolean handleCommandMarkStripTouchEvent(MotionEvent event) {
+        if (mEmulator == null) return false;
+        // Do not interfere with the selection handles or with clearing a selection.
+        if (isSelectingText()) return false;
+
+        final float stripWidth = COMMAND_MARK_TOUCH_STRIP_WIDTH_DP * getResources().getDisplayMetrics().density;
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN: {
+                if (event.getX() < getWidth() - stripWidth) return false;
+                int row = findCommandRowNear(mTopRow + (int) (event.getY() / mRenderer.mFontLineSpacing));
+                if (row == Integer.MIN_VALUE) return false;
+                mIsCommandMarkStripTouchInProgress = true;
+                mCommandMarkStripTouchRow = row;
+                mCommandMarkStripTouchDownY = event.getY();
+                return true;
+            }
+            case MotionEvent.ACTION_MOVE:
+                return mIsCommandMarkStripTouchInProgress;
+            case MotionEvent.ACTION_UP:
+                if (!mIsCommandMarkStripTouchInProgress) return false;
+                mIsCommandMarkStripTouchInProgress = false;
+                if (Math.abs(event.getY() - mCommandMarkStripTouchDownY) <= ViewConfiguration.get(getContext()).getScaledTouchSlop())
+                    scrollToCommandRow(mCommandMarkStripTouchRow);
+                return true;
+            case MotionEvent.ACTION_CANCEL:
+                boolean wasInProgress = mIsCommandMarkStripTouchInProgress;
+                mIsCommandMarkStripTouchInProgress = false;
+                return wasInProgress;
+            default:
+                return false;
+        }
+    }
+
+    /** Find a row with a command mark within a few rows of {@code row}, or {@code Integer.MIN_VALUE}. */
+    private int findCommandRowNear(int row) {
+        if (mEmulator == null) return Integer.MIN_VALUE;
+        int minRow = -mEmulator.getScreen().getActiveTranscriptRows();
+        int maxRow = mEmulator.mRows - 1;
+        if (row < minRow || row > maxRow) return Integer.MIN_VALUE;
+        if (isCommandRow(row)) return row;
+        for (int offset = 1; offset <= 4; offset++) {
+            if (row - offset >= minRow && isCommandRow(row - offset)) return row - offset;
+            if (row + offset <= maxRow && isCommandRow(row + offset)) return row + offset;
+        }
+        return Integer.MIN_VALUE;
+    }
+
+    /** Scroll the terminal so that the command row is at the top of the view and clamp it to the buffer. */
+    private void scrollToCommandRow(int row) {
+        if (mEmulator == null) return;
+        int minRow = -mEmulator.getScreen().getActiveTranscriptRows();
+        if (row < minRow) row = minRow;
+        if (row > 0) row = 0;
+        if (row != mTopRow) setTopRow(row);
+        invalidate();
+    }
+
+    /** Scroll the terminal so that the search match at {@code index} is visible. */
+    private void scrollToSearchMatch(int index) {
+        if (mEmulator == null || index < 0 || index >= mSearchMatches.length) return;
+
+        int row = mSearchMatches[index].row;
+        int rows = mEmulator.mRows;
+        int topRow = mTopRow;
+        if (row < topRow) {
+            topRow = row;
+        } else if (row >= topRow + rows) {
+            topRow = row - rows + 1;
+        }
+
+        int minTopRow = -mEmulator.getScreen().getActiveTranscriptRows();
+        if (topRow < minTopRow) topRow = minTopRow;
+        if (topRow > 0) topRow = 0;
+
+        if (topRow != mTopRow) setTopRow(topRow);
     }
 
 
@@ -1685,6 +2060,8 @@ public final class TerminalView extends View {
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+
+        cancelPendingOutputRedraw();
 
         if (mTextSelectionCursorController != null) {
             // Might solve the following exception

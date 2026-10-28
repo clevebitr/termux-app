@@ -1,4 +1,5 @@
-<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <PreferenceCategory
         app:key="view"
@@ -15,6 +16,82 @@
             app:summaryOff="@string/termux_terminal_view_switch_session_on_swipe_off"
             app:summaryOn="@string/termux_terminal_view_switch_session_on_swipe_on"
             app:title="@string/termux_terminal_view_switch_session_on_swipe_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="padding"
+        app:title="@string/termux_terminal_view_padding_header">
+
+        <SeekBarPreference
+            android:max="100"
+            android:min="0"
+            app:defaultValue="0"
+            app:key="terminal-padding-top"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_terminal_view_padding_summary"
+            app:title="@string/termux_terminal_view_padding_top_title" />
+
+        <SeekBarPreference
+            android:max="100"
+            android:min="0"
+            app:defaultValue="0"
+            app:key="terminal-padding-bottom"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_terminal_view_padding_summary"
+            app:title="@string/termux_terminal_view_padding_bottom_title" />
+
+        <SeekBarPreference
+            android:max="100"
+            android:min="0"
+            app:defaultValue="0"
+            app:key="terminal-padding-left"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_terminal_view_padding_summary"
+            app:title="@string/termux_terminal_view_padding_left_title" />
+
+        <SeekBarPreference
+            android:max="100"
+            android:min="0"
+            app:defaultValue="0"
+            app:key="terminal-padding-right"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_terminal_view_padding_summary"
+            app:title="@string/termux_terminal_view_padding_right_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="clipboard"
+        app:title="@string/termux_terminal_view_clipboard_header">
+
+        <ListPreference
+            app:defaultValue="write"
+            app:entries="@array/termux_terminal_view_osc52_clipboard_entries"
+            app:entryValues="@array/termux_terminal_view_osc52_clipboard_values"
+            app:key="terminal-osc52-clipboard"
+            app:title="@string/termux_terminal_view_osc52_clipboard_title"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="shell_integration"
+        app:title="@string/termux_terminal_view_shell_integration_header">
+
+        <Preference
+            app:key="shell_integration_install"
+            app:summary="@string/termux_terminal_view_shell_integration_install_summary"
+            app:title="@string/termux_terminal_view_shell_integration_install_title" />
+
+        <Preference
+            app:key="shell_integration_uninstall"
+            app:summary="@string/termux_terminal_view_shell_integration_uninstall_summary"
+            app:title="@string/termux_terminal_view_shell_integration_uninstall_title" />
 
     </PreferenceCategory>
 
