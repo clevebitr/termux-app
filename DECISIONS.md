@@ -645,3 +645,28 @@ subshell**（约 0.5–1ms），可接受但别再往里加 fork。zsh 用 `pree
 * `SEARCH`/`SPLIT_*` 的默认符号放在 `ExtraKeysConstants.WELL_KNOWN_CHARACTERS_DISPLAY`，用户可用
   `{key: SEARCH, display: FIND}` 覆盖，不需要新机制。
 
+## 2026-10-19 — M8.3 设置页（通知 / 长按菜单）四个坑
+
+**范围**：设置 → Termux 新增「通知」「长按菜单」两个独立页；只暴露已经实现的配置（OSC 通道 / App
+事件 / 后台通知 / 最近通知留到 M8.4/M8.5 再加条目）；停留时间用预设下拉（毫秒值仍写
+`notification-duration`）；菜单项用**双区 + ▲▼ 调序**的自定义编辑器。
+
+1. **`app:min`/`app:max` 不存在**：androidx.preference 1.2.1 的 `SeekBarPreference` 只认
+   `android:min`/`android:max`。用 `app:` 前缀会在 `processDebugResources` 阶段直接
+   `error: attribute max (aka com.termux:max) not found`。注意 `android:min` 在 API 26 以下会被
+   SeekBar 忽略（min 变成 0），所以 `notification-max-visible` 在旧机上可能被拖到 0 —— 配置解析里的
+   范围检查会兜回默认值 3。
+2. **AGP 8 非传递 R**：app 里引用 `terminal-view` 的 `copy_text`/`paste_text`/`text_selection_more`
+   编译不过，要写 `com.termux.view.R.string.*`。这和之前颜色资源那个坑（DECISIONS 早前条目）同源。
+3. **`Preference.setSummary()` 内部会 `notifyChanged()`**：在 `onBindViewHolder()` 里无条件设置会
+   触发「绑定→notifyChanged→再绑定」的循环。必须 `if (!TextUtils.equals(newSummary, getSummary()))`。
+4. **`values-zh/arrays.xml` 别重复定义 `translatable="false"` 数组**：`entries` 数组元素是
+   `@string/xxx` 引用，本来就按当前语言解析；重复声明只会多一份废资源（aapt 给警告）。
+
+**其它**：
+* 双区编辑器的「至少保留一项」约束放在 `OrderedItemsPreference.getMinimumItemCount()` 里（浮条子类
+  返回 1），而不是在写文件时裁剪 —— 这样 UI 上根本点不出空列表。
+* 这两个页的 DataStore 都用 `super(context, false)`（不重建 Activity）：通知与菜单配置都在
+  `reloadActivityStyling()` 里重读，重建只会闪屏。
+* 「发送测试通知」不放设置页：卡片属于运行中的 `TermuxActivity`，在设置页触发看不到效果，仍放长按菜单。
+

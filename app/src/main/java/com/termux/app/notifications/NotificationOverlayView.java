@@ -339,7 +339,8 @@ public class NotificationOverlayView extends FrameLayout {
             Math.round(ViewUtils.dpToPx(getContext(), mConfig.borderWidthDp)),
             Math.round(ViewUtils.dpToPx(getContext(), mConfig.accentWidthDp)),
             mConfig.monospace,
-            mConfig.bodyMaxLines);
+            mConfig.bodyMaxLines,
+            mConfig.fontSizeSp);
     }
 
     /**

@@ -624,4 +624,101 @@
     <string name="notification_test_meta_cwd" translatable="false">~/repos/termux-app</string>
     <string name="notification_test_meta_duration" translatable="false">12.3s</string>
     <string name="notification_test_meta_session" translatable="false">bash</string>
+
+    <!-- Notification Preferences -->
+    <string name="termux_notification_preferences_title">通知</string>
+    <string name="termux_notification_preferences_summary">命令失败时的通知卡片，类似 TUI 通知插件</string>
+
+    <string name="termux_notification_general_header">通用</string>
+    <string name="termux_notification_enabled_title">显示通知卡片</string>
+    <string name="termux_notification_enabled_on">卡片显示在终端角落。长按终端 →「发送测试通知」可以检查外观。</string>
+    <string name="termux_notification_enabled_off">关闭时，失败命令只显示 App 原有的短 toast。</string>
+    <string name="termux_notification_position_title">显示位置</string>
+    <string name="termux_notification_duration_title">自动消失时间</string>
+    <string name="termux_notification_max_visible_title">最大同时显示条数（1–8）</string>
+    <string name="termux_notification_max_visible_summary">超出时先关闭最旧的卡片。</string>
+
+    <string name="termux_notification_appearance_header">外观</string>
+    <string name="termux_notification_width_title">宽度（dp，0 = 自适应）</string>
+    <string name="termux_notification_width_summary">填 0 时卡片按内容自适应，上限 320dp。</string>
+    <string name="termux_notification_font_size_title">字号（sp）</string>
+    <string name="termux_notification_font_size_summary">命令行与详情行比标题分别小 1sp 与 2.5sp。</string>
+    <string name="termux_notification_body_max_lines_title">命令行最多行数（1–6）</string>
+    <string name="termux_notification_body_max_lines_summary">超出部分用省略号截断。</string>
+    <string name="termux_notification_corner_radius_title">圆角（dp，0 = 直角）</string>
+    <string name="termux_notification_corner_radius_summary">0 = TUI 窗口的直角，8 = Material 卡片风格。</string>
+    <string name="termux_notification_border_width_title">描边宽度（dp，0 = 无描边）</string>
+    <string name="termux_notification_border_width_summary">描边使用卡片的强调色。</string>
+    <string name="termux_notification_accent_width_title">左侧色条宽度（dp，0 = 无色条）</string>
+    <string name="termux_notification_accent_width_summary">色条画在卡片左边缘。</string>
+    <string name="termux_notification_monospace_title">等宽字体</string>
+    <string name="termux_notification_monospace_on">卡片使用终端的等宽字体。</string>
+    <string name="termux_notification_monospace_off">卡片使用系统默认字体。</string>
+    <string name="termux_notification_background_color_title">背景颜色</string>
+    <string name="termux_notification_foreground_color_title">文字颜色</string>
+    <string name="termux_notification_accent_failure_color_title">失败命令的强调色</string>
+    <string name="termux_notification_accent_success_color_title">成功命令的强调色</string>
+    <string name="termux_notification_accent_warning_color_title">警告的强调色</string>
+    <string name="termux_notification_accent_info_color_title">信息的强调色</string>
+
+    <string name="termux_notification_exit_code_header">失败命令</string>
+    <string name="termux_notification_exit_code_enabled_title">命令失败时显示卡片</string>
+    <string name="termux_notification_exit_code_enabled_on">命令以非 0 退出码结束时显示卡片。</string>
+    <string name="termux_notification_exit_code_enabled_off">忽略失败命令，等同于关闭卡片。</string>
+    <string name="termux_notification_exit_code_show_cwd_title">显示工作目录</string>
+    <string name="termux_notification_exit_code_show_session_title">显示会话名</string>
+    <string name="termux_notification_exit_code_show_session_summary">只有重命名过的会话才有名字。</string>
+    <string name="termux_notification_exit_code_min_duration_title">最短耗时（秒）</string>
+    <string name="termux_notification_exit_code_min_duration_summary">只提示运行了至少这么久的命令。0 = 全部提示。</string>
+    <string name="termux_notification_exit_code_ignore_commands_title">忽略的命令</string>
+    <string name="termux_notification_exit_code_ignore_commands_summary">按设计会返回非 0 的命令，逗号分隔。</string>
+    <string name="termux_notification_exit_code_ignore_commands_dialog_message">输入命令名，逗号分隔，例如 grep,test,diff。留空则所有命令都提示。</string>
+
+    <!-- Terminal Menu Preferences -->
+    <string name="termux_terminal_menu_preferences_title">长按菜单</string>
+    <string name="termux_terminal_menu_preferences_summary">长按菜单与文本选择浮条的动作及样式</string>
+
+    <string name="termux_terminal_menu_items_header">动作</string>
+    <string name="termux_terminal_menu_items_title">长按菜单项</string>
+    <string name="termux_terminal_menu_items_summary">长按终端时显示的项，顺序即显示顺序。</string>
+    <string name="termux_terminal_menu_selection_items_title">文本选择浮条项</string>
+    <string name="termux_terminal_menu_selection_items_summary">选字后显示在手柄上方的按钮，至少保留一项。</string>
+    <string name="termux_terminal_menu_kill_process_label">杀掉进程</string>
+
+    <string name="termux_terminal_menu_appearance_header">外观</string>
+    <string name="termux_terminal_menu_font_size_title">字号（sp）</string>
+    <string name="termux_terminal_menu_font_size_summary">菜单对话框中各项的字号。</string>
+    <string name="termux_terminal_menu_corner_radius_title">圆角（dp，0 = 直角）</string>
+    <string name="termux_terminal_menu_corner_radius_summary">0 = TUI 窗口的直角，8 = Material 对话框风格。</string>
+    <string name="termux_terminal_menu_border_width_title">描边宽度（dp，0 = 无描边）</string>
+    <string name="termux_terminal_menu_border_width_summary">描边使用菜单的强调色。</string>
+    <string name="termux_terminal_menu_monospace_title">等宽字体</string>
+    <string name="termux_terminal_menu_monospace_off">菜单使用系统默认字体。</string>
+    <string name="termux_terminal_menu_monospace_on">菜单使用终端的等宽字体。</string>
+    <string name="termux_terminal_menu_show_icons_title">显示图标</string>
+    <string name="termux_terminal_menu_show_icons_off">各项只显示文字。</string>
+    <string name="termux_terminal_menu_show_icons_on">各项右侧显示一个小符号。</string>
+    <string name="termux_terminal_menu_background_color_title">背景颜色</string>
+    <string name="termux_terminal_menu_foreground_color_title">文字颜色</string>
+    <string name="termux_terminal_menu_accent_color_title">强调色</string>
+
+    <!-- Ordered items preference (shared by the menu and the selection toolbar) -->
+    <string name="termux_ordered_items_none">无</string>
+    <string name="termux_ordered_items_shown_header">已显示（按此顺序）</string>
+    <string name="termux_ordered_items_shown_empty">当前没有显示的项，点下面的一项添加。</string>
+    <string name="termux_ordered_items_hidden_header">未显示，点一下添加</string>
+    <string name="termux_ordered_items_hidden_empty">所有项都已显示。</string>
+
+    <string name="termux_notification_position_top_end">右上角</string>
+    <string name="termux_notification_position_top_start">左上角</string>
+    <string name="termux_notification_position_bottom_end">右下角</string>
+    <string name="termux_notification_position_bottom_start">左下角</string>
+    <string name="termux_notification_duration_1s">1 秒</string>
+    <string name="termux_notification_duration_2s">2 秒（默认）</string>
+    <string name="termux_notification_duration_3s">3 秒</string>
+    <string name="termux_notification_duration_5s">5 秒</string>
+    <string name="termux_notification_duration_10s">10 秒</string>
+    <string name="termux_notification_duration_30s">30 秒</string>
+    <string name="termux_notification_duration_never">常驻（不自动消失）</string>
+
 </resources>

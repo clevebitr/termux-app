@@ -657,4 +657,101 @@
     <string name="notification_test_meta_cwd" translatable="false">~/repos/termux-app</string>
     <string name="notification_test_meta_duration" translatable="false">12.3s</string>
     <string name="notification_test_meta_session" translatable="false">bash</string>
+
+    <!-- Notification Preferences -->
+    <string name="termux_notification_preferences_title">Notifications</string>
+    <string name="termux_notification_preferences_summary">Notification cards for failed commands, like the notifications of the tui notification plugins</string>
+
+    <string name="termux_notification_general_header">General</string>
+    <string name="termux_notification_enabled_title">Show notification cards</string>
+    <string name="termux_notification_enabled_on">Cards are shown in a corner of the terminal. Long press the terminal and choose \"send test notification\" to check their appearance.</string>
+    <string name="termux_notification_enabled_off">When disabled, a failed command only shows the short toast of the app.</string>
+    <string name="termux_notification_position_title">Corner</string>
+    <string name="termux_notification_duration_title">Close after</string>
+    <string name="termux_notification_max_visible_title">Maximum cards (1–8)</string>
+    <string name="termux_notification_max_visible_summary">Older cards are closed first when more cards are shown.</string>
+
+    <string name="termux_notification_appearance_header">Appearance</string>
+    <string name="termux_notification_width_title">Width in dp (0 = fit content)</string>
+    <string name="termux_notification_width_summary">The cards fit their content up to 320dp when set to 0.</string>
+    <string name="termux_notification_font_size_title">Font size in sp</string>
+    <string name="termux_notification_font_size_summary">The command line and the details line are drawn 1sp and 2.5sp smaller.</string>
+    <string name="termux_notification_body_max_lines_title">Maximum lines of the command (1–6)</string>
+    <string name="termux_notification_body_max_lines_summary">Longer command lines are cut off with an ellipsis.</string>
+    <string name="termux_notification_corner_radius_title">Corner radius in dp (0 = square)</string>
+    <string name="termux_notification_corner_radius_summary">0 gives the square corners of a tui window, 8 gives a material design card.</string>
+    <string name="termux_notification_border_width_title">Border width in dp (0 = no border)</string>
+    <string name="termux_notification_border_width_summary">The border is drawn in the accent color of the card.</string>
+    <string name="termux_notification_accent_width_title">Accent bar width in dp (0 = no bar)</string>
+    <string name="termux_notification_accent_width_summary">The accent bar is drawn on the left edge of the card.</string>
+    <string name="termux_notification_monospace_title">Monospace font</string>
+    <string name="termux_notification_monospace_on">The cards use the monospace font of the terminal.</string>
+    <string name="termux_notification_monospace_off">The cards use the default font of the system.</string>
+    <string name="termux_notification_background_color_title">Background color</string>
+    <string name="termux_notification_foreground_color_title">Text color</string>
+    <string name="termux_notification_accent_failure_color_title">Accent color of failed commands</string>
+    <string name="termux_notification_accent_success_color_title">Accent color of successful commands</string>
+    <string name="termux_notification_accent_warning_color_title">Accent color of warnings</string>
+    <string name="termux_notification_accent_info_color_title">Accent color of information</string>
+
+    <string name="termux_notification_exit_code_header">Failed commands</string>
+    <string name="termux_notification_exit_code_enabled_title">Show a card when a command fails</string>
+    <string name="termux_notification_exit_code_enabled_on">A card is shown when a command exits with a non-zero exit code.</string>
+    <string name="termux_notification_exit_code_enabled_off">Failed commands are ignored, like when the cards are disabled.</string>
+    <string name="termux_notification_exit_code_show_cwd_title">Show the working directory</string>
+    <string name="termux_notification_exit_code_show_session_title">Show the session name</string>
+    <string name="termux_notification_exit_code_show_session_summary">Only sessions that were renamed have a name.</string>
+    <string name="termux_notification_exit_code_min_duration_title">Minimum duration in seconds</string>
+    <string name="termux_notification_exit_code_min_duration_summary">Only show a card for commands that ran at least this long. 0 shows every command.</string>
+    <string name="termux_notification_exit_code_ignore_commands_title">Ignored commands</string>
+    <string name="termux_notification_exit_code_ignore_commands_summary">Commands that return a non-zero exit code by design, separated by commas.</string>
+    <string name="termux_notification_exit_code_ignore_commands_dialog_message">Enter the command names separated by commas, like grep,test,diff. An empty value shows a card for every command.</string>
+
+    <!-- Terminal Menu Preferences -->
+    <string name="termux_terminal_menu_preferences_title">Long press menu</string>
+    <string name="termux_terminal_menu_preferences_summary">The actions of the context menu and of the text selection toolbar, and their style</string>
+
+    <string name="termux_terminal_menu_items_header">Actions</string>
+    <string name="termux_terminal_menu_items_title">Context menu actions</string>
+    <string name="termux_terminal_menu_items_summary">The actions that are shown with a long press, in the order they are shown.</string>
+    <string name="termux_terminal_menu_selection_items_title">Text selection toolbar actions</string>
+    <string name="termux_terminal_menu_selection_items_summary">The buttons that are shown above the selection handles. At least one is kept.</string>
+    <string name="termux_terminal_menu_kill_process_label">Kill process</string>
+
+    <string name="termux_terminal_menu_appearance_header">Appearance</string>
+    <string name="termux_terminal_menu_font_size_title">Font size in sp</string>
+    <string name="termux_terminal_menu_font_size_summary">The size of the items of the menu dialog.</string>
+    <string name="termux_terminal_menu_corner_radius_title">Corner radius in dp (0 = square)</string>
+    <string name="termux_terminal_menu_corner_radius_summary">0 gives the square corners of a tui window, 8 gives a material design dialog.</string>
+    <string name="termux_terminal_menu_border_width_title">Border width in dp (0 = no border)</string>
+    <string name="termux_terminal_menu_border_width_summary">The border is drawn in the accent color of the menu.</string>
+    <string name="termux_terminal_menu_monospace_title">Monospace font</string>
+    <string name="termux_terminal_menu_monospace_off">The menu uses the default font of the system.</string>
+    <string name="termux_terminal_menu_monospace_on">The menu uses the monospace font of the terminal.</string>
+    <string name="termux_terminal_menu_show_icons_title">Show icons</string>
+    <string name="termux_terminal_menu_show_icons_off">The items only show their label.</string>
+    <string name="termux_terminal_menu_show_icons_on">The items show a small symbol on their right edge.</string>
+    <string name="termux_terminal_menu_background_color_title">Background color</string>
+    <string name="termux_terminal_menu_foreground_color_title">Text color</string>
+    <string name="termux_terminal_menu_accent_color_title">Accent color</string>
+
+    <!-- Ordered items preference (shared by the menu and the selection toolbar) -->
+    <string name="termux_ordered_items_none">None</string>
+    <string name="termux_ordered_items_shown_header">Shown, in this order</string>
+    <string name="termux_ordered_items_shown_empty">Nothing is shown, tap an item below to add it.</string>
+    <string name="termux_ordered_items_hidden_header">Not shown, tap to add</string>
+    <string name="termux_ordered_items_hidden_empty">Every item is shown.</string>
+
+    <string name="termux_notification_position_top_end">Top right</string>
+    <string name="termux_notification_position_top_start">Top left</string>
+    <string name="termux_notification_position_bottom_end">Bottom right</string>
+    <string name="termux_notification_position_bottom_start">Bottom left</string>
+    <string name="termux_notification_duration_1s">1 second</string>
+    <string name="termux_notification_duration_2s">2 seconds (default)</string>
+    <string name="termux_notification_duration_3s">3 seconds</string>
+    <string name="termux_notification_duration_5s">5 seconds</string>
+    <string name="termux_notification_duration_10s">10 seconds</string>
+    <string name="termux_notification_duration_30s">30 seconds</string>
+    <string name="termux_notification_duration_never">Keep until closed</string>
+
 </resources>

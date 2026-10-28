@@ -1,0 +1,82 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        app:key="terminal_menu_items"
+        app:title="@string/termux_terminal_menu_items_header">
+
+        <com.termux.app.fragments.settings.termux.TerminalMenuItemsPreference
+            app:key="terminal-menu-items"
+            app:summary="@string/termux_terminal_menu_items_summary"
+            app:title="@string/termux_terminal_menu_items_title" />
+
+        <com.termux.app.fragments.settings.termux.SelectionToolbarItemsPreference
+            app:key="selection-toolbar-items"
+            app:summary="@string/termux_terminal_menu_selection_items_summary"
+            app:title="@string/termux_terminal_menu_selection_items_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="terminal_menu_appearance"
+        app:title="@string/termux_terminal_menu_appearance_header">
+
+        <SeekBarPreference
+            app:defaultValue="13"
+            app:key="terminal-menu-font-size"
+            android:max="24"
+            android:min="8"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_terminal_menu_font_size_summary"
+            app:title="@string/termux_terminal_menu_font_size_title" />
+
+        <SeekBarPreference
+            app:defaultValue="0"
+            app:key="terminal-menu-corner-radius"
+            android:max="32"
+            android:min="0"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_terminal_menu_corner_radius_summary"
+            app:title="@string/termux_terminal_menu_corner_radius_title" />
+
+        <SeekBarPreference
+            app:defaultValue="1"
+            app:key="terminal-menu-border-width"
+            android:max="8"
+            android:min="0"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_terminal_menu_border_width_summary"
+            app:title="@string/termux_terminal_menu_border_width_title" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="terminal-menu-monospace"
+            app:summaryOff="@string/termux_terminal_menu_monospace_off"
+            app:summaryOn="@string/termux_terminal_menu_monospace_on"
+            app:title="@string/termux_terminal_menu_monospace_title" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="terminal-menu-show-icons"
+            app:summaryOff="@string/termux_terminal_menu_show_icons_off"
+            app:summaryOn="@string/termux_terminal_menu_show_icons_on"
+            app:title="@string/termux_terminal_menu_show_icons_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="terminal-menu-background-color"
+            app:title="@string/termux_terminal_menu_background_color_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="terminal-menu-foreground-color"
+            app:title="@string/termux_terminal_menu_foreground_color_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="terminal-menu-accent-color"
+            app:title="@string/termux_terminal_menu_accent_color_title" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

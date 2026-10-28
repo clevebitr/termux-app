@@ -457,6 +457,9 @@ public final class TermuxPropertyConstants {
     /** Defines the key for the text color of the notification cards */
     public static final String KEY_NOTIFICATION_FOREGROUND_COLOR = "notification-foreground-color"; // Default: "notification-foreground-color"
 
+    /** Defines the key for the font size of the title of the notification cards in sp */
+    public static final String KEY_NOTIFICATION_FONT_SIZE = "notification-font-size"; // Default: "notification-font-size"
+
     /** Defines the key for the radius of the corners of the notification cards in dp, `0` for square corners */
     public static final String KEY_NOTIFICATION_CORNER_RADIUS = "notification-corner-radius"; // Default: "notification-corner-radius"
 

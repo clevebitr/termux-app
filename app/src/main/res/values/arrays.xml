@@ -184,4 +184,38 @@
         <item>app-settings</item>
         <item>new-session</item>
     </string-array>
+
+        <!-- Notification Preferences -->
+        <string-array name="termux_notification_position_entries">
+            <item>@string/termux_notification_position_top_end</item>
+            <item>@string/termux_notification_position_top_start</item>
+            <item>@string/termux_notification_position_bottom_end</item>
+            <item>@string/termux_notification_position_bottom_start</item>
+        </string-array>
+        <string-array name="termux_notification_position_values" translatable="false">
+            <item>top-end</item>
+            <item>top-start</item>
+            <item>bottom-end</item>
+            <item>bottom-start</item>
+        </string-array>
+
+        <string-array name="termux_notification_duration_entries">
+            <item>@string/termux_notification_duration_1s</item>
+            <item>@string/termux_notification_duration_2s</item>
+            <item>@string/termux_notification_duration_3s</item>
+            <item>@string/termux_notification_duration_5s</item>
+            <item>@string/termux_notification_duration_10s</item>
+            <item>@string/termux_notification_duration_30s</item>
+            <item>@string/termux_notification_duration_never</item>
+        </string-array>
+        <string-array name="termux_notification_duration_values" translatable="false">
+            <item>1000</item>
+            <item>2000</item>
+            <item>3000</item>
+            <item>5000</item>
+            <item>10000</item>
+            <item>30000</item>
+            <item>0</item>
+        </string-array>
+
 </resources>

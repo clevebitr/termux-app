@@ -35,8 +35,9 @@
 | 17 | 命令标记（OSC 133）：跳转上/下一条命令、右边缘刻度、失败通知（v2 集成额外上报执行的命令行） | 设置页安装 shell 集成（写入 `~/.bashrc`/`~/.zshrc`） | 需手动安装集成，未安装时无任何变化 |
 | 18 | 分屏（上下 / 左右，可拖动分隔条，两个独立会话） | 长按菜单 → 分屏 | 默认关闭 |
 | 19 | 状态栏（时间 / 电量 / 内存 / CPU / 网络 / IP / 代理，可配图标、图表、配色、位置、点击动作） | `status-bar-*` 属性或设置 → 状态栏 | 默认关闭 |
-| 20 | 终端内通知卡片（右上角 nvim-notify 风格，失败命令 / App 事件 / OSC 9·99·777） | `notification-*` 属性（M8.3 起有设置页） | **默认关闭**（关时行为与上游一致） |
-| 21 | 可配置的长按菜单 + 文本选择浮条项 + `SEARCH`/`SPLIT_*` 虚拟键 | `terminal-menu-*`、`selection-toolbar-items` | 菜单 11 项；浮条 复制/粘贴/更多；风格 TUI 像素风 |
+| 20 | 终端内通知卡片（右上角 nvim-notify 风格，失败命令 / App 事件 / OSC 9·99·777） | `notification-*` 属性或设置 → 通知 | **默认关闭**（关时行为与上游一致） |
+| 21 | 可配置的长按菜单 + 文本选择浮条项 + `SEARCH`/`SPLIT_*` 虚拟键 | `terminal-menu-*`、`selection-toolbar-items` 或设置 → 长按菜单 | 菜单 11 项；浮条 复制/粘贴/更多；风格 TUI 像素风 |
+| 22 | 设置页 GUI：通知 / 长按菜单（含可调序的双区列表编辑器） | 设置 → Termux → 通知 / 长按菜单 | 与属性等价，改完立即生效 |
 
 ---
 
@@ -1223,6 +1224,67 @@ extra-keys = [['SEARCH', {key: 'SPLIT_V', display: 'V'}, {key: 'SPLIT_H', displa
 
 ---
 
+## 22. 设置页 GUI：通知 / 长按菜单
+
+设置 → Termux 根页新增两个入口，**和 `termux.properties` 里的属性是同一份配置**（读写同一批 key），
+所以手写文件和 GUI 可以随便混用。改完返回终端立即生效（走 `TermuxPropertyPreferenceDataStore`
+→ `updateTermuxActivityStyling(false)` → `reloadActivityStyling()` → `mNotificationManager.reload()` /
+`reloadTerminalMenuConfig()`），不需要重启 App。
+
+### 22.1 设置 → 通知（`NotificationPreferencesFragment`）
+
+```
+通用     总开关 / 显示位置（四角下拉）/ 自动消失时间（1·2·3·5·10·30 秒、常驻）/ 最大条数 1–8
+外观     宽度（0=自适应）/ 字号 / 命令行最多行数 / 圆角 / 描边宽度 / 色条宽度 /
+         等宽字体 / 背景色·文字色·4 个强调色（ColorPreference，支持 theme:color4）
+失败命令 通道开关 / 显示 cwd / 显示会话名 / 最短耗时（秒）/ 忽略命令（逗号分隔，可弹框编辑）
+```
+
+「自动消失时间」用**预设下拉**（值仍是毫秒，写进 `notification-duration`），默认 2 秒。
+想验证外观：长按终端 → 菜单里的「发送测试通知」（只在通知开启时出现）会轮换显示 4 种卡片。
+
+### 22.2 设置 → 长按菜单（`TerminalMenuPreferencesFragment`）
+
+```
+动作  长按菜单项（双区编辑器）/ 文本选择浮条项（双区编辑器，至少保留 1 项）
+外观  字号 / 圆角 / 描边宽度 / 等宽字体 / 显示图标 / 背景色·文字色·强调色
+```
+
+**双区列表编辑器**（`OrderedItemsPreference`，`TerminalMenuItemsPreference` /
+`SelectionToolbarItemsPreference` 两个子类）：
+
+```
+╭──────────────────────────────────╮
+│  已显示（按此顺序）                │
+│  搜索          ⌕        ▲ ▼ ✕   │   ← ▲▼ 调序、✕ 移除
+│  上一条命令     ↑        ▲ ▼ ✕   │
+│  ────────────────────────────    │
+│  未显示，点一下添加                │
+│  + 分屏（上下）   ⬓               │   ← 点一下加到最后
+│  + 选择 URL       ↗               │
+╰──────────────────────────────────╯
+```
+
+* 顺序就是 `terminal-menu-items` / `selection-toolbar-items` 里 id 的顺序，按 OK 才写入文件。
+* 浮条那一份**至少保留一项**（只剩一项时 ✕ 按钮不显示），否则就复制不了选中的文本了；长菜单允许清空。
+* 概要行（summary）显示当前已显示的项，方便不打开对话框就能看出配置。
+
+### 实现注意（踩过的坑）
+
+* **`app:min` / `app:max` 不存在**：androidx.preference 1.2.1 的 `SeekBarPreference` 用的是
+  `android:min` / `android:max`（跟「状态栏」页一致）。写成 `app:max` 会在 `processDebugResources`
+  直接 fail（`attribute max not found`）。
+* **AGP 8 非传递 R**：`terminal-view` 里的 `copy_text` / `paste_text` / `text_selection_more` 在 app
+  的 `R` 里找不到，要写 `com.termux.view.R.string.*`（和 DECISIONS 里颜色资源那个坑同源）。
+* **`setSummary()` 会 `notifyChanged()`**：在 `onBindViewHolder()` 里无条件 `setSummary()` 会让列表
+  反复重新绑定（甚至卡死）。必须比较 `TextUtils.equals(summary, getSummary())` 再设。
+* `values-zh/arrays.xml` **不要**重复声明 `translatable="false"` 的数组；`entries` 数组里引用的是
+  `@string/...`，会自动按当前语言解析，所以中文不需要单独一份。
+* 「发送测试通知」没有放进设置页：卡片属于正在运行的 `TermuxActivity`，在设置页里触发用户也看不见，
+  所以仍然只放在长按菜单里（`test-notification` 项）。
+
+---
+
 ## 验证情况（真机）
 以下各项都在本机（aarch64，Android 13 系 ROM）真机验证过（§11 音量键自定义动作 §14 终端内边距尚未真机验证）：
 
@@ -1233,6 +1295,8 @@ extra-keys = [['SEARCH', {key: 'SPLIT_V', display: 'V'}, {key: 'SPLIT_H', displa
   真机上的搜索栏交互（软键盘、返回键、与长按选择共存）和剪贴板读写尚未真机验证。
 * §17 命令标记：`CommandMarksTest`（21 个）全绿；bash 集成在本地用 `bash --norc -i` 起真实交互
   shell 验证过（`D;0`/`D;1;cmd`/`A`/`C` 顺序、退出码与命令行正确）。真机上的刻度点击、失败提示尚未验证。
+* §22 设置页：**已通过** `:app:processDebugResources` + `:app:compileDebugJavaWithJavac` + 单测；
+  真机上的控件交互（SeekBar 越界、双区编辑器调序、改完返回是否立即生效）尚未验证。
 * §20 通知卡片：M8.1（渲染层）+ M8.2（失败命令通道）**已通过** `./gradlew :app:compileDebugJavaWithJavac`
   与单测——`NotificationConfigTest`（10 个）、`ExitCodeNotifierTest`（10 个）、`CommandMarksTest`（21 个，
   含 `D;<code>;<cmd>` 解析、耗时/序列号、缓冲区取命令行、滚动后仍能定位）。以下**尚未真机验证**：

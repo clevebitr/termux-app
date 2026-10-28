@@ -35,4 +35,14 @@
         app:summary="@string/termux_status_bar_preferences_summary"
         app:fragment="com.termux.app.fragments.settings.termux.StatusBarPreferencesFragment"/>
 
+    <Preference
+        app:title="@string/termux_notification_preferences_title"
+        app:summary="@string/termux_notification_preferences_summary"
+        app:fragment="com.termux.app.fragments.settings.termux.NotificationPreferencesFragment"/>
+
+    <Preference
+        app:title="@string/termux_terminal_menu_preferences_title"
+        app:summary="@string/termux_terminal_menu_preferences_summary"
+        app:fragment="com.termux.app.fragments.settings.termux.TerminalMenuPreferencesFragment"/>
+
 </PreferenceScreen>

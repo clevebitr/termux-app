@@ -49,6 +49,7 @@ public class NotificationConfigTest {
         Assert.assertEquals(NotificationConfig.DEFAULT_MAX_VISIBLE, config.maxVisible);
         Assert.assertEquals(NotificationConfig.DEFAULT_DURATION_MS, config.durationMs);
         Assert.assertEquals(NotificationConfig.WIDTH_AUTO, config.widthDp);
+        Assert.assertEquals(NotificationConfig.DEFAULT_FONT_SIZE_SP, config.fontSizeSp);
         // The cards look like part of the terminal: square corners, flat, with a 1dp border and a
         // 4dp accent bar, drawn with the monospace font of the terminal.
         Assert.assertEquals(0, config.cornerRadiusDp);
@@ -87,8 +88,10 @@ public class NotificationConfigTest {
             "notification-border-width", "0",
             "notification-accent-width", "0",
             "notification-monospace", "false",
-            "notification-body-max-lines", "4");
+            "notification-body-max-lines", "4",
+            "notification-font-size", "18");
 
+        Assert.assertEquals(18, config.fontSizeSp);
         Assert.assertEquals(8, config.cornerRadiusDp);
         Assert.assertEquals(4, config.elevationDp);
         Assert.assertEquals(0, config.borderWidthDp);
@@ -108,6 +111,10 @@ public class NotificationConfigTest {
         // A body without any line would be invisible, so 0 falls back to the minimum instead.
         Assert.assertEquals(NotificationConfig.DEFAULT_BODY_MAX_LINES,
             parse("notification-body-max-lines", "0").bodyMaxLines);
+        Assert.assertEquals(NotificationConfig.DEFAULT_FONT_SIZE_SP,
+            parse("notification-font-size", "99").fontSizeSp);
+        Assert.assertEquals(NotificationConfig.DEFAULT_FONT_SIZE_SP,
+            parse("notification-font-size", "1").fontSizeSp);
     }
 
     @Test

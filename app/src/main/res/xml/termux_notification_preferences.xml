@@ -1,0 +1,182 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        app:key="notification_general"
+        app:title="@string/termux_notification_general_header">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:key="notification-enabled"
+            app:summaryOff="@string/termux_notification_enabled_off"
+            app:summaryOn="@string/termux_notification_enabled_on"
+            app:title="@string/termux_notification_enabled_title" />
+
+        <ListPreference
+            app:defaultValue="top-end"
+            app:entries="@array/termux_notification_position_entries"
+            app:entryValues="@array/termux_notification_position_values"
+            app:key="notification-position"
+            app:title="@string/termux_notification_position_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="2000"
+            app:entries="@array/termux_notification_duration_entries"
+            app:entryValues="@array/termux_notification_duration_values"
+            app:key="notification-duration"
+            app:title="@string/termux_notification_duration_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <SeekBarPreference
+            app:defaultValue="3"
+            app:key="notification-max-visible"
+            android:max="8"
+            android:min="1"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_notification_max_visible_summary"
+            app:title="@string/termux_notification_max_visible_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="notification_appearance"
+        app:title="@string/termux_notification_appearance_header">
+
+        <SeekBarPreference
+            app:defaultValue="0"
+            app:key="notification-width"
+            android:max="480"
+            android:min="0"
+            app:seekBarIncrement="10"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_notification_width_summary"
+            app:title="@string/termux_notification_width_title" />
+
+        <SeekBarPreference
+            app:defaultValue="13"
+            app:key="notification-font-size"
+            android:max="24"
+            android:min="9"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_notification_font_size_summary"
+            app:title="@string/termux_notification_font_size_title" />
+
+        <SeekBarPreference
+            app:defaultValue="2"
+            app:key="notification-body-max-lines"
+            android:max="6"
+            android:min="1"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_notification_body_max_lines_summary"
+            app:title="@string/termux_notification_body_max_lines_title" />
+
+        <SeekBarPreference
+            app:defaultValue="0"
+            app:key="notification-corner-radius"
+            android:max="32"
+            android:min="0"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_notification_corner_radius_summary"
+            app:title="@string/termux_notification_corner_radius_title" />
+
+        <SeekBarPreference
+            app:defaultValue="1"
+            app:key="notification-border-width"
+            android:max="8"
+            android:min="0"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_notification_border_width_summary"
+            app:title="@string/termux_notification_border_width_title" />
+
+        <SeekBarPreference
+            app:defaultValue="4"
+            app:key="notification-accent-width"
+            android:max="16"
+            android:min="0"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_notification_accent_width_summary"
+            app:title="@string/termux_notification_accent_width_title" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="notification-monospace"
+            app:summaryOff="@string/termux_notification_monospace_off"
+            app:summaryOn="@string/termux_notification_monospace_on"
+            app:title="@string/termux_notification_monospace_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="notification-background-color"
+            app:title="@string/termux_notification_background_color_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="notification-foreground-color"
+            app:title="@string/termux_notification_foreground_color_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="notification-accent-failure-color"
+            app:title="@string/termux_notification_accent_failure_color_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="notification-accent-success-color"
+            app:title="@string/termux_notification_accent_success_color_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="notification-accent-warning-color"
+            app:title="@string/termux_notification_accent_warning_color_title" />
+
+        <com.termux.app.fragments.settings.termux.ColorPreference
+            app:key="notification-accent-info-color"
+            app:title="@string/termux_notification_accent_info_color_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="notification_exit_code"
+        app:title="@string/termux_notification_exit_code_header">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="notification-exit-code-enabled"
+            app:summaryOff="@string/termux_notification_exit_code_enabled_off"
+            app:summaryOn="@string/termux_notification_exit_code_enabled_on"
+            app:title="@string/termux_notification_exit_code_enabled_title" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="notification-exit-code-show-cwd"
+            app:title="@string/termux_notification_exit_code_show_cwd_title" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:key="notification-exit-code-show-session"
+            app:summary="@string/termux_notification_exit_code_show_session_summary"
+            app:title="@string/termux_notification_exit_code_show_session_title" />
+
+        <SeekBarPreference
+            app:defaultValue="0"
+            app:key="notification-exit-code-min-duration"
+            android:max="60"
+            android:min="0"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_notification_exit_code_min_duration_summary"
+            app:title="@string/termux_notification_exit_code_min_duration_title" />
+
+        <EditTextPreference
+            app:defaultValue="grep,test,diff,true,false,rg,fd,["
+            app:dialogMessage="@string/termux_notification_exit_code_ignore_commands_dialog_message"
+            app:key="notification-exit-code-ignore-commands"
+            app:summary="@string/termux_notification_exit_code_ignore_commands_summary"
+            app:title="@string/termux_notification_exit_code_ignore_commands_title"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

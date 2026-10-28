@@ -76,9 +76,12 @@ public class NotificationCardView extends FrameLayout {
         public final boolean monospace;
         /** The maximum number of lines of the body of the card. */
         public final int bodyMaxLines;
+        /** The font size of the title of the card in sp. */
+        public final int fontSizeSp;
 
         public Style(int backgroundColor, int foregroundColor, int accentColor, int cornerRadiusPx,
-                     int elevationPx, int borderWidthPx, int accentWidthPx, boolean monospace, int bodyMaxLines) {
+                     int elevationPx, int borderWidthPx, int accentWidthPx, boolean monospace, int bodyMaxLines,
+                     int fontSizeSp) {
             this.backgroundColor = backgroundColor;
             this.foregroundColor = foregroundColor;
             this.accentColor = accentColor;
@@ -88,6 +91,7 @@ public class NotificationCardView extends FrameLayout {
             this.accentWidthPx = Math.max(0, accentWidthPx);
             this.monospace = monospace;
             this.bodyMaxLines = Math.max(1, bodyMaxLines);
+            this.fontSizeSp = Math.max(6, fontSizeSp);
         }
     }
 
@@ -194,7 +198,7 @@ public class NotificationCardView extends FrameLayout {
         // Apply the default style, so that a card that is added to a layout without a style does not
         // look broken, like in the layout preview of an ide.
         setCardStyle(new Style(0xFF000000, 0xFFFFFFFF, 0xFFFF5252,
-            0, 0, dp(1), dp(4), true, 2));
+            0, 0, dp(1), dp(4), true, 2, 13));
     }
 
     /** Set the listener that is called when the user interacts with the card. */
@@ -251,6 +255,13 @@ public class NotificationCardView extends FrameLayout {
 
         mContent.setPadding(style.accentWidthPx + dp(CARD_PADDING_HORIZONTAL_DP), dp(CARD_PADDING_VERTICAL_DP),
             dp(2), dp(CARD_PADDING_VERTICAL_DP));
+
+        // The body and the details line are slightly smaller than the title, like in the cards of the tui
+        // notification plugins, and are clamped so that they stay readable at small font sizes.
+        mTitleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSizeSp);
+        mBodyView.setTextSize(TypedValue.COMPLEX_UNIT_SP, Math.max(6, style.fontSizeSp - 1));
+        mMetaView.setTextSize(TypedValue.COMPLEX_UNIT_SP, Math.max(6, style.fontSizeSp - 2.5f));
+        mCloseView.setTextSize(TypedValue.COMPLEX_UNIT_SP, Math.max(6, style.fontSizeSp - 1));
 
         mMonospace = style.monospace;
         Typeface typeface = mMonospace ? Typeface.MONOSPACE : null;

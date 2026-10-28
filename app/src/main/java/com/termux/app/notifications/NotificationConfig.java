@@ -83,6 +83,11 @@ public final class NotificationConfig {
     /** The maximum width of a card that fits its content, so that long text does not fill the terminal. */
     public static final int AUTO_MAX_WIDTH_DP = 320;
 
+    /** The font size of the title of the cards in sp, the body and the details line are 1sp and 2.5sp smaller. */
+    public static final int DEFAULT_FONT_SIZE_SP = 13;
+    public static final int MIN_FONT_SIZE_SP = 9;
+    public static final int MAX_FONT_SIZE_SP = 24;
+
     /**
      * The radius of the corners of the cards in dp. The default is 0, since the cards look like part of
      * the terminal with the square corners of a tui window instead of like material design cards.
@@ -130,6 +135,8 @@ public final class NotificationConfig {
     public int durationMs = DEFAULT_DURATION_MS;
     /** The width of the cards in dp, or {@link #WIDTH_AUTO} to fit their content. */
     public int widthDp = WIDTH_AUTO;
+    /** The font size of the title of the cards in sp. */
+    public int fontSizeSp = DEFAULT_FONT_SIZE_SP;
     /** The radius of the corners of the cards in dp, 0 for the square corners of a tui window. */
     public int cornerRadiusDp = DEFAULT_CORNER_RADIUS_DP;
     /** The elevation of the cards in dp, 0 for the flat look of a tui window. */
@@ -247,6 +254,8 @@ public final class NotificationConfig {
             DEFAULT_DURATION_MS, MIN_DURATION_MS, MAX_DURATION_MS);
         config.widthDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_WIDTH,
             WIDTH_AUTO, MIN_WIDTH_DP, MAX_WIDTH_DP);
+        config.fontSizeSp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_FONT_SIZE,
+            DEFAULT_FONT_SIZE_SP, MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP);
         config.cornerRadiusDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_CORNER_RADIUS,
             DEFAULT_CORNER_RADIUS_DP, MIN_CORNER_RADIUS_DP, MAX_CORNER_RADIUS_DP);
         config.elevationDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ELEVATION,
