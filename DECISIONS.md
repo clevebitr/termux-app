@@ -706,3 +706,38 @@ subshell**（约 0.5–1ms），可接受但别再往里加 fork。zsh 用 `pree
 * 限流用 `SystemClock.uptimeMillis()` + `WeakHashMap<TerminalSession, ArrayDeque<Long>>`（避免会话结束后
   泄漏）；`WeakHashMap.computeIfAbsent` 是 API 24+，minSdk 21 所以手写 get/put。
 
+## 2026-10-29 — 修正（重要）：`onBindViewHolder()` 里不能 `setSummary()`，比较新旧值也没用
+
+上面 M8.3 条目里写的「在 `onBindViewHolder()` 里先 `TextUtils.equals` 再 `setSummary`」是**错的**，
+真机打开「设置 → 长按菜单」直接崩溃：
+
+```
+java.lang.IllegalStateException: Cannot call this method while RecyclerView is computing a layout or scrolling
+  at androidx.recyclerview.widget.RecyclerView$RecyclerViewDataObserver.onItemRangeChanged(RecyclerView.java:5547)
+  at androidx.preference.PreferenceGroupAdapter.onPreferenceChange(PreferenceGroupAdapter.java:354)
+  at androidx.preference.Preference.notifyChanged(Preference.java:1294)
+  at androidx.preference.Preference.setSummary(Preference.java:767)
+  at ...OrderedItemsPreference.onBindViewHolder(OrderedItemsPreference.java:99)
+```
+
+第一次绑定时 summary 一定会从 XML 的静态值变成算出来的列表，所以「比较后就不设」并没有避免第一次
+`notifyChanged()`；而 `notifyChanged()` 在 `PreferenceGroupAdapter` 里就是 `notifyItemChanged()`，布局
+期间调用直接被 RecyclerView 断言拦住。
+
+**正确做法**：不要在 bind 期间设 summary，改成重写 `getSummary()`。反编译确认过
+`androidx.preference 1.2.1` 的 `Preference.onBindViewHolder()` 里是 `invokevirtual getSummary()`（不是
+读字段 `mSummary`），所以重写后列表每次绑定都会拿到最新值，且完全不触发 `notifyChanged()`：
+
+```java
+@Override public CharSequence getSummary() { return getSummaryFor(getSelectedIds()); }
+```
+
+对话框按 OK 后（不在布局期间）再 `persistString(...)` + `notifyChanged()` 刷新。
+
+顺手确认的两件事（避免下次再怀疑）：
+* `getPersistedString()` 在 preference 还没挂到 hierarchy 上时抛 `IllegalStateException`，`getSummary()`
+  里要判空 `getPreferenceManager()/getKey()` 并 try-catch。
+* 之前担心的 `com.termux.view.R` 运行时不存在：已确认 APK 里 `com/termux/view/R`、`R$string`、
+  `R$drawable` 都真实存在（classes2/3.dex 有引用），所以 `SelectionToolbarItemsPreference` 引用
+  library R 是安全的。
+

@@ -89,14 +89,21 @@ public abstract class OrderedItemsPreference extends Preference {
         return 0;
     }
 
+    /**
+     * Returns the summary of the preference, which is the list of the items that are shown, in the order
+     * they are shown.
+     *
+     * The summary is computed here and not set with {@link #setSummary(CharSequence)} from
+     * {@link #onBindViewHolder(PreferenceViewHolder)}, since {@code setSummary()} calls
+     * {@code notifyChanged()}, which must not be called while the {@code RecyclerView} of the preferences
+     * is computing a layout, otherwise it crashes with "Cannot call this method while RecyclerView is
+     * computing a layout or scrolling". {@code Preference.onBindViewHolder()} reads the summary with this
+     * method, so it does not have to be set at all.
+     */
+    @NonNull
     @Override
-    public void onBindViewHolder(@NonNull PreferenceViewHolder holder) {
-        super.onBindViewHolder(holder);
-
-        // The summary is only set when it changed, since setSummary() calls notifyChanged(), which makes
-        // the list of preferences bind this preference again, and that would loop forever otherwise.
-        CharSequence summary = getSummaryFor(getSelectedIds());
-        if (!TextUtils.equals(summary, getSummary())) setSummary(summary);
+    public CharSequence getSummary() {
+        return getSummaryFor(getSelectedIds());
     }
 
     @Override
@@ -107,7 +114,15 @@ public abstract class OrderedItemsPreference extends Preference {
     /** @return The selected ids, in the order they are shown. */
     @NonNull
     private List<String> getSelectedIds() {
-        return split(getPersistedString(getDefaultValue()));
+        // getPersistedString() throws if the preference is not attached to a hierarchy yet, like in the
+        // layout preview of an ide, in which case the list is shown as empty.
+        if (getPreferenceManager() == null || getKey() == null) return new ArrayList<>();
+
+        try {
+            return split(getPersistedString(getDefaultValue()));
+        } catch (IllegalStateException e) {
+            return new ArrayList<>();
+        }
     }
 
     /** @return The summary of the preference for the selected {@code ids}. */
@@ -145,7 +160,9 @@ public abstract class OrderedItemsPreference extends Preference {
         builder.setNegativeButton(android.R.string.cancel, null);
         builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
             persistString(join(selectedIds));
-            setSummary(getSummaryFor(selectedIds));
+            // The summary is computed by getSummary(), so the list only has to be told to bind the
+            // preference again. This is safe here, since the dialog is not part of the preference list.
+            notifyChanged();
         });
 
         // The sections are rebuilt whenever an item is added, removed or moved, so that the dialog

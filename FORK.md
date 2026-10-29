@@ -1278,8 +1278,11 @@ extra-keys = [['SEARCH', {key: 'SPLIT_V', display: 'V'}, {key: 'SPLIT_H', displa
   直接 fail（`attribute max not found`）。
 * **AGP 8 非传递 R**：`terminal-view` 里的 `copy_text` / `paste_text` / `text_selection_more` 在 app
   的 `R` 里找不到，要写 `com.termux.view.R.string.*`（和 DECISIONS 里颜色资源那个坑同源）。
-* **`setSummary()` 会 `notifyChanged()`**：在 `onBindViewHolder()` 里无条件 `setSummary()` 会让列表
-  反复重新绑定（甚至卡死）。必须比较 `TextUtils.equals(summary, getSummary())` 再设。
+* **`setSummary()` 会 `notifyChanged()`**：在 `onBindViewHolder()` 里调用 `setSummary()`，即使先比较
+  新旧值也**依然会崩溃**——`Preference.onBindViewHolder()` 期间 RecyclerView 正在算布局，`notifyChanged()`
+  会抛 `IllegalStateException: Cannot call this method while RecyclerView is computing a layout or
+  scrolling`（真机实测）。正确做法是**重写 `getSummary()`**（`Preference.onBindViewHolder()` 读的是
+  `getSummary()`，纯读不会触发通知），对话框按 OK 后再手动 `notifyChanged()`。
 * `values-zh/arrays.xml` **不要**重复声明 `translatable="false"` 的数组；`entries` 数组里引用的是
   `@string/...`，会自动按当前语言解析，所以中文不需要单独一份。
 * 「发送测试通知」没有放进设置页：卡片属于正在运行的 `TermuxActivity`，在设置页里触发用户也看不见，
