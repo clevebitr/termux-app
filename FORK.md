@@ -37,7 +37,8 @@
 | 20 | 终端内通知卡片（右上角 nvim-notify 风格，失败命令 / App 事件 / OSC 9·99·777） | `notification-*` 属性或设置 → 通知 | **默认关闭**（关时行为与上游一致） |
 | 21 | 可配置的长按菜单 + 文本选择浮条项 + `SEARCH`/`SPLIT_*` 虚拟键 | `terminal-menu-*`、`selection-toolbar-items` 或设置 → 长按菜单 | 菜单 13 项（含「会话列表」「最近通知」）；浮条 复制/粘贴/更多；风格 TUI 像素风 |
 | 22 | 设置页 GUI：通知 / 长按菜单（含可调序的双区列表编辑器） | 设置 → Termux → 通知 / 长按菜单 | 与属性等价，改完立即生效 |
-| 22b | 设置页：四组 + 图标、页内搜索（跳转+高亮）、长按恢复默认 | 设置 → Termux | 搜索按需；长按任意项可恢复默认 |
+| 22b | 设置页：四组 + 图标、页内搜索（跳转+高亮）、长按恢复默认、强调色跟随配色 | 设置 → Termux | 搜索按需；长按任意项可恢复默认 |
+| 26 | 关于 / 正式版 / 报告问题均指向本 fork 的仓库与 issue | — | 跟着 `ForkInfo` 走 |
 | 23 | 程序主动发通知：OSC 99（分块/图标/按钮/查询/关闭/回报）、OSC 9、OSC 777 | `notification-osc-*` 或设置 → 通知 → 程序主动发送的通知 | OSC 通道**默认关**，限流 3 条/秒/会话 |
 | 24 | App 事件卡片（会话退出/插件结果/标题变化/bell）+ 后台系统通知 + 最近通知列表 | `notification-events-*`、`notification-background-enabled`、`notification-history-size` 或设置 → 通知 | 事件通道**默认关**；后台通知**默认关**；历史 50 条（仅内存） |
 | 25 | 代码结构（新代码的包划分，方便以后改） | — | — |
@@ -563,7 +564,11 @@ switch-session-on-swipe=true
 Android 10 起「从左右边缘内滑」是**系统返回手势**，优先级高于 app，`DrawerLayout` 的边缘拖拽
 基本抢不到，所以侧边栏很难滑出来。本 fork 的解法是在**左边缘中部**放一个把手：
 
-* 把手触摸区 24×64dp，画出来的竖条 12×48dp（半透明，颜色取配色的强调色），平时只遮住终端 2 列。
+* 把手是**紧贴屏幕左边缘的一条细竖条**：竖条本身只有 **3dp 宽**，长度/透明度/垂直位置可配
+  （见下），触摸区比竖条宽、且比竖条长 24dp，所以细也好点。
+* 竖条**不受终端 `terminal-padding-*` 和内容的 3dp 边距影响**：它画在内容布局的左侧负边距位置上
+  （`clipChildren=false`），所以永远贴边。
+* 抽屉被拖动时把手会跟着淡出（`onDrawerSlide` → `alpha = 1 - offset`），打开后不会浮在抽屉上。
 * **点一下**或**向右滑 16dp 以上**（且水平位移大于垂直位移，避免误判成滚动）就打开抽屉。
 * 把手自己通过 `View.setSystemGestureExclusionRects()`（API 29+）把自己的区域从系统返回手势里
   **排除**掉，所以从把手起手滑动属于 app；系统只保证 honor 每侧边缘约 200dp 高的小块，所以只能这
@@ -571,7 +576,12 @@ Android 10 起「从左右边缘内滑」是**系统返回手势**，优先级�
 
 ```properties
 drawer-open-mode = auto    # auto（把手 + 边缘滑动，默认）/ handle（只用手把）/ edge（只用边缘滑动）/ none（都不用）
+drawer-handle-length = 96  # 竖条长度 dp，24–160（上限受系统手势排除区大小限制）
+drawer-handle-opacity = 45 # 竖条透明度 %，10–100
+drawer-handle-position = 50 # 竖条中心在内容高度上的位置 %，0 = 顶部
 ```
+
+三个 `drawer-handle-*` 也能在 设置 → 外观 → 会话抽屉 里用滑条调（越界值会回落到默认值并写日志）。
 
 * `handle`/`none` 时给 `DrawerLayout` 上 `LOCK_MODE_LOCKED_CLOSED`，彻底不跟系统抢手势。
 * 即便如此，**长按菜单 →「会话列表」**、extra keys 的 `DRAWER` 键、以及代码里的
@@ -1537,6 +1547,12 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 
 **分组 + 图标**（见 §10.4 末尾）：根页四个分组、每个入口一个自绘矢量图标、摘要压到一行。
 
+**强调色**：设置页仍然是 Material 明暗主题，但**开关、滑块、复选框、分类标题的强调色取自当前配色方案的
+`color4`**（和抽屉、通知卡片一致）。实现原因是 android 的主题属性不能在运行时改，所以设置页加载
+`colors.properties`（`TerminalColors.COLOR_SCHEME`）后，对列表里每一行**绑定时**给
+`SwitchCompat`/`SeekBar`/`CompoundButton` 打 `ColorStateList` 色调，分类标题则用 `ForegroundColorSpan`
+上色（`PreferenceAccentUtils`）。列表行会被回收，所以色调挂在 `onChildViewAttachedToWindow` 上。
+
 **搜索**（`settings-search`）：Termux 设置根页顶部一项「搜索设置」，打开一个对话框（输入框 + 结果列表），
 输入即过滤，结果每条显示 `条目标题` + 第二行 `所属页面 · 摘要`；点一条就跳到那个二级页并把目标行滚到可见
 位置、标题加 1.5s 背景高亮。
@@ -1570,6 +1586,24 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 
 ---
 
+## 27. 本 fork 的身份：关于 / 正式版 / 报告问题
+
+上游把仓库、发行、issue 都指向 `termux/termux-app`，fork 里这些地址必须换掉，否则用户把 bug 报到上游
+只会被关掉。现在：
+
+* `TermuxConstants.TERMUX_GITHUB_REPO_URL` / `TERMUX_GITHUB_ISSUES_REPO_URL`（**只改 app 自己的**，
+  插件仓库地址仍是上游的）指向 `https://github.com/clevebitr/termux-app`、`.../issues/new`，所以
+  `termux-shared` 里那些「关于 / 崩溃报告」里自动带出的链接也一起对了。
+* 设置 → Termux → 「关于」的文本追加了两块 fork 专属内容（`app/.../ForkInfo.java`）：
+  **This Build**（版本号 + Latest build / All releases 链接 + Features / Release notes / Building 文档）
+  和 **Where To Report An Issue**（fork 的 issue 表单 + 请附 `termux-info` 与 `logcat`）。
+* 长按菜单 →「报告问题」（`reportIssueFromTranscript`）生成的报告结尾也换成同一段 fork 说明。
+
+`ForkInfo` 里的地址：`REPOSITORY_URL`、`ISSUES_URL`、`LATEST_RELEASE_URL`（`releases/tag/fork-latest`）、
+`RELEASES_URL`、`FEATURES_DOC_URL`、`BUILD_DOC_URL`、`RELEASE_NOTES_DOC_URL`。
+
+---
+
 ## 验证情况（真机）
 
 设备：OnePlus OPD2508 / ColorOS（Android 16 系 ROM，aarch64）。下面按「已在真机验证」和「尚未验证」分开列，
@@ -1595,10 +1629,12 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 * §18 非活动窗格的实时重绘（刷屏时帧率、往上翻看后不被拽回底部、互换/开关分屏/回前台后画面立即最新）。
 * §18 分屏状态持久化：换主题 / 切换深色 / 改系统语言导致 Activity 重建后，两个窗格是否仍是原来的
   两个会话、方向与分隔条比例是否保持、活动窗格是否回到原来那个；关掉「不保留活动」以外的情况也测。
-* §10.5 抽屉把手：手势导航下手势排除是否真的生效（不同 ROM 限制不同）、把手的点击/右滑手感、
+* §10.5 抽屉把手：3dp 竖条是否真的贴边（`clipChildren=false` + 负边距）、长度/透明度/位置三个滑条是否立即生效、
+  抽屉拖动时把手是否淡出，以及手势导航下手势排除是否真的生效（不同 ROM 限制不同）、把手的点击/右滑手感、
   `drawer-open-mode` 四个值、锁定模式下来自长按菜单/`DRAWER` 键的打开。
 * §10.4 抽屉顶部概要（会话数/进程/cwd 是否准、抽屉打开时是否刷新、长路径是否省略得好看）。
-* §26 设置页搜索（各页条目能否都被索引到、跳转+高亮是否落在正确行、弹窗是否自动弹键盘）、
+* §26 设置页强调色（荧光配色下开关/滑块/分类标题是否跟得上、`ListPreference` 弹出的单选对话框是否仍是默认色）、
+  搜索（各页条目能否都被索引到、跳转+高亮是否落在正确行、弹窗是否自动弹键盘）、
   长按恢复默认（是否真的注释掉 `termux.properties` 那行、重建后是否显示默认值、SharedPreferences 项是否正常）。
 * §21 长按菜单双区编辑器的调序、浮条项增删后是否立即生效、`SEARCH`/`SPLIT_*` 键在各面板中的表现。
 * §22 控件交互细节（SeekBar 越界、颜色对话框、改完返回是否立即生效）。

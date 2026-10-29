@@ -355,10 +355,11 @@ public final class TermuxConstants {
     public static final String TERMUX_PACKAGE_NAME = "com.termux"; // Default: "com.termux"
     /** Termux GitHub repo name */
     public static final String TERMUX_GITHUB_REPO_NAME = "termux-app"; // Default: "termux-app"
-    /** Termux GitHub repo url */
-    public static final String TERMUX_GITHUB_REPO_URL = TERMUX_GITHUB_ORGANIZATION_URL + "/" + TERMUX_GITHUB_REPO_NAME; // Default: "https://github.com/termux/termux-app"
-    /** Termux GitHub issues repo url */
-    public static final String TERMUX_GITHUB_ISSUES_REPO_URL = TERMUX_GITHUB_REPO_URL + "/issues"; // Default: "https://github.com/termux/termux-app/issues"
+    /** Termux GitHub repo url, which is the repository of the fork, since its releases and its issues are
+     * not the ones of the upstream app. */
+    public static final String TERMUX_GITHUB_REPO_URL = "https://github.com/clevebitr/termux-app";
+    /** Termux GitHub issues repo url, which is the tracker of the fork instead of the one of the upstream app. */
+    public static final String TERMUX_GITHUB_ISSUES_REPO_URL = TERMUX_GITHUB_REPO_URL + "/issues/new";
     /** Termux F-Droid package url */
     public static final String TERMUX_FDROID_PACKAGE_URL = FDROID_PACKAGES_BASE_URL + "/" + TERMUX_PACKAGE_NAME; // Default: "https://f-droid.org/en/packages/com.termux"
 

@@ -1,5 +1,6 @@
 package com.termux.app.terminal;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -19,17 +20,19 @@ import com.termux.shared.view.ViewUtils;
 import java.util.Collections;
 
 /**
- * The handle that is drawn on the left edge of the terminal to open the sessions drawer.
+ * The handle that is drawn on the left edge of the screen to open the sessions drawer.
  *
  * On android 10 and later a swipe from the edge of the screen is the system back gesture, which takes
- * priority over the edge drag of the {@code DrawerLayout}, so the drawer can barely be opened by swiping
- * anymore. This view claims a small area of the edge with
+ * priority over the edge drag of the {@code DrawerLayout}, so the drawer cannot be opened by swiping from
+ * the edge anymore. This view claims a small area of the edge with
  * {@link View#setSystemGestureExclusionRects(java.util.List)}, so that a swipe that starts on it belongs to
  * the app again, and it opens the drawer on a tap as well.
  *
- * Only a small area may be excluded from the system gestures, so the touch area of the handle is 24dp wide
- * and 64dp high, while the bar that is drawn in it is 12dp wide and 48dp high, so that it does not cover
- * too much of the terminal.
+ * The handle is a thin bar of {@link #BAR_WIDTH_DP} dp that is flush with the edge of the screen, so that it
+ * covers as little of the terminal as possible, while the view itself is wider than the bar and as long as
+ * the bar plus a margin, so that it is still easy to hit. Only a small area may be excluded from the system
+ * gestures, which is why the length of the bar is limited to
+ * {@link DrawerConfig#MAX_HANDLE_LENGTH_DP} dp.
  */
 public final class DrawerHandleView extends View {
 
@@ -43,12 +46,12 @@ public final class DrawerHandleView extends View {
         OPEN
     }
 
-    /** The width of the bar that is drawn in the touch area. */
-    private static final float BAR_WIDTH_DP = 12;
-    /** The height of the bar that is drawn in the touch area. */
-    private static final float BAR_HEIGHT_DP = 48;
+    /** The width of the bar that is drawn, which is thin so that it covers little of the terminal. */
+    private static final float BAR_WIDTH_DP = 3;
     /** How far the finger must move to the right for the touch to be a swipe instead of a tap. */
     private static final float SWIPE_THRESHOLD_DP = 16;
+    /** How much the touch area around the bar is, in addition to the length of the bar. */
+    private static final int TOUCH_MARGIN_DP = 12;
 
     /** The listener that is called when the user taps or swipes the handle. */
     public interface OnOpenDrawerListener {
@@ -59,6 +62,9 @@ public final class DrawerHandleView extends View {
     private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final int mTouchSlop;
     private final float mSwipeThreshold;
+
+    /** The length of the bar in pixels, which is set from the `drawer-handle-length` property. */
+    private int mBarLengthPx;
 
     private float mDownX;
     private float mDownY;
@@ -77,30 +83,44 @@ public final class DrawerHandleView extends View {
 
         mTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
         mSwipeThreshold = ViewUtils.dpToPx(context, SWIPE_THRESHOLD_DP);
-        mPaint.setColor(0x66FFFFFF);
+        mBarLengthPx = Math.round(ViewUtils.dpToPx(context, DrawerConfig.DEFAULT_HANDLE_LENGTH_DP));
+        mPaint.setColor(0x73FFFFFF);
     }
 
     public void setOnOpenDrawerListener(@Nullable OnOpenDrawerListener listener) {
         mListener = listener;
     }
 
-    /** Set the color of the bar, which follows the accent color of the terminal color scheme. */
+    /** Set the color of the bar, which follows the accent color and the opacity of the terminal colors. */
     public void setHandleColor(int color) {
         mPaint.setColor(color);
         invalidate();
+    }
+
+    /**
+     * Set the length of the bar, which also sets the height of the touch area, since it is the bar plus a
+     * margin on both ends.
+     */
+    public void setHandleLengthDp(int lengthDp) {
+        mBarLengthPx = Math.round(ViewUtils.dpToPx(getContext(), lengthDp));
+
+        int height = mBarLengthPx + Math.round(ViewUtils.dpToPx(getContext(), 2 * TOUCH_MARGIN_DP));
+        if (getLayoutParams() != null && getLayoutParams().height != height) {
+            getLayoutParams().height = height;
+            setLayoutParams(getLayoutParams());
+        }
     }
 
     @Override
     protected void onDraw(@NonNull Canvas canvas) {
         super.onDraw(canvas);
 
+        // The bar is drawn at the very start of the view, since the view is flush with the edge of the
+        // screen, and is centered in the touch area in the other direction.
         float barWidth = ViewUtils.dpToPx(getContext(), BAR_WIDTH_DP);
-        float barHeight = Math.min(getHeight(), ViewUtils.dpToPx(getContext(), BAR_HEIGHT_DP));
-        // The bar is centered in the touch area, which is wider than the bar so that it is easier to hit.
-        float left = (getWidth() - barWidth) / 2f;
-        float top = (getHeight() - barHeight) / 2f;
+        float top = (getHeight() - mBarLengthPx) / 2f;
 
-        canvas.drawRect(left, top, left + barWidth, top + barHeight, mPaint);
+        canvas.drawRect(0, top, barWidth, top + mBarLengthPx, mPaint);
     }
 
     @Override
@@ -177,6 +197,7 @@ public final class DrawerHandleView extends View {
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
+    @SuppressLint("RequiresApi")
     private static void excludeFromSystemGestures(@NonNull View view, int width, int height) {
         view.setSystemGestureExclusionRects(Collections.singletonList(new Rect(0, 0, width, height)));
     }

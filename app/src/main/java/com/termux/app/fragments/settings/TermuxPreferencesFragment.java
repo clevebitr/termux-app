@@ -10,6 +10,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.fragments.settings.PreferenceAccentUtils;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 
 @Keep
@@ -24,6 +25,8 @@ public class TermuxPreferencesFragment extends PreferenceFragmentCompat {
         preferenceManager.setPreferenceDataStore(TermuxPreferencesDataStore.getInstance(context));
 
         setPreferencesFromResource(R.xml.termux_preferences, rootKey);
+
+        PreferenceAccentUtils.applyAccent(this);
 
         Preference searchPreference = findPreference("settings-search");
         if (searchPreference != null)

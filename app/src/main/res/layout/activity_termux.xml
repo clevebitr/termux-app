@@ -14,7 +14,24 @@
         android:layout_weight="1"
         android:layout_marginHorizontal="3dp"
         android:layout_marginVertical="0dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:orientation="vertical">
+
+        <!-- The handle on the left edge of the screen that opens the sessions drawer. A swipe from the edge
+             is the system back gesture on android 10 and later, so the handle claims its small area for the
+             app and opens the drawer on a tap as well. It is placed before the drawer layout so that the
+             open drawer covers it, and it is flush with the edge of the screen, which is 3dp to the left of
+             the content of this layout, hence the negative margin and the disabled clipping. It is hidden
+             when the `drawer-open-mode` property selects the edge swipe only. -->
+        <com.termux.app.terminal.DrawerHandleView
+            android:id="@+id/drawer_handle"
+            android:layout_width="20dp"
+            android:layout_height="120dp"
+            android:layout_alignParentStart="true"
+            android:layout_marginStart="-3dp"
+            android:clipChildren="false"
+            android:visibility="gone" />
 
         <androidx.drawerlayout.widget.DrawerLayout
             android:id="@+id/drawer_layout"
@@ -115,17 +132,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="top|end"
-                android:visibility="gone" />
-
-            <!-- The handle on the left edge that opens the sessions drawer. A swipe from the edge is the
-                 system back gesture on android 10 and later, so the handle claims its small area for the
-                 app and opens the drawer on a tap as well. It is hidden when the `drawer-open-mode`
-                 property selects the edge swipe only. -->
-            <com.termux.app.terminal.DrawerHandleView
-                android:id="@+id/drawer_handle"
-                android:layout_width="24dp"
-                android:layout_height="64dp"
-                android:layout_gravity="start|center_vertical"
                 android:visibility="gone" />
 
             </FrameLayout>

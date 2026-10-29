@@ -1072,3 +1072,47 @@ M9 顺序调整：先修质量漏洞，再做新功能（用户要求）。本�
 
 **没做/风险**：XML 索引解析无法在本机单测（Robolectric 在本机跑不起来，见 #44），靠资源引用三种格式兜底
 + 真机验收；把手/概要在背景色对比度差时可能需要调 alpha。
+
+## 2026-10-29 — M11 真机反馈修复：搜索崩溃 / 把手重做 / 点击反馈 / 设置强调色 / fork 地址
+
+用户真机反馈 5 个问题，全部已改：
+
+**1. 搜索跳转崩溃（NPE）** —— logcat 里的栈：`SettingsSearchNavigation.highlightTitle` 里
+`fragment.getListView().postDelayed(...)` 拿到 **null**，因为 `applyPendingHighlight` 是从
+`onCreatePreferences` 调的，那时 fragment 的视图还没创建。修法：把「滚动 + 高亮」整体延后到视图创建后
+（`getViewLifecycleOwnerLiveData`），并用 `fragment.getView().postDelayed(...)` 恢复标题。
+教训：`PreferenceFragmentCompat` 的 `onCreatePreferences` 阶段 **`getListView()` 一定是 null**
+（`getView()` 也是），任何要在视图上做的事都得延后。
+
+**2. 把手样式** —— 从 24×64dp 的粗条改成**贴边 3dp 细条**：
+* 竖条 3dp 宽；触摸区宽 20dp、高 = 长度 + 24dp（好点但几乎不挡终端）；
+* 位置：把 view 从 `terminal_content_container` 移到 `activity_termux_root_relative_layout`（在
+  DrawerLayout **之前**，所以抽屉画在它上面），并给 `layout_marginStart="-3dp"` + 父布局
+  `clipChildren=false`，抵消内容区那 3dp 边距 → **真的贴屏幕边缘**，且不受 `terminal-padding-*` 影响；
+* 三个新属性：`drawer-handle-length`（24–160dp，上限受系统手势排除区 200dp 限制）、
+  `drawer-handle-opacity`（10–100%）、`drawer-handle-position`（0–100% 内容高度，按中心定位），
+  设置 → 外观 → 会话抽屉 里有三个滑条；
+* 抽屉拖动时 `onDrawerSlide` 淡出把手（alpha = 1 - offset），打开后不浮在抽屉上。
+
+**3. 会话卡片点击效果** —— 之前行背景是 `RippleDrawable(色, null, null)`（没有 content 也没有 mask），
+所以按下去只有一块没边界的闪色、选中态也没了。改成 `content = StateListDrawable`
+（`state_activated` → 背景混 22% 强调色，其余透明）+ `mask = 白色 ColorDrawable`，ripple 用强调色 33%
+→ 有正常的按下/选中反馈。
+
+**4. 设置页强调色** —— 之前设置页完全用 Material 默认强调色。现在加载 `colors.properties`
+（`TerminalColors.COLOR_SCHEME`，设置页可能单独启动，所以自己读一遍）取 `color4`，对每一行绑定时给
+`SwitchCompat`（thumb/track 双态色）、`SeekBar`（progress/thumb）、`CompoundButton` 打色调，分类标题用
+`ForegroundColorSpan` 上色（`PreferenceAccentUtils`，挂在 `onChildViewAttachedToWindow` 上处理回收）。
+android 的主题属性不能在运行时改，这是唯一不引第二套主题的办法。设置页仍保持 Material 明暗。
+
+**5. about / 报告问题 / 正式版地址** ——
+* `TermuxConstants.TERMUX_GITHUB_REPO_URL` → `https://github.com/clevebitr/termux-app`，
+  `TERMUX_GITHUB_ISSUES_REPO_URL` → `.../issues/new`（**只改 app 自己的**，插件仓库仍是上游，
+  否则插件链接会 404），这样 `termux-shared` 里崩溃报告等自动带出的链接也跟着对；
+* 新增 `app/.../ForkInfo.java`：仓库 / issue / `releases/tag/fork-latest` / 全部 releases / FORK.md /
+  发布说明 / FORK_BUILD.md；「关于」文本追加 **This Build**（版本 + 最新构建地址 + 文档）和
+  **Where To Report An Issue**；长按菜单「报告问题」的报告结尾也换成它；
+* 顶部加 `## This Build` 里显示 `Termux fork, version X (Y)`。
+
+顺带：`drawer-handle-*` 越界值按 fork 惯例**回落到默认值**（`ForkProperties.getInt` 的行为，不是 clamp），
+单测按这个语义写。

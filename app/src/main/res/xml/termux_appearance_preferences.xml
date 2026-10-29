@@ -76,6 +76,36 @@
             app:title="@string/termux_appearance_drawer_open_mode_title"
             app:useSimpleSummaryProvider="true" />
 
+        <SeekBarPreference
+            app:defaultValue="96"
+            app:key="drawer-handle-length"
+            android:max="160"
+            android:min="24"
+            app:seekBarIncrement="8"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_appearance_drawer_handle_length_summary"
+            app:title="@string/termux_appearance_drawer_handle_length_title" />
+
+        <SeekBarPreference
+            app:defaultValue="45"
+            app:key="drawer-handle-opacity"
+            android:max="100"
+            android:min="10"
+            app:seekBarIncrement="5"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_appearance_drawer_handle_opacity_summary"
+            app:title="@string/termux_appearance_drawer_handle_opacity_title" />
+
+        <SeekBarPreference
+            app:defaultValue="50"
+            app:key="drawer-handle-position"
+            android:max="100"
+            android:min="0"
+            app:seekBarIncrement="5"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_appearance_drawer_handle_position_summary"
+            app:title="@string/termux_appearance_drawer_handle_position_title" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>

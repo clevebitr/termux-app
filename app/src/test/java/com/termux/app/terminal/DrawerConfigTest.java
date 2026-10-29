@@ -77,6 +77,38 @@ public class DrawerConfigTest {
     }
 
     @Test
+    public void testHandleDefaults() {
+        DrawerConfig config = parse();
+
+        Assert.assertEquals(DrawerConfig.DEFAULT_HANDLE_LENGTH_DP, config.handleLengthDp);
+        Assert.assertEquals(DrawerConfig.DEFAULT_HANDLE_OPACITY_PERCENT, config.handleOpacityPercent);
+        Assert.assertEquals(DrawerConfig.DEFAULT_HANDLE_POSITION_PERCENT, config.handlePositionPercent);
+    }
+
+    @Test
+    public void testHandleIsConfigured() {
+        DrawerConfig config = parse("drawer-handle-length", "140", "drawer-handle-opacity", "80",
+            "drawer-handle-position", "20");
+
+        Assert.assertEquals(140, config.handleLengthDp);
+        Assert.assertEquals(80, config.handleOpacityPercent);
+        Assert.assertEquals(20, config.handlePositionPercent);
+    }
+
+    @Test
+    public void testOutOfRangeHandleValuesUseTheDefaults() {
+        // The length is limited, since the system only excludes a small area of the edge from its gestures,
+        // and an out of range value of any of the properties falls back to the default instead of being
+        // clamped, like for the other properties of the fork.
+        DrawerConfig config = parse("drawer-handle-length", "1000", "drawer-handle-opacity", "0",
+            "drawer-handle-position", "-10");
+
+        Assert.assertEquals(DrawerConfig.DEFAULT_HANDLE_LENGTH_DP, config.handleLengthDp);
+        Assert.assertEquals(DrawerConfig.DEFAULT_HANDLE_OPACITY_PERCENT, config.handleOpacityPercent);
+        Assert.assertEquals(DrawerConfig.DEFAULT_HANDLE_POSITION_PERCENT, config.handlePositionPercent);
+    }
+
+    @Test
     public void testNullPropertiesUseTheDefaults() {
         DrawerConfig config = DrawerConfig.parse(null);
 

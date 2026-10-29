@@ -233,6 +233,12 @@
             <string name="termux_appearance_drawer_header">会话抽屉</string>
             <string name="termux_appearance_drawer_open_mode_title">打开方式</string>
             <string name="termux_appearance_drawer_open_mode_summary">边缘把手、边缘滑动、两者都有或两者都不要</string>
+            <string name="termux_appearance_drawer_handle_length_title">把手长度</string>
+            <string name="termux_appearance_drawer_handle_length_summary">竖条长度（dp）</string>
+            <string name="termux_appearance_drawer_handle_opacity_title">把手透明度</string>
+            <string name="termux_appearance_drawer_handle_opacity_summary">竖条透明度（百分比）</string>
+            <string name="termux_appearance_drawer_handle_position_title">把手位置</string>
+            <string name="termux_appearance_drawer_handle_position_summary">竖条中心在屏幕高度上的位置（百分比，0 = 顶部）</string>
 
                 <!-- Extra Keys Style -->
                 <string name="termux_appearance_extra_keys_style_title">虚拟键盘风格</string>

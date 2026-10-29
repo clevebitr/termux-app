@@ -10,6 +10,7 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
 import com.termux.R;
+import com.termux.app.ForkInfo;
 import com.termux.shared.activities.ReportActivity;
 import com.termux.shared.file.FileUtils;
 import com.termux.shared.models.ReportInfo;
@@ -121,7 +122,8 @@ public class SettingsActivity extends AppCompatActivity {
                             StringBuilder aboutString = new StringBuilder();
                             aboutString.append(TermuxUtils.getAppInfoMarkdownString(context, TermuxUtils.AppInfoMode.TERMUX_AND_PLUGIN_PACKAGES));
                             aboutString.append("\n\n").append(AndroidUtils.getDeviceInfoMarkdownString(context, true));
-                            aboutString.append("\n\n").append(TermuxUtils.getImportantLinksMarkdownString(context));
+                            aboutString.append("\n\n").append(ForkInfo.getBuildMarkdownString(context));
+                            aboutString.append("\n\n").append(ForkInfo.getReportIssueMarkdownString());
 
                             String userActionName = UserAction.ABOUT.getName();
 

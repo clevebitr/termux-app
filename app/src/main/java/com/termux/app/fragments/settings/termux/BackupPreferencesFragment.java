@@ -10,6 +10,7 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
 import com.termux.R;
+import com.termux.app.fragments.settings.PreferenceAccentUtils;
 import com.termux.app.fragments.settings.SettingsSearchNavigation;
 import com.termux.app.backup.TermuxBackupUtils;
 
@@ -30,6 +31,8 @@ public class BackupPreferencesFragment extends PreferenceFragmentCompat {
         PreferenceResetUtils.installResetOnLongClick(this);
 
         SettingsSearchNavigation.applyPendingHighlight(this);
+
+        PreferenceAccentUtils.applyAccent(this);
 
         Context context = getContext();
         if (context == null) return;

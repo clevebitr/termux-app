@@ -9,6 +9,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.fragments.settings.PreferenceAccentUtils;
 import com.termux.app.fragments.settings.SettingsSearchNavigation;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 
@@ -28,6 +29,8 @@ public class TerminalIOPreferencesFragment extends PreferenceFragmentCompat {
         PreferenceResetUtils.installResetOnLongClick(this);
 
         SettingsSearchNavigation.applyPendingHighlight(this);
+
+        PreferenceAccentUtils.applyAccent(this);
     }
 
 }

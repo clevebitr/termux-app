@@ -11,10 +11,13 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.StateListDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.Build;
+import android.util.StateSet;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
@@ -849,8 +852,17 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // header in a color that is barely visible, so that neither competes with the text.
         mDrawerSecondaryTextColor = DrawerColorUtils.withAlpha(mDrawerForegroundColor, 0xB3);
 
+        // The row of the session that is shown in the terminal keeps a tint of the accent color, and the
+        // ripple of a pressed row is drawn on top of it within a mask, so that it is a rounded flash of the
+        // row instead of a block without a content.
+        StateListDrawable rowContent = new StateListDrawable();
+        rowContent.addState(new int[]{android.R.attr.state_activated},
+            new ColorDrawable(DrawerColorUtils.blend(mDrawerBackgroundColor, mDrawerAccentColor, 0.22f)));
+        rowContent.addState(StateSet.WILD_CARD, new ColorDrawable(Color.TRANSPARENT));
+
         mDrawerSessionRowBackground = new RippleDrawable(
-            ColorStateList.valueOf(DrawerColorUtils.withAlpha(mDrawerAccentColor, 0x40)), null, null);
+            ColorStateList.valueOf(DrawerColorUtils.withAlpha(mDrawerAccentColor, 0x33)),
+            rowContent, new ColorDrawable(Color.WHITE));
 
         applyDrawerColors();
     }
@@ -888,8 +900,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (sessionsList != null) sessionsList.setBackgroundColor(Color.TRANSPARENT);
 
         DrawerHandleView handle = findViewById(R.id.drawer_handle);
-        if (handle != null)
-            handle.setHandleColor(DrawerColorUtils.withAlpha(mDrawerAccentColor, 0x66));
+        if (handle != null) {
+            int alpha = Math.round(255f * mDrawerConfig.handleOpacityPercent / 100f);
+            handle.setHandleColor(DrawerColorUtils.withAlpha(mDrawerAccentColor, alpha));
+        }
 
         updateDrawerSummary();
 
@@ -908,6 +922,59 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (handle == null) return;
 
         handle.setOnOpenDrawerListener(this::openSessionsDrawer);
+
+        // The handle is drawn under the drawer, so it is faded out while the drawer is dragged open, which
+        // also makes it clear that the touch of the drawer belongs to the drawer.
+        getDrawer().addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
+            @Override
+            public void onDrawerSlide(@NonNull View drawerView, float slideOffset) {
+                handle.setAlpha(1f - slideOffset);
+            }
+        });
+
+        // The position of the handle is a fraction of the height of the screen, so it is re-applied when the
+        // height of the layout changes, like when the soft keyboard or the extra keys change it.
+        View parent = (View) handle.getParent();
+        if (parent != null) parent.addOnLayoutChangeListener((view, left, top, right, bottom,
+                                                              oldLeft, oldTop, oldRight, oldBottom) ->
+            positionDrawerHandle());
+    }
+
+    /**
+     * Apply the length, the opacity and the position of the handle that opens the sessions drawer, which are
+     * configured with the `drawer-handle-*` properties.
+     */
+    private void applyDrawerHandleConfig() {
+        DrawerHandleView handle = findViewById(R.id.drawer_handle);
+        if (handle == null) return;
+
+        handle.setVisibility(mDrawerConfig.isHandleVisible() ? View.VISIBLE : View.GONE);
+        handle.setHandleLengthDp(mDrawerConfig.handleLengthDp);
+        // The opacity of the bar is a percentage of the accent color, so a low value keeps the terminal
+        // readable behind it.
+        int alpha = Math.round(255f * mDrawerConfig.handleOpacityPercent / 100f);
+        handle.setHandleColor(DrawerColorUtils.withAlpha(mDrawerAccentColor, alpha));
+
+        positionDrawerHandle();
+    }
+
+    /** Move the handle to the configured fraction of the height of the screen. */
+    private void positionDrawerHandle() {
+        View handle = findViewById(R.id.drawer_handle);
+        if (handle == null || !(handle.getLayoutParams() instanceof RelativeLayout.LayoutParams)) return;
+
+        View parent = (View) handle.getParent();
+        if (parent == null || parent.getHeight() <= 0) return;
+
+        int handleHeight = handle.getHeight();
+        int freeHeight = Math.max(0, parent.getHeight() - handleHeight);
+        int topMargin = Math.round(freeHeight * mDrawerConfig.handlePositionPercent / 100f);
+
+        RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) handle.getLayoutParams();
+        layoutParams.topMargin = topMargin;
+        // The parent is inset by the margin of the content, but the bar has to be flush with the screen edge.
+        layoutParams.setMarginStart(-dpToPx(3));
+        handle.setLayoutParams(layoutParams);
     }
 
     /**
@@ -915,9 +982,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * `drawer-open-mode` property configures it.
      */
     private void applyDrawerConfig() {
-        DrawerHandleView handle = findViewById(R.id.drawer_handle);
-        if (handle != null)
-            handle.setVisibility(mDrawerConfig.isHandleVisible() ? View.VISIBLE : View.GONE);
+        applyDrawerHandleConfig();
 
         DrawerLayout drawer = getDrawer();
         if (drawer == null) return;

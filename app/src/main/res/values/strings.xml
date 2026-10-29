@@ -238,6 +238,12 @@
             <string name="termux_appearance_drawer_header">Sessions drawer</string>
             <string name="termux_appearance_drawer_open_mode_title">How to open</string>
             <string name="termux_appearance_drawer_open_mode_summary">The edge handle, the edge swipe, both or neither</string>
+            <string name="termux_appearance_drawer_handle_length_title">Handle length</string>
+            <string name="termux_appearance_drawer_handle_length_summary">The length of the bar in dp</string>
+            <string name="termux_appearance_drawer_handle_opacity_title">Handle opacity</string>
+            <string name="termux_appearance_drawer_handle_opacity_summary">The opacity of the bar in percent</string>
+            <string name="termux_appearance_drawer_handle_position_title">Handle position</string>
+            <string name="termux_appearance_drawer_handle_position_summary">The position of the bar in percent of the height, 0 is the top</string>
 
                 <!-- Extra Keys Style -->
                 <string name="termux_appearance_extra_keys_style_title">Extra Keys Style</string>

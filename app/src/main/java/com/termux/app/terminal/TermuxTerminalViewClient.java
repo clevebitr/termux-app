@@ -30,6 +30,7 @@ import com.termux.shared.termux.extrakeys.ExtraKeysView;
 import com.termux.shared.termux.extrakeys.SpecialButton;
 import com.termux.shared.termux.terminal.io.TerminalExtraKeys;
 import com.termux.shared.android.AndroidUtils;
+import com.termux.app.ForkInfo;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.activities.ReportActivity;
 import com.termux.shared.models.ReportInfo;
@@ -1012,7 +1013,7 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
                 ReportInfo reportInfo = new ReportInfo(userActionName,
                     TermuxConstants.TERMUX_APP.TERMUX_ACTIVITY_NAME, title);
                 reportInfo.setReportString(reportString.toString());
-                reportInfo.setReportStringSuffix("\n\n" + TermuxUtils.getReportIssueMarkdownString(mActivity));
+                reportInfo.setReportStringSuffix("\n\n" + ForkInfo.getReportIssueMarkdownString());
                 reportInfo.setReportSaveFileLabelAndPath(userActionName,
                     Environment.getExternalStorageDirectory() + "/" +
                         FileUtils.sanitizeFileName(TermuxConstants.TERMUX_APP_NAME + "-" + userActionName + ".log", true, true));

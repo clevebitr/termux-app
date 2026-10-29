@@ -8,6 +8,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.fragments.settings.PreferenceAccentUtils;
 import com.termux.app.fragments.settings.SettingsSearchNavigation;
 
 /**
@@ -34,6 +35,8 @@ public class NotificationPreferencesFragment extends PreferenceFragmentCompat {
         PreferenceResetUtils.installResetOnLongClick(this);
 
         SettingsSearchNavigation.applyPendingHighlight(this);
+
+        PreferenceAccentUtils.applyAccent(this);
     }
 
 }

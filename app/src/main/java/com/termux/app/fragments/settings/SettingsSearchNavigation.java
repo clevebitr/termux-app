@@ -1,5 +1,10 @@
 package com.termux.app.fragments.settings;
 
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.BackgroundColorSpan;
+import android.view.View;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.preference.Preference;
@@ -19,6 +24,11 @@ import com.termux.shared.logger.Logger;
 public final class SettingsSearchNavigation {
 
     private static final String LOG_TAG = "SettingsSearchNavigation";
+
+    /** How long the title of the entry that the search opened stays highlighted. */
+    private static final long HIGHLIGHT_DURATION_MS = 1500;
+    /** The color of the highlight of the title, which is a translucent amber that works in both themes. */
+    private static final int HIGHLIGHT_COLOR = 0x66FFC107;
 
     /** The class name of the page whose entry has to be highlighted, or {@code null}. */
     @Nullable
@@ -84,26 +94,47 @@ public final class SettingsSearchNavigation {
         sPendingKey = null;
         sPendingFragmentClassName = null;
 
-        Preference preference = fragment.findPreference(key);
+        final Preference preference = fragment.findPreference(key);
         if (preference == null) return;
 
-        fragment.scrollToPreference(key);
-        highlightTitle(fragment, preference);
+        // The entry is scrolled into view and highlighted with the view of the page, but the preferences are
+        // created before that view exists, so it is deferred, which also prevents the crash that a null view
+        // used to cause.
+        runWhenViewCreated(fragment, () -> {
+            fragment.scrollToPreference(preference);
+            highlightTitle(fragment, preference);
+        });
+    }
+
+    /** Run {@code action} with the view of {@code fragment}, which is created after its preferences. */
+    private static void runWhenViewCreated(@NonNull PreferenceFragmentCompat fragment, @NonNull Runnable action) {
+        View view = fragment.getView();
+        if (view != null) {
+            action.run();
+            return;
+        }
+
+        fragment.getViewLifecycleOwnerLiveData().observe(fragment, owner -> {
+            if (fragment.getView() != null) action.run();
+        });
     }
 
     private static void highlightTitle(@NonNull PreferenceFragmentCompat fragment, @NonNull Preference preference) {
         final CharSequence title = preference.getTitle();
         if (title == null || title.length() == 0) return;
 
-        android.text.SpannableString highlighted = new android.text.SpannableString(title);
-        highlighted.setSpan(new android.text.style.BackgroundColorSpan(0x66FFC107),
-            0, highlighted.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        SpannableString highlighted = new SpannableString(title);
+        highlighted.setSpan(new BackgroundColorSpan(HIGHLIGHT_COLOR),
+            0, highlighted.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         preference.setTitle(highlighted);
 
-        fragment.getListView().postDelayed(() -> {
+        View view = fragment.getView();
+        if (view == null) return;
+
+        view.postDelayed(() -> {
             // The fragment may have been closed in the meantime, in which case its preference does not matter.
             if (!fragment.isAdded()) return;
             preference.setTitle(title);
-        }, 1500);
+        }, HIGHLIGHT_DURATION_MS);
     }
 }

@@ -220,6 +220,18 @@ public final class TermuxPropertyConstants {
     public static final String KEY_DRAWER_OPEN_MODE =  "drawer-open-mode"; // Default: "drawer-open-mode"
 
 
+    /** Defines the key for the length in dp of the bar of the handle that opens the sessions drawer, which
+     * stays small enough for the system to exclude it from the back gesture. */
+    public static final String KEY_DRAWER_HANDLE_LENGTH =  "drawer-handle-length"; // Default: "drawer-handle-length"
+
+    /** Defines the key for the opacity in percent of the bar of the handle that opens the sessions drawer. */
+    public static final String KEY_DRAWER_HANDLE_OPACITY =  "drawer-handle-opacity"; // Default: "drawer-handle-opacity"
+
+    /** Defines the key for the position in percent of the height of the screen of the center of the bar of the
+     * handle that opens the sessions drawer, where 0 is the top. */
+    public static final String KEY_DRAWER_HANDLE_POSITION =  "drawer-handle-position"; // Default: "drawer-handle-position"
+
+
 
     /** Defines the key for whether a drag with a finger should be reported as a drag of the mouse
      * pointer with the left button pressed instead of scroll wheel events when mouse tracking is
