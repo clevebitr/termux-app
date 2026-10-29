@@ -23,6 +23,8 @@ public class AppearancePreferencesFragment extends PreferenceFragmentCompat {
         preferenceManager.setPreferenceDataStore(AppearancePreferencesDataStore.getInstance(context));
 
         setPreferencesFromResource(R.xml.termux_appearance_preferences, rootKey);
+
+        PreferenceResetUtils.installResetOnLongClick(this);
     }
 
 }

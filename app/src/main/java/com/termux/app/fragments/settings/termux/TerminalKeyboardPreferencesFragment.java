@@ -32,6 +32,8 @@ public class TerminalKeyboardPreferencesFragment extends PreferenceFragmentCompa
 
         setPreferencesFromResource(R.xml.termux_keyboard_preferences, rootKey);
 
+        PreferenceResetUtils.installResetOnLongClick(this);
+
         setupVolumeKeyActionPreferences();
     }
 

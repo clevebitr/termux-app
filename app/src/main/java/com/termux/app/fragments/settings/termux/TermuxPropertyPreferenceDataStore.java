@@ -196,6 +196,15 @@ abstract class TermuxPropertyPreferenceDataStore extends PreferenceDataStore {
      * Set the value of the property in the properties file and apply the changes to the running
      * termux app, so that they take effect immediately, without having to restart the app.
      */
+    /**
+     * Reset the {@code key} property to its default value by commenting it out in the `termux.properties`
+     * file, since a property that is not set makes the app use its default value.
+     */
+    public void resetToDefault(@Nullable String key) {
+        if (key == null) return;
+        setTermuxPropertyValue(key, null);
+    }
+
     protected void setTermuxPropertyValue(String key, @Nullable String value) {
         if (key == null) return;
         if (!TermuxSharedProperties.setTermuxPropertyValue(mContext, key, value)) return;

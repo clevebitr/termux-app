@@ -29,6 +29,8 @@ public class DebuggingPreferencesFragment extends PreferenceFragmentCompat {
 
         setPreferencesFromResource(R.xml.termux_debugging_preferences, rootKey);
 
+        PreferenceResetUtils.installResetOnLongClick(this);
+
         configureLoggingPreferences(context);
     }
 

@@ -29,6 +29,8 @@ public class TerminalMenuPreferencesFragment extends PreferenceFragmentCompat {
         preferenceManager.setPreferenceDataStore(TerminalMenuPreferencesDataStore.getInstance(context));
 
         setPreferencesFromResource(R.xml.termux_terminal_menu_preferences, rootKey);
+
+        PreferenceResetUtils.installResetOnLongClick(this);
     }
 
 }

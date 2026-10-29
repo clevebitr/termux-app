@@ -29,6 +29,8 @@ public class NotificationPreferencesFragment extends PreferenceFragmentCompat {
         preferenceManager.setPreferenceDataStore(NotificationPreferencesDataStore.getInstance(context));
 
         setPreferencesFromResource(R.xml.termux_notification_preferences, rootKey);
+
+        PreferenceResetUtils.installResetOnLongClick(this);
     }
 
 }

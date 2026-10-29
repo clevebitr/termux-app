@@ -149,6 +149,8 @@
     <string name="termux_preferences_category_behavior">行为</string>
     <string name="termux_preferences_category_advanced">高级</string>
     <string name="termux_preferences_summary_debugging">日志级别 · 插件</string>
+    <string name="action_reset_preference">恢复默认</string>
+    <string name="msg_reset_preference_to_default">把这个设置恢复成默认值？会在 termux.properties 里把对应的那一行注释掉，app 就会重新使用默认值。</string>
 
         <!-- Debugging Preferences -->
         <string name="termux_debugging_preferences_title">调试</string>

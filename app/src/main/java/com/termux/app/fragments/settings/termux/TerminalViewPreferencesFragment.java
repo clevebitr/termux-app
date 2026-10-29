@@ -26,6 +26,8 @@ public class TerminalViewPreferencesFragment extends PreferenceFragmentCompat {
 
         setPreferencesFromResource(R.xml.termux_terminal_view_preferences, rootKey);
 
+        PreferenceResetUtils.installResetOnLongClick(this);
+
         Preference installPreference = findPreference("shell_integration_install");
         if (installPreference != null) {
             // The installed scripts of an older app version do not report the command line of a

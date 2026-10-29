@@ -30,6 +30,8 @@ public class StatusBarPreferencesFragment extends PreferenceFragmentCompat {
         preferenceManager.setPreferenceDataStore(StatusBarPreferencesDataStore.getInstance(context));
 
         setPreferencesFromResource(R.xml.termux_status_bar_preferences, rootKey);
+
+        PreferenceResetUtils.installResetOnLongClick(this);
     }
 
 }

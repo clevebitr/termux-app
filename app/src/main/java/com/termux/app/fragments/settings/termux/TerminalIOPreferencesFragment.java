@@ -23,6 +23,8 @@ public class TerminalIOPreferencesFragment extends PreferenceFragmentCompat {
         preferenceManager.setPreferenceDataStore(TerminalIOPreferencesDataStore.getInstance(context));
 
         setPreferencesFromResource(R.xml.termux_terminal_io_preferences, rootKey);
+
+        PreferenceResetUtils.installResetOnLongClick(this);
     }
 
 }

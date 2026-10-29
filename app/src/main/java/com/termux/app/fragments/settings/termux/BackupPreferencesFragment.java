@@ -26,6 +26,8 @@ public class BackupPreferencesFragment extends PreferenceFragmentCompat {
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         setPreferencesFromResource(R.xml.termux_backup_preferences, rootKey);
 
+        PreferenceResetUtils.installResetOnLongClick(this);
+
         Context context = getContext();
         if (context == null) return;
 

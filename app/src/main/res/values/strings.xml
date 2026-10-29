@@ -149,6 +149,8 @@
     <string name="termux_preferences_category_behavior">Behavior</string>
     <string name="termux_preferences_category_advanced">Advanced</string>
     <string name="termux_preferences_summary_debugging">Log level · plugins</string>
+    <string name="action_reset_preference">Reset</string>
+    <string name="msg_reset_preference_to_default">Reset this setting to its default value? Its line is commented out in the termux.properties file, so the app uses the default again.</string>
 
         <!-- Debugging Preferences -->
         <string name="termux_debugging_preferences_title">Debugging</string>
