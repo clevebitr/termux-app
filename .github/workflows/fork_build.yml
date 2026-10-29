@@ -297,6 +297,9 @@ jobs:
           4. \`testkey\` builds are debug builds signed with the public untrusted test key, only use them for
              local testing.
           EOF
+          # Append the feature summary that is checked in with the repository, so that the release notes
+          # do not have to be edited in the workflow for every feature.
+          cat ../docs/FORK_RELEASE_NOTES.md >> RELEASE-NOTES.md
           ls -l
 
       - name: Create release

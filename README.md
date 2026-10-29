@@ -9,8 +9,10 @@
 >  **Vibe Coding Warning** ⚠️ 
 >  This fork contains AI-generated code. Please review before use.
 >  The features and behaviour changes added by this fork (terminal extras, settings screens, backup
->  and restore, italic font and OSC 8 hyperlinks, more) are listed in [FORK.md](FORK.md), and how to
->  build, sign and install it alongside the official plugins is described in [FORK_BUILD.md](FORK_BUILD.md).
+>  and restore, italic font and OSC 8 hyperlinks, split screen, status bar, in-terminal notification
+>  cards with `OSC 9/99/777` support, configurable long press menu, more) are listed in
+>  [FORK.md](FORK.md), and how to build, sign and install it alongside the official plugins is
+>  described in [FORK_BUILD.md](FORK_BUILD.md).
 >  Forked from [Termux](https://github.com/termux/termux-app)
 
 [Termux](https://termux.dev) is an Android terminal application and Linux environment.

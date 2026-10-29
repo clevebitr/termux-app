@@ -864,3 +864,16 @@ XML 里那条「事件多选」既没写 `app:defaultValue`，属性也还没被
 去重、往返）。教训：**给 `PreferenceDataStore` 加新方法时，要按「最坏情况返回 null」去查调用方**——
 `Preference` 全家桶里只有 `MultiSelectListPreference` 对 null 不设防。
 
+## 2026-10-30 — 发布整理：release notes 改为「仓库里维护的功能摘要 + CI 追加构建信息」
+
+`fork-latest` 之前只有 workflow 里内联的 heredoc 说明（commit / 签名模式 / 安装步骤），每次加功能都得改
+YAML。现在拆成两部分：
+
+* `.github/workflows/fork_build.yml` 的 `Prepare files` 步骤先写「本次构建信息」（commit、签名模式、
+  证书摘要、构建日志链接、安装步骤），再用 `cat ../docs/FORK_RELEASE_NOTES.md >> RELEASE-NOTES.md`
+  追加仓库里维护的**功能摘要**（特性表、通知卡片的快速上手、已知限制、文档索引）。
+* 好处：功能摘要跟着代码走，改 md 不用碰 YAML；`release` 任务本来就有 `actions/checkout`，所以
+  `../docs/FORK_RELEASE_NOTES.md` 一定存在。
+* 注意 heredoc 里不要放要原样显示的 `\033` 之类转义（会被 shell 解释），所以 `printf` 示例放在被
+  `cat` 追加的 md 文件里，而不是 heredoc 里。
+

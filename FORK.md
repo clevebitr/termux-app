@@ -4,7 +4,6 @@
 以及怎么配置它们。
 
 * **怎么编译 / 签名 / 和官方插件共存**（`sharedUserId` 硬约束）→ [`FORK_BUILD.md`](FORK_BUILD.md)
-* **怎么编译 / 签名 / 和官方插件共存**（`sharedUserId` 硬约束）→ [`FORK_BUILD.md`](FORK_BUILD.md)
 * 每节末尾的「实现」一行指出该特性改动了哪些上游文件；详细的设计取舍与踩坑记录在本地开发日志里，
   **不随仓库发布**。
 
@@ -36,10 +35,23 @@
 | 18 | 分屏（上下 / 左右，可拖动分隔条，两个独立会话） | 长按菜单 → 分屏 | 默认关闭 |
 | 19 | 状态栏（时间 / 电量 / 内存 / CPU / 网络 / IP / 代理，可配图标、图表、配色、位置、点击动作） | `status-bar-*` 属性或设置 → 状态栏 | 默认关闭 |
 | 20 | 终端内通知卡片（右上角 nvim-notify 风格，失败命令 / App 事件 / OSC 9·99·777） | `notification-*` 属性或设置 → 通知 | **默认关闭**（关时行为与上游一致） |
-| 21 | 可配置的长按菜单 + 文本选择浮条项 + `SEARCH`/`SPLIT_*` 虚拟键 | `terminal-menu-*`、`selection-toolbar-items` 或设置 → 长按菜单 | 菜单 11 项；浮条 复制/粘贴/更多；风格 TUI 像素风 |
+| 21 | 可配置的长按菜单 + 文本选择浮条项 + `SEARCH`/`SPLIT_*` 虚拟键 | `terminal-menu-*`、`selection-toolbar-items` 或设置 → 长按菜单 | 菜单 12 项（含「最近通知」）；浮条 复制/粘贴/更多；风格 TUI 像素风 |
 | 22 | 设置页 GUI：通知 / 长按菜单（含可调序的双区列表编辑器） | 设置 → Termux → 通知 / 长按菜单 | 与属性等价，改完立即生效 |
 | 23 | 程序主动发通知：OSC 99（分块/图标/按钮/查询/关闭/回报）、OSC 9、OSC 777 | `notification-osc-*` 或设置 → 通知 → 程序主动发送的通知 | OSC 通道**默认关**，限流 3 条/秒/会话 |
 | 24 | App 事件卡片（会话退出/插件结果/标题变化/bell）+ 后台系统通知 + 最近通知列表 | `notification-events-*`、`notification-background-enabled`、`notification-history-size` 或设置 → 通知 | 事件通道**默认关**；后台通知**默认关**；历史 50 条（仅内存） |
+| 25 | 代码结构（新代码的包划分，方便以后改） | — | — |
+
+### 里程碑时间线
+
+| 里程碑 | 内容 | 文档 | 关键提交 |
+| --- | --- | --- | --- |
+| M1–M6 | Gboard CJK / extra keys 主题化与设置页 / i18n / 备份恢复 / 斜体与 OSC 8 / 交互三连 / 多面板 extra keys / 会话手势 | §1–§10 | `ce1dcaa`（上游快照后的首批） |
+| M7 | 音量键自定义动作 | §11 | `2296c38` |
+| §12–§19 | popup hints / tile 背景 / 内边距 / 搜索 / OSC 52 / 命令标记+shell 集成 / 分屏 / 状态栏 | §12–§19 | `2296c38` |
+| M8.1–M8.2 | 通知卡片渲染层 + 失败命令通道（含 shell 集成 v2 上报命令行） | §20 | `68dac56`、`8b48dae` |
+| M8.3 | 长按菜单/浮条可配 + `SEARCH`·`SPLIT_*` 键 + 设置页 GUI | §21–§22 | `64e8b6e`、`18a45d1`、`1a2c6b2` |
+| M8.4 | OSC 9/99/777 完整协议（分块/按钮/图标/查询/回报/限流） | §23 | `18d7aa3`、`40a213c` |
+| M8.5 | App 事件卡片 + 后台系统通知 + 最近通知 + 复核重构 | §24–§25 | `4ee4a0b`、`7672625`、`c529c3b`、`982c336`、`b85e6cc` |
 
 ---
 
@@ -1449,36 +1461,40 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 ---
 
 ## 验证情况（真机）
-以下各项都在本机（aarch64，Android 13 系 ROM）真机验证过（§11 音量键自定义动作 §14 终端内边距尚未真机验证）：
 
-* §14 终端内边距：**已通过**本地 `./gradlew :app:compileDebugJavaWithJavac` 编译与相关单测，
-  但视觉/触摸/文本选择手柄/软键盘光标尚未在真机上验证。
-* §15 终端搜索 / §16 OSC 52：**已通过**本地编译；`TerminalBufferSearchTest`（9 个）、
-  `TerminalBase64Test`（6 个）、`OperatingSystemControlTest` 的 OSC 52 用例全部通过。
-  真机上的搜索栏交互（软键盘、返回键、与长按选择共存）和剪贴板读写尚未真机验证。
-* §17 命令标记：`CommandMarksTest`（21 个）全绿；bash 集成在本地用 `bash --norc -i` 起真实交互
-  shell 验证过（`D;0`/`D;1;cmd`/`A`/`C` 顺序、退出码与命令行正确）。真机上的刻度点击、失败提示尚未验证。
-* §24 App 事件 / 后台通知 / 最近通知：`RecentNotificationsTest` 6 个用例全绿，`:app` 编译与资源链接
-  通过；真机上的事件卡片、后台系统通知、最近通知对话框（跳转/复制/清空）尚未验证。
-* §23 OSC 通知：`TerminalNotificationAssemblerTest` 24 个用例全绿，`:app` 编译通过；真机上的
-  卡片按钮/图标/回报/限流尚未验证（可以用 `printf` 手测）。
-* §22 设置页：**已通过** `:app:processDebugResources` + `:app:compileDebugJavaWithJavac` + 单测；
-  真机上的控件交互（SeekBar 越界、双区编辑器调序、改完返回是否立即生效）尚未验证。
-* §20 通知卡片：M8.1（渲染层）+ M8.2（失败命令通道）**已通过** `./gradlew :app:compileDebugJavaWithJavac`
-  与单测——`NotificationConfigTest`（10 个）、`ExitCodeNotifierTest`（10 个）、`CommandMarksTest`（21 个，
-  含 `D;<code>;<cmd>` 解析、耗时/序列号、缓冲区取命令行、滚动后仍能定位）。以下**尚未真机验证**：
-  卡片观感（圆角/阴影/动画/配色联动）、点击跳转（含分屏与跨会话）、左右滑动关闭、自动消失、
-  与搜索栏/状态栏/软键盘叠放。
-* §19 状态栏：**只通过本地编译 + 单测**（`StatusBarTest` 12 个用例全绿），尚未真机验证（重点：
-  占位/覆盖两种模式下的终端行列数、设置页改完是否立即生效、`theme:` 配色是否跟随 Termux:Styling 换色、
-  分段刷新间隔下的耗电与帧率、`/proc/stat` 不可用时的 CPU 回退值是否合理）。
-* §18 分屏：**只通过本地编译**，尚未真机验证（重点：点窗格切活动窗格时的键盘、分隔条拖动、
-  会话抽屉选中另一个窗格的会话时的互换）。非活动窗格的实时重绘（`onScreenOutput()` / 50ms 节流）
-  同样只通过本地编译，真机上要看：非活动窗格刷屏时帧率与主线程占用、往上翻看后不被拽回底部、
-  互换/开关分屏/回前台后画面立即是最新的。
+设备：OnePlus OPD2508 / ColorOS（Android 16 系 ROM，aarch64）。下面按「已在真机验证」和「尚未验证」分开列，
+未验证的项都只通过了本地编译 + 单测（本机无 lint：`:app:lintDebug` 需要 NDK 的 x86_64 工具链）。
 
-* 备份 26s / 333MB / 43023 条目，校验通过；`--target-dir` 解包演练的符号链接与权限位正确。
-* 外观页 6 项、按键行为 6 项改完立即生效；打开设置页**不会**改写 `termux.properties`。
-* 真斜体（`font-italic.ttf`）与 OSC 8 链接（自动下划线 + 点击打开）正常。
-* IME 收起额外按键行、手指拖拽按鼠标拖拽上报、`DECSET 1004` 焦点事件正常。
-* 多面板 extra keys 横滑切换、左右滑切会话、会话列表 `PID · 前台进程 · cwd` 正常。
+### 已在真机验证
+
+* §4 / §7 设置页、§8 真斜体与 OSC 8 链接、§9 交互三连、§10 多面板 extra keys / 滑切会话 / 会话列表信息。
+* 备份恢复：26s / 333MB / 43023 条目校验通过，`--target-dir` 解包演练的符号链接与权限位正确。
+* §20 通知卡片（M8.1/M8.2）：注入真实 `OSC 133;A/C/D` 序列后卡片出现，内容正确（退出码 / 命令行 / cwd /
+  耗时），点卡片能跳到那条命令并关闭，位置在 overlay 状态栏下方不遮挡。
+* §18 分屏：开关、上下/左右切换、拖动分隔条、点非活动窗格切焦点、关分屏后窗格隐藏（2026-10-29 重构后复测通过）。
+* §22 设置页：修复崩溃后「设置 → 通知」可正常打开（2026-10-29）。
+
+### 尚未真机验证
+
+* §11 音量键自定义动作、§14 终端内边距（视觉/触摸/选择手柄/软键盘光标）。
+* §15 搜索栏交互（软键盘、返回键、与长按选择共存）、§16 OSC 52 剪贴板读写。
+* §17 命令标记：右边缘刻度点击、失败提示（bash 集成逻辑本身已在本地用 `bash --norc -i` 验证过）。
+* §19 状态栏：占位/覆盖两种模式下的终端行列数与 `SIGWINCH`、设置页改完是否立即生效、`theme:` 配色是否
+  跟随 Termux:Styling 换色、分段刷新间隔下的耗电与帧率、`/proc/stat` 不可用时的 CPU 回退值。
+* §18 非活动窗格的实时重绘（刷屏时帧率、往上翻看后不被拽回底部、互换/开关分屏/回前台后画面立即最新）。
+* §21 长按菜单双区编辑器的调序、浮条项增删后是否立即生效、`SEARCH`/`SPLIT_*` 键在各面板中的表现。
+* §22 控件交互细节（SeekBar 越界、颜色对话框、改完返回是否立即生效）。
+* §23 OSC：卡片按钮点击回报、`p=icon` 图标显示、`a=report`/`c=1` 回报、限流是否真的挡住刷屏。
+* §24 App 事件卡片、后台系统通知（App 不在前台时）、最近通知对话框（跳转/复制/清空）。
+
+### 本地可跑的验证手段
+
+```sh
+./gradlew :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :terminal-view:compileDebugJavaWithJavac
+```
+
+app 单测 65 个（`NotificationConfig` 12、`TerminalMenuConfig` 14、`ExitCodeNotifier` 10、
+`RecentNotifications` 6、属性集合转换 6、状态栏 12、其它 5），terminal-emulator 226 个。
+
+> 本机唯一的已知失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（Robolectric 在本机 Android 上
+> 的 `ShadowActivityThread.reset` 问题，CI 的 x86_64 环境不复现）。
