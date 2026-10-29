@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Bundle;
 
 import androidx.annotation.Keep;
+import androidx.preference.Preference;
 import androidx.preference.PreferenceDataStore;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
@@ -23,6 +24,13 @@ public class TermuxPreferencesFragment extends PreferenceFragmentCompat {
         preferenceManager.setPreferenceDataStore(TermuxPreferencesDataStore.getInstance(context));
 
         setPreferencesFromResource(R.xml.termux_preferences, rootKey);
+
+        Preference searchPreference = findPreference("settings-search");
+        if (searchPreference != null)
+            searchPreference.setOnPreferenceClickListener(preference -> {
+                SettingsSearchDialog.show(this);
+                return true;
+            });
     }
 
 }

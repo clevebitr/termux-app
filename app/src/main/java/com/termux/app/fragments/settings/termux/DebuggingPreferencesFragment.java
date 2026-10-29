@@ -13,6 +13,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.fragments.settings.SettingsSearchNavigation;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 import com.termux.shared.logger.Logger;
 
@@ -30,6 +31,8 @@ public class DebuggingPreferencesFragment extends PreferenceFragmentCompat {
         setPreferencesFromResource(R.xml.termux_debugging_preferences, rootKey);
 
         PreferenceResetUtils.installResetOnLongClick(this);
+
+        SettingsSearchNavigation.applyPendingHighlight(this);
 
         configureLoggingPreferences(context);
     }

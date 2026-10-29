@@ -8,6 +8,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.fragments.settings.SettingsSearchNavigation;
 
 /**
  * The settings of the notification cards, which are shown in a corner of the terminal when a command
@@ -31,6 +32,8 @@ public class NotificationPreferencesFragment extends PreferenceFragmentCompat {
         setPreferencesFromResource(R.xml.termux_notification_preferences, rootKey);
 
         PreferenceResetUtils.installResetOnLongClick(this);
+
+        SettingsSearchNavigation.applyPendingHighlight(this);
     }
 
 }

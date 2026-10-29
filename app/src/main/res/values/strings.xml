@@ -149,6 +149,9 @@
     <string name="termux_preferences_category_behavior">Behavior</string>
     <string name="termux_preferences_category_advanced">Advanced</string>
     <string name="termux_preferences_summary_debugging">Log level · plugins</string>
+    <string name="action_search_settings">Search settings</string>
+    <string name="settings_search_summary">Find a setting of the app by its name or summary</string>
+    <string name="settings_search_hint">Search settings…</string>
     <string name="action_reset_preference">Reset</string>
     <string name="msg_reset_preference_to_default">Reset this setting to its default value? Its line is commented out in the termux.properties file, so the app uses the default again.</string>
 

@@ -1,5 +1,13 @@
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <!-- The search of the settings, which is not stored, since it only opens a dialog. -->
+    <Preference
+        app:icon="@drawable/ic_pref_search"
+        app:key="settings-search"
+        app:persistent="false"
+        app:summary="@string/settings_search_summary"
+        app:title="@string/action_search_settings" />
+
     <!-- The settings of the terminal itself, which is what most of the pages are about. -->
     <PreferenceCategory app:title="@string/termux_preferences_category_terminal">
 

@@ -12,6 +12,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.fragments.settings.SettingsSearchNavigation;
 import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 
 @Keep
@@ -33,6 +34,8 @@ public class TerminalKeyboardPreferencesFragment extends PreferenceFragmentCompa
         setPreferencesFromResource(R.xml.termux_keyboard_preferences, rootKey);
 
         PreferenceResetUtils.installResetOnLongClick(this);
+
+        SettingsSearchNavigation.applyPendingHighlight(this);
 
         setupVolumeKeyActionPreferences();
     }

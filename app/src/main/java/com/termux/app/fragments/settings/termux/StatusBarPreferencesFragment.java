@@ -8,6 +8,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.fragments.settings.SettingsSearchNavigation;
 
 /**
  * The settings of the status bar, which is shown above or below the terminal and displays
@@ -32,6 +33,8 @@ public class StatusBarPreferencesFragment extends PreferenceFragmentCompat {
         setPreferencesFromResource(R.xml.termux_status_bar_preferences, rootKey);
 
         PreferenceResetUtils.installResetOnLongClick(this);
+
+        SettingsSearchNavigation.applyPendingHighlight(this);
     }
 
 }

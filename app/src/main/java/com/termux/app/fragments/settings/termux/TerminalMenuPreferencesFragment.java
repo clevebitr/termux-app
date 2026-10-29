@@ -8,6 +8,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.fragments.settings.SettingsSearchNavigation;
 
 /**
  * The settings of the terminal context menu and of the floating text selection toolbar, which decide
@@ -31,6 +32,8 @@ public class TerminalMenuPreferencesFragment extends PreferenceFragmentCompat {
         setPreferencesFromResource(R.xml.termux_terminal_menu_preferences, rootKey);
 
         PreferenceResetUtils.installResetOnLongClick(this);
+
+        SettingsSearchNavigation.applyPendingHighlight(this);
     }
 
 }

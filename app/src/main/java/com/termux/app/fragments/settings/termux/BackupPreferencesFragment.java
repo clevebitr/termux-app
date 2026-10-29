@@ -10,6 +10,7 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
 import com.termux.R;
+import com.termux.app.fragments.settings.SettingsSearchNavigation;
 import com.termux.app.backup.TermuxBackupUtils;
 
 import java.io.File;
@@ -27,6 +28,8 @@ public class BackupPreferencesFragment extends PreferenceFragmentCompat {
         setPreferencesFromResource(R.xml.termux_backup_preferences, rootKey);
 
         PreferenceResetUtils.installResetOnLongClick(this);
+
+        SettingsSearchNavigation.applyPendingHighlight(this);
 
         Context context = getContext();
         if (context == null) return;

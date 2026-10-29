@@ -9,6 +9,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.fragments.settings.SettingsSearchNavigation;
 import com.termux.app.terminal.TermuxShellIntegration;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
@@ -27,6 +28,8 @@ public class TerminalViewPreferencesFragment extends PreferenceFragmentCompat {
         setPreferencesFromResource(R.xml.termux_terminal_view_preferences, rootKey);
 
         PreferenceResetUtils.installResetOnLongClick(this);
+
+        SettingsSearchNavigation.applyPendingHighlight(this);
 
         Preference installPreference = findPreference("shell_integration_install");
         if (installPreference != null) {

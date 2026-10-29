@@ -37,6 +37,7 @@
 | 20 | 终端内通知卡片（右上角 nvim-notify 风格，失败命令 / App 事件 / OSC 9·99·777） | `notification-*` 属性或设置 → 通知 | **默认关闭**（关时行为与上游一致） |
 | 21 | 可配置的长按菜单 + 文本选择浮条项 + `SEARCH`/`SPLIT_*` 虚拟键 | `terminal-menu-*`、`selection-toolbar-items` 或设置 → 长按菜单 | 菜单 13 项（含「会话列表」「最近通知」）；浮条 复制/粘贴/更多；风格 TUI 像素风 |
 | 22 | 设置页 GUI：通知 / 长按菜单（含可调序的双区列表编辑器） | 设置 → Termux → 通知 / 长按菜单 | 与属性等价，改完立即生效 |
+| 22b | 设置页：四组 + 图标、页内搜索（跳转+高亮）、长按恢复默认 | 设置 → Termux | 搜索按需；长按任意项可恢复默认 |
 | 23 | 程序主动发通知：OSC 99（分块/图标/按钮/查询/关闭/回报）、OSC 9、OSC 777 | `notification-osc-*` 或设置 → 通知 → 程序主动发送的通知 | OSC 通道**默认关**，限流 3 条/秒/会话 |
 | 24 | App 事件卡片（会话退出/插件结果/标题变化/bell）+ 后台系统通知 + 最近通知列表 | `notification-events-*`、`notification-background-enabled`、`notification-history-size` 或设置 → 通知 | 事件通道**默认关**；后台通知**默认关**；历史 50 条（仅内存） |
 | 25 | 代码结构（新代码的包划分，方便以后改） | — | — |
@@ -534,7 +535,10 @@ switch-session-on-swipe=true
 
 * 背景/文字/强调色取配色方案的 `background` / `foreground` / 调色板 `color4`（和通知卡片的信息色一致）；
   背景和强调色相同时（配色写错）强调色回退成对比文字色，保证「当前会话」的竖条可见。
-* 顶部一条 48dp 的头部：⚙ 设置、App 名，右侧留了位置给下一步的「当前会话概要」（`drawer_summary`）。
+* 顶部一条 48dp 的头部：⚙ 设置、App 名，下面一行是**当前会话概要**（`drawer_summary`）：
+  `2 个会话 · nvim · ~/projects/termux`（会话数 · 活动窗格的前台进程 · cwd，`$HOME` 缩成 `~`，
+  `ellipsize="middle"` 让两头都可见）。详情读不到就不显示那一段，读法由 `SessionDetails` 统一提供
+  （抽屉列表也用同一份实现）。打开抽屉、切会话、改配色时刷新。
 * 当前会话的左侧有一条 3dp 强调色竖条；会话项背景改成透明 + 强调色 ripple（不再用写死的
   `current_session` / `session_ripple` 那几个白/灰实心 drawable）。
 * 标题/详情/分隔线/底部两个按钮的图标与文字都跟着配色变；`/proc` 读不到、进程已退出的会话用次一级颜色
@@ -1529,6 +1533,43 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 
 ---
 
+## 26. 设置页：分组 / 图标 / 搜索 / 长按恢复默认
+
+**分组 + 图标**（见 §10.4 末尾）：根页四个分组、每个入口一个自绘矢量图标、摘要压到一行。
+
+**搜索**（`settings-search`）：Termux 设置根页顶部一项「搜索设置」，打开一个对话框（输入框 + 结果列表），
+输入即过滤，结果每条显示 `条目标题` + 第二行 `所属页面 · 摘要`；点一条就跳到那个二级页并把目标行滚到可见
+位置、标题加 1.5s 背景高亮。
+
+* 索引是**运行时解析各页 XML** 得到的（`res/xml/termux_*_preferences.xml` 的 `key`/`title`/`summary`），
+  所以以后往页里加设置项不用改索引代码；`PreferenceCategory` 的表头不进索引。
+* 资源引用（`@string/...`）在编译后的 XML 里是 `@<id>` 字符串，可能是十进制、`0x` 十六进制或资源名，
+  三种都处理了。
+* 排序：标题命中的排在「只在摘要/页面名里命中」的前面。
+* 跳转发复用 androidx.preference 自己的 `app:fragment` 路径（找到根页上对应的 `Preference` 后
+  `performClick()`），高亮状态用静态「待高亮 (页面 class, key)」传给目标页，页面创建时消费一次。
+
+**长按恢复默认**：任意设置项**长按** → 确认对话框 → 把 `termux.properties` 里对应的那一行**注释掉**，
+然后重建当前设置页显示默认值。
+
+* 不用在设置页里重复记录默认值：属性不存在时 app 本来就回落到默认值，注释掉即等于恢复默认。
+* 非 `termux.properties` 的项（少数走 SharedPreferences 的）走 `SharedPreferences.edit().remove()`；
+  `persistent=false` 的入口（如「关于」）不参与。
+* **踩坑**：androidx.preference **没有** `Preference.setOnPreferenceLongClickListener()`（1.2.1 实测），
+  而 `PreferenceFragmentCompat.getListView()` 返回的是 **RecyclerView** 不是 ListView。所以实现是在
+  `getListView()` 上挂一个 `GestureDetector` 的 `onLongPress`，用
+  `PreferenceGroupAdapter.getItem(position)` 从触点位置找回 `Preference`；`onCreatePreferences` 阶段
+  RecyclerView 还不存在，所以通过 `getViewLifecycleOwnerLiveData()` 等视图创建后再挂。
+* 九个设置页各加一行 `PreferenceResetUtils.installResetOnLongClick(this)` +
+  `SettingsSearchNavigation.applyPendingHighlight(this)`，`PreferenceResetSourceTest` 用源码级断言守住
+  「新加的页面忘了装」。
+
+实现：`app/.../fragments/settings/SettingsSearchIndex.java`（页面表 + XML 解析 + 纯过滤函数）、
+`SettingsSearchDialog.java`、`SettingsSearchNavigation.java`（跳转 + 高亮）、
+`app/.../fragments/settings/termux/PreferenceResetUtils.java`、`TermuxPropertyPreferenceDataStore.resetToDefault()`。
+
+---
+
 ## 验证情况（真机）
 
 设备：OnePlus OPD2508 / ColorOS（Android 16 系 ROM，aarch64）。下面按「已在真机验证」和「尚未验证」分开列，
@@ -1556,6 +1597,9 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
   两个会话、方向与分隔条比例是否保持、活动窗格是否回到原来那个；关掉「不保留活动」以外的情况也测。
 * §10.5 抽屉把手：手势导航下手势排除是否真的生效（不同 ROM 限制不同）、把手的点击/右滑手感、
   `drawer-open-mode` 四个值、锁定模式下来自长按菜单/`DRAWER` 键的打开。
+* §10.4 抽屉顶部概要（会话数/进程/cwd 是否准、抽屉打开时是否刷新、长路径是否省略得好看）。
+* §26 设置页搜索（各页条目能否都被索引到、跳转+高亮是否落在正确行、弹窗是否自动弹键盘）、
+  长按恢复默认（是否真的注释掉 `termux.properties` 那行、重建后是否显示默认值、SharedPreferences 项是否正常）。
 * §21 长按菜单双区编辑器的调序、浮条项增删后是否立即生效、`SEARCH`/`SPLIT_*` 键在各面板中的表现。
 * §22 控件交互细节（SeekBar 越界、颜色对话框、改完返回是否立即生效）。
 * §23 OSC：卡片按钮点击回报、`p=icon` 图标显示、`a=report`/`c=1` 回报、限流是否真的挡住刷屏。
@@ -1567,10 +1611,11 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 ./gradlew :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :terminal-view:compileDebugJavaWithJavac
 ```
 
-app 单测 111 个（`NotificationConfig` 12、`TerminalMenuConfig` 14、`ExitCodeNotifier` 10、
+app 单测 122 个（`NotificationConfig` 12、`TerminalMenuConfig` 14、`ExitCodeNotifier` 10、
 `RecentNotifications` 6、`NotificationPolicy` 10、`OscRateLimiter` 4、`BackgroundNotificationRegistry` 5、
 `AppEventNotifier` 1、`TerminalMenuAction` 2、`TerminalSplitScreenController` 2、`TerminalSearchPreferences` 8、
-`DrawerColorUtils` 5、`DrawerConfig` 5、`DrawerHandleView` 4、属性集合转换 6、状态栏 12、其它 5），
+`DrawerColorUtils` 5、`DrawerConfig` 5、`DrawerHandleView` 4、`SessionDetails` 3、`SettingsSearchIndex` 6、
+`PreferenceResetSource` 2、属性集合转换 6、状态栏 12、其它 5），
 terminal-emulator 236 个
 （含 `TerminalNotificationTest` 的 `isEmpty` / 纯图标 3 个、assembler 的图标开关 1 个）。
 

@@ -8,6 +8,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.fragments.settings.SettingsSearchNavigation;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.termux.settings.properties.TermuxSharedProperties;
 
@@ -25,6 +26,8 @@ public class AppearancePreferencesFragment extends PreferenceFragmentCompat {
         setPreferencesFromResource(R.xml.termux_appearance_preferences, rootKey);
 
         PreferenceResetUtils.installResetOnLongClick(this);
+
+        SettingsSearchNavigation.applyPendingHighlight(this);
     }
 
 }

@@ -1040,3 +1040,35 @@ M9 顺序调整：先修质量漏洞，再做新功能（用户要求）。本�
 
 风险：手势排除在各家 ROM 上行为不完全一致（有的 ROM 还会额外限制比例），真机必须验；把手会遮住终端
 最左 2 列，如果碍事可以把 `drawer-open-mode=handle` 之外再加「隐形把手」选项（未做）。
+
+## 2026-10-29 — M10 三项交互：抽屉概要 / 设置长按恢复默认 / 设置页内搜索（两个 androidx.preference 大坑）
+
+**1. 抽屉顶部概要**：`drawer_summary` = `N 个会话 · 前台进程 · cwd`，`ellipsize="middle"`（两头都可见），
+读不到的段自动跳过（`SessionDetails.join()` 过滤空段）。把适配器里 private 的 `/proc` 读取
+（tpgid → cmdline/comm、cwd 符号链接、`$HOME`→`~`）抽成 `SessionDetails`，列表与头部共用；
+`shortenHomeDirectory(path, home)` 和 `join()` 有单测（含 `home2` 前缀陷阱、空 home）。
+
+**2. 长按恢复默认 —— 两个坑（都已单测/实测确认）**：
+* androidx.preference **1.2.1 没有** `Preference.setOnPreferenceLongClickListener()`（`javap` 查过 api jar）。
+* `PreferenceFragmentCompat.getListView()` 返回的是 **RecyclerView**，不是 ListView。
+  实现：在 `getListView()` 上挂 `GestureDetector` 的 `onLongPress`，用
+  `RecyclerView.findChildViewUnder` + `getChildAdapterPosition` + `PreferenceGroupAdapter.getItem(position)`
+  找回 `Preference`；`onItemTouchListener` 永远 `return false`，不影响正常点击。
+  又因为 `onCreatePreferences` 阶段 RecyclerView 还没建，用 `getViewLifecycleOwnerLiveData().observe()`
+  等视图就绪，所以每个页面只需一行 `installResetOnLongClick(this)`。
+* 重置语义 = **把属性行注释掉**（`setTermuxPropertyValue(key, null)` 写 `#key=`），不复制默认值；
+  非属性项走 `SharedPreferences.edit().remove()`；`persistent=false`（关于/插件入口）跳过。
+  刷新方式：`activity.recreate()`（各页的 `setPreferencesFromResource` 后处理逻辑各不相同，重建最稳）。
+* `PreferenceResetSourceTest` 源码级守卫：九个页面必须都装了长按监听。
+
+**3. 设置页内搜索**：根页「搜索设置」→ 对话框（输入即过滤）→ 点结果跳页 + 目标行 1.5s 高亮。
+* 索引**运行时解析各页 XML**（`key`/`title`/`summary`），加设置项不用改代码；跳过 `PreferenceCategory`。
+* 编译后的 XML 里资源引用是 `@<id>` 字符串，可能是**十进制 / 0x 十六进制 / 资源名**，三种都处理。
+* 过滤是纯函数（`SettingsSearchIndex.search`，6 个单测：大小写、标题/摘要/页面名、标题优先、空查询）。
+* 跳转复用 `app:fragment` 的既有路径（根页 `Preference.performClick()`），高亮状态用静态
+  「待高亮 (page class, key)」传给目标页，页面创建时消费一次并清空。
+* 高亮不能让 Preference 拿到行视图（androidx 不暴露，行还会复用），所以给**标题文字**加
+  `BackgroundColorSpan(0x66FFC107)` + `scrollToPreference(key)`，1.5s 后恢复原标题。
+
+**没做/风险**：XML 索引解析无法在本机单测（Robolectric 在本机跑不起来，见 #44），靠资源引用三种格式兜底
++ 真机验收；把手/概要在背景色对比度差时可能需要调 alpha。
