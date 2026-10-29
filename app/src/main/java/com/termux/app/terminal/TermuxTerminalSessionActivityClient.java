@@ -269,14 +269,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         if (terminalView == null || terminalView.mEmulator == null) return;
 
         String text = ShareUtils.getTextStringFromClipboardIfSet(mActivity, true);
-        if (text == null) {
-            // The paste action of the selection toolbar is always enabled, so the user must be told why
-            // nothing was pasted instead of getting no feedback at all.
-            mActivity.showToast(mActivity.getString(R.string.msg_clipboard_has_no_text), false);
-            return;
-        }
-
-        terminalView.mEmulator.paste(text);
+        if (text != null) terminalView.mEmulator.paste(text);
     }
 
     @Override

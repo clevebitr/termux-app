@@ -756,3 +756,18 @@ ActionMode 会把禁用项直接隐藏**而不是画成灰色，于是粘贴整�
   （上游无条件用 `getTerminalView()`，即当前活动窗格）。
 * 教训：**ActionMode / 菜单项的 `setEnabled(false)` 不能当作「隐藏」来用**，宁可保持可点 + 给出反馈。
 
+## 2026-10-30 — 修正：选择浮条的「粘贴」消失不是 bug（上游语义 + ROM 隐藏禁用项）
+
+上一条关于「粘贴项消失」的判断只对了一半，结论按用户确认调整：
+
+* 真正的机制是：上游在 `onCreateActionMode()` 里按 `hasPrimaryClip()` 给粘贴项 `setEnabled(canPaste)`，
+  **本机 ColorOS 的浮动 ActionMode 会把禁用项直接隐藏**（不是画成灰色），所以剪贴板里没有文本时
+  浮条上就只剩「复制 / 更多」。这是**上游设计加上 ROM 行为**，不是本 fork 的回归。
+* 用户决定**保留上游语义**，因此把「粘贴永远可点 + 无文本时 toast」的改动回退了（`msg_clipboard_has_no_text`
+  也一并删除）；本地未提交的 `SHOW_AS_ACTION_ALWAYS`（三项强制常显）也丢弃。
+* **只保留了分屏那个真修复**：粘贴目标从 `getTerminalView()`（永远是活动窗格）改成
+  `getTerminalViewForSession(session)`，找不到再回退活动窗格 —— 否则在分屏的非活动窗格里选中文字后
+  点粘贴，内容会粘到另一个窗格。
+* 教训：遇到「菜单项不见了」先确认是 **禁用** 还是 **没加进菜单**；`setEnabled(false)` 在不同 ROM 上的
+  表现不一致（灰色 / 隐藏），想稳定可见就只能不 disable。
+

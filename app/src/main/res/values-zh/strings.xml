@@ -736,5 +736,4 @@
     <string name="termux_notification_osc_icons_off">图标数据会被解码但不显示。</string>
     <string name="termux_notification_osc_rate_limit_title">每秒每个会话最多几条</string>
     <string name="termux_notification_osc_rate_limit_summary">超出的通知直接丢弃，防止程序刷屏把终端卡住。0 = 不限。</string>
-    <string name="msg_clipboard_has_no_text">剪贴板里没有文本</string>
 </resources>

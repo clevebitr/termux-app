@@ -1,5 +1,6 @@
 package com.termux.view.textselection;
 
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Rect;
 import android.os.Build;
@@ -115,6 +116,9 @@ public class TextSelectionCursorController implements CursorController {
             public boolean onCreateActionMode(ActionMode mode, Menu menu) {
                 int show = MenuItem.SHOW_AS_ACTION_IF_ROOM | MenuItem.SHOW_AS_ACTION_WITH_TEXT;
 
+                ClipboardManager clipboard = (ClipboardManager) terminalView.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+                boolean canPaste = clipboard != null && clipboard.hasPrimaryClip();
+
                 // The actions and their order come from the client, so that the user can configure which
                 // buttons are shown in the floating toolbar with the `selection-toolbar-items` property.
                 List<Integer> actions = terminalView.mClient != null
@@ -127,12 +131,7 @@ public class TextSelectionCursorController implements CursorController {
                             menu.add(Menu.NONE, ACTION_COPY, Menu.NONE, R.string.copy_text).setShowAsAction(show);
                             break;
                         case ACTION_PASTE:
-                            // The action is always enabled, like the copy action, since the floating
-                            // toolbar of some roms hides the actions that are disabled instead of drawing
-                            // them greyed out, which made the paste action disappear, and since the
-                            // clipboard can change while the toolbar is shown. The client tells the user
-                            // when there is nothing to paste instead.
-                            menu.add(Menu.NONE, ACTION_PASTE, Menu.NONE, R.string.paste_text).setShowAsAction(show);
+                            menu.add(Menu.NONE, ACTION_PASTE, Menu.NONE, R.string.paste_text).setEnabled(canPaste).setShowAsAction(show);
                             break;
                         case ACTION_MORE:
                             menu.add(Menu.NONE, ACTION_MORE, Menu.NONE, R.string.text_selection_more);

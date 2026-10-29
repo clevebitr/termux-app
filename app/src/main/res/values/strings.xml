@@ -769,5 +769,4 @@
     <string name="termux_notification_osc_icons_off">The icon data of programs is decoded but not shown.</string>
     <string name="termux_notification_osc_rate_limit_title">Maximum per second and session</string>
     <string name="termux_notification_osc_rate_limit_summary">Additional notifications are dropped, so that a program that spams notifications cannot block the terminal. 0 disables the limit.</string>
-    <string name="msg_clipboard_has_no_text">The clipboard does not contain text</string>
 </resources>
