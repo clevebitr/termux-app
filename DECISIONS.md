@@ -877,3 +877,44 @@ YAML。现在拆成两部分：
 * 注意 heredoc 里不要放要原样显示的 `\033` 之类转义（会被 shell 解释），所以 `printf` 示例放在被
   `cat` 追加的 md 文件里，而不是 heredoc 里。
 
+
+## 2026-10-29 — M9 质量收尾：三个 P3 + 编排层单测（抽 NotificationPolicy / OscRateLimiter / BackgroundNotificationRegistry）
+
+M9 顺序调整：先修质量漏洞，再做新功能（用户要求）。本轮只做质量，共 5 处代码 + 22 个新单测。
+
+1. **P3 `getTitle(null)` 泄漏 `%1$d`**：`TerminalMenuAction.getTitle(context, null)` 对 `KILL_PROCESS`
+   返回 `context.getString(R.string.action_kill_process)`，也就是字面量 `Kill process (%d)`。
+   设置页原本有一份特判绕过它（`TerminalMenuItemsPreference`），但公共 API 仍会漏。
+   修法：新增 `getTitleRes(@Nullable TerminalSession)`，null session 返回
+   `termux_terminal_menu_kill_process_label`；`getTitle()` 只是它 + `getString(res, pid)` 的组合，
+   设置页的特判随之删掉。单测断言 `getTitleRes(null)` 的资源 id（不需要 Context）。
+2. **P3 只有图标没有标题的 OSC 通知**：`TerminalNotification.isEmpty()` 把 icon 算作内容 →
+   一张只有图标的卡片。改成只看 title/body/meta。**顺带发现**：`TerminalNotificationManager.notify()`
+   的「App 不可见 → 后台系统通知」分支原来根本不查 `isEmpty()`，所以纯图标/空通知会在通知栏里
+   出现一条标题是「Termux 通知」的空通知，同时还会进历史列表。现在路由统一在
+   `NotificationPolicy.route()` 里做，空通知在**进历史之前**就被丢掉。
+3. **P3 `notification-osc-icons=false` 时仍解码图标**：解码在 terminal-emulator 的 assembler 里无条件执行
+   （base64 → `BitmapFactory`）。修法：`TerminalSessionClient` 新增
+   `default boolean shouldDecodeOscNotificationIcons() { return false; }`（默认关，插件不受影响），
+   `TerminalEmulator` 用方法引用把它传给 assembler，assembler **每次通知现查一次**，所以改设置立即生效。
+   关闭时 `p=icon` 的负载连 `Pending` 都不进，于是也不占单条 128KB 的负载上限（单测用这个差异做断言：
+   200KB 图标块 + 标题，关闭时标题活下来、开启时整条被丢）。
+4. **编排层单测**：`OscNotificationHandler` / `TerminalNotificationManager` / `AppEventNotifier` 都持有
+   Activity + View，无法直接单测。抽出三个纯逻辑类后再测：
+   * `NotificationPolicy`：通道判定、路由（IGNORED/CARD/BACKGROUND）、occasion、事件开关、exit-status 详情行；
+   * `OscRateLimiter`：滑动窗口 + 被丢弃的通知**不占窗口名额**（否则刷屏的程序永远出不来）；
+   * `BackgroundNotificationRegistry`：id 去重/上限/forget/合并到 alive 应答。
+   `OscNotificationHandler` 的时钟改成构造注入（`Clock` 接口，默认 `SystemClock::uptimeMillis`），
+   这样限流测试不碰 `SystemClock`（普通单测里调用它会抛 "not mocked"）。
+5. **测试环境的两个坑**：
+   * **本机跑不了 Robolectric**：`FileReceiverActivityTest`（改动前就存在）在本机稳定失败于
+     `ShadowActivityThread.reset: ActivityThread not set`，与本次改动无关，CI 的 x86_64 环境不复现。
+     所以新测试**一律不依赖 Robolectric**，`TerminalMenuAction` 那类需要 Context 的断言改成断言资源 id。
+   * **单测里造不出 Bitmap**（android stub 的构造器是私有的且方法会抛 stub 异常）：`TerminalNotificationTest`
+     用反射调 `Bitmap` 的 package-private 空构造器，通知只存不用，所以够用。
+
+顺带把 `AppEventNotifier` 里手写的「cwd + 分隔符 + exit N」拼接挪进 `NotificationPolicy.buildExitStatusMeta()`
+（它顺带修掉一个空 cwd 会留下悬空分隔符的小问题），文案仍然由调用方查资源传入，保持可测。
+
+验证：`:app:testDebugUnitTest`（87 个，唯一失败是本机 Robolectric 那个老问题）+
+`:terminal-emulator:testDebugUnitTest`（230 个）全绿。

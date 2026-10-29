@@ -11,10 +11,6 @@ import com.termux.terminal.TerminalNotification;
 import com.termux.terminal.TerminalNotificationProtocol;
 import com.termux.terminal.TerminalSession;
 
-import java.util.ArrayDeque;
-import java.util.Map;
-import java.util.WeakHashMap;
-
 /**
  * Handles the notifications that terminal programs request with the `OSC 99`, `OSC 9` and `OSC 777`
  * escape codes, which are the generic notification channel of the terminal: any program can show a
@@ -29,21 +25,31 @@ public final class OscNotificationHandler {
 
     private static final String LOG_TAG = "OscNotificationHandler";
 
-    /** The length of the window of the rate limit in milliseconds. */
-    private static final long RATE_LIMIT_WINDOW_MS = 1000;
+    /** Provides the current monotonic time in milliseconds, so that the rate limit can be tested. */
+    interface Clock {
+        long uptimeMillis();
+    }
 
     @NonNull
     private final TermuxActivity mActivity;
     @NonNull
     private final TerminalNotificationManager mManager;
-
+    /** The source of the time of the rate limit. */
+    @NonNull
+    private final Clock mClock;
     /** The times at which a notification was shown for a session, for the rate limit. */
     @NonNull
-    private final Map<TerminalSession, ArrayDeque<Long>> mRecentNotifications = new WeakHashMap<>();
+    private final OscRateLimiter mRateLimiter = new OscRateLimiter();
 
     public OscNotificationHandler(@NonNull TermuxActivity activity, @NonNull TerminalNotificationManager manager) {
+        this(activity, manager, SystemClock::uptimeMillis);
+    }
+
+    OscNotificationHandler(@NonNull TermuxActivity activity, @NonNull TerminalNotificationManager manager,
+                          @NonNull Clock clock) {
         mActivity = activity;
         mManager = manager;
+        mClock = clock;
     }
 
     /**
@@ -121,15 +127,8 @@ public final class OscNotificationHandler {
      * the opposite of what they request.
      */
     private boolean isOccasionAllowed(@NonNull TerminalNotification notification) {
-        switch (notification.getOccasion()) {
-            case UNFOCUSED:
-                return !mActivity.hasWindowFocus();
-            case INVISIBLE:
-                return !mActivity.isVisible();
-            case ALWAYS:
-            default:
-                return true;
-        }
+        return NotificationPolicy.isOccasionAllowed(notification.getOccasion(),
+            mActivity.hasWindowFocus(), mActivity.isVisible());
     }
 
     /**
@@ -137,23 +136,7 @@ public final class OscNotificationHandler {
      *         dropped instead of being shown.
      */
     private boolean isRateLimited(@NonNull TerminalSession session, @NonNull NotificationConfig config) {
-        int limit = config.oscRateLimit;
-        if (limit <= 0) return false;
-
-        long now = SystemClock.uptimeMillis();
-        ArrayDeque<Long> timestamps = mRecentNotifications.get(session);
-        if (timestamps == null) {
-            timestamps = new ArrayDeque<>();
-            mRecentNotifications.put(session, timestamps);
-        }
-
-        while (!timestamps.isEmpty() && now - timestamps.peekFirst() >= RATE_LIMIT_WINDOW_MS)
-            timestamps.pollFirst();
-
-        if (timestamps.size() >= limit) return true;
-
-        timestamps.addLast(now);
-        return false;
+        return mRateLimiter.isRateLimited(session, config.oscRateLimit, mClock.uptimeMillis());
     }
 
     /** Write an escape code back to the program that requested a notification, if there is one. */

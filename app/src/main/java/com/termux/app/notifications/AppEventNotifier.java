@@ -49,9 +49,7 @@ public final class AppEventNotifier {
 
         // A session that exits with a signal or a non-zero exit code is more interesting than one that was
         // closed normally, so its card uses the accent color of a warning.
-        TerminalNotification.Kind kind = session.getExitStatus() == 0
-            ? TerminalNotification.Kind.INFO : TerminalNotification.Kind.WARNING;
-        return showSessionNotification(session, kind,
+        return showSessionNotification(session, getSessionExitKind(session.getExitStatus()),
             mActivity.getString(R.string.notification_event_session_exit_title), session.getExitStatus());
     }
 
@@ -93,27 +91,25 @@ public final class AppEventNotifier {
 
     /** @return Whether the card of the app event {@code eventId} is enabled by the configuration. */
     private boolean isEventEnabled(@NonNull String eventId) {
-        NotificationConfig config = mManager.getConfig();
-        if (!config.enabled || !config.eventsEnabled) return false;
-        if (config.isEventEnabled(eventId)) return true;
+        if (NotificationPolicy.isEventEnabled(mManager.getConfig(), eventId)) return true;
 
         Logger.logVerbose(LOG_TAG, "Not showing a card for the \"" + eventId + "\" event, it is not enabled");
         return false;
+    }
+
+    /** @return The kind of the card of a session that exited with {@code exitStatus}. */
+    @NonNull
+    static TerminalNotification.Kind getSessionExitKind(int exitStatus) {
+        return exitStatus == 0 ? TerminalNotification.Kind.INFO : TerminalNotification.Kind.WARNING;
     }
 
     /** Show a card for an event of {@code session}, with the exit status in its details line. */
     private boolean showSessionNotification(@NonNull TerminalSession session,
                                            @NonNull TerminalNotification.Kind kind,
                                            @NonNull CharSequence title, int exitStatus) {
-        String meta = session.getCwd();
-        if (exitStatus != 0) {
-            StringBuilder builder = new StringBuilder();
-            if (meta != null) builder.append(meta);
-            if (builder.length() > 0)
-                builder.append(' ').append(mActivity.getString(R.string.notification_meta_separator)).append(' ');
-            builder.append(mActivity.getString(R.string.notification_event_exit_status, exitStatus));
-            meta = builder.toString();
-        }
+        String meta = NotificationPolicy.buildExitStatusMeta(session.getCwd(), exitStatus,
+            mActivity.getString(R.string.notification_meta_separator),
+            mActivity.getString(R.string.notification_event_exit_status, exitStatus));
 
         TerminalNotification notification = new TerminalNotification.Builder(kind, TerminalNotification.Source.APP_EVENT)
             .setTitle(title.toString())

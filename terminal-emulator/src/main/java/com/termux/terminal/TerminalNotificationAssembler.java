@@ -99,9 +99,34 @@ final class TerminalNotificationAssembler {
     /** The separator of the labels of the buttons, which is the unicode line separator, U+2028. */
     private static final String BUTTONS_SEPARATOR = "\u2028";
 
+    /** Provides whether the icons of the notifications are decoded, which the client of a session decides. */
+    interface IconsEnabledSupplier {
+        boolean areIconsEnabled();
+    }
+
+    /**
+     * Whether the `p=icon` payloads are decoded, which is {@code false} when the client disabled them, so
+     * that the base64 data is not decoded and not turned into a bitmap that is never shown.
+     */
+    @NonNull
+    private final IconsEnabledSupplier mIconsEnabled;
+
     /** The notifications that are not done yet, keyed by their id, or by `""` if they have none. */
     @NonNull
     private final Map<String, Pending> mPending = new LinkedHashMap<>();
+
+    /** Create an assembler that decodes the icons of the notifications. */
+    TerminalNotificationAssembler() {
+        this(() -> true);
+    }
+
+    /**
+     * @param iconsEnabled Provides whether the `p=icon` payloads are decoded, which is asked for every
+     *                     notification, so that a change of the configuration applies immediately.
+     */
+    TerminalNotificationAssembler(@NonNull IconsEnabledSupplier iconsEnabled) {
+        mIconsEnabled = iconsEnabled;
+    }
 
     /**
      * Parse an `OSC 99 ; <metadata> ; <payload>` escape code.
@@ -246,7 +271,9 @@ final class TerminalNotificationAssembler {
                 pending.buttons.append(payload);
                 break;
             case "icon":
-                pending.icon.append(payload);
+                // A disabled client never shows the icon, so its payload is not even collected, which also
+                // keeps the size limit of the pending notification for the text that is shown.
+                if (mIconsEnabled.areIconsEnabled()) pending.icon.append(payload);
                 break;
             default:
                 break;
@@ -260,7 +287,7 @@ final class TerminalNotificationAssembler {
         if (!done) return null;
 
         mPending.remove(pendingKey);
-        return Result.notification(build(id, pending));
+        return Result.notification(build(id, pending, mIconsEnabled.areIconsEnabled()));
     }
 
     /**
@@ -315,7 +342,7 @@ final class TerminalNotificationAssembler {
 
     /** Build the notification of the assembled {@code pending} chunks. */
     @NonNull
-    private static TerminalNotification build(@Nullable String id, @NonNull Pending pending) {
+    private static TerminalNotification build(@Nullable String id, @NonNull Pending pending, boolean iconsEnabled) {
         String title = decodeText(pending.title, pending.encoded);
         String body = decodeText(pending.body, pending.encoded);
         String buttons = decodeText(pending.buttons, pending.encoded);
@@ -330,7 +357,7 @@ final class TerminalNotificationAssembler {
             .setReportActivation(pending.reportActivation)
             .setAppName(pending.appName)
             .setOccasion(pending.occasion)
-            .setIcon(decodeIcon(pending.icon, pending.encoded));
+            .setIcon(iconsEnabled ? decodeIcon(pending.icon, pending.encoded) : null);
 
         for (String type : pending.types) builder.addType(type);
 

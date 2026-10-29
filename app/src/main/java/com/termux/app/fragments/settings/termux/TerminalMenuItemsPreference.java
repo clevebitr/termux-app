@@ -7,7 +7,6 @@ import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.termux.R;
 import com.termux.app.terminal.menu.TerminalMenuAction;
 import com.termux.app.terminal.menu.TerminalMenuConfig;
 
@@ -34,12 +33,9 @@ public class TerminalMenuItemsPreference extends OrderedItemsPreference {
     protected List<Item> getAvailableItems(@NonNull Context context) {
         List<Item> items = new ArrayList<>();
         for (TerminalMenuAction action : TerminalMenuAction.values()) {
-            // The label of the action that kills the process contains the pid of the session, which is
-            // not known here, so the label without the pid is shown in the settings screen.
-            CharSequence label = action == TerminalMenuAction.KILL_PROCESS
-                ? context.getString(R.string.termux_terminal_menu_kill_process_label)
-                : context.getString(action.getTitleRes());
-            items.add(new Item(action.getId(), label, action.getIcon()));
+            // The session is not known here, so the title without the pid is shown, which the action
+            // itself falls back to for a null session.
+            items.add(new Item(action.getId(), action.getTitle(context, null), action.getIcon()));
         }
         return items;
     }

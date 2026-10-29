@@ -10,9 +10,7 @@ import com.termux.shared.logger.Logger;
 import com.termux.app.properties.ForkProperties;
 import com.termux.terminal.TerminalNotification;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,9 +28,6 @@ import java.util.Properties;
 public final class TerminalNotificationManager {
 
     private static final String LOG_TAG = "TerminalNotificationManager";
-
-    /** The number of notifications in the system notification shade whose id is remembered. */
-    private static final int MAX_BACKGROUND_NOTIFICATION_IDS = 32;
 
     /** The listener that is called when the user interacts with a card. */
     public interface Listener {
@@ -91,11 +86,10 @@ public final class TerminalNotificationManager {
     private final BackgroundNotifier mBackgroundNotifier;
     /**
      * The ids of the notifications that were posted in the system notification shade, so that the
-     * `OSC 99 ; p=alive` query of a program also reports them. Old ids are dropped, since the shade does
-     * not tell the app when the user dismisses a notification.
+     * `OSC 99 ; p=alive` query of a program also reports them.
      */
     @NonNull
-    private final Deque<String> mBackgroundNotificationIds = new ArrayDeque<>();
+    private final BackgroundNotificationRegistry mBackgroundNotificationIds = new BackgroundNotificationRegistry();
     @NonNull
     private NotificationConfig mConfig = new NotificationConfig();
     @Nullable
@@ -198,7 +192,11 @@ public final class TerminalNotificationManager {
      * @return Whether the notification was passed to the overlay.
      */
     public boolean notify(@NonNull TerminalNotification notification, @Nullable NotificationActions actions) {
-        if (!isChannelEnabled(notification)) return false;
+        NotificationPolicy.Route route = NotificationPolicy.route(mConfig, notification, mActivity.isVisible());
+        if (route == NotificationPolicy.Route.IGNORED) {
+            Logger.logVerbose(LOG_TAG, "Not showing a notification, its channel is disabled or it is empty: " + notification);
+            return false;
+        }
 
         // Only the notifications of commands can be opened again, since the other ones have no command
         // that a click could jump to.
@@ -208,9 +206,9 @@ public final class TerminalNotificationManager {
 
         // The cards are only shown in the window of the app, so a notification that arrives while it is
         // not visible is posted in the system notification shade instead, if the user enabled that.
-        if (!mActivity.isVisible() && mConfig.backgroundEnabled) {
+        if (route == NotificationPolicy.Route.BACKGROUND) {
             if (notification.getId() != null)
-                rememberBackgroundNotificationId(notification.getId());
+                mBackgroundNotificationIds.remember(notification.getId());
             mBackgroundNotifier.post(notification);
             return true;
         }
@@ -230,17 +228,7 @@ public final class TerminalNotificationManager {
 
     /** @return Whether the cards of the source of {@code notification} are enabled. */
     public boolean isChannelEnabled(@NonNull TerminalNotification notification) {
-        if (!mConfig.enabled) return false;
-
-        switch (notification.getSource()) {
-            case EXIT_CODE:
-                return mConfig.exitCodeEnabled;
-            case OSC:
-                return mConfig.oscEnabled && mConfig.isOscAppAllowed(notification.getAppName());
-            case APP_EVENT:
-            default:
-                return mConfig.eventsEnabled;
-        }
+        return NotificationPolicy.isChannelEnabled(mConfig, notification);
     }
 
     /** Close all cards. */
@@ -278,7 +266,7 @@ public final class TerminalNotificationManager {
 
     /** Close the card of the notification with the id {@code id}, like for an `OSC 99 ; p=close` request. */
     public void closeNotification(@Nullable String id) {
-        mBackgroundNotificationIds.remove(id);
+        mBackgroundNotificationIds.forget(id);
         mOverlay.closeNotification(id);
     }
 
@@ -296,17 +284,7 @@ public final class TerminalNotificationManager {
     @NonNull
     public List<String> getShownNotificationIds() {
         List<String> ids = new ArrayList<>(mOverlay.getNotificationIds());
-        for (String id : mBackgroundNotificationIds) {
-            if (!ids.contains(id)) ids.add(id);
-        }
+        mBackgroundNotificationIds.addMissingIdsTo(ids);
         return ids;
-    }
-
-    /** Remember the id of a notification that was posted in the system notification shade. */
-    private void rememberBackgroundNotificationId(@NonNull String id) {
-        mBackgroundNotificationIds.remove(id);
-        mBackgroundNotificationIds.addLast(id);
-        while (mBackgroundNotificationIds.size() > MAX_BACKGROUND_NOTIFICATION_IDS)
-            mBackgroundNotificationIds.removeFirst();
     }
 }

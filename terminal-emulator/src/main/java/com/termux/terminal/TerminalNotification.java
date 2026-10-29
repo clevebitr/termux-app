@@ -205,9 +205,14 @@ public final class TerminalNotification {
         return mIcon;
     }
 
-    /** @return Whether the notification has no title, body and details line, so that it must be ignored. */
+    /**
+     * @return Whether the notification has no title, body and details line, so that it must be ignored.
+     *
+     * An icon alone is not content, since a card that shows nothing but an icon tells the user nothing,
+     * which is why a program that only sends `OSC 99 ; p=icon` data does not get a card.
+     */
     public boolean isEmpty() {
-        return isEmpty(mTitle) && isEmpty(mBody) && isEmpty(mMeta) && mIcon == null;
+        return isEmpty(mTitle) && isEmpty(mBody) && isEmpty(mMeta);
     }
 
     private static boolean isEmpty(@Nullable String value) {

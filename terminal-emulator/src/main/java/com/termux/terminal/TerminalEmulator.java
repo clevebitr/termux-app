@@ -292,7 +292,8 @@ public final class TerminalEmulator {
     private int mTerminalControlArgsMaxLength = TERMINAL_CONTROL_ARGS__DEFAULT_MAX_LENGTH;
 
     /** The assembler of the `OSC 99`, `OSC 9` and `OSC 777` desktop notifications. */
-    private final TerminalNotificationAssembler mNotificationAssembler = new TerminalNotificationAssembler();
+    private final TerminalNotificationAssembler mNotificationAssembler =
+        new TerminalNotificationAssembler(this::shouldDecodeOscNotificationIcons);
 
     /** The terminal control arguments string buffer, like for OSC, DCS, APC commands. */
     private StringBuilder mTerminalControlArgs = new StringBuilder(TERMINAL_CONTROL_ARGS__INITIAL_CAPACITY);
@@ -2806,6 +2807,14 @@ public final class TerminalEmulator {
         if (result.notification != null) mSession.onTerminalNotification(result.notification);
         if (result.closeId != null) mSession.onOsc99Close(result.closeId);
         if (result.aliveRequestId != null) mSession.onOsc99AliveQuery(result.aliveRequestId);
+    }
+
+    /**
+     * @return Whether the icon data of an `OSC 99 ; p=icon` notification is decoded, which the client of
+     *         the session decides, so that it is not decoded for a client that never shows icons.
+     */
+    private boolean shouldDecodeOscNotificationIcons() {
+        return mClient != null && mClient.shouldDecodeOscNotificationIcons();
     }
 
     /**

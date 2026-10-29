@@ -1350,8 +1350,9 @@ printf '\033]99;i=build-1:u=2:p=buttons;Retry\u2028Show log\007'
 | `s=` `n=` `g=` | ⛔ | 声音名、系统图标名、图标缓存键：解析但忽略（卡片不播音效，也不用系统图标主题） |
 
 `p=buttons` 的按钮会渲染成卡片底部一排直角小按钮，点击回报 `OSC 99 ; i=<id> ; <按钮序号>`。
-`p=icon`（PNG/JPEG，≤ 64KB 编码后）由 `BitmapFactory` 解码，`notification-osc-icons=true` 时在卡片里
-显示成 16dp 图标；否则解码后丢弃。`p=?` 的支持查询会被**立即回应**（宣告 `a`,`c`,`o`,`p`,`s`,`u`,`w`），
+`p=icon`（PNG/JPEG，≤ 64KB 编码后）只在 `notification-osc-icons=true` 时才收集和解码（`BitmapFactory`
+→ 卡片里的 16dp 图标）；关闭时负载**在终端层就被丢掉**，连 base64 解码和位图分配都不做，也不会占掉
+单条通知 128KB 的负载上限。`p=?` 的支持查询会被**立即回应**（宣告 `a`,`c`,`o`,`p`,`s`,`u`,`w`），
 `p=alive` 会用当前仍在显示的卡片 id 回应，`p=close` 直接关掉对应卡片。
 
 ### 防刷屏与过滤
@@ -1368,7 +1369,11 @@ notification-osc-rate-limit = 3      # 每秒每会话最多几条，0 = 不限�
 
 ### 已知限制
 
-* 单块负载超过 128KB 会整条丢弃（协议本身建议 ≤2048 字节/块）。
+* 单块负载超过 128KB 会整条丢弃（协议本身建议 ≤2048 字节/块）；`notification-osc-icons=false` 时
+  `p=icon` 的负载不计入这个上限（因为根本不收集）。
+* 只有图标、没有标题/正文/详情行的通知不算内容，会被丢弃（`TerminalNotification.isEmpty()` 忽略图标）。
+* 图标是否解码由会话客户端决定（`TerminalSessionClient.shouldDecodeOscNotificationIcons()`，默认 `false`），
+  所以别的 Termux 插件不受影响。
 * 通过 tmux 时，tmux 可能吞掉 OSC 99（需要 `allow-passthrough` 等设置），未做特殊处理。
 * 卡片只在 App 窗口里显示，所以 `o=unfocused`/`o=invisible` 的实现是「窗口聚焦/可见时不显示」，与后台通知（M8.5）无关。
 * 回报写入的是**发起通知的那个会话**的 pty，所以点别的会话发来的卡片也能正确回报。
@@ -1377,11 +1382,11 @@ notification-osc-rate-limit = 3      # 每秒每会话最多几条，0 = 不限�
 
 * `terminal-emulator/.../TerminalNotificationAssembler.java`：OSC 99 状态机（分块/元数据/base64/按钮/图标/查询/关闭/alive）、OSC 9、OSC 777。
 * `terminal-emulator/.../TerminalNotificationProtocol.java`：所有回写序列（点击/按钮/关闭回报、`p=?` 与 `p=alive` 应答、id 净化）。
-* `terminal-emulator/.../TerminalEmulator.java`：`doOsc()` 的 `case 9 / 99 / 777`；`TerminalOutput` / `TerminalSession` / `TerminalSessionClient` 新增 `onTerminalNotification` / `onOsc99Close` / `onOsc99AliveQuery`（都是默认空实现，插件不受影响）。
+* `terminal-emulator/.../TerminalEmulator.java`：`doOsc()` 的 `case 9 / 99 / 777`；`TerminalOutput` / `TerminalSession` / `TerminalSessionClient` 新增 `onTerminalNotification` / `onOsc99Close` / `onOsc99AliveQuery`（都是默认空实现，插件不受影响），以及 `shouldDecodeOscNotificationIcons()`（默认 `false`，由 App 的设置覆盖）。
 * `app/.../notifications/OscNotificationHandler.java`：开关/白名单/occasion/限流、回报、alive 应答。
 * `app/.../notifications/NotificationCardView.java`：按钮行 + 16dp 图标；`TerminalNotificationManager` 的 `NotificationActions`（点击/按钮/关闭三种回调）。
 * 设置页：`xml/termux_notification_preferences.xml` 的「程序主动发送的通知」分类。
-* 单测：`TerminalNotificationAssemblerTest`（24 个用例：分块、base64、按钮、元数据、查询/关闭/alive、OSC 9/777、id 净化、控制字符）。
+* 单测：`TerminalNotificationAssemblerTest`（25 个用例：分块、base64、按钮、元数据、查询/关闭/alive、OSC 9/777、id 净化、控制字符、图标开关）、`TerminalNotificationTest`（`isEmpty` 与纯图标通知）、`OscRateLimiterTest`（滑动窗口）、`NotificationPolicyTest`（通道/路由/occasion）。
 
 ---
 
@@ -1493,8 +1498,10 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 ./gradlew :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :terminal-view:compileDebugJavaWithJavac
 ```
 
-app 单测 65 个（`NotificationConfig` 12、`TerminalMenuConfig` 14、`ExitCodeNotifier` 10、
-`RecentNotifications` 6、属性集合转换 6、状态栏 12、其它 5），terminal-emulator 226 个。
+app 单测 87 个（`NotificationConfig` 12、`TerminalMenuConfig` 14、`ExitCodeNotifier` 10、
+`RecentNotifications` 6、`NotificationPolicy` 10、`OscRateLimiter` 4、`BackgroundNotificationRegistry` 5、
+`AppEventNotifier` 1、`TerminalMenuAction` 2、属性集合转换 6、状态栏 12、其它 5），terminal-emulator 230 个
+（含 `TerminalNotificationTest` 的 `isEmpty` / 纯图标 3 个、assembler 的图标开关 1 个）。
 
 > 本机唯一的已知失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（Robolectric 在本机 Android 上
 > 的 `ShadowActivityThread.reset` 问题，CI 的 x86_64 环境不复现）。

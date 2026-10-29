@@ -311,6 +311,16 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         mOscNotificationHandler.onTerminalNotification(session, notification);
     }
 
+    /**
+     * Decode the icon of an `OSC 99` notification only when the `notification-osc-icons` property is set,
+     * since decoding it costs time and memory and the icon is dropped otherwise.
+     */
+    @Override
+    public boolean shouldDecodeOscNotificationIcons() {
+        return mActivity.getTerminalNotificationManager() != null
+            && mActivity.getTerminalNotificationManager().getConfig().oscIcons;
+    }
+
     @Override
     public void onOsc99Close(@NonNull TerminalSession session, @Nullable String id) {
         mOscNotificationHandler.onOsc99Close(id);

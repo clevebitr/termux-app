@@ -73,6 +73,17 @@ public interface TerminalSessionClient {
     }
 
     /**
+     * Returns whether the icon data that a program sends with `OSC 99 ; p=icon` is decoded, so that the
+     * client can tell the session not to spend time and memory on an icon that it never shows.
+     *
+     * The icons are not decoded by default, since they are only used by clients that have a setting for
+     * them, like the notification cards of the termux app.
+     */
+    default boolean shouldDecodeOscNotificationIcons() {
+        return false;
+    }
+
+    /**
      * Called when a terminal program requested to close a notification with
      * `OSC 99 ; i=<id> : p=close ;`, so that the client can close its card.
      *

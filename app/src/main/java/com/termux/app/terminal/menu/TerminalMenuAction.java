@@ -85,14 +85,27 @@ public enum TerminalMenuAction {
     }
 
     /**
+     * @return The resource of the title of the action, which is the label without the pid for the action
+     *         that kills the process when {@code session} is {@code null}, since the pid is only known for
+     *         a session.
+     */
+    @StringRes
+    int getTitleRes(@Nullable TerminalSession session) {
+        if (this == KILL_PROCESS && session == null)
+            return R.string.termux_terminal_menu_kill_process_label;
+        return mTitleRes;
+    }
+
+    /**
      * @return The title of the action, like the label of the item of the context menu, with the pid of
-     *         the session filled in for the action that kills the process.
+     *         the session filled in for the action that kills the process, and without it when
+     *         {@code session} is {@code null}, since the label must never show the raw format argument.
      */
     @NonNull
     public CharSequence getTitle(@NonNull Context context, @Nullable TerminalSession session) {
         if (this == KILL_PROCESS && session != null)
             return context.getString(mTitleRes, session.getPid());
-        return context.getString(mTitleRes);
+        return context.getString(getTitleRes(session));
     }
 
     /** @return The action with the id {@code id}, or {@code null} if it is not known. */

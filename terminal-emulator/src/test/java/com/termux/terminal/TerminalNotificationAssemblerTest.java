@@ -197,4 +197,27 @@ public class TerminalNotificationAssemblerTest extends TestCase {
         assertTrue(parseNotification("i=1;").isEmpty());
         assertFalse(parseNotification("i=1;x").isEmpty());
     }
+
+    /**
+     * The icon payload of a client that does not show icons must not be collected, since a long one would
+     * otherwise count against the size limit of the pending notification and even drop the text around it.
+     */
+    public void testIconPayloadIsNotCollectedWhenIconsAreDisabled() {
+        StringBuilder icon = new StringBuilder();
+        for (int i = 0; i < 200 * 1024; i++) icon.append('A');
+
+        TerminalNotificationAssembler enabled = new TerminalNotificationAssembler(() -> true);
+        TerminalNotificationAssembler disabled = new TerminalNotificationAssembler(() -> false);
+
+        // The icon chunk is not done, so no notification is produced either way.
+        assertNull(enabled.handleOsc99("i=1:d=0:p=title;Build "));
+        assertNull(disabled.handleOsc99("i=1:d=0:p=title;Build "));
+        assertNull(enabled.handleOsc99("i=1:d=0:p=icon;" + icon));
+        assertNull(disabled.handleOsc99("i=1:d=0:p=icon;" + icon));
+
+        // With the icons enabled the payload passed the size limit, so the pending notification was dropped
+        // and the title is lost. A disabled client keeps the title, since it never collected the icon.
+        assertNull(enabled.handleOsc99("i=1;").notification.getTitle());
+        assertEquals("Build", disabled.handleOsc99("i=1;").notification.getTitle());
+    }
 }
