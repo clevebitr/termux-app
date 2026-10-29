@@ -808,3 +808,27 @@ CI 的 `Unit tests` 工作流其实也跑 `:app:lintDebug`，M8.5 第一次提�
 要么用 androidx 兼容类（`NotificationCompat` / `NotificationManagerCompat`），要么显式
 `Build.VERSION.SDK_INT` 判断，推之前自己过一遍。
 
+## 2026-10-30 — 复核后的重构：抽 ForkProperties + 拆出搜索/分屏 controller
+
+复核（`ce1dcaa..HEAD`，99 文件 +15719/−244）发现的两个结构问题，按用户要求当场处理：
+
+1. **三份重复的属性解析 helper**（`StatusBarConfig` / `NotificationConfig` / `TerminalMenuConfig`）
+   和「直读 `termux.properties`」的三处样板 → 抽 `app/.../properties/ForkProperties.java`。
+   要点：越界告警日志仍用**调用方的 LOG_TAG**（所以 `getInt()` 第一个参数是 tag），否则日志里
+   分不清是哪个配置坏了。`StatusBarPropertySourceTest` 是源码级检查，改成守卫 `ForkProperties`
+   以及「三个配置类必须通过它读取」，并且把断言收窄到 **`sharedProperties.getProperties(...)` 调用形式**——
+   注释里也会出现 `` `getProperties(true)` `` 字样，按裸方法名断言会误报。
+2. **`TermuxActivity` 2238 行、fork 新增 45 个方法** → 抽出
+   `TerminalSearchController`（搜索栏 160 行）与 `TerminalSplitScreenController`（分屏布局 189 行），
+   Activity 降到 2050 行，且只保留「选会话/挂载会话/活动窗格切换/焦点与键盘」这类真正的协调逻辑。
+   长按菜单**故意留在 Activity**：它的动作分发（搜索、分屏、分享 transcript、杀进程、打开设置…）
+   本来就依赖 Activity 的整套状态，硬拆只会产生一个 15 个方法的 Host 接口，得不偿失。
+
+**顺带发现并修掉一个我自己引入的回归**：M8.3（`64e8b6e`）那次删除系统 context menu 时，
+`onCreateOptionsMenu()`（硬件菜单键 → 终端菜单的钩子）被整段删掉了，菜单键因此失效。已恢复为
+`showTerminalMenu(); return false;`。教训：用脚本按「整块文本替换」删方法时，若旧文本已经变过，
+`replace` 会静默不匹配，而当时只看了编译通过——**删代码后应 diff 一下被删的 hunk 数量**。
+
+另外本轮复核还修了 3 个 P1：通知渠道名 i18n、`OrderedItemsPreference` 的列表概要在绑定期间读磁盘
+（改为缓存 + 对话框确认后失效）、`OSC 99 ; p=alive` 应答漏掉后台通知的 id。
+

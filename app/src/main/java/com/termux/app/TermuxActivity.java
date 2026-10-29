@@ -14,28 +14,19 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.os.SystemClock;
 import android.provider.Settings;
-import android.text.Editable;
-import android.text.TextWatcher;
-import android.view.ContextMenu;
-import android.view.ContextMenu.ContextMenuInfo;
 import android.view.Gravity;
-import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MotionEvent;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
-import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.termux.R;
@@ -52,6 +43,8 @@ import com.termux.app.notifications.TerminalNotificationManager;
 import com.termux.app.statusbar.StatusBarConfig;
 import com.termux.app.statusbar.StatusBarController;
 import com.termux.app.statusbar.StatusBarView;
+import com.termux.app.terminal.TerminalSearchController;
+import com.termux.app.terminal.TerminalSplitScreenController;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
@@ -94,7 +87,6 @@ import com.termux.view.TerminalViewClient;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -105,7 +97,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Properties;
 
 /**
  * A terminal emulator activity.
@@ -163,14 +154,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      */
     View mTermuxActivityBottomSpaceView;
 
-    /**
-     * The search bar of the terminal view, which is shown with {@link #showTerminalSearch()}. It is
-     * overlayed on top of the terminal view, so that the terminal grid does not have to be resized
-     * when it is shown.
-     */
-    private View mTerminalSearchBar;
-    private EditText mTerminalSearchTextInput;
-    private TextView mTerminalSearchResults;
+    /** The search bar of the terminal, which is overlayed on top of the terminal view. */
+    private TerminalSearchController mTerminalSearchController;
+
+    /** The layout of the split screen, which owns the sizes and the orientation of the panes. */
+    private TerminalSplitScreenController mTerminalSplitScreenController;
 
     /**
      * The containers of the terminal panes. Index 0 is the primary pane, which is always shown, and
@@ -192,24 +180,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      */
     private final TermuxTerminalViewClient[] mTermuxTerminalViewClients = new TermuxTerminalViewClient[2];
 
-    /** The {@link LinearLayout} that holds the terminal panes and the divider between them. */
-    private LinearLayout mTerminalPanesContainer;
-    /** The divider that can be dragged to change the size of the panes. */
-    private View mTerminalSplitDivider;
-
     /** The index of the pane that is active, i.e. that receives the keyboard, extra keys and menus. */
     private int mActiveTerminalViewIndex = 0;
-    /** Whether split screen is enabled, i.e. whether the secondary pane is visible. */
-    private boolean mIsSplitScreenEnabled;
-    /** The orientation of the split screen panes, either {@link LinearLayout#VERTICAL} or {@link LinearLayout#HORIZONTAL}. */
-    private int mSplitScreenOrientation = LinearLayout.VERTICAL;
-    /** The relative sizes of the panes, as the weights of the {@link LinearLayout} that holds them. */
-    private float[] mSplitScreenPaneWeights = new float[]{1f, 1f};
-
-    /** The location and size of the panes container when a drag of the split screen divider started. */
-    private final int[] mSplitDividerContainerLocation = new int[2];
-    private int mSplitDividerContainerSize;
-    private long mSplitDividerLastUpdateTime;
 
     /** The status bar that shows the time, battery, memory, cpu, network, ip and proxy segments. */
     private StatusBarView mStatusBarView;
@@ -375,7 +347,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         setTermuxTerminalViewAndClients();
 
-        setTerminalSearchView();
+        mTerminalSearchController = new TerminalSearchController(this);
+        mTerminalSearchController.setUp();
 
         setTerminalToolbarView(savedInstanceState);
 
@@ -703,7 +676,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /** @return Whether split screen is enabled, i.e. whether the secondary pane is visible. */
     public boolean isSplitScreenEnabled() {
-        return mIsSplitScreenEnabled;
+        return mTerminalSplitScreenController.isEnabled();
     }
 
     /**
@@ -720,28 +693,26 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      */
     /** @return The orientation of the split screen panes, either {@link LinearLayout#VERTICAL} or {@link LinearLayout#HORIZONTAL}. */
     public int getSplitScreenOrientation() {
-        return mSplitScreenOrientation;
+        return mTerminalSplitScreenController.getOrientation();
     }
 
     public void setSplitScreen(boolean enabled, int orientation) {
         if (orientation != LinearLayout.VERTICAL && orientation != LinearLayout.HORIZONTAL) return;
-        mSplitScreenOrientation = orientation;
+        mTerminalSplitScreenController.setOrientation(orientation);
 
         if (!enabled) {
-            if (mIsSplitScreenEnabled) {
-                mIsSplitScreenEnabled = false;
-                mTerminalPaneContainers[1].setVisibility(View.GONE);
-                mTerminalSplitDivider.setVisibility(View.GONE);
-                updateSplitScreenLayout();
+            if (mTerminalSplitScreenController.isEnabled()) {
+                mTerminalSplitScreenController.setEnabled(false);
+                mTerminalSplitScreenController.updateLayout();
                 setActiveTerminalPane(0);
-                updatePaneActiveStates();
+                mTerminalSplitScreenController.updatePaneActiveStates(mActiveTerminalViewIndex);
             }
             return;
         }
 
-        if (mIsSplitScreenEnabled) {
+        if (mTerminalSplitScreenController.isEnabled()) {
             // Already split, so just change the orientation of the panes.
-            updateSplitScreenLayout();
+            mTerminalSplitScreenController.updateLayout();
             return;
         }
 
@@ -765,11 +736,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             mTerminalViews[1].attachSession(secondarySession);
         }
 
-        mIsSplitScreenEnabled = true;
-        mTerminalPaneContainers[1].setVisibility(View.VISIBLE);
-        mTerminalSplitDivider.setVisibility(View.VISIBLE);
-        updateSplitScreenLayout();
-        updatePaneActiveStates();
+        mTerminalSplitScreenController.setEnabled(true);
+        mTerminalSplitScreenController.updateLayout();
+        mTerminalSplitScreenController.updatePaneActiveStates(mActiveTerminalViewIndex);
         // The secondary pane may have been running for a long time while it was hidden, so show its
         // current output right away instead of waiting for the next output of its session.
         mTerminalViews[1].onScreenOutput();
@@ -781,7 +750,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      */
     public void setActiveTerminalPane(int index) {
         if (index < 0 || index >= mTerminalViews.length) return;
-        if (!mIsSplitScreenEnabled) index = 0;
+        if (!mTerminalSplitScreenController.isEnabled()) index = 0;
         if (index == mActiveTerminalViewIndex) return;
 
         TerminalSession previousSession = getCurrentSession();
@@ -793,7 +762,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         mTerminalView = mTerminalViews[index];
         mTermuxTerminalViewClient = mTermuxTerminalViewClients[index];
 
-        updatePaneActiveStates();
+        mTerminalSplitScreenController.updatePaneActiveStates(mActiveTerminalViewIndex);
 
         // Only the session of the active pane may report having window focus.
         if (previousSession != null && previousSession.getEmulator() != null)
@@ -825,7 +794,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     /** @return The {@link TerminalView} of the pane that is not active, or {@code null} if split screen is disabled. */
     @Nullable
     public TerminalView getInactiveTerminalPaneView() {
-        if (!mIsSplitScreenEnabled) return null;
+        if (!mTerminalSplitScreenController.isEnabled()) return null;
         return mTerminalViews[1 - mActiveTerminalViewIndex];
     }
 
@@ -840,7 +809,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         for (int i = 0; i < mTerminalViews.length; i++) {
             // The secondary pane is hidden when split screen is disabled, so it must not be redrawn.
-            if (i != 0 && !mIsSplitScreenEnabled) continue;
+            if (i != 0 && !mTerminalSplitScreenController.isEnabled()) continue;
             TerminalView terminalView = mTerminalViews[i];
             if (terminalView != null && terminalView.getCurrentSession() == session) return terminalView;
         }
@@ -851,7 +820,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     /** @return The session shown in the pane that is not active, or {@code null} if split screen is disabled. */
     @Nullable
     public TerminalSession getInactiveTerminalPaneSession() {
-        if (!mIsSplitScreenEnabled) return null;
+        if (!mTerminalSplitScreenController.isEnabled()) return null;
         return mTerminalViews[1 - mActiveTerminalViewIndex].getCurrentSession();
     }
 
@@ -862,7 +831,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * because the views would resize it differently.
      */
     public void swapTerminalPaneSessions() {
-        if (!mIsSplitScreenEnabled) return;
+        if (!mTerminalSplitScreenController.isEnabled()) return;
 
         TerminalView activeView = mTerminalViews[mActiveTerminalViewIndex];
         TerminalView inactiveView = mTerminalViews[1 - mActiveTerminalViewIndex];
@@ -912,161 +881,19 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     /** Update the layout params of the panes and the divider for the current orientation and split state. */
-    private void updateSplitScreenLayout() {
-        if (mTerminalPanesContainer == null) return;
-
-        final boolean isVertical = mSplitScreenOrientation == LinearLayout.VERTICAL;
-        mTerminalPanesContainer.setOrientation(mSplitScreenOrientation);
-
-        if (!mIsSplitScreenEnabled) {
-            mTerminalPaneContainers[0].setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
-            return;
-        }
-
-        for (int i = 0; i < mTerminalPaneContainers.length; i++) {
-            mTerminalPaneContainers[i].setLayoutParams(new LinearLayout.LayoutParams(
-                isVertical ? LinearLayout.LayoutParams.MATCH_PARENT : 0,
-                isVertical ? 0 : LinearLayout.LayoutParams.MATCH_PARENT,
-                mSplitScreenPaneWeights[i]));
-        }
-
-        // The divider is a bit thicker than the visible line, so that it can be grabbed with a finger.
-        int dividerSize = dpToPx(6);
-        mTerminalSplitDivider.setLayoutParams(new LinearLayout.LayoutParams(
-            isVertical ? LinearLayout.LayoutParams.MATCH_PARENT : dividerSize,
-            isVertical ? dividerSize : LinearLayout.LayoutParams.MATCH_PARENT));
-    }
-
-    /** Draw a border around the pane that is active, so that it can be told apart from the other one. */
-    private void updatePaneActiveStates() {
-        for (int i = 0; i < mTerminalPaneContainers.length; i++) {
-            FrameLayout container = mTerminalPaneContainers[i];
-            if (container == null) continue;
-            container.setForeground(mIsSplitScreenEnabled && i == mActiveTerminalViewIndex
-                ? ContextCompat.getDrawable(this, R.drawable.terminal_pane_active_border) : null);
-        }
-    }
-
-    /** Make the divider between the panes draggable, so that their relative sizes can be changed. */
-    private void setTerminalSplitDividerTouchListener() {
-        if (mTerminalSplitDivider == null) return;
-
-        mTerminalSplitDivider.setOnTouchListener((view, event) -> {
-            switch (event.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN: {
-                    view.getParent().requestDisallowInterceptTouchEvent(true);
-                    mTerminalPanesContainer.getLocationOnScreen(mSplitDividerContainerLocation);
-                    mSplitDividerContainerSize = mSplitScreenOrientation == LinearLayout.VERTICAL
-                        ? mTerminalPanesContainer.getHeight() : mTerminalPanesContainer.getWidth();
-                    mSplitDividerLastUpdateTime = 0;
-                    return true;
-                }
-                case MotionEvent.ACTION_MOVE: {
-                    // Throttle the updates, since changing the size of the panes resizes the terminal
-                    // sessions and sends a SIGWINCH to their processes.
-                    long now = SystemClock.uptimeMillis();
-                    if (now - mSplitDividerLastUpdateTime < 40) return true;
-                    mSplitDividerLastUpdateTime = now;
-                    updateSplitScreenPaneWeights(event.getRawX(), event.getRawY());
-                    return true;
-                }
-                case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL: {
-                    view.getParent().requestDisallowInterceptTouchEvent(false);
-                    return true;
-                }
-                default:
-                    return false;
-            }
-        });
-    }
-
-    /** Change the relative sizes of the panes from the position of a divider drag event. */
-    private void updateSplitScreenPaneWeights(float rawX, float rawY) {
-        if (!mIsSplitScreenEnabled || mSplitDividerContainerSize <= 0) return;
-
-        final boolean isVertical = mSplitScreenOrientation == LinearLayout.VERTICAL;
-        float position = (isVertical ? rawY : rawX) -
-            (isVertical ? mSplitDividerContainerLocation[1] : mSplitDividerContainerLocation[0]);
-        float ratio = Math.max(0.2f, Math.min(0.8f, position / mSplitDividerContainerSize));
-        if (Math.abs(ratio - mSplitScreenPaneWeights[0]) < 0.01f) return;
-
-        mSplitScreenPaneWeights[0] = ratio;
-        mSplitScreenPaneWeights[1] = 1f - ratio;
-        for (int i = 0; i < mTerminalPaneContainers.length; i++) {
-            LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) mTerminalPaneContainers[i].getLayoutParams();
-            params.weight = mSplitScreenPaneWeights[i];
-            mTerminalPaneContainers[i].setLayoutParams(params);
-        }
-    }
-
-    private void setTerminalSearchView() {
-        mTerminalSearchBar = findViewById(R.id.terminal_search_bar);
-        if (mTerminalSearchBar == null) return;
-
-        mTerminalSearchTextInput = findViewById(R.id.terminal_search_text_input);
-        mTerminalSearchResults = findViewById(R.id.terminal_search_results);
-
-        mTerminalSearchTextInput.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                if (mTerminalView == null) return;
-                mTerminalView.setSearchQuery(s.toString());
-                updateTerminalSearchResultsView();
-            }
-        });
-
-        mTerminalSearchTextInput.setOnEditorActionListener((v, actionId, event) -> {
-            // Pressing the enter/search key on the soft or hardware keyboard selects the next match.
-            if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_NEXT ||
-                (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER && event.getAction() == KeyEvent.ACTION_DOWN)) {
-                findNextTerminalSearchMatch(true);
-                return true;
-            }
-            return false;
-        });
-
-        findViewById(R.id.terminal_search_previous_button).setOnClickListener(v -> findNextTerminalSearchMatch(false));
-        findViewById(R.id.terminal_search_next_button).setOnClickListener(v -> findNextTerminalSearchMatch(true));
-        findViewById(R.id.terminal_search_close_button).setOnClickListener(v -> hideTerminalSearch());
-    }
-
     /** Show the terminal search bar and focus its text input, so that the user can type a query. */
     public void showTerminalSearch() {
-        if (mTerminalSearchBar == null || mTerminalView == null) return;
-        if (isTerminalSearchBarVisible()) {
-            mTerminalSearchTextInput.requestFocus();
-            return;
-        }
-
-        mTerminalSearchBar.setVisibility(View.VISIBLE);
-        mTerminalSearchTextInput.setText(null);
-        mTerminalSearchTextInput.requestFocus();
-        KeyboardUtils.showSoftKeyboard(this, mTerminalSearchTextInput);
-        updateTerminalSearchResultsView();
+        mTerminalSearchController.show();
     }
 
     /** Hide the terminal search bar and clear the search highlights. */
     public void hideTerminalSearch() {
-        if (!isTerminalSearchBarVisible()) return;
-
-        mTerminalSearchBar.setVisibility(View.GONE);
-        mTerminalSearchTextInput.setText(null);
-        mTerminalView.clearSearch();
-        mTerminalView.requestFocus();
+        mTerminalSearchController.hide();
     }
 
+    /** @return Whether the search bar of the terminal is shown. */
     public boolean isTerminalSearchBarVisible() {
-        return mTerminalSearchBar != null && mTerminalSearchBar.getVisibility() == View.VISIBLE;
+        return mTerminalSearchController.isVisible();
     }
 
     /**
@@ -1074,29 +901,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * session switch since the search matches of the previous session's buffer are then invalid.
      */
     public void refreshTerminalSearch() {
-        if (!isTerminalSearchBarVisible() || mTerminalView == null) return;
-        mTerminalView.setSearchQuery(mTerminalSearchTextInput.getText().toString());
-        updateTerminalSearchResultsView();
-    }
-
-    private void findNextTerminalSearchMatch(boolean forward) {
-        if (mTerminalView == null) return;
-        mTerminalView.findNextSearchMatch(forward);
-        updateTerminalSearchResultsView();
-    }
-
-    private void updateTerminalSearchResultsView() {
-        if (mTerminalSearchResults == null) return;
-
-        int count = mTerminalView.getSearchMatchCount();
-        if (count == 0) {
-            // Do not show "0/0" for an empty query, only if the query has no matches.
-            boolean hasQuery = mTerminalSearchTextInput.getText().length() > 0;
-            mTerminalSearchResults.setText(hasQuery ? getString(R.string.action_search_results, 0, 0) : "");
-        } else {
-            mTerminalSearchResults.setText(getString(R.string.action_search_results,
-                mTerminalView.getSearchMatchIndex() + 1, count));
-        }
+        mTerminalSearchController.refresh();
     }
 
     private void setMargins() {
@@ -1317,6 +1122,16 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }, () -> mNotificationManager.getRecentNotifications().clear());
     }
 
+    /**
+     * Hook the system menu of the activity to show the terminal context menu instead, so that the
+     * hardware menu key opens it.
+     */
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        showTerminalMenu();
+        return false;
+    }
+
     /** Reload the configuration of the terminal context menu and of the text selection toolbar. */
     private void reloadTerminalMenuConfig() {
         mTerminalMenuConfig = TerminalMenuConfig.parse(ForkProperties.readTermuxProperties());
@@ -1399,7 +1214,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 setSplitScreen(true, LinearLayout.HORIZONTAL);
                 break;
             case SPLIT_CLOSE:
-                setSplitScreen(false, mSplitScreenOrientation);
+                setSplitScreen(false, mTerminalSplitScreenController.getOrientation());
                 break;
             case SELECT_URL:
                 mTermuxTerminalViewClient.showUrlSelection();
@@ -1528,8 +1343,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         mTermuxTerminalSessionActivityClient = new TermuxTerminalSessionActivityClient(this);
 
         // Set termux terminal views, one for each pane, and their clients
-        mTerminalPanesContainer = findViewById(R.id.terminal_panes_container);
-        mTerminalSplitDivider = findViewById(R.id.terminal_split_divider);
         mTerminalPaneContainers[0] = findViewById(R.id.terminal_pane_0);
         mTerminalPaneContainers[1] = findViewById(R.id.terminal_pane_1);
         mTerminalViews[0] = findViewById(R.id.terminal_view);
@@ -1547,7 +1360,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             // Make the pane of the tapped view the active pane before the view handles the touch, so
             // that all the gesture callbacks, the keyboard and the menus act on that pane.
             terminalView.setOnTouchListener((view, event) -> {
-                if (event.getActionMasked() == MotionEvent.ACTION_DOWN && mIsSplitScreenEnabled &&
+                if (event.getActionMasked() == MotionEvent.ACTION_DOWN && mTerminalSplitScreenController.isEnabled() &&
                     paneIndex != mActiveTerminalViewIndex)
                     setActiveTerminalPane(paneIndex);
                 return false;
@@ -1565,7 +1378,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onCreate();
 
-        setTerminalSplitDividerTouchListener();
+        mTerminalSplitScreenController = new TerminalSplitScreenController(this, mTerminalPaneContainers,
+            findViewById(R.id.terminal_panes_container), findViewById(R.id.terminal_split_divider));
+        mTerminalSplitScreenController.setUpDividerTouchListener();
     }
 
     private void setTermuxSessionsListView() {

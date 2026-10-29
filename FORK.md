@@ -741,8 +741,9 @@ terminal-padding-right=8
 逐字符 `Character.toLowerCase()` 保证列映射不被长度变化破坏）、`TerminalRenderer.setSearchHighlights()`
 （按行二分推进 + 文字之前画高亮矩形）、`TerminalView.setSearchQuery()` / `findNextSearchMatch()` /
 `clearSearch()`（resize 后重新匹配并保持当前匹配位置）、`activity_termux.xml` 的
-`terminal_search_bar`、`TermuxActivity.showTerminalSearch()` / `hideTerminalSearch()`、
-`TermuxTerminalViewClient.onKeyDown()`（`Ctrl+Alt+F`）。
+`terminal_search_bar`、`app/.../terminal/TerminalSearchController.java`（搜索栏的视图、查询、
+上一个/下一个匹配与 `2/7` 计数）、`TermuxActivity.showTerminalSearch()` / `hideTerminalSearch()`
+（转发给 controller）、`TermuxTerminalViewClient.onKeyDown()`（`Ctrl+Alt+F`）。
 
 ---
 
@@ -860,9 +861,10 @@ terminal-osc52-clipboard=write
 * 分屏状态**不持久化**：Activity 重建（换主题等）后回到单窗格，但两个会话都还在服务里。
 
 实现位置：`activity_termux.xml`（`terminal_panes_container` + `terminal_pane_0/1` +
-`terminal_split_divider` + 第二个 `TerminalView`）、`TermuxActivity`
-（`setSplitScreen()` / `setActiveTerminalPane()` / `updateSplitScreenLayout()` /
-`swapTerminalPaneSessions()` / 分隔条 `OnTouchListener` / `setTerminalPadding()` 现在作用于两个窗格）、
+`terminal_split_divider` + 第二个 `TerminalView`）、`app/.../terminal/TerminalSplitScreenController.java`
+（开关、方向、窗格权重、分隔条拖动、活动窗格边框）、`TermuxActivity`
+（`setSplitScreen()`（选会话/挂载会话）/ `setActiveTerminalPane()` /
+`swapTerminalPaneSessions()` / `setTerminalPadding()` 现在作用于两个窗格）、
 `TermuxTerminalViewClient`（每个窗格一个实例，所有回调作用于**自己的**视图；
 `setSoftKeyboardState()` 只允许活动窗格抢焦点）、
 `TerminalExtraKeys.setTerminalView()`（extra keys 点击时改投活动窗格）、
@@ -1427,6 +1429,22 @@ notification-background-enabled = true
 * 设置页：`termux_notification_preferences.xml` 新增「App 事件」「后台与历史」两个分类；
   `TermuxPropertyPreferenceDataStore` 新增 `putStringSet/getStringSet`（逗号连接，供 MultiSelectListPreference 用）
 * 单测：`RecentNotificationsTest`（6 个用例）
+
+---
+
+## 25. 代码结构（fork 的包划分）
+
+fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + 协调」，具体逻辑在各自的类里：
+
+| 包 / 类 | 职责 |
+| --- | --- |
+| `app/.../notifications/` | 通知卡片全链路：`NotificationConfig`（属性）、`TerminalNotificationManager`（通道开关/历史/后台切换）、`ExitCodeNotifier`（失败命令）、`OscNotificationHandler`（OSC 9/99/777 + 限流 + 回报）、`AppEventNotifier`（App 事件）、`NotificationOverlayView` + `NotificationCardView`（渲染）、`RecentNotifications` + `RecentNotificationsDialog`（历史）、`BackgroundNotifier`（系统通知） |
+| `app/.../terminal/menu/` | `TerminalMenuConfig`（`terminal-menu-*` 属性）、`TerminalMenuAction`（id ↔ 文案 ↔ 图标）、`TerminalMenuDialog`（自定义样式的长按菜单） |
+| `app/.../terminal/` | `TerminalSearchController`（搜索栏）、`TerminalSplitScreenController`（分屏布局）、`TermuxShellIntegration`、四个 session/view client |
+| `app/.../statusbar/` | `StatusBarConfig` + `StatusBarMetrics` + `StatusBarView` + `SparklineView` + `StatusBarColors` + `StatusBarController` |
+| `app/.../properties/ForkProperties.java` | fork 自有属性的统一读取入口（`termux.properties` 直读 + 类型化 getter + 越界回退） |
+| `app/.../widget/TerminalDialogStyles.java` | 菜单/历史对话框共用的 TUI 风格（直角、1dp 描边、行按下高亮、等宽文字、`theme:` 配色） |
+| `terminal-emulator/.../TerminalNotification*.java` | OSC 协议解析（纯逻辑，26 个单测），不含任何 UI 代码 |
 
 ---
 
