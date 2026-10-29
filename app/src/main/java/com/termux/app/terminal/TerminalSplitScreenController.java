@@ -77,6 +77,32 @@ public final class TerminalSplitScreenController {
         return mOrientation;
     }
 
+    /** @return The size of the first pane relative to the container, between 0.2 and 0.8. */
+    public float getPaneRatio() {
+        return mPaneWeights[0];
+    }
+
+    /**
+     * Set the relative sizes of the panes, like to restore them after the activity was recreated.
+     *
+     * The views are not touched, so that this can be called before {@link #updateLayout()}, which applies
+     * the new sizes together with the orientation and the visibility of the panes.
+     */
+    public void setPaneRatio(float ratio) {
+        if (Float.isNaN(ratio) || Float.isInfinite(ratio)) return;
+
+        mPaneWeights[0] = clampPaneRatio(ratio);
+        mPaneWeights[1] = 1f - mPaneWeights[0];
+    }
+
+    /**
+     * @return The ratio of the first pane, clamped to the range that keeps both panes visible, so that a
+     *         restored or dragged value can never hide one of them.
+     */
+    static float clampPaneRatio(float ratio) {
+        return Math.max(MIN_PANE_RATIO, Math.min(MAX_PANE_RATIO, ratio));
+    }
+
     /** @param orientation The orientation of the panes, either {@link LinearLayout#VERTICAL} or {@link LinearLayout#HORIZONTAL}. */
     public void setOrientation(int orientation) {
         if (orientation != LinearLayout.VERTICAL && orientation != LinearLayout.HORIZONTAL) return;
@@ -163,11 +189,10 @@ public final class TerminalSplitScreenController {
         final boolean isVertical = mOrientation == LinearLayout.VERTICAL;
         float position = (isVertical ? rawY : rawX) -
             (isVertical ? mDividerContainerLocation[1] : mDividerContainerLocation[0]);
-        float ratio = Math.max(MIN_PANE_RATIO, Math.min(MAX_PANE_RATIO, position / mDividerContainerSize));
+        float ratio = clampPaneRatio(position / mDividerContainerSize);
         if (Math.abs(ratio - mPaneWeights[0]) < 0.01f) return;
 
-        mPaneWeights[0] = ratio;
-        mPaneWeights[1] = 1f - ratio;
+        setPaneRatio(ratio);
         for (int i = 0; i < mPaneContainers.length; i++) {
             LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) mPaneContainers[i].getLayoutParams();
             params.weight = mPaneWeights[i];

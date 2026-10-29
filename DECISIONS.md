@@ -918,3 +918,25 @@ M9 顺序调整：先修质量漏洞，再做新功能（用户要求）。本�
 
 验证：`:app:testDebugUnitTest`（87 个，唯一失败是本机 Robolectric 那个老问题）+
 `:terminal-emulator:testDebugUnitTest`（230 个）全绿。
+
+## 2026-10-29 — M9 分屏持久化：onSaveInstanceState 存会话 handle + 方向/比例/活动窗格
+
+目标：Activity 重建（换主题 / 深色切换 / 改系统语言；旋转走 `configChanges` 不重建）后保持分屏。
+
+状态用 `onSaveInstanceState` 传，**不落盘**：分屏开关、方向（`LinearLayout.VERTICAL/HORIZONTAL`）、
+分隔条比例、活动窗格索引，以及两个窗格各自会话的 `TerminalSession.mHandle`（public final UUID）。
+
+* 用 handle 而不是「服务里第 N 个会话」：会话活在 `TermuxService` 里，Activity 重建时服务没死；进程被杀时
+  服务也没了，handle 自然找不到 → **退回上游的「恢复上次会话到单窗格」**，不会出现半个分屏。
+* 恢复顺序（`TermuxActivity.restoreSplitScreenState()`）：按 handle 找回两个会话 → 先
+  `setCurrentSession(primary)`（走原有路径，顺带做选中/滚动/背景色/搜索刷新）→ `mTerminalViews[1].attachSession(secondary)`
+  → 设方向与比例 → `setSplitScreen(true, orientation)`（它看到窗格 1 已有合法会话就沿用，不会另选/新建）
+  → `setActiveTerminalPane(savedIndex)`。这样两个窗格的左右/上下顺序不会因为「上次活动的窗格」被换掉。
+* 只在 `onServiceConnected` 的「已有会话」分支里、且 `restoreSplitScreenState()` 返回 false 时才执行上游的
+  `setCurrentSession(getCurrentStoredSessionOrLast())`，避免重复挂载。
+* 比例恢复也走 `TerminalSplitScreenController.clampPaneRatio()`（20%–80%，拖动路径也改成复用它），
+  坏数据不会把某个窗格压成 0 宽。
+* 新增 `getPaneRatio()/setPaneRatio()/clampPaneRatio()`：`setPaneRatio()` 只改权重字段不碰视图，
+  这样可以先设比例再让 `updateLayout()` 一次把方向和可见性一起应用。
+* 单测：`TerminalSplitScreenControllerTest` 2 个（clamp 边界）。Bundle 的读写没法在普通单测里测
+  （Robolectric 在本机跑不起来，见 #44），所以真机验收项写进 FORK.md 的「尚未真机验证」。

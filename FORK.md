@@ -870,12 +870,18 @@ terminal-osc52-clipboard=write
   非活动窗格抢主线程。非活动窗格的重绘**保持滚动位置**（往上翻看时内容在视口下滚动，不会被
   拽回底部），也不更新无障碍描述（`getText()` 很贵）；点中它之后下一次输出仍按上游语义回到底部。
   分隔条拖动、互换会话、开关分屏、从后台回前台都会立即补刷一次。
-* 分屏状态**不持久化**：Activity 重建（换主题等）后回到单窗格，但两个会话都还在服务里。
+* **分屏状态持久化**（M9）：Activity 重建（换主题 / 深色切换 / 系统改语言等，旋转本来走
+  `configChanges` 不重建）后，两个窗格仍显示原来的两个会话，上下/左右方向、分隔条比例、活动窗格
+  也都恢复。实现是把分屏开关、方向、比例、活动窗格索引和两个会话的 `mHandle` 写进
+  `onSaveInstanceState`，`onServiceConnected` 里按 handle 从 `TermuxService` 找回会话后重新挂载。
+  进程被杀时会话随服务一起没了，handle 找不回来 → 退回上游的「恢复上次会话到单窗格」行为。
+* 恢复时比例仍走 `clampPaneRatio()`（20%–80%），所以坏数据不会让某个窗格变成 0 宽。
 
 实现位置：`activity_termux.xml`（`terminal_panes_container` + `terminal_pane_0/1` +
 `terminal_split_divider` + 第二个 `TerminalView`）、`app/.../terminal/TerminalSplitScreenController.java`
 （开关、方向、窗格权重、分隔条拖动、活动窗格边框）、`TermuxActivity`
-（`setSplitScreen()`（选会话/挂载会话）/ `setActiveTerminalPane()` /
+（`setSplitScreen()`（选会话/挂载会话）/ `setActiveTerminalPane()` / `saveSplitScreenState()` /
+`restoreSplitScreenState()` / `findSessionByHandle()` /
 `swapTerminalPaneSessions()` / `setTerminalPadding()` 现在作用于两个窗格）、
 `TermuxTerminalViewClient`（每个窗格一个实例，所有回调作用于**自己的**视图；
 `setSoftKeyboardState()` 只允许活动窗格抢焦点）、
@@ -1487,6 +1493,8 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 * §19 状态栏：占位/覆盖两种模式下的终端行列数与 `SIGWINCH`、设置页改完是否立即生效、`theme:` 配色是否
   跟随 Termux:Styling 换色、分段刷新间隔下的耗电与帧率、`/proc/stat` 不可用时的 CPU 回退值。
 * §18 非活动窗格的实时重绘（刷屏时帧率、往上翻看后不被拽回底部、互换/开关分屏/回前台后画面立即最新）。
+* §18 分屏状态持久化：换主题 / 切换深色 / 改系统语言导致 Activity 重建后，两个窗格是否仍是原来的
+  两个会话、方向与分隔条比例是否保持、活动窗格是否回到原来那个；关掉「不保留活动」以外的情况也测。
 * §21 长按菜单双区编辑器的调序、浮条项增删后是否立即生效、`SEARCH`/`SPLIT_*` 键在各面板中的表现。
 * §22 控件交互细节（SeekBar 越界、颜色对话框、改完返回是否立即生效）。
 * §23 OSC：卡片按钮点击回报、`p=icon` 图标显示、`a=report`/`c=1` 回报、限流是否真的挡住刷屏。
@@ -1498,9 +1506,10 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 ./gradlew :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :terminal-view:compileDebugJavaWithJavac
 ```
 
-app 单测 87 个（`NotificationConfig` 12、`TerminalMenuConfig` 14、`ExitCodeNotifier` 10、
+app 单测 89 个（`NotificationConfig` 12、`TerminalMenuConfig` 14、`ExitCodeNotifier` 10、
 `RecentNotifications` 6、`NotificationPolicy` 10、`OscRateLimiter` 4、`BackgroundNotificationRegistry` 5、
-`AppEventNotifier` 1、`TerminalMenuAction` 2、属性集合转换 6、状态栏 12、其它 5），terminal-emulator 230 个
+`AppEventNotifier` 1、`TerminalMenuAction` 2、`TerminalSplitScreenController` 2、属性集合转换 6、
+状态栏 12、其它 5），terminal-emulator 230 个
 （含 `TerminalNotificationTest` 的 `isEmpty` / 纯图标 3 个、assembler 的图标开关 1 个）。
 
 > 本机唯一的已知失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（Robolectric 在本机 Android 上

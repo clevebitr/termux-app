@@ -292,6 +292,27 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private static final String ARG_TERMINAL_TOOLBAR_TEXT_INPUT = "terminal_toolbar_text_input";
     private static final String ARG_ACTIVITY_RECREATED = "activity_recreated";
 
+    /** The keys of the state of the split screen, which is restored after the activity was recreated. */
+    private static final String ARG_SPLIT_SCREEN_ENABLED = "split_screen_enabled";
+    private static final String ARG_SPLIT_SCREEN_ORIENTATION = "split_screen_orientation";
+    private static final String ARG_SPLIT_SCREEN_PANE_RATIO = "split_screen_pane_ratio";
+    private static final String ARG_SPLIT_SCREEN_ACTIVE_PANE = "split_screen_active_pane";
+    private static final String ARG_SPLIT_SCREEN_PRIMARY_SESSION = "split_screen_primary_session";
+    private static final String ARG_SPLIT_SCREEN_SECONDARY_SESSION = "split_screen_secondary_session";
+
+    /**
+     * The state of the split screen that was saved before the activity was recreated, like when the theme
+     * or the night mode changed, which is restored when the sessions are available again.
+     */
+    private boolean mSavedSplitScreenEnabled;
+    private int mSavedSplitScreenOrientation = LinearLayout.VERTICAL;
+    private float mSavedSplitScreenPaneRatio = -1;
+    private int mSavedSplitScreenActivePane;
+    @Nullable
+    private String mSavedSplitScreenPrimarySessionHandle;
+    @Nullable
+    private String mSavedSplitScreenSecondarySessionHandle;
+
     private static final String LOG_TAG = "TermuxActivity";
 
     @Override
@@ -301,6 +322,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         if (savedInstanceState != null)
             mIsActivityRecreated = savedInstanceState.getBoolean(ARG_ACTIVITY_RECREATED, false);
+        restoreSplitScreenStateFromBundle(savedInstanceState);
 
         // Delete ReportInfo serialized object files from cache older than 14 days
         ReportActivity.deleteReportInfoFilesOlderThanXDays(this, 14, false);
@@ -535,7 +557,95 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         super.onSaveInstanceState(savedInstanceState);
         saveTerminalToolbarTextInput(savedInstanceState);
+        saveSplitScreenState(savedInstanceState);
         savedInstanceState.putBoolean(ARG_ACTIVITY_RECREATED, true);
+    }
+
+    /**
+     * Save the state of the split screen, so that the two panes keep showing the same sessions after the
+     * activity is recreated, like when the theme or the night mode changed.
+     *
+     * The sessions are identified by their handle, since the sessions live in the {@link TermuxService} and
+     * only the activity is recreated. When the app process was killed, the sessions are gone with it, so the
+     * handle does not resolve and the split screen is not restored.
+     */
+    private void saveSplitScreenState(@NonNull Bundle savedInstanceState) {
+        if (mTerminalSplitScreenController == null || !mTerminalSplitScreenController.isEnabled()) return;
+
+        savedInstanceState.putBoolean(ARG_SPLIT_SCREEN_ENABLED, true);
+        savedInstanceState.putInt(ARG_SPLIT_SCREEN_ORIENTATION, mTerminalSplitScreenController.getOrientation());
+        savedInstanceState.putFloat(ARG_SPLIT_SCREEN_PANE_RATIO, mTerminalSplitScreenController.getPaneRatio());
+        savedInstanceState.putInt(ARG_SPLIT_SCREEN_ACTIVE_PANE, mActiveTerminalViewIndex);
+
+        TerminalSession primarySession = mTerminalViews[0] != null ? mTerminalViews[0].getCurrentSession() : null;
+        if (primarySession != null)
+            savedInstanceState.putString(ARG_SPLIT_SCREEN_PRIMARY_SESSION, primarySession.mHandle);
+
+        TerminalSession secondarySession = mTerminalViews[1] != null ? mTerminalViews[1].getCurrentSession() : null;
+        if (secondarySession != null)
+            savedInstanceState.putString(ARG_SPLIT_SCREEN_SECONDARY_SESSION, secondarySession.mHandle);
+    }
+
+    /** Read the state of the split screen that {@link #saveSplitScreenState(Bundle)} saved, if any. */
+    private void restoreSplitScreenStateFromBundle(@Nullable Bundle savedInstanceState) {
+        if (savedInstanceState == null) return;
+
+        mSavedSplitScreenEnabled = savedInstanceState.getBoolean(ARG_SPLIT_SCREEN_ENABLED, false);
+        if (!mSavedSplitScreenEnabled) return;
+
+        mSavedSplitScreenOrientation = savedInstanceState.getInt(ARG_SPLIT_SCREEN_ORIENTATION, LinearLayout.VERTICAL);
+        mSavedSplitScreenPaneRatio = savedInstanceState.getFloat(ARG_SPLIT_SCREEN_PANE_RATIO, -1);
+        mSavedSplitScreenActivePane = savedInstanceState.getInt(ARG_SPLIT_SCREEN_ACTIVE_PANE, 0);
+        mSavedSplitScreenPrimarySessionHandle = savedInstanceState.getString(ARG_SPLIT_SCREEN_PRIMARY_SESSION);
+        mSavedSplitScreenSecondarySessionHandle = savedInstanceState.getString(ARG_SPLIT_SCREEN_SECONDARY_SESSION);
+    }
+
+    /**
+     * Show the two panes again with the sessions that they showed before the activity was recreated.
+     *
+     * @return Whether the split screen was restored, so that the caller does not have to pick a session,
+     *         which is the case when the sessions of the panes are gone, like when the app was killed.
+     */
+    private boolean restoreSplitScreenState() {
+        if (!mSavedSplitScreenEnabled) return false;
+        // The state is only restored once, so that a later recreation starts from the current state again.
+        mSavedSplitScreenEnabled = false;
+
+        TerminalSession primarySession = findSessionByHandle(mSavedSplitScreenPrimarySessionHandle);
+        TerminalSession secondarySession = findSessionByHandle(mSavedSplitScreenSecondarySessionHandle);
+        if (primarySession == null || secondarySession == null || primarySession == secondarySession) return false;
+        if (!secondarySession.isRunning()) return false;
+
+        // Show the primary session in the first pane, which attaches it to the active pane, and then the
+        // secondary one in the other pane, so that the panes keep the order that they had.
+        mTermuxTerminalSessionActivityClient.setCurrentSession(primarySession);
+        mTerminalViews[1].attachSession(secondarySession);
+
+        mTerminalSplitScreenController.setOrientation(mSavedSplitScreenOrientation);
+        if (mSavedSplitScreenPaneRatio > 0)
+            mTerminalSplitScreenController.setPaneRatio(mSavedSplitScreenPaneRatio);
+        setSplitScreen(true, mSavedSplitScreenOrientation);
+        setActiveTerminalPane(mSavedSplitScreenActivePane);
+
+        return true;
+    }
+
+    /** @return The running session with the handle {@code handle}, or {@code null} if it does not exist. */
+    @Nullable
+    private TerminalSession findSessionByHandle(@Nullable String handle) {
+        if (handle == null) return null;
+
+        TermuxService service = getTermuxService();
+        if (service == null) return null;
+
+        for (int i = 0; i < service.getTermuxSessionsSize(); i++) {
+            TermuxSession termuxSession = service.getTermuxSession(i);
+            if (termuxSession == null) continue;
+            TerminalSession session = termuxSession.getTerminalSession();
+            if (session != null && handle.equals(session.mHandle) && session.isRunning()) return session;
+        }
+
+        return null;
     }
 
 
@@ -584,7 +694,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 // Android 7.1 app shortcut from res/xml/shortcuts.xml.
                 boolean isFailSafe = intent.getBooleanExtra(TERMUX_ACTIVITY.EXTRA_FAILSAFE_SESSION, false);
                 mTermuxTerminalSessionActivityClient.addNewSession(isFailSafe, null);
-            } else {
+            } else if (!restoreSplitScreenState()) {
+                // The activity was recreated without a split screen to restore, so show the session that was
+                // shown before, like upstream does.
                 mTermuxTerminalSessionActivityClient.setCurrentSession(mTermuxTerminalSessionActivityClient.getCurrentStoredSessionOrLast());
             }
         }
