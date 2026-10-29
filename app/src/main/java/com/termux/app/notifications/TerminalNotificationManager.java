@@ -10,6 +10,9 @@ import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
 import com.termux.terminal.TerminalNotification;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +30,9 @@ import java.util.Properties;
 public final class TerminalNotificationManager {
 
     private static final String LOG_TAG = "TerminalNotificationManager";
+
+    /** The number of notifications in the system notification shade whose id is remembered. */
+    private static final int MAX_BACKGROUND_NOTIFICATION_IDS = 32;
 
     /** The listener that is called when the user interacts with a card. */
     public interface Listener {
@@ -83,6 +89,13 @@ public final class TerminalNotificationManager {
     /** Posts the notifications in the system notification shade when the app is not visible. */
     @NonNull
     private final BackgroundNotifier mBackgroundNotifier;
+    /**
+     * The ids of the notifications that were posted in the system notification shade, so that the
+     * `OSC 99 ; p=alive` query of a program also reports them. Old ids are dropped, since the shade does
+     * not tell the app when the user dismisses a notification.
+     */
+    @NonNull
+    private final Deque<String> mBackgroundNotificationIds = new ArrayDeque<>();
     @NonNull
     private NotificationConfig mConfig = new NotificationConfig();
     @Nullable
@@ -198,6 +211,8 @@ public final class TerminalNotificationManager {
         // The cards are only shown in the window of the app, so a notification that arrives while it is
         // not visible is posted in the system notification shade instead, if the user enabled that.
         if (!mActivity.isVisible() && mConfig.backgroundEnabled) {
+            if (notification.getId() != null)
+                rememberBackgroundNotificationId(notification.getId());
             mBackgroundNotifier.post(notification);
             return true;
         }
@@ -265,6 +280,7 @@ public final class TerminalNotificationManager {
 
     /** Close the card of the notification with the id {@code id}, like for an `OSC 99 ; p=close` request. */
     public void closeNotification(@Nullable String id) {
+        mBackgroundNotificationIds.remove(id);
         mOverlay.closeNotification(id);
     }
 
@@ -274,9 +290,25 @@ public final class TerminalNotificationManager {
         return mHistory;
     }
 
-    /** @return The ids of the notifications whose cards are currently shown, for an `OSC 99 ; p=alive` query. */
+    /**
+     * @return The ids of the notifications that are still shown to the user, which are the ones with a
+     *         card and the ones that were posted in the system notification shade, for an
+     *         `OSC 99 ; p=alive` query.
+     */
     @NonNull
     public List<String> getShownNotificationIds() {
-        return mOverlay.getNotificationIds();
+        List<String> ids = new ArrayList<>(mOverlay.getNotificationIds());
+        for (String id : mBackgroundNotificationIds) {
+            if (!ids.contains(id)) ids.add(id);
+        }
+        return ids;
+    }
+
+    /** Remember the id of a notification that was posted in the system notification shade. */
+    private void rememberBackgroundNotificationId(@NonNull String id) {
+        mBackgroundNotificationIds.remove(id);
+        mBackgroundNotificationIds.addLast(id);
+        while (mBackgroundNotificationIds.size() > MAX_BACKGROUND_NOTIFICATION_IDS)
+            mBackgroundNotificationIds.removeFirst();
     }
 }

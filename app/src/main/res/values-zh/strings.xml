@@ -766,4 +766,6 @@
     <string name="termux_notification_background_enabled_off">通知只在终端里以卡片形式显示。</string>
     <string name="termux_notification_history_size_title">保留的最近通知条数（0–200）</string>
     <string name="termux_notification_history_size_summary">只保存在内存里；列表为空时长按菜单里的「最近通知」项会自动隐藏。</string>
+    <string name="notification_channel_name">终端通知</string>
+    <string name="notification_channel_description">失败命令与终端程序发出的通知</string>
 </resources>

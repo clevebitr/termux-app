@@ -65,6 +65,10 @@ public abstract class OrderedItemsPreference extends Preference {
     private static final float ROW_PADDING_VERTICAL_DP = 6;
     private static final float BUTTON_MIN_SIZE_DP = 32;
 
+    /** The value of the preference that was read last, so that the summary does not read the file for every bind. */
+    @Nullable
+    private String mCachedValue;
+
     public OrderedItemsPreference(@NonNull Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
     }
@@ -114,14 +118,26 @@ public abstract class OrderedItemsPreference extends Preference {
     /** @return The selected ids, in the order they are shown. */
     @NonNull
     private List<String> getSelectedIds() {
+        // The value is cached, since getSummary() is called for every bind of the preference list and
+        // reading it from the `termux.properties` file would otherwise read the file from the disk on the
+        // main thread for every bind.
+        if (mCachedValue == null) mCachedValue = readPersistedValue();
+        if (mCachedValue == null) return new ArrayList<>();
+
+        return split(mCachedValue);
+    }
+
+    /** @return The value of the preference, or {@code null} if it cannot be read yet. */
+    @Nullable
+    private String readPersistedValue() {
         // getPersistedString() throws if the preference is not attached to a hierarchy yet, like in the
         // layout preview of an ide, in which case the list is shown as empty.
-        if (getPreferenceManager() == null || getKey() == null) return new ArrayList<>();
+        if (getPreferenceManager() == null || getKey() == null) return null;
 
         try {
-            return split(getPersistedString(getDefaultValue()));
+            return getPersistedString(getDefaultValue());
         } catch (IllegalStateException e) {
-            return new ArrayList<>();
+            return null;
         }
     }
 
@@ -159,7 +175,8 @@ public abstract class OrderedItemsPreference extends Preference {
         builder.setView(scrollView);
         builder.setNegativeButton(android.R.string.cancel, null);
         builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
-            persistString(join(selectedIds));
+            mCachedValue = join(selectedIds);
+            persistString(mCachedValue);
             // The summary is computed by getSummary(), so the list only has to be told to bind the
             // preference again. This is safe here, since the dialog is not part of the preference list.
             notifyChanged();

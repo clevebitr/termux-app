@@ -33,7 +33,6 @@ public final class BackgroundNotifier {
 
     /** The id of the notification channel of the terminal notifications. */
     private static final String CHANNEL_ID = "termux-terminal-notifications";
-    private static final String CHANNEL_NAME = "Terminal notifications";
 
     /** The ids of the notifications, which are only used to replace the previous notification. */
     private static final AtomicInteger NEXT_NOTIFICATION_ID = new AtomicInteger(1000);
@@ -65,7 +64,8 @@ public final class BackgroundNotifier {
         createChannel(notificationManager);
 
         CharSequence title = notification.getTitle() != null ? notification.getTitle()
-            : notification.getBody() != null ? notification.getBody() : CHANNEL_NAME;
+            : notification.getBody() != null ? notification.getBody()
+            : mContext.getString(R.string.notification_channel_name);
         String text = notification.getTitle() != null ? notification.getBody() : null;
 
         Intent intent = TermuxActivity.newInstance(mContext);
@@ -101,9 +101,10 @@ public final class BackgroundNotifier {
             return;
         }
 
-        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME,
-            NotificationManager.IMPORTANCE_DEFAULT);
-        channel.setDescription("Notifications of failed commands and of terminal programs");
+        // The name and the description of the channel are shown to the user in the android settings.
+        NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
+            mContext.getString(R.string.notification_channel_name), NotificationManager.IMPORTANCE_DEFAULT);
+        channel.setDescription(mContext.getString(R.string.notification_channel_description));
         notificationManager.createNotificationChannel(channel);
         mChannelCreated = true;
     }

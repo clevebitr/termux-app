@@ -799,4 +799,6 @@
     <string name="termux_notification_background_enabled_off">The notifications are only shown as cards in the terminal.</string>
     <string name="termux_notification_history_size_title">Recent notifications to keep (0–200)</string>
     <string name="termux_notification_history_size_summary">They are kept in memory only, and the recent notifications entry of the long press menu is hidden while the list is empty.</string>
+    <string name="notification_channel_name">Terminal notifications</string>
+    <string name="notification_channel_description">Notifications of failed commands and of terminal programs</string>
 </resources>
