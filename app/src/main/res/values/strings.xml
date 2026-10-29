@@ -230,6 +230,9 @@
 
             <!-- Terminal Toolbar Category -->
             <string name="termux_appearance_toolbar_header">Terminal Toolbar</string>
+            <string name="termux_appearance_drawer_header">Sessions drawer</string>
+            <string name="termux_appearance_drawer_open_mode_title">How to open</string>
+            <string name="termux_appearance_drawer_open_mode_summary">The edge handle, the edge swipe, both or neither</string>
 
                 <!-- Extra Keys Style -->
                 <string name="termux_appearance_extra_keys_style_title">Extra Keys Style</string>
@@ -456,6 +459,7 @@
 
     <!-- Terminal Search -->
     <string name="action_search_terminal">Search</string>
+    <string name="action_sessions_drawer">Sessions</string>
     <string name="action_search_terminal_hint">Search terminal</string>
     <string name="action_search_results">%1$d/%2$d</string>
     <string name="action_search_previous">Previous match</string>

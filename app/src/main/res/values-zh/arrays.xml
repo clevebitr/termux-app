@@ -81,4 +81,18 @@
             <item>off</item>
         </string-array>
 
+
+        <string-array name="termux_appearance_drawer_open_mode_entries">
+            <item>边缘把手 + 边缘滑动</item>
+            <item>只用边缘把手</item>
+            <item>只用边缘滑动</item>
+            <item>都不用（只用菜单或虚拟键）</item>
+        </string-array>
+        <string-array name="termux_appearance_drawer_open_mode_values" translatable="false">
+            <item>auto</item>
+            <item>handle</item>
+            <item>edge</item>
+            <item>none</item>
+        </string-array>
+
 </resources>

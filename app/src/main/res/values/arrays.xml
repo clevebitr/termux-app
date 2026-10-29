@@ -232,4 +232,18 @@
             <item>bell</item>
         </string-array>
 
+
+        <string-array name="termux_appearance_drawer_open_mode_entries">
+            <item>Edge handle and edge swipe</item>
+            <item>Edge handle only</item>
+            <item>Edge swipe only</item>
+            <item>Neither (menu or extra keys only)</item>
+        </string-array>
+        <string-array name="termux_appearance_drawer_open_mode_values" translatable="false">
+            <item>auto</item>
+            <item>handle</item>
+            <item>edge</item>
+            <item>none</item>
+        </string-array>
+
 </resources>

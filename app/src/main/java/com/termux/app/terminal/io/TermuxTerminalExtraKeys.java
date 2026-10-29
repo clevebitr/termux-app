@@ -185,11 +185,13 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
             if (viewClient != null)
                 viewClient.onToggleSoftKeyboardRequest();
         } else if ("DRAWER".equals(key)) {
+            // The drawer may be locked against the edge swipe by the `drawer-open-mode` property, in which
+            // case it still has to be openable from the key.
             DrawerLayout drawerLayout = mActivity.getDrawer();
             if (drawerLayout.isDrawerOpen(Gravity.LEFT))
                 drawerLayout.closeDrawer(Gravity.LEFT);
             else
-                drawerLayout.openDrawer(Gravity.LEFT);
+                mActivity.openSessionsDrawer();
         } else if ("PASTE".equals(key)) {
             if(mTermuxTerminalSessionActivityClient != null)
                 mTermuxTerminalSessionActivityClient.onPasteTextFromClipboard(null);

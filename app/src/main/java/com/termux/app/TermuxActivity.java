@@ -48,6 +48,8 @@ import com.termux.app.statusbar.StatusBarConfig;
 import com.termux.app.statusbar.StatusBarController;
 import com.termux.app.statusbar.StatusBarView;
 import com.termux.app.terminal.DrawerColorUtils;
+import com.termux.app.terminal.DrawerConfig;
+import com.termux.app.terminal.DrawerHandleView;
 import com.termux.app.terminal.TerminalSearchController;
 import com.termux.app.terminal.TerminalSplitScreenController;
 import com.termux.app.terminal.TermuxActivityRootView;
@@ -95,6 +97,7 @@ import com.termux.view.TerminalViewClient;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.GravityCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -190,6 +193,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /** The index of the pane that is active, i.e. that receives the keyboard, extra keys and menus. */
     private int mActiveTerminalViewIndex = 0;
+
+    /** The configuration of how the sessions drawer can be opened, like with the edge handle. */
+    @NonNull
+    private DrawerConfig mDrawerConfig = new DrawerConfig();
 
     /**
      * The colors of the sessions drawer, which follow the color scheme of the terminal so that the drawer
@@ -403,6 +410,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // Apply the colors of the drawer before the first session is available, so that the drawer does not
         // flash the colors of the app theme, which the black and white theme does not use at all.
         updateDrawerColors(getCurrentSession());
+
+        setUpDrawerHandle();
+        applyDrawerConfig();
 
         // Refresh the session list when the drawer is opened, since the details shown for the sessions,
         // like the foreground process and the working directory, may have changed while it was closed.
@@ -751,6 +761,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private boolean reloadProperties() {
         mProperties.loadTermuxPropertiesFromDisk();
 
+        // The `drawer-open-mode` property is not part of the properties that the shared library parses,
+        // so it is read from the file, like the `status-bar-*` and `notification-*` ones.
+        mDrawerConfig = DrawerConfig.parse(ForkProperties.readTermuxProperties());
+        applyDrawerConfig();
+
         for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
             if (viewClient != null) viewClient.onReloadProperties();
         }
@@ -870,10 +885,55 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         ListView sessionsList = findViewById(R.id.terminal_sessions_list);
         if (sessionsList != null) sessionsList.setBackgroundColor(Color.TRANSPARENT);
 
+        DrawerHandleView handle = findViewById(R.id.drawer_handle);
+        if (handle != null)
+            handle.setHandleColor(DrawerColorUtils.withAlpha(mDrawerAccentColor, 0x66));
+
         // The rows that are already laid out keep the colors of the previous color scheme, and the accent
         // strip of the current session may have moved to another row.
         if (mTermuxSessionListViewController != null)
             mTermuxSessionListViewController.notifyDataSetChanged();
+    }
+
+    /**
+     * Set up the handle on the left edge of the terminal that opens the sessions drawer, since a swipe from
+     * the edge is the system back gesture on android 10 and later.
+     */
+    private void setUpDrawerHandle() {
+        DrawerHandleView handle = findViewById(R.id.drawer_handle);
+        if (handle == null) return;
+
+        handle.setOnOpenDrawerListener(this::openSessionsDrawer);
+    }
+
+    /**
+     * Show or hide the edge handle and enable or disable the edge swipe of the drawer layout, as the
+     * `drawer-open-mode` property configures it.
+     */
+    private void applyDrawerConfig() {
+        DrawerHandleView handle = findViewById(R.id.drawer_handle);
+        if (handle != null)
+            handle.setVisibility(mDrawerConfig.isHandleVisible() ? View.VISIBLE : View.GONE);
+
+        DrawerLayout drawer = getDrawer();
+        if (drawer == null) return;
+
+        // The edge drag of the drawer layout is disabled when the system back gesture would steal it, since
+        // it would close the app window instead of opening the drawer.
+        drawer.setDrawerLockMode(mDrawerConfig.isEdgeSwipeEnabled()
+            ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED, GravityCompat.START);
+    }
+
+    /** Open the sessions drawer, like from the edge handle, the terminal menu or a virtual key. */
+    public void openSessionsDrawer() {
+        DrawerLayout drawer = getDrawer();
+        if (drawer == null) return;
+
+        // A locked drawer may not be opened by the layout, so it is unlocked for the programmatic open.
+        if (drawer.getDrawerLockMode(GravityCompat.START) == DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, GravityCompat.START);
+
+        drawer.openDrawer(GravityCompat.START);
     }
 
     /** @return The background color of the sessions drawer, which follows the terminal color scheme. */
@@ -1433,6 +1493,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         switch (action) {
             case SEARCH:
                 showTerminalSearch();
+                break;
+            case SESSIONS:
+                openSessionsDrawer();
                 break;
             case PREVIOUS_COMMAND:
                 mTerminalView.scrollToPreviousCommand();

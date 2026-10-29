@@ -29,6 +29,7 @@ import java.util.Locale;
 public enum TerminalMenuAction {
 
     SEARCH("search", R.string.action_search_terminal, "\u2315"),
+    SESSIONS("sessions", R.string.action_sessions_drawer, "\u2630"),
     PREVIOUS_COMMAND("previous-command", R.string.action_previous_command, "\u2191"),
     NEXT_COMMAND("next-command", R.string.action_next_command, "\u2193"),
     SPLIT_VERTICAL("split-vertical", R.string.action_split_screen_vertical, "\u2b13"),
@@ -51,7 +52,7 @@ public enum TerminalMenuAction {
 
     /** The actions that are shown by default, see {@link TerminalMenuConfig#DEFAULT_MENU_ITEMS}. */
     public static final List<TerminalMenuAction> DEFAULT_ITEMS = Collections.unmodifiableList(Arrays.asList(
-        SEARCH, PREVIOUS_COMMAND, NEXT_COMMAND, SPLIT_VERTICAL, SPLIT_HORIZONTAL,
+        SEARCH, SESSIONS, PREVIOUS_COMMAND, NEXT_COMMAND, SPLIT_VERTICAL, SPLIT_HORIZONTAL,
         SELECT_URL, SHARE_TRANSCRIPT, RESET_TERMINAL, KILL_PROCESS, RECENT_NOTIFICATIONS, SETTINGS, REPORT));
 
     @NonNull

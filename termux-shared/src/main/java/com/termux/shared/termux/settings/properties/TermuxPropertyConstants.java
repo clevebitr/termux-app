@@ -213,6 +213,13 @@ public final class TermuxPropertyConstants {
     public static final String KEY_SWITCH_SESSION_ON_SWIPE =  "switch-session-on-swipe"; // Default: "switch-session-on-swipe"
 
 
+    /** Defines the key for how the sessions drawer can be opened, which is `auto` to show the edge handle
+     * and keep the edge swipe, `handle` for the handle only, `edge` for the edge swipe only or `none` for
+     * neither. The edge handle is excluded from the system back gesture, which otherwise wins over the edge
+     * swipe of the drawer layout on android 10 and later. */
+    public static final String KEY_DRAWER_OPEN_MODE =  "drawer-open-mode"; // Default: "drawer-open-mode"
+
+
 
     /** Defines the key for whether a drag with a finger should be reported as a drag of the mouse
      * pointer with the left button pressed instead of scroll wheel events when mouse tracking is

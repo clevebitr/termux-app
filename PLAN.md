@@ -3,7 +3,7 @@
 > 由 `plan` 工具维护，请勿直接编辑。步骤级进度以 `todo` 工具为准；决策与踩坑写入 DECISIONS.md。
 
 <!-- plan-bridge:state -->
-current: 
+current: M10
 auto-breakpoint: false
 <!-- /plan-bridge:state -->
 
@@ -18,6 +18,7 @@ auto-breakpoint: false
 - [x] M7 — 音量键自定义动作（单击/长按，详见 #17）；代码已交付，真机未验证
 - [x] M8 — 终端内通知体系（详见 #20-#24）：
 - [x] M9 — 已交付：通知质量收尾/分屏持久化/搜索增强（#44-#46）
+- [ ] M10 — UI 视觉：抽屉跟随终端配色 + 设置页四组图标（#47）
 
   - M8.1 渲染层（卡片栈/配色/自动消失）
   - M8.2 失败命令通道 + shell 集成 v2（上报命令行/耗时/序列号）
@@ -30,7 +31,7 @@ auto-breakpoint: false
      通道判定/历史/后台分支、`AppEventNotifier`）+ 三个 P3 小问题（`getTitle(null)` 的 `%1$d`
      陷阱、只有图标没有标题的 OSC 通知、`notification-osc-icons=false` 时仍解码图标）
 
-## Current
+## Current: M10 — UI 视觉：抽屉跟随终端配色 + 设置页四组图标（#47）
 
-goal: M9 已交付并推送（8d7eed5），待 CI 与真机验收
-breakpoint: 等 fork_build CI 结果；真机验收项见 FORK.md「验证情况」
+goal: M10 视觉轮已交付：抽屉配色/头部/竖条 + 设置四组图标
+breakpoint: 视觉轮已提交（e9e80ae），等真机看配色；下一轮做三项交互

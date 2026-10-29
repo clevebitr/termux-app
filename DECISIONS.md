@@ -1010,3 +1010,33 @@ M9 顺序调整：先修质量漏洞，再做新功能（用户要求）。本�
 验证：`:app:testDebugUnitTest` 全绿（新增 `DrawerColorUtilsTest` 5 个；唯一失败仍是本机 Robolectric 老问题），
 资源/图标/两语言字符串都过 aapt2。真机验收项（== 这个配色在浅色/荧光配色下的可读性、抽屉第一帧不闪）
 留给用户。
+
+## 2026-10-29 — 抽屉难拉出：边缘把手 + 手势排除（drawer-open-mode），菜单/按键兜底
+
+用户反馈：手势导航下侧边栏很难滑出来。诊断：Android 10 起左右边缘内滑固定给系统返回，系统手势优先级高于 app
+（`targetSdk` 28 也一样），`DrawerLayout` 的边缘拖拽抢不到。
+
+**方案（用户选）**：左边缘中部把手 + 只对把手做手势排除，边缘滑动保留（中段排除），长按菜单加「会话列表」，
+设置页加「抽屉打开方式」下拉。
+
+实现要点：
+* `DrawerHandleView`：**触摸区 24×64dp / 画出来的竖条 12×48dp**。`setSystemGestureExclusionRects()`
+  只对这块区域生效——系统对每侧边缘的排除高度有上限（AOSP 是 200dp 量级，且各 ROM 可能更严），
+  所以「把整条左边缘都排除」这条路走不通，必须做成小把手。
+* 手势判定抽成纯静态 `resolveGesture(dx, dy, touchSlop, swipeThreshold)`：右滑 ≥16dp **且** 水平位移
+  大于垂直位移才算 OPEN（否则从边缘斜着滚终端会误开抽屉），位移都在 touchSlop 内算 TAP，其余 NONE。
+  4 个单测覆盖（含对角线/左滑/小位移）。
+* `drawer-open-mode = auto | handle | edge | none`（默认 auto = 把手 + 边缘滑动）。`handle`/`none` 时
+  给 DrawerLayout 上 `LOCK_MODE_LOCKED_CLOSED` 彻底不抢手势。`DrawerConfig.parse()` 坏值回退 auto 并告警。
+  **单测顺手抓到一个 NPE**：`ForkProperties.getString()` 不处理 null properties（`NotificationConfig.parse`
+  里是自己兜底的），所以 `DrawerConfig.parse(null)` 也要先 `new Properties()`。
+* 锁定后 `DrawerLayout.openDrawer()` 是 no-op，所以统一走 `TermuxActivity.openSessionsDrawer()`
+  （锁定时临时解锁再 open），并把 extra keys 的 `DRAWER` 键也改成走它 —— 否则 `none` 模式下键盘键就废了。
+* 把手颜色跟配色走（`withAlpha(accent, 0x66)`），在 `applyDrawerColors()` 里一起更新。
+* 长按菜单新增 `sessions`（`\u2630`），默认菜单 12 → 13 项，紧跟 `search`；`TerminalMenuConfigTest`
+  的断言索引同步改（10/11/12）。
+* 设置入口放在「设置 → 外观 → 会话抽屉 → 打开方式」（ListPreference + 数组，中英双语），
+  没为这一个下拉单开设置页。
+
+风险：手势排除在各家 ROM 上行为不完全一致（有的 ROM 还会额外限制比例），真机必须验；把手会遮住终端
+最左 2 列，如果碍事可以把 `drawer-open-mode=handle` 之外再加「隐形把手」选项（未做）。

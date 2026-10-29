@@ -63,4 +63,19 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory
+        app:key="drawer"
+        app:title="@string/termux_appearance_drawer_header">
+
+        <ListPreference
+            app:defaultValue="auto"
+            app:entries="@array/termux_appearance_drawer_open_mode_entries"
+            app:entryValues="@array/termux_appearance_drawer_open_mode_values"
+            app:key="drawer-open-mode"
+            app:summary="@string/termux_appearance_drawer_open_mode_summary"
+            app:title="@string/termux_appearance_drawer_open_mode_title"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
 </PreferenceScreen>

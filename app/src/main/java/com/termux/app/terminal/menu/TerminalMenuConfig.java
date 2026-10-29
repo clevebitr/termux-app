@@ -34,7 +34,7 @@ public final class TerminalMenuConfig {
      * are not listed here, like `styling`, `keep-screen-on` and `help`, are only shown when the user
      * adds them to the `terminal-menu-items` property.
      */
-    public static final String DEFAULT_MENU_ITEMS = "search,previous-command,next-command,"
+    public static final String DEFAULT_MENU_ITEMS = "search,sessions,previous-command,next-command,"
         + "split-vertical,split-horizontal,select-url,share-transcript,"
         + "reset-terminal,kill-process,recent-notifications,settings,report";
 

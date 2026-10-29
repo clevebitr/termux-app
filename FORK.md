@@ -24,7 +24,7 @@
 | 7 | 外观页（主题/全屏/工具栏）+ 按键行为 + 鼠标点按唤键盘 | `mouse-tap-shows-keyboard` 等 | 关 |
 | 8 | 真斜体字体 + OSC 8 超链接可点 | `~/.termux/font-italic.ttf`；`terminal-onclick-url-open` | 无斜体字体则合成斜切；点击关 |
 | 9 | IME 收起额外按键行 / 手指拖拽按鼠标拖拽上报 / 焦点上报（`DECSET 1004`） | `hide-extra-keys-when-soft-keyboard-hidden`、`touch-drag-sends-mouse-drag` | 前两项关；1004 由程序请求 |
-| 10 | 多面板 extra keys / 左右滑切会话 / 会话列表显示 PID·进程·cwd / 抽屉跟随终端配色 | `extra-keys-panels`、`switch-session-on-swipe` | 面板需自行配置；滑切默认开 |
+| 10 | 多面板 extra keys / 左右滑切会话 / 会话列表 PID·进程·cwd / 抽屉跟随配色 + 边缘把手（`drawer-open-mode`） | `extra-keys-panels`、`switch-session-on-swipe`、`drawer-open-mode` | 面板需自行配置；滑切默认开；把手默认开 |
 | 11 | 音量键自定义动作（单击 / 长按，含唤醒软键盘等） | `volume-up-action`、`volume-up-long-action`、`volume-down-action`、`volume-down-long-action`、`volume-up-send-keys`、`volume-down-send-keys` | 保持上游：音量减=Ctrl、音量加=Fn |
 | 12 | 额外按键右上角显示上滑备用键 | `extra-keys-popup-hints`（设置页有开关） | **开**（唯一一个默认打开的新属性，见 §12 说明） |
 | 13 | Gboard 风格的按键块背景（圆角块 + 2dp 间隙） | `extra-keys-tile-background`；颜色 `extra-keys-tile-background-color` / `extra-keys-tile-active-background-color`（设置页有开关 + 调色板） | **开**，颜色跟随配色方案 |
@@ -35,7 +35,7 @@
 | 18 | 分屏（上下 / 左右，可拖动分隔条，两个独立会话） | 长按菜单 → 分屏 | 默认关闭 |
 | 19 | 状态栏（时间 / 电量 / 内存 / CPU / 网络 / IP / 代理，可配图标、图表、配色、位置、点击动作） | `status-bar-*` 属性或设置 → 状态栏 | 默认关闭 |
 | 20 | 终端内通知卡片（右上角 nvim-notify 风格，失败命令 / App 事件 / OSC 9·99·777） | `notification-*` 属性或设置 → 通知 | **默认关闭**（关时行为与上游一致） |
-| 21 | 可配置的长按菜单 + 文本选择浮条项 + `SEARCH`/`SPLIT_*` 虚拟键 | `terminal-menu-*`、`selection-toolbar-items` 或设置 → 长按菜单 | 菜单 12 项（含「最近通知」）；浮条 复制/粘贴/更多；风格 TUI 像素风 |
+| 21 | 可配置的长按菜单 + 文本选择浮条项 + `SEARCH`/`SPLIT_*` 虚拟键 | `terminal-menu-*`、`selection-toolbar-items` 或设置 → 长按菜单 | 菜单 13 项（含「会话列表」「最近通知」）；浮条 复制/粘贴/更多；风格 TUI 像素风 |
 | 22 | 设置页 GUI：通知 / 长按菜单（含可调序的双区列表编辑器） | 设置 → Termux → 通知 / 长按菜单 | 与属性等价，改完立即生效 |
 | 23 | 程序主动发通知：OSC 99（分块/图标/按钮/查询/关闭/回报）、OSC 9、OSC 777 | `notification-osc-*` 或设置 → 通知 → 程序主动发送的通知 | OSC 通道**默认关**，限流 3 条/秒/会话 |
 | 24 | App 事件卡片（会话退出/插件结果/标题变化/bell）+ 后台系统通知 + 最近通知列表 | `notification-events-*`、`notification-background-enabled`、`notification-history-size` 或设置 → 通知 | 事件通道**默认关**；后台通知**默认关**；历史 50 条（仅内存） |
@@ -553,6 +553,26 @@ switch-session-on-swipe=true
 * 高级：调试
 
 设置页仍然**跟随系统明暗**（Material 控件太多，荧光配色下会难读），只有抽屉跟随终端配色。
+
+### 10.5 抽屉的开合方式（`drawer-open-mode`）
+
+Android 10 起「从左右边缘内滑」是**系统返回手势**，优先级高于 app，`DrawerLayout` 的边缘拖拽
+基本抢不到，所以侧边栏很难滑出来。本 fork 的解法是在**左边缘中部**放一个把手：
+
+* 把手触摸区 24×64dp，画出来的竖条 12×48dp（半透明，颜色取配色的强调色），平时只遮住终端 2 列。
+* **点一下**或**向右滑 16dp 以上**（且水平位移大于垂直位移，避免误判成滚动）就打开抽屉。
+* 把手自己通过 `View.setSystemGestureExclusionRects()`（API 29+）把自己的区域从系统返回手势里
+  **排除**掉，所以从把手起手滑动属于 app；系统只保证 honor 每侧边缘约 200dp 高的小块，所以只能这
+  么小，**不可能把整条边缘都占住**。
+
+```properties
+drawer-open-mode = auto    # auto（把手 + 边缘滑动，默认）/ handle（只用手把）/ edge（只用边缘滑动）/ none（都不用）
+```
+
+* `handle`/`none` 时给 `DrawerLayout` 上 `LOCK_MODE_LOCKED_CLOSED`，彻底不跟系统抢手势。
+* 即便如此，**长按菜单 →「会话列表」**、extra keys 的 `DRAWER` 键、以及代码里的
+  `openSessionsDrawer()` 永远可用（锁定时会临时解锁再 open）。
+* 设置入口：设置 → Termux → 外观 → 会话抽屉 → 打开方式。
 
 ---
 
@@ -1214,11 +1234,12 @@ menu（一长串）。本 fork 把「更多…」那个菜单换成**自己画�
 * **`kill-process`** 的标题带会话 PID，会话已结束时置灰。
 
 ```properties
-# 默认值（11 项）
-terminal-menu-items = search,previous-command,next-command,split-vertical,split-horizontal,select-url,share-transcript,reset-terminal,kill-process,settings,report
+# 默认值（13 项）
+terminal-menu-items = search,sessions,previous-command,next-command,split-vertical,split-horizontal,select-url,share-transcript,reset-terminal,kill-process,recent-notifications,settings,report
 
 # 全部可用 id（新增的靠后，默认不显示，需要就自己加）：
-#   search / previous-command / next-command
+#   search / sessions（打开会话抽屉）
+#   previous-command / next-command
 #   split-vertical / split-horizontal / split-close
 #   select-url / share-transcript / share-selected-text
 #   autofill-username / autofill-password
@@ -1471,7 +1492,7 @@ notification-background-enabled = true
 所有显示过的通知（失败命令 / OSC / App 事件）都会记进一个**只在内存里**的环形列表（默认 50 条，
 0 = 不记），App 关闭就没了 —— 因为通知正文可能含命令输出，不应该擅自落盘。
 
-* 入口：长按菜单 →「**最近通知**」（`recent-notifications`，已加入默认 12 项；列表为空时该项自动隐藏）
+* 入口：长按菜单 →「**最近通知**」（`recent-notifications`，默认菜单里就有；列表为空时该项自动隐藏）
 * 对话框：直角 + 1dp 描边 + 等宽字体 + 配色方案，每行显示「时间 · 标题 / 正文」；失败/警告类左侧有强调色竖条
 * **点失败命令的条目 = 跳到那条命令**；其它条目（OSC/事件）= **把文字复制到剪贴板**
 * 底部「清空」清掉列表并关对话框
@@ -1533,6 +1554,8 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 * §18 非活动窗格的实时重绘（刷屏时帧率、往上翻看后不被拽回底部、互换/开关分屏/回前台后画面立即最新）。
 * §18 分屏状态持久化：换主题 / 切换深色 / 改系统语言导致 Activity 重建后，两个窗格是否仍是原来的
   两个会话、方向与分隔条比例是否保持、活动窗格是否回到原来那个；关掉「不保留活动」以外的情况也测。
+* §10.5 抽屉把手：手势导航下手势排除是否真的生效（不同 ROM 限制不同）、把手的点击/右滑手感、
+  `drawer-open-mode` 四个值、锁定模式下来自长按菜单/`DRAWER` 键的打开。
 * §21 长按菜单双区编辑器的调序、浮条项增删后是否立即生效、`SEARCH`/`SPLIT_*` 键在各面板中的表现。
 * §22 控件交互细节（SeekBar 越界、颜色对话框、改完返回是否立即生效）。
 * §23 OSC：卡片按钮点击回报、`p=icon` 图标显示、`a=report`/`c=1` 回报、限流是否真的挡住刷屏。
@@ -1544,10 +1567,11 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 ./gradlew :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :terminal-view:compileDebugJavaWithJavac
 ```
 
-app 单测 97 个（`NotificationConfig` 12、`TerminalMenuConfig` 14、`ExitCodeNotifier` 10、
+app 单测 111 个（`NotificationConfig` 12、`TerminalMenuConfig` 14、`ExitCodeNotifier` 10、
 `RecentNotifications` 6、`NotificationPolicy` 10、`OscRateLimiter` 4、`BackgroundNotificationRegistry` 5、
 `AppEventNotifier` 1、`TerminalMenuAction` 2、`TerminalSplitScreenController` 2、`TerminalSearchPreferences` 8、
-属性集合转换 6、状态栏 12、其它 5），terminal-emulator 236 个
+`DrawerColorUtils` 5、`DrawerConfig` 5、`DrawerHandleView` 4、属性集合转换 6、状态栏 12、其它 5），
+terminal-emulator 236 个
 （含 `TerminalNotificationTest` 的 `isEmpty` / 纯图标 3 个、assembler 的图标开关 1 个）。
 
 > 本机唯一的已知失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（Robolectric 在本机 Android 上
