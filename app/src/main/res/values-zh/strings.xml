@@ -736,4 +736,34 @@
     <string name="termux_notification_osc_icons_off">图标数据会被解码但不显示。</string>
     <string name="termux_notification_osc_rate_limit_title">每秒每个会话最多几条</string>
     <string name="termux_notification_osc_rate_limit_summary">超出的通知直接丢弃，防止程序刷屏把终端卡住。0 = 不限。</string>
+
+    <!-- Recent notifications and app events -->
+    <string name="action_recent_notifications">最近通知</string>
+    <string name="notification_history_title">最近通知</string>
+    <string name="notification_history_empty">App 启动以来还没有显示过通知。</string>
+    <string name="notification_history_clear">清空</string>
+    <string name="msg_copied_to_clipboard">已复制到剪贴板</string>
+    <string name="notification_event_session_exit_title">会话已退出</string>
+    <string name="notification_event_plugin_result_title">插件命令已结束</string>
+    <string name="notification_event_title_changed_title">会话标题变化</string>
+    <string name="notification_event_bell_title">会话响铃</string>
+    <string name="notification_event_session_name">会话 %1$d</string>
+    <string name="notification_event_exit_status">退出码 %1$d</string>
+
+    <string name="termux_notification_events_header">App 事件</string>
+    <string name="termux_notification_events_enabled_title">把 App 事件显示成卡片</string>
+    <string name="termux_notification_events_enabled_on">下面勾选的事件会弹卡片，并且不再弹原来的 toast。</string>
+    <string name="termux_notification_events_enabled_off">App 事件只使用原有的 toast。</string>
+    <string name="termux_notification_events_title">事件</string>
+    <string name="termux_notification_events_summary">勾选要显示成卡片的 App 事件。</string>
+    <string name="termux_notification_event_session_exit">会话退出</string>
+    <string name="termux_notification_event_plugin_result">插件命令结束</string>
+    <string name="termux_notification_event_title">会话标题变化</string>
+    <string name="termux_notification_event_bell">程序响铃（bell）</string>
+    <string name="termux_notification_background_header">后台与历史</string>
+    <string name="termux_notification_background_enabled_title">App 不在前台时发系统通知</string>
+    <string name="termux_notification_background_enabled_on">在后台时发到通知栏；不需要通知权限，因为 App 的 targetSdk 是 28。</string>
+    <string name="termux_notification_background_enabled_off">通知只在终端里以卡片形式显示。</string>
+    <string name="termux_notification_history_size_title">保留的最近通知条数（0–200）</string>
+    <string name="termux_notification_history_size_summary">只保存在内存里；列表为空时长按菜单里的「最近通知」项会自动隐藏。</string>
 </resources>

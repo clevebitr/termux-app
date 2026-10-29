@@ -46,9 +46,11 @@ public class TerminalMenuConfigTest {
         TerminalMenuConfig config = parse();
 
         Assert.assertEquals(TerminalMenuAction.DEFAULT_ITEMS, config.menuItems);
-        Assert.assertEquals(11, config.menuItems.size());
+        Assert.assertEquals(12, config.menuItems.size());
         Assert.assertEquals(TerminalMenuAction.SEARCH, config.menuItems.get(0));
-        Assert.assertEquals(TerminalMenuAction.REPORT, config.menuItems.get(10));
+        Assert.assertEquals(TerminalMenuAction.RECENT_NOTIFICATIONS, config.menuItems.get(9));
+        Assert.assertEquals(TerminalMenuAction.SETTINGS, config.menuItems.get(10));
+        Assert.assertEquals(TerminalMenuAction.REPORT, config.menuItems.get(11));
     }
 
     @Test

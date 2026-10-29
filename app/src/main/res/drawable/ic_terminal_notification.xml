@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The small icon of the background notifications, which the system only uses as a silhouette, so it is
+  a single color: a terminal prompt, a chevron and an underscore.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M4,6l5.5,6L4,18l2,1.8L13,12 6,4.2z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M13.5,17h7v2.6h-7z" />
+</vector>

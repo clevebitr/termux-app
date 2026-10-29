@@ -39,6 +39,7 @@
 | 21 | 可配置的长按菜单 + 文本选择浮条项 + `SEARCH`/`SPLIT_*` 虚拟键 | `terminal-menu-*`、`selection-toolbar-items` 或设置 → 长按菜单 | 菜单 11 项；浮条 复制/粘贴/更多；风格 TUI 像素风 |
 | 22 | 设置页 GUI：通知 / 长按菜单（含可调序的双区列表编辑器） | 设置 → Termux → 通知 / 长按菜单 | 与属性等价，改完立即生效 |
 | 23 | 程序主动发通知：OSC 99（分块/图标/按钮/查询/关闭/回报）、OSC 9、OSC 777 | `notification-osc-*` 或设置 → 通知 → 程序主动发送的通知 | OSC 通道**默认关**，限流 3 条/秒/会话 |
+| 24 | App 事件卡片（会话退出/插件结果/标题变化/bell）+ 后台系统通知 + 最近通知列表 | `notification-events-*`、`notification-background-enabled`、`notification-history-size` 或设置 → 通知 | 事件通道**默认关**；后台通知**默认关**；历史 50 条（仅内存） |
 
 ---
 
@@ -1245,6 +1246,8 @@ extra-keys = [['SEARCH', {key: 'SPLIT_V', display: 'V'}, {key: 'SPLIT_H', displa
          等宽字体 / 背景色·文字色·4 个强调色（ColorPreference，支持 theme:color4）
 失败命令 通道开关 / 显示 cwd / 显示会话名 / 最短耗时（秒）/ 忽略命令（逗号分隔，可弹框编辑）
 程序通知 通道开关 / 允许的程序 / 回报点击与关闭 / 显示图标 / 每秒每会话最多几条
+App 事件 通道开关 / 事件多选（会话退出·插件结果·标题变化·bell）
+后台与历史 后台系统通知开关 / 最近通知保留条数 0–200
 ```
 
 「自动消失时间」用**预设下拉**（值仍是毫秒，写进 `notification-duration`），默认 2 秒。
@@ -1367,6 +1370,65 @@ notification-osc-rate-limit = 3      # 每秒每会话最多几条，0 = 不限�
 
 ---
 
+## 24. App 事件卡片 / 后台系统通知 / 最近通知
+
+### 24.1 App 事件（`notification-events`）
+
+默认关。开启后，这些事件会走卡片，并且**不再弹原来的 toast**（避免双提示）：
+
+| 事件 id | 卡片内容 | 说明 |
+| --- | --- | --- |
+| `session-exit` | 标题「会话已退出」，正文是会话名/PID，详情行是 cwd（非 0 时加上退出码） | 非 0 退出码用**黄色**（warning）强调色；只对**非当前会话**弹 |
+| `plugin-result` | 标题「插件命令已结束」 | 插件（Termux:Tasker 等）发起的命令结束；即使跑在当前会话也弹 |
+| `title` | 标题「会话标题变化」，正文是新标题 | 只对非当前会话弹（与上游 toast 的条件一致） |
+| `bell` | 标题「会话响铃」，正文是会话名 | **保留** `bell-behaviour` 的震动/响铃，只是额外加一张卡片；只对非当前会话 |
+
+```properties
+notification-events-enabled = true
+notification-events = session-exit,plugin-result,title,bell
+```
+
+### 24.2 后台系统通知（`notification-background-enabled`）
+
+默认关。开启后，**App 不在前台**时收到的通知改为发到 Android 通知栏，而不是往终端里塞一张看不见的卡片：
+
+* 走独立通知渠道 `termux-terminal-notifications`（`IMPORTANCE_DEFAULT`），标题/正文取通知的 title/body，
+  正文用 `BigTextStyle` 保留换行；点击打开 Termux。
+* **不需要任何新权限**：App 的 `targetSdkVersion = 28`，`POST_NOTIFICATIONS` 运行时权限只在
+  targetSdk ≥ 33 时才生效；另外发之前会查 `areNotificationsEnabled()`，用户在系统设置里关掉就不发。
+* 我最初考虑过走 Termux:API 的 `termux-notification`，但那条路要起一个后台会话跑 CLI，且依赖
+  termux-api 包 + 插件 App，所以放弃了（见 DECISIONS）。
+
+```properties
+notification-background-enabled = true
+```
+
+### 24.3 最近通知（`notification-history-size`，内存列表）
+
+所有显示过的通知（失败命令 / OSC / App 事件）都会记进一个**只在内存里**的环形列表（默认 50 条，
+0 = 不记），App 关闭就没了 —— 因为通知正文可能含命令输出，不应该擅自落盘。
+
+* 入口：长按菜单 →「**最近通知**」（`recent-notifications`，已加入默认 12 项；列表为空时该项自动隐藏）
+* 对话框：直角 + 1dp 描边 + 等宽字体 + 配色方案，每行显示「时间 · 标题 / 正文」；失败/警告类左侧有强调色竖条
+* **点失败命令的条目 = 跳到那条命令**；其它条目（OSC/事件）= **把文字复制到剪贴板**
+* 底部「清空」清掉列表并关对话框
+
+### 实现位置
+
+* `app/.../notifications/AppEventNotifier.java`：四个事件 → 卡片（含 `sesion-exit` 的退出码/强调色规则）
+* `app/.../notifications/BackgroundNotifier.java`：通知渠道 + 通知构建 + 点击打开 Termux
+* `app/.../notifications/RecentNotifications.java`：环形列表（容量裁剪、最新在前、可选点击动作）
+* `app/.../notifications/RecentNotificationsDialog.java`：列表对话框（跳命令 / 复制 / 清空）
+* `app/.../widget/TerminalDialogStyles.java`：菜单对话框与最近通知对话框共用的配色/描边/行背景/等宽文字
+  （M8.3 的 `TerminalMenuDialog` 已改为复用它，去掉了三份重复代码）
+* `TerminalNotificationManager`：`notify()` 里记录历史；不可见 + 后台开关 → 改发系统通知
+* `TermuxTerminalSessionActivityClient`：`onSessionFinished` / `onTitleChanged` / `onBell` 挂钩（卡片优先，未开启回退 toast）
+* 设置页：`termux_notification_preferences.xml` 新增「App 事件」「后台与历史」两个分类；
+  `TermuxPropertyPreferenceDataStore` 新增 `putStringSet/getStringSet`（逗号连接，供 MultiSelectListPreference 用）
+* 单测：`RecentNotificationsTest`（6 个用例）
+
+---
+
 ## 验证情况（真机）
 以下各项都在本机（aarch64，Android 13 系 ROM）真机验证过（§11 音量键自定义动作 §14 终端内边距尚未真机验证）：
 
@@ -1377,6 +1439,8 @@ notification-osc-rate-limit = 3      # 每秒每会话最多几条，0 = 不限�
   真机上的搜索栏交互（软键盘、返回键、与长按选择共存）和剪贴板读写尚未真机验证。
 * §17 命令标记：`CommandMarksTest`（21 个）全绿；bash 集成在本地用 `bash --norc -i` 起真实交互
   shell 验证过（`D;0`/`D;1;cmd`/`A`/`C` 顺序、退出码与命令行正确）。真机上的刻度点击、失败提示尚未验证。
+* §24 App 事件 / 后台通知 / 最近通知：`RecentNotificationsTest` 6 个用例全绿，`:app` 编译与资源链接
+  通过；真机上的事件卡片、后台系统通知、最近通知对话框（跳转/复制/清空）尚未验证。
 * §23 OSC 通知：`TerminalNotificationAssemblerTest` 24 个用例全绿，`:app` 编译通过；真机上的
   卡片按钮/图标/回报/限流尚未验证（可以用 `printf` 手测）。
 * §22 设置页：**已通过** `:app:processDebugResources` + `:app:compileDebugJavaWithJavac` + 单测；

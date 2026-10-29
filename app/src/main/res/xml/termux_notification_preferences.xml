@@ -138,6 +138,49 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        app:key="notification_events"
+        app:title="@string/termux_notification_events_header">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:key="notification-events-enabled"
+            app:summaryOff="@string/termux_notification_events_enabled_off"
+            app:summaryOn="@string/termux_notification_events_enabled_on"
+            app:title="@string/termux_notification_events_enabled_title" />
+
+        <MultiSelectListPreference
+            app:entries="@array/termux_notification_event_entries"
+            app:entryValues="@array/termux_notification_event_values"
+            app:key="notification-events"
+            app:summary="@string/termux_notification_events_summary"
+            app:title="@string/termux_notification_events_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="notification_background"
+        app:title="@string/termux_notification_background_header">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:key="notification-background-enabled"
+            app:summaryOff="@string/termux_notification_background_enabled_off"
+            app:summaryOn="@string/termux_notification_background_enabled_on"
+            app:title="@string/termux_notification_background_enabled_title" />
+
+        <SeekBarPreference
+            app:defaultValue="50"
+            app:key="notification-history-size"
+            android:max="200"
+            android:min="0"
+            app:seekBarIncrement="10"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_notification_history_size_summary"
+            app:title="@string/termux_notification_history_size_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
         app:key="notification_osc"
         app:title="@string/termux_notification_osc_header">
 

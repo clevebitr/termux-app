@@ -5,6 +5,7 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.termux.app.TermuxActivity;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
 import com.termux.terminal.TerminalNotification;
@@ -71,9 +72,17 @@ public final class TerminalNotificationManager {
     }
 
     @NonNull
+    private final TermuxActivity mActivity;
+    @NonNull
     private final Context mContext;
     @NonNull
     private final NotificationOverlayView mOverlay;
+    /** The notifications that were shown recently, for the recent notifications list. */
+    @NonNull
+    private final RecentNotifications mHistory = new RecentNotifications(NotificationConfig.DEFAULT_HISTORY_SIZE);
+    /** Posts the notifications in the system notification shade when the app is not visible. */
+    @NonNull
+    private final BackgroundNotifier mBackgroundNotifier;
     @NonNull
     private NotificationConfig mConfig = new NotificationConfig();
     @Nullable
@@ -86,9 +95,11 @@ public final class TerminalNotificationManager {
     @NonNull
     private final Map<TerminalNotification, NotificationActions> mActions = new IdentityHashMap<>();
 
-    public TerminalNotificationManager(@NonNull Context context, @NonNull NotificationOverlayView overlay) {
-        mContext = context;
+    public TerminalNotificationManager(@NonNull TermuxActivity activity, @NonNull NotificationOverlayView overlay) {
+        mActivity = activity;
+        mContext = activity;
         mOverlay = overlay;
+        mBackgroundNotifier = new BackgroundNotifier(activity);
 
         mOverlay.setOnNotificationActionListener(new NotificationOverlayView.OnNotificationActionListener() {
             @Override
@@ -139,6 +150,7 @@ public final class TerminalNotificationManager {
 
         mConfig = NotificationConfig.parse(properties);
         mOverlay.applyConfig(mConfig);
+        mHistory.setCapacity(mConfig.historySize);
 
         Logger.logDebug(LOG_TAG, "Reloaded notification config, enabled: " + mConfig.enabled
             + ", position: " + mConfig.position + ", max visible: " + mConfig.maxVisible);
@@ -176,6 +188,19 @@ public final class TerminalNotificationManager {
      */
     public boolean notify(@NonNull TerminalNotification notification, @Nullable NotificationActions actions) {
         if (!isChannelEnabled(notification)) return false;
+
+        // Only the notifications of commands can be opened again, since the other ones have no command
+        // that a click could jump to.
+        Runnable onOpen = actions != null && notification.getSource() == TerminalNotification.Source.EXIT_CODE
+            ? () -> actions.onNotificationClicked(notification) : null;
+        mHistory.add(notification, onOpen);
+
+        // The cards are only shown in the window of the app, so a notification that arrives while it is
+        // not visible is posted in the system notification shade instead, if the user enabled that.
+        if (!mActivity.isVisible() && mConfig.backgroundEnabled) {
+            mBackgroundNotifier.post(notification);
+            return true;
+        }
 
         showNotification(notification, actions);
         return true;
@@ -241,6 +266,12 @@ public final class TerminalNotificationManager {
     /** Close the card of the notification with the id {@code id}, like for an `OSC 99 ; p=close` request. */
     public void closeNotification(@Nullable String id) {
         mOverlay.closeNotification(id);
+    }
+
+    /** @return The notifications that were shown recently, newest first, for the recent notifications list. */
+    @NonNull
+    public RecentNotifications getRecentNotifications() {
+        return mHistory;
     }
 
     /** @return The ids of the notifications whose cards are currently shown, for an `OSC 99 ; p=alive` query. */

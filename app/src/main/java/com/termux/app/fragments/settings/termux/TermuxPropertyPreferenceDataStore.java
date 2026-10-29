@@ -2,6 +2,7 @@ package com.termux.app.fragments.settings.termux;
 
 import android.content.Context;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.preference.PreferenceDataStore;
 
@@ -10,8 +11,13 @@ import com.termux.shared.data.DataUtils;
 import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
 import com.termux.shared.termux.settings.properties.TermuxSharedProperties;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A {@link PreferenceDataStore} that persists the preference values in the `termux.properties` file
@@ -87,6 +93,24 @@ abstract class TermuxPropertyPreferenceDataStore extends PreferenceDataStore {
     }
 
     @Override
+    public void putStringSet(String key, @Nullable Set<String> values) {
+        String value = joinStringSet(values);
+        if (isLastReadValue(key, value)) return;
+
+        setTermuxPropertyValue(key, value);
+    }
+
+    @Nullable
+    @Override
+    public Set<String> getStringSet(String key, @Nullable Set<String> defValues) {
+        String value = TermuxSharedProperties.getTermuxPropertyValue(mContext, key);
+        Set<String> values = DataUtils.isNullOrEmpty(value) ? defValues : splitStringSet(value);
+
+        setLastReadValue(key, joinStringSet(values));
+        return values;
+    }
+
+    @Override
     public void putInt(String key, int value) {
         if (isLastReadValue(key, String.valueOf(value))) return;
 
@@ -100,6 +124,38 @@ abstract class TermuxPropertyPreferenceDataStore extends PreferenceDataStore {
 
         setLastReadValue(key, String.valueOf(intValue));
         return intValue;
+    }
+
+    /**
+     * @return The comma separated {@code values}, sorted so that the comparison with the value that was
+     *         read is stable no matter the iteration order of the set, or {@code null} if it is empty.
+     */
+    @Nullable
+    private static String joinStringSet(@Nullable Set<String> values) {
+        if (values == null || values.isEmpty()) return null;
+
+        List<String> sortedValues = new ArrayList<>(values);
+        Collections.sort(sortedValues);
+
+        StringBuilder joined = new StringBuilder();
+        for (String value : sortedValues) {
+            if (DataUtils.isNullOrEmpty(value)) continue;
+            if (joined.length() > 0) joined.append(',');
+            joined.append(value);
+        }
+
+        return joined.length() == 0 ? null : joined.toString();
+    }
+
+    /** @return The values of the comma separated {@code value}. */
+    @NonNull
+    private static Set<String> splitStringSet(@NonNull String value) {
+        Set<String> values = new LinkedHashSet<>();
+        for (String item : value.split(",")) {
+            item = item.trim();
+            if (!item.isEmpty()) values.add(item);
+        }
+        return values;
     }
 
     /** Remember the value read for the {@code key}, so that a preference persisting it again can be

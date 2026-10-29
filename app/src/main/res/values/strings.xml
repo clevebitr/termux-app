@@ -769,4 +769,34 @@
     <string name="termux_notification_osc_icons_off">The icon data of programs is decoded but not shown.</string>
     <string name="termux_notification_osc_rate_limit_title">Maximum per second and session</string>
     <string name="termux_notification_osc_rate_limit_summary">Additional notifications are dropped, so that a program that spams notifications cannot block the terminal. 0 disables the limit.</string>
+
+    <!-- Recent notifications and app events -->
+    <string name="action_recent_notifications">Recent notifications</string>
+    <string name="notification_history_title">Recent notifications</string>
+    <string name="notification_history_empty">No notification was shown since the app was started.</string>
+    <string name="notification_history_clear">Clear</string>
+    <string name="msg_copied_to_clipboard">Copied to clipboard</string>
+    <string name="notification_event_session_exit_title">Session exited</string>
+    <string name="notification_event_plugin_result_title">Plugin command finished</string>
+    <string name="notification_event_title_changed_title">Session title changed</string>
+    <string name="notification_event_bell_title">Bell in session</string>
+    <string name="notification_event_session_name">session %1$d</string>
+    <string name="notification_event_exit_status">exit %1$d</string>
+
+    <string name="termux_notification_events_header">App events</string>
+    <string name="termux_notification_events_enabled_title">Show cards for app events</string>
+    <string name="termux_notification_events_enabled_on">The enabled events below are shown as cards, and their toasts are not shown.</string>
+    <string name="termux_notification_events_enabled_off">App events only use the toasts of the app.</string>
+    <string name="termux_notification_events_title">Events</string>
+    <string name="termux_notification_events_summary">The events of the app that are shown as a card.</string>
+    <string name="termux_notification_event_session_exit">A session exited</string>
+    <string name="termux_notification_event_plugin_result">A plugin command finished</string>
+    <string name="termux_notification_event_title">The title of a session changed</string>
+    <string name="termux_notification_event_bell">A program rang the bell</string>
+    <string name="termux_notification_background_header">Background and history</string>
+    <string name="termux_notification_background_enabled_title">Show system notifications when the app is not visible</string>
+    <string name="termux_notification_background_enabled_on">The notifications are posted in the notification shade when the app is in the background, without the notification permission, since the app targets api level 28.</string>
+    <string name="termux_notification_background_enabled_off">The notifications are only shown as cards in the terminal.</string>
+    <string name="termux_notification_history_size_title">Recent notifications to keep (0–200)</string>
+    <string name="termux_notification_history_size_summary">They are kept in memory only, and the recent notifications entry of the long press menu is hidden while the list is empty.</string>
 </resources>

@@ -17,6 +17,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.R;
+import com.termux.app.notifications.AppEventNotifier;
 import com.termux.app.notifications.ExitCodeNotifier;
 import com.termux.app.notifications.OscNotificationHandler;
 import com.termux.shared.data.DataUtils;
@@ -52,6 +53,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     private final ExitCodeNotifier mExitCodeNotifier;
     /** Shows the notification cards that terminal programs request with `OSC 99`, `OSC 9` or `OSC 777`. */
     private final OscNotificationHandler mOscNotificationHandler;
+    /** Shows the notification cards of the events of the app, like a session that exited. */
+    private final AppEventNotifier mAppEventNotifier;
 
     /** The maximum number of sessions that can be created from the app. */
     public static final int MAX_SESSIONS = 8;
@@ -73,6 +76,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         this.mActivity = activity;
         this.mExitCodeNotifier = new ExitCodeNotifier(activity, activity.getTerminalNotificationManager());
         this.mOscNotificationHandler = new OscNotificationHandler(activity, activity.getTerminalNotificationManager());
+        this.mAppEventNotifier = new AppEventNotifier(activity, activity.getTerminalNotificationManager());
     }
 
     /**
@@ -165,10 +169,12 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         if (!mActivity.isVisible()) return;
 
         if (updatedSession != mActivity.getCurrentSession()) {
-            // Only show toast for other sessions than the current one, since the user
-            // probably consciously caused the title change to change in the current session
-            // and don't want an annoying toast for that.
-            mActivity.showToast(toToastTitle(updatedSession), true);
+            // Only tell the user about the title change of other sessions than the current one, since the
+            // user probably consciously caused the title change in the current session and does not want
+            // to be interrupted for that. The card is shown instead of the toast when the `title` event is
+            // enabled, so that both are not shown for the same change.
+            if (!mAppEventNotifier.onTitleChanged(updatedSession))
+                mActivity.showToast(toToastTitle(updatedSession), true);
         }
 
         termuxSessionListNotifyUpdated();
@@ -197,11 +203,23 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
                 Logger.logVerbose(LOG_TAG, "The \"" + finishedSession.mSessionName + "\" session will be force finished automatically since result in pending.");
         }
 
-        if (mActivity.isVisible() && finishedSession != mActivity.getCurrentSession()) {
-            // Show toast for non-current sessions that exit.
-            // Verify that session was not removed before we got told about it finishing:
-            if (index >= 0)
-                mActivity.showToast(toToastTitle(finishedSession) + " - exited", true);
+        if (index >= 0) {
+            boolean isPluginCommand = false;
+            if (termuxSession != null) {
+                com.termux.shared.shell.command.ExecutionCommand executionCommand = termuxSession.getExecutionCommand();
+                isPluginCommand = executionCommand != null && executionCommand.isPluginExecutionCommand;
+            }
+
+            if (isPluginCommand) {
+                // The result of a plugin command is shown to the user even when the command ran in the
+                // current session, since the plugin that started it is in another app.
+                mAppEventNotifier.onSessionFinished(finishedSession, true);
+            } else if (mActivity.isVisible() && finishedSession != mActivity.getCurrentSession()) {
+                // Show a card or the toast of the upstream app for non-current sessions that exit.
+                // Verify that session was not removed before we got told about it finishing:
+                if (!mAppEventNotifier.onSessionFinished(finishedSession, false))
+                    mActivity.showToast(toToastTitle(finishedSession) + " - exited", true);
+            }
         }
 
         if (mActivity.getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
@@ -306,6 +324,11 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     @Override
     public void onBell(@NonNull TerminalSession session) {
         if (!mActivity.isVisible()) return;
+
+        // The card of a bell is only shown for the sessions that are not the current one, since a bell of
+        // the current session is meant for the user that is looking at it anyway.
+        if (session != mActivity.getCurrentSession())
+            mAppEventNotifier.onBell(session);
 
         switch (mActivity.getProperties().getBellBehaviour()) {
             case TermuxPropertyConstants.IVALUE_BELL_BEHAVIOUR_VIBRATE:

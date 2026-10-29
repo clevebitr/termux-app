@@ -46,12 +46,13 @@ public enum TerminalMenuAction {
     HELP("help", R.string.action_open_help, "?"),
     SETTINGS("settings", R.string.action_open_settings, "\u2699"),
     REPORT("report", R.string.action_report_issue, "!"),
+    RECENT_NOTIFICATIONS("recent-notifications", R.string.action_recent_notifications, "\u2261"),
     TEST_NOTIFICATION("test-notification", R.string.action_send_test_notification, "\u2691");
 
     /** The actions that are shown by default, see {@link TerminalMenuConfig#DEFAULT_MENU_ITEMS}. */
     public static final List<TerminalMenuAction> DEFAULT_ITEMS = Collections.unmodifiableList(Arrays.asList(
         SEARCH, PREVIOUS_COMMAND, NEXT_COMMAND, SPLIT_VERTICAL, SPLIT_HORIZONTAL,
-        SELECT_URL, SHARE_TRANSCRIPT, RESET_TERMINAL, KILL_PROCESS, SETTINGS, REPORT));
+        SELECT_URL, SHARE_TRANSCRIPT, RESET_TERMINAL, KILL_PROCESS, RECENT_NOTIFICATIONS, SETTINGS, REPORT));
 
     @NonNull
     private final String mId;

@@ -20,6 +20,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 
 import com.termux.app.statusbar.StatusBarColors;
+import com.termux.app.widget.TerminalDialogStyles;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalColorScheme;
@@ -91,9 +92,8 @@ public final class TerminalMenuDialog {
         if (items.isEmpty()) return;
 
         int foreground = StatusBarColors.resolve(config.foregroundColor, StatusBarColors.THEME_FOREGROUND);
-        int accent = StatusBarColors.resolve(config.accentColor, "color4");
-        if (Color.alpha(accent) == 0) accent = foreground;
-        int background = getBackgroundColor(config, foreground);
+        int accent = TerminalDialogStyles.getAccentColor(config.accentColor, foreground);
+        int background = TerminalDialogStyles.getBackgroundColor(config.backgroundColor, foreground);
 
         Dialog dialog = new Dialog(activity);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -115,13 +115,8 @@ public final class TerminalMenuDialog {
             list.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
 
-        GradientDrawable dialogBackground = new GradientDrawable();
-        dialogBackground.setShape(GradientDrawable.RECTANGLE);
-        dialogBackground.setCornerRadius(dp(activity, config.cornerRadiusDp));
-        dialogBackground.setColor(background);
-        if (config.borderWidthDp > 0)
-            dialogBackground.setStroke(dp(activity, config.borderWidthDp), accent);
-        scrollView.setBackground(dialogBackground);
+        scrollView.setBackground(TerminalDialogStyles.createDialogBackground(activity, background, accent,
+            config.cornerRadiusDp, config.borderWidthDp));
 
         dialog.setContentView(scrollView);
         dialog.setOnDismissListener(d -> onDismissed.run());
@@ -145,6 +140,11 @@ public final class TerminalMenuDialog {
         }
     }
 
+    /** @return The {@code dp} value in pixels. */
+    private static int dp(@NonNull Activity activity, float dp) {
+        return TerminalDialogStyles.dp(activity, dp);
+    }
+
     /** @return The row of {@code item}, which shows its title on the left and its icon on the right. */
     @NonNull
     private static View createRow(@NonNull Activity activity, @NonNull TerminalMenuConfig config,
@@ -156,9 +156,9 @@ public final class TerminalMenuDialog {
             dp(activity, ROW_PADDING_HORIZONTAL_DP), dp(activity, ROW_PADDING_VERTICAL_DP));
         row.setEnabled(item.enabled);
         row.setClickable(item.enabled);
-        row.setBackground(createRowBackground(activity, accent, config.cornerRadiusDp));
+        row.setBackground(TerminalDialogStyles.createRowBackground(activity, accent, config.cornerRadiusDp));
 
-        int textColor = item.enabled ? foreground : withAlpha(foreground, 0.38f);
+        int textColor = item.enabled ? foreground : TerminalDialogStyles.withAlpha(foreground, 0.38f);
 
         TextView title = new TextView(activity);
         title.setText(item.title);
@@ -173,7 +173,7 @@ public final class TerminalMenuDialog {
             TextView icon = new TextView(activity);
             icon.setText(item.action.getIcon());
             icon.setTextSize(TypedValue.COMPLEX_UNIT_SP, config.fontSizeSp);
-            icon.setTextColor(withAlpha(textColor, 0.75f));
+            icon.setTextColor(TerminalDialogStyles.withAlpha(textColor, 0.75f));
             if (config.monospace) icon.setTypeface(Typeface.MONOSPACE);
             icon.setGravity(Gravity.CENTER_VERTICAL);
             icon.setPadding(dp(activity, 8), 0, 0, 0);
@@ -183,46 +183,4 @@ public final class TerminalMenuDialog {
         return row;
     }
 
-    /**
-     * @return The background of a row, which highlights it with the accent color while it is pressed,
-     *         instead of a ripple, so that the rows look like part of a tui window.
-     */
-    @NonNull
-    private static StateListDrawable createRowBackground(@NonNull Activity activity, int accent, int cornerRadiusDp) {
-        StateListDrawable background = new StateListDrawable();
-
-        GradientDrawable pressed = new GradientDrawable();
-        pressed.setShape(GradientDrawable.RECTANGLE);
-        pressed.setCornerRadius(dp(activity, cornerRadiusDp));
-        pressed.setColor(withAlpha(accent, 0.30f));
-
-        background.addState(new int[]{android.R.attr.state_pressed}, pressed);
-        background.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
-
-        return background;
-    }
-
-    /**
-     * @return The background color of the dialog, which is derived from the background color of the
-     *         color scheme if `terminal-menu-background-color` is not set, so that the dialog is visible
-     *         on top of the terminal background.
-     */
-    private static int getBackgroundColor(@NonNull TerminalMenuConfig config, int foregroundColor) {
-        if (!DataUtils.isNullOrEmpty(config.backgroundColor))
-            return StatusBarColors.resolve(config.backgroundColor, StatusBarColors.THEME_BACKGROUND);
-
-        int backgroundColor = StatusBarColors.getThemeColor(StatusBarColors.THEME_BACKGROUND);
-        // Blend the background towards the foreground color, so that the dialog is visible when it would
-        // otherwise have the same color as the terminal background behind it.
-        return TerminalColorScheme.blendColors(backgroundColor, foregroundColor, 0.10);
-    }
-
-    private static int withAlpha(int color, float alpha) {
-        int colorAlpha = Math.round(Color.alpha(color) * alpha);
-        return (color & 0x00FFFFFF) | (colorAlpha << 24);
-    }
-
-    private static int dp(@NonNull Activity activity, float dp) {
-        return Math.round(ViewUtils.dpToPx(activity, dp));
-    }
 }

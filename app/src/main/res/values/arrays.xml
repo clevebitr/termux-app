@@ -218,4 +218,18 @@
             <item>0</item>
         </string-array>
 
+        <!-- Notification events -->
+        <string-array name="termux_notification_event_entries">
+            <item>@string/termux_notification_event_session_exit</item>
+            <item>@string/termux_notification_event_plugin_result</item>
+            <item>@string/termux_notification_event_title</item>
+            <item>@string/termux_notification_event_bell</item>
+        </string-array>
+        <string-array name="termux_notification_event_values" translatable="false">
+            <item>session-exit</item>
+            <item>plugin-result</item>
+            <item>title</item>
+            <item>bell</item>
+        </string-array>
+
 </resources>

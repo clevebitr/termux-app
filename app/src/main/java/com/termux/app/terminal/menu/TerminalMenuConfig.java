@@ -35,7 +35,7 @@ public final class TerminalMenuConfig {
      */
     public static final String DEFAULT_MENU_ITEMS = "search,previous-command,next-command,"
         + "split-vertical,split-horizontal,select-url,share-transcript,"
-        + "reset-terminal,kill-process,settings,report";
+        + "reset-terminal,kill-process,recent-notifications,settings,report";
 
     /** The actions that the floating text selection toolbar shows by default. */
     public static final String DEFAULT_SELECTION_TOOLBAR_ITEMS = "copy,paste,more";

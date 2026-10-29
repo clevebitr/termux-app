@@ -771,3 +771,24 @@ ActionMode 会把禁用项直接隐藏**而不是画成灰色，于是粘贴整�
 * 教训：遇到「菜单项不见了」先确认是 **禁用** 还是 **没加进菜单**；`setEnabled(false)` 在不同 ROM 上的
   表现不一致（灰色 / 隐藏），想稳定可见就只能不 disable。
 
+## 2026-10-30 — M8.5 App 事件 / 后台通知 / 最近通知：几个取舍
+
+1. **后台通知不需要新权限**：App 的 `targetSdkVersion=28`，而 `POST_NOTIFICATIONS` 运行时权限只在
+   targetSdk ≥ 33 时生效，所以直接用 `NotificationManager` 就能发（已有前台服务通知也是这么来的）。
+   发之前仍然查 `areNotificationsEnabled()`，尊重用户在系统设置里关掉的情况。
+   放弃「走 Termux:API 的 `termux-notification`」：`com.termux.api` 的 receiver 必须带 `socket_output`
+   extra（`ResultReturner.returnData()` 否则抛 `Missing 'socket_output' extra`），不能直接 broadcast，
+   只能起后台会话跑 CLI，还依赖 termux-api 包 + 插件 App。
+2. **事件卡片与 toast 互斥**：`onSessionFinished` / `onTitleChanged` 先问 `AppEventNotifier`，它返回 true
+   （已弹卡片）就不再弹上游 toast，避免同一次事件两种提示。
+3. **bell 的卡片只对非当前会话弹**：当前会话的 bell 本来就是给正在看这个终端的人听的，再弹卡片纯噪音；
+   震动/响铃逻辑（`bell-behaviour`）保持不动，卡片只是额外叠加。
+4. **历史列表只在内存**：通知正文可能包含命令输出，擅自写文件不合适；`notification-history-size=0` 就不记。
+   历史条目的点击动作只对 `Source.EXIT_CODE` 注册（跳命令），OSC/事件的条目点击改为复制文字 —— 否则从
+   历史里点 OSC 条目会给程序发一次 activation report，用户并不期望。
+5. **`PreferenceDataStore` 之前没有 `putStringSet`**：`MultiSelectListPreference` 需要它，所以给
+   `TermuxPropertyPreferenceDataStore` 补了 `putStringSet/getStringSet`（逗号连接）；**比较时对集合排序**，
+   否则同一组值的迭代顺序可能不同，no-op 守卫会失效、每次都重写属性文件并触发 Activity 重载。
+6. **抽出 `TerminalDialogStyles`**：菜单对话框和最近通知对话框需要同一套「直角 + 1dp 描边 + 行按下高亮 +
+   等宽文字 + `theme:` 配色」，原本要在两处各写一遍；抽成 helper 后 `TerminalMenuDialog` 也改为复用它。
+

@@ -40,7 +40,10 @@ import android.widget.Toast;
 
 import com.termux.R;
 import com.termux.app.api.file.FileReceiverActivity;
+import com.termux.app.notifications.NotificationConfig;
 import com.termux.app.notifications.NotificationOverlayView;
+import com.termux.app.notifications.RecentNotifications;
+import com.termux.app.notifications.RecentNotificationsDialog;
 import com.termux.app.terminal.menu.TerminalMenuAction;
 import com.termux.app.terminal.menu.TerminalMenuConfig;
 import com.termux.app.terminal.menu.TerminalMenuDialog;
@@ -52,6 +55,7 @@ import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
 import com.termux.shared.activities.ReportActivity;
+import com.termux.shared.interact.ShareUtils;
 import com.termux.shared.activity.ActivityUtils;
 import com.termux.shared.activity.media.AppCompatActivityUtils;
 import com.termux.shared.data.IntentUtils;
@@ -1291,6 +1295,27 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         mNotificationManager.notifyForTesting(notification);
     }
 
+    /**
+     * Show the notifications that were shown recently, including the ones whose cards have already
+     * disappeared. Clicking an entry jumps to the command of a failed command, or copies the text of the
+     * other notifications to the clipboard, since they have no command that could be jumped to.
+     */
+    public void showRecentNotifications() {
+        if (mNotificationManager == null) return;
+
+        List<RecentNotifications.Entry> entries = mNotificationManager.getRecentNotifications().getEntries();
+        NotificationConfig config = mNotificationManager.getConfig();
+
+        RecentNotificationsDialog.show(this, config, entries, entry -> {
+            if (entry.onOpen != null) {
+                entry.onOpen.run();
+            } else {
+                ShareUtils.copyTextToClipboard(this, RecentNotificationsDialog.getTextFor(entry.notification),
+                    getString(R.string.msg_copied_to_clipboard));
+            }
+        }, () -> mNotificationManager.getRecentNotifications().clear());
+    }
+
     /** Reload the configuration of the terminal context menu and of the text selection toolbar. */
     private void reloadTerminalMenuConfig() {
         Properties properties = null;
@@ -1336,6 +1361,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                     break;
                 case TEST_NOTIFICATION:
                     if (!notificationsEnabled) continue;
+                    break;
+                case RECENT_NOTIFICATIONS:
+                    // The list is only useful when a notification was shown since the app was started.
+                    if (mNotificationManager == null || mNotificationManager.getRecentNotifications().isEmpty())
+                        continue;
                     break;
                 default:
                     break;
@@ -1409,6 +1439,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 break;
             case REPORT:
                 mTermuxTerminalViewClient.reportIssueFromTranscript();
+                break;
+            case RECENT_NOTIFICATIONS:
+                showRecentNotifications();
                 break;
             case TEST_NOTIFICATION:
                 sendTestNotification();
