@@ -131,19 +131,60 @@
                 android:orientation="vertical"
                 android:background="?attr/termuxActivityDrawerBackground">
 
+                <!-- The header of the drawer, which shows the settings button, the title of the app
+                     and, once it is filled in, a summary of the current session. -->
                 <LinearLayout
+                    android:id="@+id/drawer_header"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
+                    android:layout_height="48dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="10dp">
+
                     <ImageButton
                         android:id="@+id/settings_button"
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:src="@drawable/ic_settings"
                         android:background="@null"
                         android:contentDescription="@string/action_open_settings"
+                        android:src="@drawable/ic_settings"
                         app:tint="?attr/termuxActivityDrawerImageTint" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:paddingStart="2dp">
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/drawer_title"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:singleLine="true"
+                            android:text="@string/application_name"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/drawer_summary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:singleLine="true"
+                            android:textSize="11sp"
+                            android:visibility="gone" />
+                    </LinearLayout>
                 </LinearLayout>
+
+                <!-- A 1dp line below the header, which is tinted with the foreground color of the
+                     terminal so that it works on any background color. -->
+                <View
+                    android:id="@+id/drawer_header_divider"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp" />
 
                 <ListView
                     android:id="@+id/terminal_sessions_list"
@@ -166,7 +207,13 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="@string/action_toggle_soft_keyboard" />
+                        android:maxLines="1"
+                        android:text="@string/action_toggle_soft_keyboard"
+                        android:textSize="12sp"
+                        app:icon="@drawable/ic_drawer_keyboard"
+                        app:iconGravity="textStart"
+                        app:iconPadding="6dp"
+                        app:iconTint="?attr/termuxActivityDrawerImageTint" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/new_session_button"
@@ -174,7 +221,13 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="@string/action_new_session" />
+                        android:maxLines="1"
+                        android:text="@string/action_new_session"
+                        android:textSize="12sp"
+                        app:icon="@drawable/ic_drawer_add"
+                        app:iconGravity="textStart"
+                        app:iconPadding="6dp"
+                        app:iconTint="?attr/termuxActivityDrawerImageTint" />
                 </LinearLayout>
             </LinearLayout>
 

@@ -1,48 +1,78 @@
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <Preference
-        app:title="@string/termux_debugging_preferences_title"
-        app:summary="@string/termux_debugging_preferences_summary"
-        app:fragment="com.termux.app.fragments.settings.termux.DebuggingPreferencesFragment"/>
+    <!-- The settings of the terminal itself, which is what most of the pages are about. -->
+    <PreferenceCategory app:title="@string/termux_preferences_category_terminal">
 
-    <Preference
-        app:title="@string/termux_appearance_preferences_title"
-        app:summary="@string/termux_appearance_preferences_summary"
-        app:fragment="com.termux.app.fragments.settings.termux.AppearancePreferencesFragment"/>
+        <Preference
+            app:icon="@drawable/ic_pref_appearance"
+            app:title="@string/termux_appearance_preferences_title"
+            app:summary="@string/termux_appearance_preferences_summary"
+            app:fragment="com.termux.app.fragments.settings.termux.AppearancePreferencesFragment"/>
 
-    <Preference
-        app:title="@string/termux_terminal_io_preferences_title"
-        app:summary="@string/termux_terminal_io_preferences_summary"
-        app:fragment="com.termux.app.fragments.settings.termux.TerminalIOPreferencesFragment"/>
+        <Preference
+            app:icon="@drawable/ic_pref_keyboard"
+            app:title="@string/termux_keyboard_preferences_title"
+            app:summary="@string/termux_keyboard_preferences_summary"
+            app:fragment="com.termux.app.fragments.settings.termux.TerminalKeyboardPreferencesFragment"/>
 
-    <Preference
-        app:title="@string/termux_keyboard_preferences_title"
-        app:summary="@string/termux_keyboard_preferences_summary"
-        app:fragment="com.termux.app.fragments.settings.termux.TerminalKeyboardPreferencesFragment"/>
+        <Preference
+            app:icon="@drawable/ic_pref_terminal_view"
+            app:title="@string/termux_terminal_view_preferences_title"
+            app:summary="@string/termux_terminal_view_preferences_summary"
+            app:fragment="com.termux.app.fragments.settings.termux.TerminalViewPreferencesFragment"/>
 
-    <Preference
-        app:title="@string/termux_backup_preferences_title"
-        app:summary="@string/termux_backup_preferences_summary"
-        app:fragment="com.termux.app.fragments.settings.termux.BackupPreferencesFragment"/>
+        <Preference
+            app:icon="@drawable/ic_pref_terminal_io"
+            app:title="@string/termux_terminal_io_preferences_title"
+            app:summary="@string/termux_terminal_io_preferences_summary"
+            app:fragment="com.termux.app.fragments.settings.termux.TerminalIOPreferencesFragment"/>
 
-    <Preference
-        app:title="@string/termux_terminal_view_preferences_title"
-        app:summary="@string/termux_terminal_view_preferences_summary"
-        app:fragment="com.termux.app.fragments.settings.termux.TerminalViewPreferencesFragment"/>
+    </PreferenceCategory>
 
-    <Preference
-        app:title="@string/termux_status_bar_preferences_title"
-        app:summary="@string/termux_status_bar_preferences_summary"
-        app:fragment="com.termux.app.fragments.settings.termux.StatusBarPreferencesFragment"/>
+    <!-- The parts of the fork that draw something around the terminal. -->
+    <PreferenceCategory app:title="@string/termux_preferences_category_interface">
 
-    <Preference
-        app:title="@string/termux_notification_preferences_title"
-        app:summary="@string/termux_notification_preferences_summary"
-        app:fragment="com.termux.app.fragments.settings.termux.NotificationPreferencesFragment"/>
+        <Preference
+            app:icon="@drawable/ic_pref_status_bar"
+            app:title="@string/termux_status_bar_preferences_title"
+            app:summary="@string/termux_status_bar_preferences_summary"
+            app:fragment="com.termux.app.fragments.settings.termux.StatusBarPreferencesFragment"/>
 
-    <Preference
-        app:title="@string/termux_terminal_menu_preferences_title"
-        app:summary="@string/termux_terminal_menu_preferences_summary"
-        app:fragment="com.termux.app.fragments.settings.termux.TerminalMenuPreferencesFragment"/>
+        <Preference
+            app:icon="@drawable/ic_pref_menu"
+            app:title="@string/termux_terminal_menu_preferences_title"
+            app:summary="@string/termux_terminal_menu_preferences_summary"
+            app:fragment="com.termux.app.fragments.settings.termux.TerminalMenuPreferencesFragment"/>
+
+    </PreferenceCategory>
+
+    <!-- What the app does on its own, like notifying the user or backing up the environment. -->
+    <PreferenceCategory app:title="@string/termux_preferences_category_behavior">
+
+        <Preference
+            app:icon="@drawable/ic_pref_notifications"
+            app:title="@string/termux_notification_preferences_title"
+            app:summary="@string/termux_notification_preferences_summary"
+            app:fragment="com.termux.app.fragments.settings.termux.NotificationPreferencesFragment"/>
+
+        <Preference
+            app:icon="@drawable/ic_pref_backup"
+            app:title="@string/termux_backup_preferences_title"
+            app:summary="@string/termux_backup_preferences_summary"
+            app:fragment="com.termux.app.fragments.settings.termux.BackupPreferencesFragment"/>
+
+    </PreferenceCategory>
+
+    <!-- The pages that are only needed to diagnose a problem, which used to be the first entries of this
+         screen even though they are rarely opened. -->
+    <PreferenceCategory app:title="@string/termux_preferences_category_advanced">
+
+        <Preference
+            app:icon="@drawable/ic_pref_debug"
+            app:title="@string/termux_debugging_preferences_title"
+            app:summary="@string/termux_preferences_summary_debugging"
+            app:fragment="com.termux.app.fragments.settings.termux.DebuggingPreferencesFragment"/>
+
+    </PreferenceCategory>
 
 </PreferenceScreen>

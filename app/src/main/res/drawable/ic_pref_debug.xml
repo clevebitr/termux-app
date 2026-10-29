@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A bug with legs, for the debugging preferences. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M8,4h2v2h-2zM14,4h2v2h-2zM9,7h6v2h-6zM9,7h2v10h-2zM13,7h2v10h-2zM9,15h6v2h-6zM4,10h4v2h-4zM16,10h4v2h-4zM4,14h4v2h-4zM16,14h4v2h-4z" />
+</vector>

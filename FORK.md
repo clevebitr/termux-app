@@ -24,7 +24,7 @@
 | 7 | 外观页（主题/全屏/工具栏）+ 按键行为 + 鼠标点按唤键盘 | `mouse-tap-shows-keyboard` 等 | 关 |
 | 8 | 真斜体字体 + OSC 8 超链接可点 | `~/.termux/font-italic.ttf`；`terminal-onclick-url-open` | 无斜体字体则合成斜切；点击关 |
 | 9 | IME 收起额外按键行 / 手指拖拽按鼠标拖拽上报 / 焦点上报（`DECSET 1004`） | `hide-extra-keys-when-soft-keyboard-hidden`、`touch-drag-sends-mouse-drag` | 前两项关；1004 由程序请求 |
-| 10 | 多面板 extra keys / 左右滑切会话 / 会话列表显示 PID·进程·cwd | `extra-keys-panels`、`switch-session-on-swipe` | 面板需自行配置；滑切默认开 |
+| 10 | 多面板 extra keys / 左右滑切会话 / 会话列表显示 PID·进程·cwd / 抽屉跟随终端配色 | `extra-keys-panels`、`switch-session-on-swipe` | 面板需自行配置；滑切默认开 |
 | 11 | 音量键自定义动作（单击 / 长按，含唤醒软键盘等） | `volume-up-action`、`volume-up-long-action`、`volume-down-action`、`volume-down-long-action`、`volume-up-send-keys`、`volume-down-send-keys` | 保持上游：音量减=Ctrl、音量加=Fn |
 | 12 | 额外按键右上角显示上滑备用键 | `extra-keys-popup-hints`（设置页有开关） | **开**（唯一一个默认打开的新属性，见 §12 说明） |
 | 13 | Gboard 风格的按键块背景（圆角块 + 2dp 间隙） | `extra-keys-tile-background`；颜色 `extra-keys-tile-background-color` / `extra-keys-tile-active-background-color`（设置页有开关 + 调色板） | **开**，颜色跟随配色方案 |
@@ -524,9 +524,35 @@ switch-session-on-swipe=true
 * 刷新时机：列表本身在有输出/切标题时重建，另外**打开抽屉时**也会刷新一次
   （`DrawerLayout.SimpleDrawerListener.onDrawerOpened` → `notifyDataSetChanged()`），
   所以 cwd 变了但标题没变也能看到最新值。
-* 实现：`item_terminal_sessions_list.xml`（两行布局，选中背景移到根布局）、
+* 实现：`item_terminal_sessions_list.xml`（两行布局）、
   `TermuxSessionsListViewController.getView()` 与 `getSessionDetails()` / `getForegroundProcessName()` /
   `getProcessName()` / `getCurrentWorkingDirectory()`。
+
+### 10.4 侧边栏外观（跟随终端配色）与设置页分组
+
+**抽屉不再是固定的黑白**，而是跟着当前配色方案（`colors.properties` / Termux:Styling）走：
+
+* 背景/文字/强调色取配色方案的 `background` / `foreground` / 调色板 `color4`（和通知卡片的信息色一致）；
+  背景和强调色相同时（配色写错）强调色回退成对比文字色，保证「当前会话」的竖条可见。
+* 顶部一条 48dp 的头部：⚙ 设置、App 名，右侧留了位置给下一步的「当前会话概要」（`drawer_summary`）。
+* 当前会话的左侧有一条 3dp 强调色竖条；会话项背景改成透明 + 强调色 ripple（不再用写死的
+  `current_session` / `session_ripple` 那几个白/灰实心 drawable）。
+* 标题/详情/分隔线/底部两个按钮的图标与文字都跟着配色变；`/proc` 读不到、进程已退出的会话用次一级颜色
+  + 删除线，失败会话仍用红色。
+* 挂在 `TermuxTerminalSessionActivityClient.updateBackgroundColor()` 上，所以换会话、改配色、
+  `termux-reload-settings`、回到前台都会同步（即使 Activity 不可见也更新，避免下次打开是旧颜色）。
+* 实现：`TermuxActivity.updateDrawerColors()` / `applyDrawerColors()` + 五个 getter、
+  `DrawerColorUtils`（alpha/混合/亮度判定 + 5 个单测）、`ic_drawer_add.xml` / `ic_drawer_keyboard.xml`。
+
+**设置页（Termux 设置）**按「终端 / 界面 / 行为 / 高级」四组重排，每个入口配一个线性图标，
+摘要压到一行（`主题 · 全屏 · 工具栏` 这种），调试页从第一个挪到「高级」里：
+
+* 终端：外观、终端键盘、终端视图、终端 I/O
+* 界面：状态栏、长按菜单
+* 行为：通知、备份与恢复
+* 高级：调试
+
+设置页仍然**跟随系统明暗**（Material 控件太多，荧光配色下会难读），只有抽屉跟随终端配色。
 
 ---
 

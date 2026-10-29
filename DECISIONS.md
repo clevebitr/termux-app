@@ -974,3 +974,39 @@ M9 顺序调整：先修质量漏洞，再做新功能（用户要求）。本�
 
 验证：terminal-emulator 236 个、app 97 个单测全绿（唯一失败仍是本机 Robolectric 那个老问题，见 #44）；
 新增 `TerminalBufferSearchTest` 6 个（大小写、正则、`.` 在非正则模式是字面量、无效正则、空匹配跳过、跨行正则）。
+
+## 2026-10-29 — M10 UI 视觉：抽屉跟随终端配色 + 头部/竖条，设置页四组 + 9 个自绘图标
+
+用户选了「抽屉 A（现状微调）+ 设置 B（图标/分组/常用前置）+ 配色跟随终端 + 三项交互（顶部概要/长按恢复默认/设置内搜索）」，但**本轮只做视觉**，交互项下一轮。
+
+**抽屉**
+* 配色来源：当前会话 `mColors.mCurrentColors` 的 `COLOR_INDEX_BACKGROUND` / `COLOR_INDEX_FOREGROUND` /
+  调色板 `color4`（和通知卡片的信息色一致）。没有会话（启动第一帧）回退到主题明暗。
+* `color4 == background`（配色写坏）时强调色回退成对比文字色，否则「当前会话」竖条会隐形。
+* 会话项背景从写死的 `current_session`（#E0E0E0）/`session_ripple`（白）换成**代码构造的 RippleDrawable**
+  （透明内容 + 强调色 25% alpha 水波），这样任何配色下都成立；`session_background_selected.xml` 等
+  drawable 不再被会话列表使用（保留文件，别处还可能引用）。
+* 当前会话用 `sessionAtRow == mActivity.getCurrentSession()` 判定（ListView 的 activated 状态在 getView
+  绑定后才设置，读不可靠），画 3dp 强调色竖条。
+* 顶部 48dp 头部：⚙ + App 名 + 预留 `drawer_summary`（本轮 `visibility=gone`，下一轮填会话概要）。
+* 同步时机：`TermuxTerminalSessionActivityClient.updateBackgroundColor()` 里调用
+  `mActivity.updateDrawerColors(session)`，并且**放在 isVisible 判断之前**——否则后台改配色后下次打开抽屉
+  还是旧颜色。onCreate 里先用 null 调一次，避免第一帧闪主题黑白色。
+* 亮度判定用 YIQ（`(r*299+g*587+b*114)/1000 > 128`）而不是 HSL/亮度：饱和绿 (0,255,0) 算亮色，
+  阈值一开始写 150，纯绿算出 149.7 被判成暗色（单测抓到）。
+* 图标是自绘的直条/方块风格（`ic_drawer_add` / `ic_drawer_keyboard`），和 fork 的方角 TUI 语言一致，
+  不引入 Material 圆角图标。`app:tint` 保留作为代码着色前的兜底。
+
+**设置页**
+* 仍然 androidx.preference，根页改成 4 个 `PreferenceCategory` + `app:icon` + 一行短摘要；
+  调试从第一位移到「高级」（它之前排在第一条，占着最贵的位置）。
+* 9 个图标全部手写矢量（直线/方块，无曲线），统一 24dp、`android:tint="?attr/colorControlNormal"`，
+  这样明暗主题都能用，也不用给 values-night 复制一份。
+* 摘要字符串**就地改短**（这些 summary 只被这个页面引用），但 `termux_debugging_preferences_summary`
+  是和 Termux:API/Float/Tasker/Widget 共用的，不能动 → 给 Termux 页单独加
+  `termux_preferences_summary_debugging`。中文 values-zh 同步加分组标题与新摘要。
+* 设置页**不跟随终端配色**（用户选的）：设置页里 Material 控件太多，荧光配色下开关/滑块会难读。
+
+验证：`:app:testDebugUnitTest` 全绿（新增 `DrawerColorUtilsTest` 5 个；唯一失败仍是本机 Robolectric 老问题），
+资源/图标/两语言字符串都过 aapt2。真机验收项（== 这个配色在浅色/荧光配色下的可读性、抽屉第一帧不闪）
+留给用户。

@@ -712,8 +712,14 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     }
 
     public void updateBackgroundColor() {
-        if (!mActivity.isVisible()) return;
         TerminalSession session = mActivity.getCurrentSession();
+
+        // The sessions drawer follows the colors of the terminal too, so it is updated even when the
+        // activity is not visible, so that it does not show the colors of the previous session scheme when
+        // it is opened again.
+        mActivity.updateDrawerColors(session);
+
+        if (!mActivity.isVisible()) return;
         if (session != null && session.getEmulator() != null) {
             mActivity.updateWindowBackgroundColor(session.getEmulator().mColors.mCurrentColors[TextStyle.COLOR_INDEX_BACKGROUND]);
         }

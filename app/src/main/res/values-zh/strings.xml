@@ -144,6 +144,11 @@
     <!-- Termux App Preferences -->
     <string name="termux_preferences_title">&TERMUX_APP_NAME;</string>
     <string name="termux_preferences_summary">&TERMUX_APP_NAME; 应用的相关设置</string>
+    <string name="termux_preferences_category_terminal">终端</string>
+    <string name="termux_preferences_category_interface">界面</string>
+    <string name="termux_preferences_category_behavior">行为</string>
+    <string name="termux_preferences_category_advanced">高级</string>
+    <string name="termux_preferences_summary_debugging">日志级别 · 插件</string>
 
         <!-- Debugging Preferences -->
         <string name="termux_debugging_preferences_title">调试</string>
@@ -174,7 +179,7 @@
 
         <!-- Terminal IO Preferences -->
         <string name="termux_terminal_io_preferences_title">终端输入/输出</string>
-        <string name="termux_terminal_io_preferences_summary">终端输入/输出相关设置</string>
+        <string name="termux_terminal_io_preferences_summary">软键盘 · extra keys</string>
 
             <!-- Keyboard Category -->
             <string name="termux_keyboard_header">键盘</string>
@@ -192,7 +197,7 @@
 
         <!-- Appearance Preferences -->
         <string name="termux_appearance_preferences_title">外观</string>
-        <string name="termux_appearance_preferences_summary">主题、全屏与终端工具栏的相关设置</string>
+        <string name="termux_appearance_preferences_summary">主题 · 全屏 · 工具栏</string>
 
             <!-- Theme Category -->
             <string name="termux_appearance_theme_header">主题</string>
@@ -242,7 +247,7 @@
 
         <!-- Terminal Keyboard Preferences -->
         <string name="termux_keyboard_preferences_title">终端键盘</string>
-        <string name="termux_keyboard_preferences_summary">输入法与虚拟键盘（额外按键行）的相关设置</string>
+        <string name="termux_keyboard_preferences_summary">输入法 · 按键行为</string>
 
             <!-- Input Method Category -->
             <string name="termux_keyboard_input_method_header">输入法</string>
@@ -379,7 +384,7 @@
 
             <!-- Backup and Restore Preferences -->
         <string name="termux_backup_preferences_title">备份与恢复</string>
-        <string name="termux_backup_preferences_summary">备份或恢复 Termux 环境</string>
+        <string name="termux_backup_preferences_summary">备份 / 恢复环境</string>
 
             <string name="termux_backup_category_title">环境备份</string>
             <string name="termux_backup_category_summary">会打包整个 $PREFIX 与 $HOME，卸载应用或换成其他签名的构建前
@@ -441,7 +446,7 @@
 
     <!-- Terminal View Preferences -->
         <string name="termux_terminal_view_preferences_title">终端视图</string>
-        <string name="termux_terminal_view_preferences_summary">终端视图相关设置</string>
+        <string name="termux_terminal_view_preferences_summary">边距 · 内边距 · 剪贴板</string>
 
             <!-- View Category -->
             <string name="termux_terminal_view_view_header">视图</string>
@@ -538,7 +543,7 @@
 
     <!-- 状态栏 -->
     <string name="termux_status_bar_preferences_title">状态栏</string>
-    <string name="termux_status_bar_preferences_summary">在终端上方或下方显示时间、电量、内存、CPU、网络、IP 和代理</string>
+    <string name="termux_status_bar_preferences_summary">时间 · 电量 · CPU · 网络</string>
 
     <string name="termux_status_bar_general_header">基本</string>
     <string name="termux_status_bar_enabled_title">显示状态栏</string>
@@ -633,7 +638,7 @@
 
     <!-- Notification Preferences -->
     <string name="termux_notification_preferences_title">通知</string>
-    <string name="termux_notification_preferences_summary">命令失败时的通知卡片，类似 TUI 通知插件</string>
+    <string name="termux_notification_preferences_summary">卡片 · OSC · 后台通知</string>
 
     <string name="termux_notification_general_header">通用</string>
     <string name="termux_notification_enabled_title">显示通知卡片</string>
@@ -682,7 +687,7 @@
 
     <!-- Terminal Menu Preferences -->
     <string name="termux_terminal_menu_preferences_title">长按菜单</string>
-    <string name="termux_terminal_menu_preferences_summary">长按菜单与文本选择浮条的动作及样式</string>
+    <string name="termux_terminal_menu_preferences_summary">菜单项 · 选择浮条</string>
 
     <string name="termux_terminal_menu_items_header">动作</string>
     <string name="termux_terminal_menu_items_title">长按菜单项</string>

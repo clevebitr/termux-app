@@ -144,6 +144,11 @@
     <!-- Termux App Preferences -->
     <string name="termux_preferences_title">&TERMUX_APP_NAME;</string>
     <string name="termux_preferences_summary">Preferences for &TERMUX_APP_NAME; app</string>
+    <string name="termux_preferences_category_terminal">Terminal</string>
+    <string name="termux_preferences_category_interface">Interface</string>
+    <string name="termux_preferences_category_behavior">Behavior</string>
+    <string name="termux_preferences_category_advanced">Advanced</string>
+    <string name="termux_preferences_summary_debugging">Log level · plugins</string>
 
         <!-- Debugging Preferences -->
         <string name="termux_debugging_preferences_title">Debugging</string>
@@ -174,7 +179,7 @@
 
         <!-- Terminal IO Preferences -->
         <string name="termux_terminal_io_preferences_title">Terminal I/O</string>
-        <string name="termux_terminal_io_preferences_summary">Preferences for terminal I/O</string>
+        <string name="termux_terminal_io_preferences_summary">Soft keyboard · extra keys</string>
 
             <!-- Keyboard Category -->
             <string name="termux_keyboard_header">Keyboard</string>
@@ -194,8 +199,7 @@
 
         <!-- Appearance Preferences -->
         <string name="termux_appearance_preferences_title">Appearance</string>
-        <string name="termux_appearance_preferences_summary">Preferences for the theme, the fullscreen mode and the
-            terminal toolbar</string>
+        <string name="termux_appearance_preferences_summary">Theme · fullscreen · toolbar</string>
 
             <!-- Theme Category -->
             <string name="termux_appearance_theme_header">Theme</string>
@@ -251,7 +255,7 @@
 
         <!-- Terminal Keyboard Preferences -->
         <string name="termux_keyboard_preferences_title">Terminal Keyboard</string>
-        <string name="termux_keyboard_preferences_summary">Preferences for the input method and extra keys</string>
+        <string name="termux_keyboard_preferences_summary">Input method · key behaviour</string>
 
             <!-- Input Method Category -->
             <string name="termux_keyboard_input_method_header">Input Method</string>
@@ -405,7 +409,7 @@
 
             <!-- Backup and Restore Preferences -->
         <string name="termux_backup_preferences_title">Backup and Restore</string>
-        <string name="termux_backup_preferences_summary">Back up or restore the Termux environment</string>
+        <string name="termux_backup_preferences_summary">Back up or restore the environment</string>
 
             <string name="termux_backup_category_title">Environment Backup</string>
             <string name="termux_backup_category_summary">The whole $PREFIX and $HOME are archived, which is required
@@ -472,7 +476,7 @@
 
     <!-- Terminal View Preferences -->
         <string name="termux_terminal_view_preferences_title">Terminal View</string>
-        <string name="termux_terminal_view_preferences_summary">Preferences for terminal view</string>
+        <string name="termux_terminal_view_preferences_summary">Margin · padding · clipboard</string>
 
             <!-- View Category -->
             <string name="termux_terminal_view_view_header">View</string>
@@ -573,7 +577,7 @@
 
     <!-- Status Bar -->
     <string name="termux_status_bar_preferences_title">Status bar</string>
-    <string name="termux_status_bar_preferences_summary">Show the time, battery, memory, cpu, network, ip and proxy above or below the terminal</string>
+    <string name="termux_status_bar_preferences_summary">Time · battery · cpu · network</string>
 
     <string name="termux_status_bar_general_header">General</string>
     <string name="termux_status_bar_enabled_title">Show status bar</string>
@@ -668,7 +672,7 @@
 
     <!-- Notification Preferences -->
     <string name="termux_notification_preferences_title">Notifications</string>
-    <string name="termux_notification_preferences_summary">Notification cards for failed commands, like the notifications of the tui notification plugins</string>
+    <string name="termux_notification_preferences_summary">Cards · OSC · background notifications</string>
 
     <string name="termux_notification_general_header">General</string>
     <string name="termux_notification_enabled_title">Show notification cards</string>
@@ -717,7 +721,7 @@
 
     <!-- Terminal Menu Preferences -->
     <string name="termux_terminal_menu_preferences_title">Long press menu</string>
-    <string name="termux_terminal_menu_preferences_summary">The actions of the context menu and of the text selection toolbar, and their style</string>
+    <string name="termux_terminal_menu_preferences_summary">Menu items · selection toolbar</string>
 
     <string name="termux_terminal_menu_items_header">Actions</string>
     <string name="termux_terminal_menu_items_title">Context menu actions</string>

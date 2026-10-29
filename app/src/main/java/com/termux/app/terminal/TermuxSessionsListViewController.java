@@ -17,14 +17,10 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
-
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
-import com.termux.shared.theme.NightMode;
-import com.termux.shared.theme.ThemeUtils;
 import com.termux.terminal.TerminalSession;
 
 import java.io.File;
@@ -70,13 +66,18 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
             return sessionRowView;
         }
 
-        boolean shouldEnableDarkTheme = ThemeUtils.shouldEnableDarkTheme(mActivity, NightMode.getAppNightMode().getName());
+        // The drawer follows the colors of the terminal color scheme, so the row background and the text
+        // colors come from the activity instead of from the app theme. The accent strip marks the session
+        // that is shown in the active pane, like the border of the active pane of the split screen.
+        sessionRowView.setBackground(mActivity.getDrawerSessionRowBackground());
 
-        if (shouldEnableDarkTheme) {
-            sessionRowView.setBackground(
-                ContextCompat.getDrawable(mActivity, R.drawable.session_background_black_selected)
-            );
-        }
+        View accentView = sessionRowView.findViewById(R.id.session_accent);
+        boolean isCurrentSession = sessionAtRow == mActivity.getCurrentSession();
+        accentView.setBackgroundColor(isCurrentSession
+            ? mActivity.getDrawerAccentColor() : Color.TRANSPARENT);
+
+        final int foregroundColor = mActivity.getDrawerForegroundColor();
+        final int secondaryColor = mActivity.getDrawerSecondaryTextColor();
 
         String name = sessionAtRow.mSessionName;
         String sessionTitle = sessionAtRow.getTitle();
@@ -99,8 +100,8 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
         } else {
             sessionTitleView.setPaintFlags(sessionTitleView.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
         }
-        int defaultColor = shouldEnableDarkTheme ? Color.WHITE : Color.BLACK;
-        int color = sessionRunning || sessionAtRow.getExitStatus() == 0 ? defaultColor : Color.RED;
+        int color = sessionRunning || sessionAtRow.getExitStatus() == 0
+            ? (sessionRunning ? foregroundColor : secondaryColor) : Color.RED;
         sessionTitleView.setTextColor(color);
 
         // Show the info about the session below the title, like the pid and the name of the foreground
@@ -108,7 +109,7 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
         String sessionDetails = getSessionDetails(sessionAtRow);
         sessionDetailsView.setText(sessionDetails);
         sessionDetailsView.setVisibility(sessionDetails == null ? View.GONE : View.VISIBLE);
-        sessionDetailsView.setTextColor((color & 0x00FFFFFF) | 0xB0000000);
+        sessionDetailsView.setTextColor(secondaryColor);
         return sessionRowView;
     }
 

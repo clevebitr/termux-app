@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A notification card with an accent bar and a badge. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M3,6h18v2h-18zM3,16h18v2h-18zM3,6h2v12h-2zM19,6h2v12h-2zM5,8h2v8h-2zM9,9h8v2h-8zM9,13h5v2h-5zM17,2h5v5h-5z" />
+</vector>
