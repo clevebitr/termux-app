@@ -1028,6 +1028,7 @@ notification-position = top-end     # top-end | top-start | bottom-end | bottom-
 notification-max-visible = 3        # 1–8，超出的先关最旧的一条
 notification-duration = 2000        # 毫秒，0 = 不自动关闭（上限 120000）
 notification-width = 0              # dp，0 = 自适应（上限 320dp）
+notification-font-size = 13          # sp，标题字号（正文 -1sp、详情 -2.5sp，9–24）
 notification-corner-radius = 0       # dp，0 = 直角（TUI 像素风默认）
 notification-elevation = 0           # dp，0 = 无阴影（平铺）
 notification-border-width = 1        # dp，整卡描边宽度，0 = 不描边
