@@ -940,3 +940,37 @@ M9 顺序调整：先修质量漏洞，再做新功能（用户要求）。本�
   这样可以先设比例再让 `updateLayout()` 一次把方向和可见性一起应用。
 * 单测：`TerminalSplitScreenControllerTest` 2 个（clamp 边界）。Bundle 的读写没法在普通单测里测
   （Robolectric 在本机跑不起来，见 #44），所以真机验收项写进 FORK.md 的「尚未真机验证」。
+
+## 2026-10-29 — M9 搜索增强：统一走 Pattern 的三种匹配模式 + TerminalSearchPreferences（历史/开关）
+
+三项：大小写敏感、正则开关、最近搜索词历史。
+
+**匹配层（terminal-emulator）**：`TerminalBuffer.findAllMatches(query)` 保留（字面量 + 忽略大小写，
+现有测试不动），新增 `findAllMatches(query, caseSensitive, regex)`。实现改成**统一走 `Pattern`**：
+字面量用 `Pattern.quote()`，默认加 `CASE_INSENSITIVE | UNICODE_CASE`，正则直接用；一次编译、逐逻辑行
+`Matcher` 迭代。相比原来的「整行逐字符小写 + indexOf」：
+* 好处是三种模式一条代码路径，跨行/宽字符/列映射逻辑完全复用；
+* 保留了「先裁掉行尾空格」的规则，所以正则也不会把 padding 当内容；
+* 空匹配（`x*` 这类能匹配空串的正则）直接跳过并 `from = end + 1` 前进，否则 `Matcher.find()` 会在同一
+  位置反复返回零宽匹配 → 死循环；
+* `PatternSyntaxException` 捕获后返回空列表（用户在边打边搜，不能抛）。
+
+**视图层（terminal-view）**：`TerminalView` 记住 `mSearchCaseSensitive/mSearchRegex/mSearchRegexInvalid`，
+`setSearchOptions()` 变更时会用新选项重跑当前查询；resize 后的重排路径本来就调 `setSearchQuery(mSearchQuery)`，
+所以选项自动沿用。无效正则额外预编译一次来判断（双份编译，用户触发，可接受），让 UI 能区分
+「没有匹配」和「正则写错了」。
+
+**UI 层（app）**：搜索栏加了 `Aa` / `.*` / 时钟（历史）三个控件，并把原先前/后/关闭按钮的 `minWidth`
+从 40dp 收到 36dp，六个控件在 360dp 屏上仍放得下。开关没有现成的选中态样式，就用
+`setSelected() + alpha(0.4/1.0) + 加粗` 表示（不新增 selector drawable，也就不会踩 `?attr` 在 minSdk 21
+上的兼容问题）。历史用 `AlertDialog#setItems`，选中后填入输入框并重搜。
+
+**历史存储**：`TerminalSearchPreferences` 用独立 SharedPreferences 文件 `termux-terminal-search`，
+查询列表存成**单个换行分隔字符串**（输入框是单行，换行只可能来自粘贴 → 存的时候替换成空格）。
+列表逻辑写成静态纯函数（`addQuery` / `splitHistory` / `joinHistory`）并单测 8 个：
+去重（大小写不敏感）、移到队首、10 条上限、空/空白忽略、换行净化、往返一致、脏文件容错。
+**踩坑**：一开始用了 `String.join()`，那是 **API 26** 才有，minSdk 21 会 `NoSuchMethodError` → 改 StringBuilder。
+两个开关也顺手一起持久化在这个文件里（用户不用每次重开）。
+
+验证：terminal-emulator 236 个、app 97 个单测全绿（唯一失败仍是本机 Robolectric 那个老问题，见 #44）；
+新增 `TerminalBufferSearchTest` 6 个（大小写、正则、`.` 在非正则模式是字面量、无效正则、空匹配跳过、跨行正则）。

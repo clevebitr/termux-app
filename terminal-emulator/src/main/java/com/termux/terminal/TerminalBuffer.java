@@ -7,6 +7,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.HashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import android.graphics.Bitmap;
 import android.graphics.Rect;
@@ -436,10 +439,31 @@ public final class TerminalBuffer {
      * are returned.
      */
     public List<SearchMatch> findAllMatches(String query) {
+        return findAllMatches(query, false, false);
+    }
+
+    /**
+     * Find all non-overlapping matches of {@code query} in the screen and the transcript, sorted by row
+     * and then column. A match that spans multiple rows because of line wrapping is returned as one
+     * {@link SearchMatch} per row. At most {@link #MAX_SEARCH_MATCHES} matches are returned.
+     *
+     * @param query The text to search for, which is a literal when {@code regex} is {@code false}.
+     * @param caseSensitive Whether the case of the text and of the query must match.
+     * @param regex Whether {@code query} is a regular expression, in which case an invalid one matches
+     *              nothing instead of throwing, since the query is typed by the user.
+     */
+    public List<SearchMatch> findAllMatches(String query, boolean caseSensitive, boolean regex) {
         if (query == null || query.isEmpty()) return Collections.emptyList();
 
-        char[] needle = new char[query.length()];
-        for (int i = 0; i < needle.length; i++) needle[i] = Character.toLowerCase(query.charAt(i));
+        Pattern pattern;
+        try {
+            int flags = caseSensitive ? 0 : Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE;
+            pattern = Pattern.compile(regex ? query : Pattern.quote(query), flags);
+        } catch (PatternSyntaxException e) {
+            // An invalid regular expression matches nothing, which also keeps the search from failing
+            // while the user is still typing it.
+            return Collections.emptyList();
+        }
 
         List<SearchMatch> matches = new ArrayList<>();
         SearchableLine line = new SearchableLine();
@@ -478,32 +502,33 @@ public final class TerminalBuffer {
             }
             row = lastRow + 1;
 
-            findMatchesInLine(line, needle, matches);
+            findMatchesInLine(line, pattern, matches);
         }
 
         return matches;
     }
 
-    /** Find the matches of {@code needle} in the logical {@code line}, ignoring case, and add them to {@code matches}. */
-    private static void findMatchesInLine(SearchableLine line, char[] needle, List<SearchMatch> matches) {
+    /** Find the matches of the compiled {@code pattern} in the logical {@code line} and add them to {@code matches}. */
+    private static void findMatchesInLine(SearchableLine line, Pattern pattern, List<SearchMatch> matches) {
         // Rows are padded with spaces to the full width when they are cleared, so the trailing spaces
         // must be ignored, otherwise a query that ends with a space would match the padding of a row.
         int length = line.count;
         while (length > 0 && line.text.charAt(length - 1) == ' ') length--;
-        if (length < needle.length) return;
+        if (length == 0) return;
 
-        // Lowercase character by character instead of using String.toLowerCase(), since that may
-        // change the length of the text and break the mapping of characters to columns.
-        char[] lowered = new char[length];
-        for (int i = 0; i < length; i++) lowered[i] = Character.toLowerCase(line.text.charAt(i));
-        String loweredText = new String(lowered);
-        String loweredNeedle = new String(needle);
-
+        Matcher matcher = pattern.matcher(line.text.substring(0, length));
         int from = 0;
-        while (from <= length - needle.length) {
-            int matchIndex = loweredText.indexOf(loweredNeedle, from);
-            if (matchIndex < 0) return;
-            int matchEnd = matchIndex + needle.length;
+        while (from <= length && matches.size() < MAX_SEARCH_MATCHES) {
+            if (!matcher.find(from)) return;
+            int matchIndex = matcher.start();
+            int matchEnd = matcher.end();
+            // A regular expression can match an empty range, which would only produce a zero width
+            // highlight, so it is skipped. The search continues after it, since the matcher would
+            // otherwise never leave the empty match behind.
+            if (matchEnd == matchIndex) {
+                from = matchEnd + 1;
+                continue;
+            }
 
             // A match may span multiple rows if the line was wrapped, in which case one range per
             // row is added, since the rows are drawn separately.

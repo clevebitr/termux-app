@@ -460,6 +460,14 @@
     <string name="action_search_previous_symbol" translatable="false">\u2191</string>
     <string name="action_search_next_symbol" translatable="false">\u2193</string>
     <string name="action_search_close_symbol" translatable="false">\u2715</string>
+    <string name="action_search_case_sensitive">Match case</string>
+    <string name="action_search_regex">Regular expression</string>
+    <string name="action_search_history">Recent searches</string>
+    <string name="action_search_case_sensitive_symbol" translatable="false">Aa</string>
+    <string name="action_search_regex_symbol" translatable="false">.*</string>
+    <string name="action_search_invalid_regex">Invalid regex</string>
+    <string name="action_search_history_title">Recent searches</string>
+    <string name="action_search_history_empty">No recent searches yet</string>
 
 
     <!-- Terminal View Preferences -->

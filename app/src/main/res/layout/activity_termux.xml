@@ -220,6 +220,38 @@
                 android:textColorHint="?android:attr/textColorHint"
                 android:textSize="14sp" />
 
+            <Button
+                android:id="@+id/terminal_search_case_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_search_case_sensitive"
+                android:minWidth="36dp"
+                android:padding="0dp"
+                android:text="@string/action_search_case_sensitive_symbol"
+                android:textSize="13sp" />
+
+            <Button
+                android:id="@+id/terminal_search_regex_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/action_search_regex"
+                android:minWidth="36dp"
+                android:padding="0dp"
+                android:text="@string/action_search_regex_symbol"
+                android:textSize="13sp" />
+
+            <ImageButton
+                android:id="@+id/terminal_search_history_button"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:contentDescription="@string/action_search_history"
+                android:padding="6dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_search_history" />
+
             <TextView
                 android:id="@+id/terminal_search_results"
                 android:layout_width="wrap_content"
@@ -234,7 +266,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:contentDescription="@string/action_search_previous"
-                android:minWidth="40dp"
+                android:minWidth="36dp"
                 android:padding="0dp"
                 android:text="@string/action_search_previous_symbol" />
 
@@ -244,7 +276,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:contentDescription="@string/action_search_next"
-                android:minWidth="40dp"
+                android:minWidth="36dp"
                 android:padding="0dp"
                 android:text="@string/action_search_next_symbol" />
 
@@ -254,7 +286,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:contentDescription="@string/action_search_close"
-                android:minWidth="40dp"
+                android:minWidth="36dp"
                 android:padding="0dp"
                 android:text="@string/action_search_close_symbol" />
 

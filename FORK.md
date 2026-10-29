@@ -29,7 +29,7 @@
 | 12 | 额外按键右上角显示上滑备用键 | `extra-keys-popup-hints`（设置页有开关） | **开**（唯一一个默认打开的新属性，见 §12 说明） |
 | 13 | Gboard 风格的按键块背景（圆角块 + 2dp 间隙） | `extra-keys-tile-background`；颜色 `extra-keys-tile-background-color` / `extra-keys-tile-active-background-color`（设置页有开关 + 调色板） | **开**，颜色跟随配色方案 |
 | 14 | 终端内边距（类似 Windows Terminal 的 padding） | `terminal-padding-top` / `-bottom` / `-left` / `-right`（dp，0–100，设置页有 4 个滑条） | 0（关闭） |
-| 15 | 终端内搜索（回滚历史里查找，全部匹配高亮 + 上下跳转） | 长按菜单 → 搜索；`Ctrl+Alt+F` | 按需打开 |
+| 15 | 终端内搜索（回滚历史里查找，全部匹配高亮 + 上下跳转；大小写 / 正则开关 + 最近搜索词） | 长按菜单 → 搜索；`Ctrl+Alt+F` | 按需打开 |
 | 16 | OSC 52 剪贴板（可禁止写入 / 允许程序读取剪贴板） | `terminal-osc52-clipboard`（`write` / `read-write` / `off`，设置页有下拉） | `write`（与上游一致） |
 | 17 | 命令标记（OSC 133）：跳转上/下一条命令、右边缘刻度、失败通知（v2 集成额外上报执行的命令行） | 设置页安装 shell 集成（写入 `~/.bashrc`/`~/.zshrc`） | 需手动安装集成，未安装时无任何变化 |
 | 18 | 分屏（上下 / 左右，可拖动分隔条，两个独立会话） | 长按菜单 → 分屏 | 默认关闭 |
@@ -735,8 +735,15 @@ terminal-padding-right=8
 
 * **打开方式**：长按终端 → 菜单中选择 **搜索**（菜单也可以 `Ctrl+Alt+M` 打开）；
   外接键盘直接按 **`Ctrl+Alt+F`**。
-* 输入框边输边搜（**忽略大小写**），所有匹配都会高亮，当前匹配用更深的橙色标出，
-  右下角显示 `当前/总数`。
+* 输入框边输边搜（默认**忽略大小写**），所有匹配都会高亮，当前匹配用更深的橙色标出，
+  右侧显示 `当前/总数`。
+* **大小写开关**：工具栏里的 `Aa` 按钮（按下时加粗、不透明）切换区分大小写。
+* **正则开关**：`.*` 按钮切换「查询按正则解释」。开启时支持 `Pattern` 的全部语法，错误的正则不会
+  崩也不会卡住：右侧显示「正则无效」，匹配数为 0，边打边改即可；能匹配空串的正则（如 `x*`）会跳过
+  零宽匹配，避免死循环。
+* **最近搜索**：工具栏最右的时钟图标打开最近 10 条的列表，点一条直接填入并重新搜索；查询在按下
+  Enter/↑/↓ 或关闭搜索栏时记为一条（大小写不同视为同一条），存在独立的
+  `termux-terminal-search` SharedPreferences 里（不污染主配置文件）。没有历史时按钮变灰。
 * 初始会跳到**最近**的一个匹配（通常就是屏幕上看到的那个），按 `↑` / `↓`（或键盘 Enter）
   在匹配间前后跳转并**循环**，视图会自动滚到匹配所在行（包括 transcript 里的行）。
 * 按返回键关闭搜索栏（不会退出 App），高亮同时清除。
@@ -744,16 +751,20 @@ terminal-padding-right=8
 
 限制：
 
-* 只做字面量匹配，不支持正则；最多返回 5000 个匹配（防止极端情况下卡顿）。
+* 最多返回 5000 个匹配（防止极端情况下卡顿）；正则由用户输入，恶意/灾难性回溯的表达式仍可能在
+  极长的逻辑行上耗时（只影响搜索本身，不影响终端输出）。
 * 搜索的是**逻辑行**：自动换行的行会被拼起来，所以跨行的长路径/URL 也能搜到，跨行匹配会拆成
   每行一段分别高亮。
 * 搜索栏是覆盖在终端顶部的浮层（不改变终端行列数，不会触发 `SIGWINCH`）。
 
-实现位置：`TerminalBuffer.findAllMatches()` / `SearchMatch`（逐逻辑行匹配、按行列排序、大小写折叠用
-逐字符 `Character.toLowerCase()` 保证列映射不被长度变化破坏）、`TerminalRenderer.setSearchHighlights()`
+实现位置：`TerminalBuffer.findAllMatches(query, caseSensitive, regex)` / `SearchMatch`（逐逻辑行匹配，
+字面量走 `Pattern.quote()`、默认 `CASE_INSENSITIVE|UNICODE_CASE`，按行列排序，字符索引到列的映射保持
+surrogate pair 正确）、`TerminalView.setSearchOptions()` / `isSearchRegexInvalid()`（选项与无效正则状态，
+resize 后重跑查询会沿用）、`TerminalSearchPreferences`（两个开关 + 最近 10 条查询的纯列表逻辑 + 存储）、
+`TerminalRenderer.setSearchHighlights()`
 （按行二分推进 + 文字之前画高亮矩形）、`TerminalView.setSearchQuery()` / `findNextSearchMatch()` /
 `clearSearch()`（resize 后重新匹配并保持当前匹配位置）、`activity_termux.xml` 的
-`terminal_search_bar`、`app/.../terminal/TerminalSearchController.java`（搜索栏的视图、查询、
+`terminal_search_bar`、`app/.../terminal/TerminalSearchController.java`（搜索栏的视图、查询、两个开关、历史列表、
 上一个/下一个匹配与 `2/7` 计数）、`TermuxActivity.showTerminalSearch()` / `hideTerminalSearch()`
 （转发给 controller）、`TermuxTerminalViewClient.onKeyDown()`（`Ctrl+Alt+F`）。
 
@@ -1488,7 +1499,8 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 ### 尚未真机验证
 
 * §11 音量键自定义动作、§14 终端内边距（视觉/触摸/选择手柄/软键盘光标）。
-* §15 搜索栏交互（软键盘、返回键、与长按选择共存）、§16 OSC 52 剪贴板读写。
+* §15 搜索栏交互（软键盘、返回键、与长按选择共存）、两个开关的手感与正则错误提示、历史列表
+  （填充/记录/10 条上限/重启后仍在）、§16 OSC 52 剪贴板读写。
 * §17 命令标记：右边缘刻度点击、失败提示（bash 集成逻辑本身已在本地用 `bash --norc -i` 验证过）。
 * §19 状态栏：占位/覆盖两种模式下的终端行列数与 `SIGWINCH`、设置页改完是否立即生效、`theme:` 配色是否
   跟随 Termux:Styling 换色、分段刷新间隔下的耗电与帧率、`/proc/stat` 不可用时的 CPU 回退值。
@@ -1506,10 +1518,10 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 ./gradlew :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :terminal-view:compileDebugJavaWithJavac
 ```
 
-app 单测 89 个（`NotificationConfig` 12、`TerminalMenuConfig` 14、`ExitCodeNotifier` 10、
+app 单测 97 个（`NotificationConfig` 12、`TerminalMenuConfig` 14、`ExitCodeNotifier` 10、
 `RecentNotifications` 6、`NotificationPolicy` 10、`OscRateLimiter` 4、`BackgroundNotificationRegistry` 5、
-`AppEventNotifier` 1、`TerminalMenuAction` 2、`TerminalSplitScreenController` 2、属性集合转换 6、
-状态栏 12、其它 5），terminal-emulator 230 个
+`AppEventNotifier` 1、`TerminalMenuAction` 2、`TerminalSplitScreenController` 2、`TerminalSearchPreferences` 8、
+属性集合转换 6、状态栏 12、其它 5），terminal-emulator 236 个
 （含 `TerminalNotificationTest` 的 `isEmpty` / 纯图标 3 个、assembler 的图标开关 1 个）。
 
 > 本机唯一的已知失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（Robolectric 在本机 Android 上

@@ -40,6 +40,8 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
 import java.util.List;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import com.termux.terminal.KeyHandler;
 import com.termux.terminal.TerminalBuffer;
@@ -111,6 +113,12 @@ public final class TerminalView extends View {
 
     /** The query of the current search, or {@code null} if no search is active. */
     private String mSearchQuery;
+    /** Whether the search matches the case of the text. */
+    private boolean mSearchCaseSensitive;
+    /** Whether the query of the search is a regular expression. */
+    private boolean mSearchRegex;
+    /** Whether the last query was an invalid regular expression, which matches nothing. */
+    private boolean mSearchRegexInvalid;
     /** The matches of {@link #mSearchQuery} in the screen and transcript, sorted by row and column. */
     private TerminalBuffer.SearchMatch[] mSearchMatches = new TerminalBuffer.SearchMatch[0];
     /** The index in {@link #mSearchMatches} of the match that is currently selected, or -1 if none is. */
@@ -1435,21 +1443,34 @@ public final class TerminalView extends View {
 
 
     /**
-     * Set the search query and highlight all of its matches in the screen and the transcript,
-     * ignoring case. The most recent match is selected and scrolled into view, since that is
-     * usually the one being looked for. Passing an empty query clears the search.
+     * Set the search query and highlight all of its matches in the screen and the transcript, with the
+     * options that were set with {@link #setSearchOptions(boolean, boolean)}. The most recent match is
+     * selected and scrolled into view, since that is usually the one being looked for. Passing an empty
+     * query clears the search.
      *
      * @param query The text to search for.
      * @return The number of matches found.
      */
     public int setSearchQuery(@Nullable String query) {
         mSearchQuery = (query == null || query.isEmpty()) ? null : query;
+        mSearchRegexInvalid = false;
         if (mSearchQuery == null || mEmulator == null) {
             clearSearch();
             return 0;
         }
 
-        List<TerminalBuffer.SearchMatch> matches = mEmulator.getScreen().findAllMatches(mSearchQuery);
+        if (mSearchRegex) {
+            try {
+                Pattern.compile(mSearchQuery);
+            } catch (PatternSyntaxException e) {
+                // The query is typed by the user, so an unfinished expression must not throw, it just
+                // matches nothing until it is valid.
+                mSearchRegexInvalid = true;
+            }
+        }
+
+        List<TerminalBuffer.SearchMatch> matches = mEmulator.getScreen().findAllMatches(
+            mSearchQuery, mSearchCaseSensitive, mSearchRegex);
         mSearchMatches = matches.toArray(new TerminalBuffer.SearchMatch[0]);
 
         int count = mSearchMatches.length;
@@ -1473,6 +1494,36 @@ public final class TerminalView extends View {
     /** @return The number of matches of the current search query, or 0 if no search is active. */
     public int getSearchMatchCount() {
         return mSearchMatches.length;
+    }
+
+    /**
+     * Set whether the search is case sensitive and whether its query is a regular expression, and apply
+     * the options to the current query again.
+     */
+    public void setSearchOptions(boolean caseSensitive, boolean regex) {
+        if (mSearchCaseSensitive == caseSensitive && mSearchRegex == regex) return;
+
+        mSearchCaseSensitive = caseSensitive;
+        mSearchRegex = regex;
+        if (mSearchQuery != null) setSearchQuery(mSearchQuery);
+    }
+
+    /** @return Whether the search matches the case of the text. */
+    public boolean isSearchCaseSensitive() {
+        return mSearchCaseSensitive;
+    }
+
+    /** @return Whether the query of the search is a regular expression. */
+    public boolean isSearchRegex() {
+        return mSearchRegex;
+    }
+
+    /**
+     * @return Whether the current query is an invalid regular expression, which the search bar shows to
+     *         the user instead of pretending that there are no matches.
+     */
+    public boolean isSearchRegexInvalid() {
+        return mSearchRegexInvalid;
     }
 
     /** @return The index of the currently selected search match, or -1 if none is selected. */
@@ -1506,6 +1557,7 @@ public final class TerminalView extends View {
     /** Clear the current search and its highlights. */
     public void clearSearch() {
         mSearchQuery = null;
+        mSearchRegexInvalid = false;
         mSearchMatches = new TerminalBuffer.SearchMatch[0];
         mSearchMatchIndex = -1;
         mSearchMatchRows = new int[0];

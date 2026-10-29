@@ -103,6 +103,83 @@ public class TerminalBufferSearchTest extends TerminalTestCase {
 		assertEquals(6, matches.get(0).endColumn);
 	}
 
+	public void testCaseSensitiveSearch() {
+		withTerminalSized(20, 3);
+		enterString("Hello HELLO hello");
+
+		List<TerminalBuffer.SearchMatch> matches = mTerminal.getScreen().findAllMatches("hello", true, false);
+		assertEquals(1, matches.size());
+		assertEquals(12, matches.get(0).startColumn);
+
+		matches = mTerminal.getScreen().findAllMatches("Hello", true, false);
+		assertEquals(1, matches.size());
+		assertEquals(0, matches.get(0).startColumn);
+
+		assertEquals(6, mTerminal.getScreen().findAllMatches("HELLO", true, false).get(0).startColumn);
+		assertEquals("The case insensitive search matches all three", 3,
+			mTerminal.getScreen().findAllMatches("HELLO", false, false).size());
+	}
+
+	public void testRegexSearch() {
+		withTerminalSized(20, 3);
+		enterString("a1 b2 c3");
+
+		// The regex is case insensitive like a literal query, unless the case sensitive option is set.
+		List<TerminalBuffer.SearchMatch> matches = mTerminal.getScreen().findAllMatches("[abc]\\d", false, true);
+		assertEquals(3, matches.size());
+		assertEquals(0, matches.get(0).startColumn);
+		assertEquals(3, matches.get(1).startColumn);
+		assertEquals(6, matches.get(2).startColumn);
+
+		// The regex is case insensitive too, unless the case sensitive option is set.
+		assertEquals(3, mTerminal.getScreen().findAllMatches("[ABC]", false, true).size());
+		assertEquals(0, mTerminal.getScreen().findAllMatches("[ABC]", true, true).size());
+		assertEquals(3, mTerminal.getScreen().findAllMatches("[A-C]", false, true).size());
+	}
+
+	public void testRegexSpecialCharactersAreLiteralsWithoutTheRegexOption() {
+		withTerminalSized(20, 3);
+		enterString("a.c abc");
+
+		List<TerminalBuffer.SearchMatch> matches = mTerminal.getScreen().findAllMatches("a.c");
+		assertEquals("The dot must not match any character by default", 1, matches.size());
+		assertEquals(0, matches.get(0).startColumn);
+
+		matches = mTerminal.getScreen().findAllMatches("a.c", false, true);
+		assertEquals(2, matches.size());
+	}
+
+	public void testInvalidRegexMatchesNothing() {
+		withTerminalSized(20, 3);
+		enterString("abc");
+
+		assertEquals(0, mTerminal.getScreen().findAllMatches("a(b", false, true).size());
+	}
+
+	public void testEmptyRegexMatchesAreSkipped() {
+		withTerminalSized(20, 3);
+		enterString("abc");
+
+		// A regex that can match nothing must neither hang the search nor produce a zero width match.
+		assertEquals(0, mTerminal.getScreen().findAllMatches("x*", false, true).size());
+	}
+
+	public void testRegexMatchSpanningWrappedLine() {
+		withTerminalSized(4, 2);
+		enterString("abcdef");
+		assertTrue(mTerminal.getScreen().getLineWrap(0));
+
+		// The wrapped rows are joined, so a regex can match text that was wrapped.
+		List<TerminalBuffer.SearchMatch> matches = mTerminal.getScreen().findAllMatches("c.e", false, true);
+		assertEquals(2, matches.size());
+		assertEquals(0, matches.get(0).row);
+		assertEquals(2, matches.get(0).startColumn);
+		assertEquals(4, matches.get(0).endColumn);
+		assertEquals(1, matches.get(1).row);
+		assertEquals(0, matches.get(1).startColumn);
+		assertEquals(1, matches.get(1).endColumn);
+	}
+
 	public void testMatchesAreSortedByRowAndColumn() {
 		withTerminalSized(10, 3);
 		enterString("x\r\nx x\r\nx");
