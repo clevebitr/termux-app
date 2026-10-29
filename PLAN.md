@@ -3,7 +3,7 @@
 > 由 `plan` 工具维护，请勿直接编辑。步骤级进度以 `todo` 工具为准；决策与踩坑写入 DECISIONS.md。
 
 <!-- plan-bridge:state -->
-current: M10
+current: 
 auto-breakpoint: false
 <!-- /plan-bridge:state -->
 
@@ -18,7 +18,7 @@ auto-breakpoint: false
 - [x] M7 — 音量键自定义动作（单击/长按，详见 #17）；代码已交付，真机未验证
 - [x] M8 — 终端内通知体系（详见 #20-#24）：
 - [x] M9 — 已交付：通知质量收尾/分屏持久化/搜索增强（#44-#46）
-- [ ] M10 — UI：抽屉配色/把手 + 设置分组（#47-#48）
+- [x] M10 — 已交付：抽屉配色/把手/概要 + 设置分组/搜索/长按默认（#47-#49）
 
   - M8.1 渲染层（卡片栈/配色/自动消失）
   - M8.2 失败命令通道 + shell 集成 v2（上报命令行/耗时/序列号）
@@ -31,7 +31,7 @@ auto-breakpoint: false
      通道判定/历史/后台分支、`AppEventNotifier`）+ 三个 P3 小问题（`getTitle(null)` 的 `%1$d`
      陷阱、只有图标没有标题的 OSC 通知、`notification-osc-icons=false` 时仍解码图标）
 
-## Current: M10 — UI：抽屉配色/把手 + 设置分组（#47-#48）
+## Current
 
-goal: M10 抽屉把手 + drawer-open-mode 已交付（#48）
-breakpoint: 抽屉把手已提交（0a21c77），等真机验手势排除；下一轮：顶部概要/长按恢复默认/设置内搜索
+goal: M10 全部交付：配色/把手/概要 + 设置分组/搜索/长按默认（#47-#49）
+breakpoint: 已推送 6 个提交（a6b27ac），等 CI + 真机验收 §10.4/§26
