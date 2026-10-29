@@ -432,6 +432,7 @@
     <!-- Terminal Search -->
     <string name="action_search_terminal">搜索</string>
     <string name="action_sessions_drawer">会话列表</string>
+    <string name="termux_drawer_summary_sessions">%1$d 个会话</string>
     <string name="action_search_terminal_hint">在终端中搜索</string>
     <string name="action_search_results">%1$d/%2$d</string>
     <string name="action_search_previous">上一个匹配</string>

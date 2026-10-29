@@ -50,6 +50,7 @@ import com.termux.app.statusbar.StatusBarView;
 import com.termux.app.terminal.DrawerColorUtils;
 import com.termux.app.terminal.DrawerConfig;
 import com.termux.app.terminal.DrawerHandleView;
+import com.termux.app.terminal.SessionDetails;
 import com.termux.app.terminal.TerminalSearchController;
 import com.termux.app.terminal.TerminalSplitScreenController;
 import com.termux.app.terminal.TermuxActivityRootView;
@@ -419,6 +420,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         getDrawer().addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
             @Override
             public void onDrawerOpened(@NonNull View drawerView) {
+                updateDrawerSummary();
                 if (mTermuxSessionListViewController != null)
                     mTermuxSessionListViewController.notifyDataSetChanged();
             }
@@ -889,6 +891,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (handle != null)
             handle.setHandleColor(DrawerColorUtils.withAlpha(mDrawerAccentColor, 0x66));
 
+        updateDrawerSummary();
+
         // The rows that are already laid out keep the colors of the previous color scheme, and the accent
         // strip of the current session may have moved to another row.
         if (mTermuxSessionListViewController != null)
@@ -934,6 +938,38 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, GravityCompat.START);
 
         drawer.openDrawer(GravityCompat.START);
+    }
+
+    /**
+     * Show a summary of the current session in the header of the sessions drawer, like the number of the
+     * sessions and the process and the working directory of the active one, so that the user can tell where
+     * they are before opening the drawer.
+     */
+    public void updateDrawerSummary() {
+        TextView summaryView = findViewById(R.id.drawer_summary);
+        if (summaryView == null) return;
+
+        TermuxService service = getTermuxService();
+        int sessionCount = service != null ? service.getTermuxSessionsSize() : 0;
+        if (sessionCount == 0) {
+            summaryView.setVisibility(View.GONE);
+            return;
+        }
+
+        List<String> parts = new ArrayList<>();
+        parts.add(getString(R.string.termux_drawer_summary_sessions, sessionCount));
+
+        TerminalSession session = getCurrentSession();
+        if (session != null) {
+            int pid = session.getPid();
+            String processName = SessionDetails.getForegroundProcessName(pid);
+            if (processName != null) parts.add(processName);
+            String workingDirectory = SessionDetails.getWorkingDirectory(pid);
+            if (workingDirectory != null) parts.add(workingDirectory);
+        }
+
+        summaryView.setText(SessionDetails.join(parts, " " + getString(R.string.termux_drawer_summary_separator) + " "));
+        summaryView.setVisibility(View.VISIBLE);
     }
 
     /** @return The background color of the sessions drawer, which follows the terminal color scheme. */

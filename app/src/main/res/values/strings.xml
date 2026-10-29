@@ -460,6 +460,8 @@
     <!-- Terminal Search -->
     <string name="action_search_terminal">Search</string>
     <string name="action_sessions_drawer">Sessions</string>
+    <string name="termux_drawer_summary_sessions">%1$d sessions</string>
+    <string name="termux_drawer_summary_separator" translatable="false">\u00b7</string>
     <string name="action_search_terminal_hint">Search terminal</string>
     <string name="action_search_results">%1$d/%2$d</string>
     <string name="action_search_previous">Previous match</string>

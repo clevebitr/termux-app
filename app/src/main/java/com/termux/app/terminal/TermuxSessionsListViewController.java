@@ -37,9 +37,6 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
     final StyleSpan boldSpan = new StyleSpan(Typeface.BOLD);
     final StyleSpan italicSpan = new StyleSpan(Typeface.ITALIC);
 
-    /** The maximum number of bytes to read from the files of a process for the session details. */
-    private static final int PROCESS_FILE_MAX_READ_SIZE = 4096;
-
     public TermuxSessionsListViewController(TermuxActivity activity, List<TermuxSession> sessionList) {
         super(activity.getApplicationContext(), R.layout.item_terminal_sessions_list, sessionList);
         this.mActivity = activity;
@@ -126,107 +123,10 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
         List<String> details = new ArrayList<>();
         details.add(mActivity.getString(R.string.termux_session_details_pid, pid));
 
-        String foregroundProcessName = getForegroundProcessName(pid);
-        if (foregroundProcessName != null) details.add(foregroundProcessName);
+        String shortDetails = SessionDetails.getShortDetails(pid);
+        if (shortDetails != null) details.add(shortDetails);
 
-        String currentWorkingDirectory = getCurrentWorkingDirectory(pid);
-        if (currentWorkingDirectory != null) details.add(currentWorkingDirectory);
-
-        return TextUtils.join(" · ", details);
-    }
-
-    /**
-     * Get the name of the foreground process of the terminal of the session, which is the process that
-     * the terminal device of the session is attached to, or {@code null} if it cannot be read.
-     */
-    @Nullable
-    private static String getForegroundProcessName(int pid) {
-        try {
-            // The foreground process group of the terminal is the `tpgid` field of the stat file, which is
-            // the 8th field, but the name in the 2nd field may contain spaces and is surrounded by
-            // parentheses, so the fields after it are parsed from the end of the name instead.
-            String stat = readProcessFile(pid, "stat");
-            if (stat == null) return null;
-
-            int nameEndIndex = stat.lastIndexOf(')');
-            if (nameEndIndex < 0 || nameEndIndex + 2 >= stat.length()) return null;
-
-            // The fields after the name start with the state field, so `tpgid` is the 6th field.
-            String[] fieldsAfterName = stat.substring(nameEndIndex + 2).split(" ");
-            if (fieldsAfterName.length < 6) return null;
-
-            int foregroundProcessGroup = Integer.parseInt(fieldsAfterName[5]);
-            // The value is -1 if the process is not attached to a terminal, in which case the shell is used.
-            int foregroundPid = foregroundProcessGroup > 0 ? foregroundProcessGroup : pid;
-
-            String processName = getProcessName(foregroundPid);
-            return processName != null ? processName : getProcessName(pid);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /** Get the name of the process, or {@code null} if it cannot be read. */
-    @Nullable
-    private static String getProcessName(int pid) {
-        // The command line contains the executable and its arguments separated by NUL characters, but it is
-        // empty for kernel threads, in which case the name is read from the comm file instead.
-        String cmdline = readProcessFile(pid, "cmdline");
-        if (cmdline != null && !cmdline.isEmpty()) {
-            int argumentEndIndex = cmdline.indexOf('\0');
-            String executable = argumentEndIndex >= 0 ? cmdline.substring(0, argumentEndIndex) : cmdline;
-            if (!executable.isEmpty()) {
-                int pathSeparatorIndex = executable.lastIndexOf('/');
-                return pathSeparatorIndex >= 0 ? executable.substring(pathSeparatorIndex + 1) : executable;
-            }
-        }
-
-        String comm = readProcessFile(pid, "comm");
-        return comm != null && !comm.isEmpty() ? comm.trim() : null;
-    }
-
-    /**
-     * Get the current working directory of the process, with the home directory of the app shortened to
-     * {@code ~}, or {@code null} if it cannot be read.
-     */
-    @Nullable
-    private static String getCurrentWorkingDirectory(int pid) {
-        try {
-            String currentWorkingDirectory = new File(getProcessFilePath(pid, "cwd")).getCanonicalPath();
-
-            String homeDirectory = TermuxConstants.TERMUX_HOME_DIR_PATH;
-            if (currentWorkingDirectory.equals(homeDirectory)) return "~";
-            if (currentWorkingDirectory.startsWith(homeDirectory + "/"))
-                return "~" + currentWorkingDirectory.substring(homeDirectory.length());
-
-            return currentWorkingDirectory;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static String getProcessFilePath(int pid, @NonNull String fileName) {
-        return "/proc/" + pid + "/" + fileName;
-    }
-
-    /**
-     * Read the contents of the {@code fileName} of the process, or {@code null} if it cannot be read, like
-     * if the process does not exist anymore or access to it is not granted.
-     */
-    @Nullable
-    private static String readProcessFile(int pid, @NonNull String fileName) {
-        File processFile = new File(getProcessFilePath(pid, fileName));
-        if (!processFile.isFile() || !processFile.canRead()) return null;
-
-        try (InputStream in = new FileInputStream(processFile)) {
-            byte[] buffer = new byte[PROCESS_FILE_MAX_READ_SIZE];
-            int length = in.read(buffer);
-            if (length <= 0) return null;
-
-            return new String(buffer, 0, length, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return null;
-        }
+        return SessionDetails.join(details, " · ");
     }
 
     @Override
