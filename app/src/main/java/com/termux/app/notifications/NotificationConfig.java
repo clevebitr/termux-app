@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.logger.Logger;
+import com.termux.app.properties.ForkProperties;
 import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 
 import java.util.ArrayList;
@@ -248,9 +249,9 @@ public final class NotificationConfig {
         NotificationConfig config = new NotificationConfig();
         if (properties == null) properties = new Properties();
 
-        config.enabled = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ENABLED, false);
+        config.enabled = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ENABLED, false);
 
-        String position = getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_POSITION, POSITION_TOP_END).trim().toLowerCase(Locale.ROOT);
+        String position = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_POSITION, POSITION_TOP_END).trim().toLowerCase(Locale.ROOT);
         if (!POSITIONS.contains(position)) {
             Logger.logWarn(LOG_TAG, "Invalid value \"" + position + "\" for the \""
                 + TermuxPropertyConstants.KEY_NOTIFICATION_POSITION + "\" property, supported values: " + POSITIONS + ", using \"" + POSITION_TOP_END + "\" instead");
@@ -258,44 +259,44 @@ public final class NotificationConfig {
         }
         config.position = position;
 
-        config.maxVisible = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_MAX_VISIBLE,
+        config.maxVisible = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_NOTIFICATION_MAX_VISIBLE,
             DEFAULT_MAX_VISIBLE, MIN_MAX_VISIBLE, MAX_MAX_VISIBLE);
-        config.durationMs = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_DURATION,
+        config.durationMs = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_NOTIFICATION_DURATION,
             DEFAULT_DURATION_MS, MIN_DURATION_MS, MAX_DURATION_MS);
-        config.widthDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_WIDTH,
+        config.widthDp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_NOTIFICATION_WIDTH,
             WIDTH_AUTO, MIN_WIDTH_DP, MAX_WIDTH_DP);
-        config.fontSizeSp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_FONT_SIZE,
+        config.fontSizeSp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_NOTIFICATION_FONT_SIZE,
             DEFAULT_FONT_SIZE_SP, MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP);
-        config.cornerRadiusDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_CORNER_RADIUS,
+        config.cornerRadiusDp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_NOTIFICATION_CORNER_RADIUS,
             DEFAULT_CORNER_RADIUS_DP, MIN_CORNER_RADIUS_DP, MAX_CORNER_RADIUS_DP);
-        config.elevationDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ELEVATION,
+        config.elevationDp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_NOTIFICATION_ELEVATION,
             DEFAULT_ELEVATION_DP, MIN_ELEVATION_DP, MAX_ELEVATION_DP);
-        config.borderWidthDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_BORDER_WIDTH,
+        config.borderWidthDp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_NOTIFICATION_BORDER_WIDTH,
             DEFAULT_BORDER_WIDTH_DP, MIN_BORDER_WIDTH_DP, MAX_BORDER_WIDTH_DP);
-        config.accentWidthDp = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ACCENT_WIDTH,
+        config.accentWidthDp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_NOTIFICATION_ACCENT_WIDTH,
             DEFAULT_ACCENT_WIDTH_DP, MIN_ACCENT_WIDTH_DP, MAX_ACCENT_WIDTH_DP);
-        config.monospace = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_MONOSPACE, true);
-        config.bodyMaxLines = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_BODY_MAX_LINES,
+        config.monospace = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_MONOSPACE, true);
+        config.bodyMaxLines = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_NOTIFICATION_BODY_MAX_LINES,
             DEFAULT_BODY_MAX_LINES, MIN_BODY_MAX_LINES, MAX_BODY_MAX_LINES);
 
-        config.backgroundColor = getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_BACKGROUND_COLOR, "").trim();
-        config.foregroundColor = getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_FOREGROUND_COLOR, "").trim();
-        config.accentFailureColor = getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ACCENT_FAILURE_COLOR, "").trim();
-        config.accentSuccessColor = getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ACCENT_SUCCESS_COLOR, "").trim();
-        config.accentWarningColor = getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ACCENT_WARNING_COLOR, "").trim();
-        config.accentInfoColor = getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ACCENT_INFO_COLOR, "").trim();
+        config.backgroundColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_BACKGROUND_COLOR, "").trim();
+        config.foregroundColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_FOREGROUND_COLOR, "").trim();
+        config.accentFailureColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ACCENT_FAILURE_COLOR, "").trim();
+        config.accentSuccessColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ACCENT_SUCCESS_COLOR, "").trim();
+        config.accentWarningColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ACCENT_WARNING_COLOR, "").trim();
+        config.accentInfoColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_ACCENT_INFO_COLOR, "").trim();
 
-        config.exitCodeEnabled = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_EXIT_CODE_ENABLED, true);
-        config.exitCodeShowCwd = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_EXIT_CODE_SHOW_CWD, true);
-        config.exitCodeShowSession = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_EXIT_CODE_SHOW_SESSION, true);
-        config.exitCodeMinDurationSeconds = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_EXIT_CODE_MIN_DURATION,
+        config.exitCodeEnabled = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_EXIT_CODE_ENABLED, true);
+        config.exitCodeShowCwd = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_EXIT_CODE_SHOW_CWD, true);
+        config.exitCodeShowSession = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_EXIT_CODE_SHOW_SESSION, true);
+        config.exitCodeMinDurationSeconds = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_NOTIFICATION_EXIT_CODE_MIN_DURATION,
             DEFAULT_MIN_DURATION_SECONDS, MIN_MIN_DURATION_SECONDS, MAX_MIN_DURATION_SECONDS);
-        config.exitCodeIgnoreCommands.addAll(getList(properties,
+        config.exitCodeIgnoreCommands.addAll(ForkProperties.getList(properties,
             TermuxPropertyConstants.KEY_NOTIFICATION_EXIT_CODE_IGNORE_COMMANDS, DEFAULT_EXIT_CODE_IGNORE_COMMANDS));
 
-        config.eventsEnabled = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_EVENTS_ENABLED, false);
-        String events = getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_EVENTS, DEFAULT_EVENTS);
-        for (String eventId : getList(events)) {
+        config.eventsEnabled = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_EVENTS_ENABLED, false);
+        String events = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_NOTIFICATION_EVENTS, DEFAULT_EVENTS);
+        for (String eventId : ForkProperties.parseList(events)) {
             if (!EVENT_IDS.contains(eventId)) {
                 Logger.logWarn(LOG_TAG, "Ignoring unknown value \"" + eventId + "\" for the \""
                     + TermuxPropertyConstants.KEY_NOTIFICATION_EVENTS + "\" property, supported values: " + EVENT_IDS);
@@ -304,64 +305,18 @@ public final class NotificationConfig {
             if (!config.events.contains(eventId)) config.events.add(eventId);
         }
 
-        config.oscEnabled = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_ENABLED, false);
-        config.oscAllowApp.addAll(getList(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_ALLOW_APP, ""));
-        config.oscReportClick = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_REPORT_CLICK, true);
-        config.oscIcons = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_ICONS, false);
-        config.oscRateLimit = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_RATE_LIMIT,
+        config.oscEnabled = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_ENABLED, false);
+        config.oscAllowApp.addAll(ForkProperties.getList(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_ALLOW_APP, ""));
+        config.oscReportClick = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_REPORT_CLICK, true);
+        config.oscIcons = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_ICONS, false);
+        config.oscRateLimit = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_NOTIFICATION_OSC_RATE_LIMIT,
             DEFAULT_OSC_RATE_LIMIT, MIN_OSC_RATE_LIMIT, MAX_OSC_RATE_LIMIT);
 
-        config.backgroundEnabled = getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_BACKGROUND_ENABLED, false);
-        config.historySize = getInt(properties, TermuxPropertyConstants.KEY_NOTIFICATION_HISTORY_SIZE,
+        config.backgroundEnabled = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_NOTIFICATION_BACKGROUND_ENABLED, false);
+        config.historySize = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_NOTIFICATION_HISTORY_SIZE,
             DEFAULT_HISTORY_SIZE, MIN_HISTORY_SIZE, MAX_HISTORY_SIZE);
 
         return config;
     }
 
-    /** @return The comma separated values of the {@code key} property, in lower case and without duplicates. */
-    @NonNull
-    private static List<String> getList(@NonNull Properties properties, @NonNull String key, @NonNull String defaultValue) {
-        String value = properties.getProperty(key);
-        return getList(value == null ? defaultValue : value);
-    }
-
-    /** @return The comma separated {@code value}, in lower case and without duplicates. */
-    @NonNull
-    private static List<String> getList(@Nullable String value) {
-        List<String> list = new ArrayList<>();
-        if (DataUtils.isNullOrEmpty(value)) return list;
-
-        for (String item : value.split(",")) {
-            item = item.trim().toLowerCase(Locale.ROOT);
-            if (item.isEmpty() || list.contains(item)) continue;
-            list.add(item);
-        }
-
-        return list;
-    }
-
-    @NonNull
-    private static String getString(@NonNull Properties properties, @NonNull String key, @NonNull String defaultValue) {
-        String value = properties.getProperty(key);
-        return value == null ? defaultValue : value;
-    }
-
-    private static boolean getBoolean(@NonNull Properties properties, @NonNull String key, boolean defaultValue) {
-        String value = properties.getProperty(key);
-        if (DataUtils.isNullOrEmpty(value)) return defaultValue;
-        return Boolean.parseBoolean(value.trim());
-    }
-
-    private static int getInt(@NonNull Properties properties, @NonNull String key, int defaultValue, int min, int max) {
-        String value = properties.getProperty(key);
-        if (DataUtils.isNullOrEmpty(value)) return defaultValue;
-
-        int intValue = DataUtils.getIntFromString(value, defaultValue);
-        if (intValue < min || intValue > max) {
-            Logger.logWarn(LOG_TAG, "The value \"" + value + "\" for the \"" + key + "\" property is out of range [" + min + ", " + max + "], using default value \"" + defaultValue + "\"");
-            return defaultValue;
-        }
-
-        return intValue;
-    }
 }

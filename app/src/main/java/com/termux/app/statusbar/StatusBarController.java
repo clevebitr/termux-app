@@ -9,7 +9,7 @@ import androidx.annotation.Nullable;
 
 import com.termux.app.TermuxActivity;
 import com.termux.shared.logger.Logger;
-import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
+import com.termux.app.properties.ForkProperties;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -85,9 +85,7 @@ public class StatusBarController {
         // properties must be read from disk directly, otherwise the status bar always gets the
         // default values and never shows up. Reloads are rare (activity start and styling changes),
         // so reading the file here is fine.
-        Properties properties = null;
-        TermuxAppSharedProperties sharedProperties = TermuxAppSharedProperties.getProperties();
-        if (sharedProperties != null) properties = sharedProperties.getProperties(false);
+        Properties properties = ForkProperties.readTermuxProperties();
 
         mConfig = StatusBarConfig.parse(properties);
 

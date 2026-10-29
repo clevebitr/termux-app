@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.logger.Logger;
+import com.termux.app.properties.ForkProperties;
 import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 import com.termux.view.textselection.TextSelectionCursorController;
 
@@ -104,7 +105,7 @@ public final class TerminalMenuConfig {
         if (properties == null) properties = new Properties();
 
         String menuItems = properties.getProperty(TermuxPropertyConstants.KEY_TERMINAL_MENU_ITEMS, DEFAULT_MENU_ITEMS);
-        for (String id : split(menuItems)) {
+        for (String id : ForkProperties.parseList(menuItems)) {
             TerminalMenuAction action = TerminalMenuAction.valueOfId(id);
             if (action == null) {
                 Logger.logWarn(LOG_TAG, "Ignoring unknown value \"" + id + "\" for the \""
@@ -117,7 +118,7 @@ public final class TerminalMenuConfig {
 
         String selectionItems = properties.getProperty(TermuxPropertyConstants.KEY_TERMINAL_MENU_SELECTION_TOOLBAR_ITEMS,
             DEFAULT_SELECTION_TOOLBAR_ITEMS);
-        for (String id : split(selectionItems)) {
+        for (String id : ForkProperties.parseList(selectionItems)) {
             int action = getSelectionToolbarAction(id);
             if (action == 0) {
                 Logger.logWarn(LOG_TAG, "Ignoring unknown value \"" + id + "\" for the \""
@@ -133,17 +134,17 @@ public final class TerminalMenuConfig {
         if (config.selectionToolbarActions.isEmpty())
             config.selectionToolbarActions.addAll(getDefaultSelectionToolbarActions());
 
-        config.fontSizeSp = getInt(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_FONT_SIZE,
+        config.fontSizeSp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_FONT_SIZE,
             DEFAULT_FONT_SIZE_SP, MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP);
-        config.cornerRadiusDp = getInt(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_CORNER_RADIUS,
+        config.cornerRadiusDp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_CORNER_RADIUS,
             DEFAULT_CORNER_RADIUS_DP, MIN_CORNER_RADIUS_DP, MAX_CORNER_RADIUS_DP);
-        config.borderWidthDp = getInt(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_BORDER_WIDTH,
+        config.borderWidthDp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_BORDER_WIDTH,
             DEFAULT_BORDER_WIDTH_DP, MIN_BORDER_WIDTH_DP, MAX_BORDER_WIDTH_DP);
-        config.monospace = getBoolean(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_MONOSPACE, true);
-        config.showIcons = getBoolean(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_SHOW_ICONS, true);
-        config.backgroundColor = getString(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_BACKGROUND_COLOR, "").trim();
-        config.foregroundColor = getString(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_FOREGROUND_COLOR, "").trim();
-        config.accentColor = getString(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_ACCENT_COLOR, "").trim();
+        config.monospace = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_MONOSPACE, true);
+        config.showIcons = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_SHOW_ICONS, true);
+        config.backgroundColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_BACKGROUND_COLOR, "").trim();
+        config.foregroundColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_FOREGROUND_COLOR, "").trim();
+        config.accentColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_ACCENT_COLOR, "").trim();
 
         return config;
     }
@@ -182,43 +183,4 @@ public final class TerminalMenuConfig {
         return builder.toString();
     }
 
-    /** @return The comma separated {@code value}, in lower case, without duplicates and empty values. */
-    @NonNull
-    private static List<String> split(@Nullable String value) {
-        List<String> list = new ArrayList<>();
-        if (DataUtils.isNullOrEmpty(value)) return list;
-
-        for (String item : value.split(",")) {
-            item = item.trim().toLowerCase(Locale.ROOT);
-            if (item.isEmpty() || list.contains(item)) continue;
-            list.add(item);
-        }
-
-        return list;
-    }
-
-    @NonNull
-    private static String getString(@NonNull Properties properties, @NonNull String key, @NonNull String defaultValue) {
-        String value = properties.getProperty(key);
-        return value == null ? defaultValue : value;
-    }
-
-    private static boolean getBoolean(@NonNull Properties properties, @NonNull String key, boolean defaultValue) {
-        String value = properties.getProperty(key);
-        if (DataUtils.isNullOrEmpty(value)) return defaultValue;
-        return Boolean.parseBoolean(value.trim());
-    }
-
-    private static int getInt(@NonNull Properties properties, @NonNull String key, int defaultValue, int min, int max) {
-        String value = properties.getProperty(key);
-        if (DataUtils.isNullOrEmpty(value)) return defaultValue;
-
-        int intValue = DataUtils.getIntFromString(value, defaultValue);
-        if (intValue < min || intValue > max) {
-            Logger.logWarn(LOG_TAG, "The value \"" + value + "\" for the \"" + key + "\" property is out of range [" + min + ", " + max + "], using default value \"" + defaultValue + "\"");
-            return defaultValue;
-        }
-
-        return intValue;
-    }
 }

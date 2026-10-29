@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.logger.Logger;
+import com.termux.app.properties.ForkProperties;
 import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 
 import java.util.ArrayList;
@@ -214,32 +215,32 @@ public final class StatusBarConfig {
         StatusBarConfig config = new StatusBarConfig();
         if (properties == null) properties = new Properties();
 
-        config.enabled = getBoolean(properties, TermuxPropertyConstants.KEY_STATUS_BAR_ENABLED, false);
+        config.enabled = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_STATUS_BAR_ENABLED, false);
         config.positionBottom = POSITION_BOTTOM.equalsIgnoreCase(
-            getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_POSITION, POSITION_TOP).trim());
-        config.overlay = getBoolean(properties, TermuxPropertyConstants.KEY_STATUS_BAR_OVERLAY, false);
-        config.heightDp = getInt(properties, TermuxPropertyConstants.KEY_STATUS_BAR_HEIGHT,
+            ForkProperties.getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_POSITION, POSITION_TOP).trim());
+        config.overlay = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_STATUS_BAR_OVERLAY, false);
+        config.heightDp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_STATUS_BAR_HEIGHT,
             DEFAULT_HEIGHT_DP, MIN_HEIGHT_DP, MAX_HEIGHT_DP);
-        config.fontSizeSp = getInt(properties, TermuxPropertyConstants.KEY_STATUS_BAR_FONT_SIZE,
+        config.fontSizeSp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_STATUS_BAR_FONT_SIZE,
             DEFAULT_FONT_SIZE_SP, MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP);
-        config.paddingHorizontalDp = getInt(properties, TermuxPropertyConstants.KEY_STATUS_BAR_PADDING_HORIZONTAL,
+        config.paddingHorizontalDp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_STATUS_BAR_PADDING_HORIZONTAL,
             DEFAULT_PADDING_HORIZONTAL_DP, MIN_PADDING_HORIZONTAL_DP, MAX_PADDING_HORIZONTAL_DP);
 
-        String separator = getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_SEPARATOR, DEFAULT_SEPARATOR);
+        String separator = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_SEPARATOR, DEFAULT_SEPARATOR);
         // A `\t`, `\n` or `\\` in the property value is stored escaped in the properties file.
         config.separator = unescape(separator);
 
-        String align = getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_ALIGN, ALIGN_START).trim();
+        String align = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_ALIGN, ALIGN_START).trim();
         if (!ALIGN_CENTER.equals(align) && !ALIGN_END.equals(align)) align = ALIGN_START;
         config.align = align;
 
-        config.backgroundColor = getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_BACKGROUND_COLOR, "").trim();
-        config.foregroundColor = getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_FOREGROUND_COLOR, "").trim();
-        config.showIcons = getBoolean(properties, TermuxPropertyConstants.KEY_STATUS_BAR_SHOW_ICONS, true);
+        config.backgroundColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_BACKGROUND_COLOR, "").trim();
+        config.foregroundColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_FOREGROUND_COLOR, "").trim();
+        config.showIcons = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_STATUS_BAR_SHOW_ICONS, true);
         config.iconsAtEnd = "end".equalsIgnoreCase(
-            getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_ICONS_POSITION, "start").trim());
+            ForkProperties.getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_ICONS_POSITION, "start").trim());
 
-        String enabledSegments = getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENTS, DEFAULT_SEGMENTS);
+        String enabledSegments = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENTS, DEFAULT_SEGMENTS);
         for (String segmentId : enabledSegments.split(",")) {
             segmentId = segmentId.trim().toLowerCase();
             if (segmentId.isEmpty()) continue;
@@ -261,21 +262,21 @@ public final class StatusBarConfig {
     private static Segment parseSegment(@NonNull Properties properties, @NonNull String segmentId) {
         String keyPrefix = TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_PREFIX + segmentId + "-";
 
-        if (!getBoolean(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_ENABLED, true))
+        if (!ForkProperties.getBoolean(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_ENABLED, true))
             return null;
 
         Segment segment = new Segment(segmentId);
 
-        String format = getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_FORMAT, null);
+        String format = ForkProperties.getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_FORMAT, null);
         if (format != null && !format.isEmpty()) segment.format = format;
 
-        String label = getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_LABEL, null);
+        String label = ForkProperties.getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_LABEL, null);
         if (label != null) segment.label = label;
 
-        String color = getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_COLOR, null);
+        String color = ForkProperties.getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_COLOR, null);
         if (color != null) segment.color = color.trim();
 
-        String style = getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_STYLE, null);
+        String style = ForkProperties.getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_STYLE, null);
         if (style != null) {
             style = style.trim();
             if (STYLE_CHART.equals(style) || STYLE_TEXT_CHART.equals(style) || STYLE_TEXT.equals(style))
@@ -284,18 +285,18 @@ public final class StatusBarConfig {
                 Logger.logWarn(LOG_TAG, "Invalid style \"" + style + "\" for the \"" + segmentId + "\" status bar segment, using \"" + segment.style + "\" instead");
         }
 
-        String action = getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_ACTION, null);
+        String action = ForkProperties.getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_ACTION, null);
         if (action != null) segment.action = action.trim();
 
-        String interval = getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_INTERVAL, null);
+        String interval = ForkProperties.getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_INTERVAL, null);
         if (interval != null)
-            segment.intervalMs = getInt(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_INTERVAL,
+            segment.intervalMs = ForkProperties.getInt(LOG_TAG, properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_INTERVAL,
                 segment.intervalMs, MIN_REFRESH_INTERVAL_MS, MAX_REFRESH_INTERVAL_MS);
 
-        segment.warnAbove = getDouble(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_WARN_ABOVE);
-        segment.warnBelow = getDouble(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_WARN_BELOW);
+        segment.warnAbove = ForkProperties.getDouble(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_WARN_ABOVE);
+        segment.warnBelow = ForkProperties.getDouble(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_WARN_BELOW);
 
-        String warnColor = getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_WARN_COLOR, null);
+        String warnColor = ForkProperties.getString(properties, keyPrefix + TermuxPropertyConstants.KEY_STATUS_BAR_SEGMENT_SUFFIX_WARN_COLOR, null);
         if (warnColor != null) segment.warnColor = warnColor.trim();
 
         return segment;
@@ -308,45 +309,6 @@ public final class StatusBarConfig {
         return false;
     }
 
-    @Nullable
-    private static String getString(@NonNull Properties properties, @NonNull String key, @Nullable String defaultValue) {
-        String value = properties.getProperty(key);
-        return value == null ? defaultValue : value;
-    }
-
-    private static boolean getBoolean(@NonNull Properties properties, @NonNull String key, boolean defaultValue) {
-        String value = properties.getProperty(key);
-        if (DataUtils.isNullOrEmpty(value)) return defaultValue;
-        return Boolean.parseBoolean(value.trim());
-    }
-
-    private static int getInt(@NonNull Properties properties, @NonNull String key, int defaultValue, int min, int max) {
-        String value = properties.getProperty(key);
-        if (DataUtils.isNullOrEmpty(value)) return defaultValue;
-
-        int intValue = DataUtils.getIntFromString(value, defaultValue);
-        if (intValue < min || intValue > max) {
-            Logger.logWarn(LOG_TAG, "The value \"" + value + "\" for the \"" + key + "\" property is out of range [" + min + ", " + max + "], using default value \"" + defaultValue + "\"");
-            return defaultValue;
-        }
-
-        return intValue;
-    }
-
-    @Nullable
-    private static Double getDouble(@NonNull Properties properties, @NonNull String key) {
-        String value = properties.getProperty(key);
-        if (DataUtils.isNullOrEmpty(value)) return null;
-
-        try {
-            return Double.parseDouble(value.trim());
-        } catch (NumberFormatException e) {
-            Logger.logWarn(LOG_TAG, "Invalid number \"" + value + "\" for the \"" + key + "\" property, ignoring it");
-            return null;
-        }
-    }
-
-    /** Replace the escape sequences that the properties file format uses with the actual characters. */
     @NonNull
     private static String unescape(@NonNull String value) {
         if (value.indexOf('\\') < 0) return value;

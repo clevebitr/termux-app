@@ -7,7 +7,7 @@ import androidx.annotation.Nullable;
 
 import com.termux.app.TermuxActivity;
 import com.termux.shared.logger.Logger;
-import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
+import com.termux.app.properties.ForkProperties;
 import com.termux.terminal.TerminalNotification;
 
 import java.util.ArrayDeque;
@@ -157,9 +157,7 @@ public final class TerminalNotificationManager {
      * fine.
      */
     public void reload() {
-        Properties properties = null;
-        TermuxAppSharedProperties sharedProperties = TermuxAppSharedProperties.getProperties();
-        if (sharedProperties != null) properties = sharedProperties.getProperties(false);
+        Properties properties = ForkProperties.readTermuxProperties();
 
         mConfig = NotificationConfig.parse(properties);
         mOverlay.applyConfig(mConfig);

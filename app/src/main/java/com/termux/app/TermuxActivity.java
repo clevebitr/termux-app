@@ -41,6 +41,7 @@ import android.widget.Toast;
 import com.termux.R;
 import com.termux.app.api.file.FileReceiverActivity;
 import com.termux.app.notifications.NotificationConfig;
+import com.termux.app.properties.ForkProperties;
 import com.termux.app.notifications.NotificationOverlayView;
 import com.termux.app.notifications.RecentNotifications;
 import com.termux.app.notifications.RecentNotificationsDialog;
@@ -1318,11 +1319,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /** Reload the configuration of the terminal context menu and of the text selection toolbar. */
     private void reloadTerminalMenuConfig() {
-        Properties properties = null;
-        TermuxAppSharedProperties sharedProperties = TermuxAppSharedProperties.getProperties();
-        if (sharedProperties != null) properties = sharedProperties.getProperties(false);
-
-        mTerminalMenuConfig = TerminalMenuConfig.parse(properties);
+        mTerminalMenuConfig = TerminalMenuConfig.parse(ForkProperties.readTermuxProperties());
     }
 
     /** @return The configuration of the terminal context menu and of the text selection toolbar. */
