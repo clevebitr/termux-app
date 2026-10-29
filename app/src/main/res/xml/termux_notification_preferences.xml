@@ -149,6 +149,7 @@
             app:title="@string/termux_notification_events_enabled_title" />
 
         <MultiSelectListPreference
+            android:defaultValue="@array/termux_notification_event_values"
             app:entries="@array/termux_notification_event_entries"
             app:entryValues="@array/termux_notification_event_values"
             app:key="notification-events"

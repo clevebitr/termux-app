@@ -832,3 +832,35 @@ CI 的 `Unit tests` 工作流其实也跑 `:app:lintDebug`，M8.5 第一次提�
 另外本轮复核还修了 3 个 P1：通知渠道名 i18n、`OrderedItemsPreference` 的列表概要在绑定期间读磁盘
 （改为缓存 + 对话框确认后失效）、`OSC 99 ; p=alive` 应答漏掉后台通知的 id。
 
+## 2026-10-30 — 崩溃：`getStringSet()` 返回 null 会让 `MultiSelectListPreference` 崩
+
+真机打开「设置 → 通知」直接崩溃：
+
+```
+java.lang.NullPointerException: Attempt to invoke interface method 'java.util.Iterator
+java.util.Collection.iterator()' on a null object reference
+  at java.util.AbstractCollection.addAll(AbstractCollection.java:335)
+  at androidx.preference.MultiSelectListPreference.setValues(MultiSelectListPreference.java:149)
+  at androidx.preference.MultiSelectListPreference.onSetInitialValue(...)
+  at com.termux.app.fragments.settings.termux.NotificationPreferencesFragment.onCreatePreferences(...)
+```
+
+根因：我给 `TermuxPropertyPreferenceDataStore` 补的 `getStringSet()` 在「属性不存在 + 没有 `defValues`」
+时返回了 `null`。`PreferenceDataStore` 的契约允许返回 null，但
+**`MultiSelectListPreference.setValues()` 会直接 `mValues.addAll(values)`**，null 就 NPE（androidx 的坑）。
+XML 里那条「事件多选」既没写 `app:defaultValue`，属性也还没被写过，于是两条都命中。
+
+修法（三处，缺一不可）：
+1. `getStringSet()` **永远不返回 null**，兜底 `new LinkedHashSet<>()`。
+2. XML 补 `android:defaultValue="@array/termux_notification_event_values"`（`MultiSelectListPreference`
+   的默认值解析走 `TypedArray.getTextArray()`，支持 `@array/` 引用），否则界面「一个都没勾」而实际配置是
+   「四个全开」，看着像配置没生效。
+3. 区分**「属性为空」与「属性不存在」**：`getTermuxPropertyValue()` 对 `key=` 返回 `""`、对没有的键返回
+   `null`。所以 `getStringSet()` 里 `value != null` → 解析（空串 = 用户全取消），否则才用默认值；
+   `putStringSet()` 在集合为空时**写空值**（`key=`）而不是注释掉键，否则「全取消」会被解读成
+   「没配过 → 用默认值 → 四个又全开」。
+
+顺带：`joinStringSet/splitStringSet` 改成包内可见并补了 6 个单测（排序稳定性、空集合→空串、null→null、
+去重、往返）。教训：**给 `PreferenceDataStore` 加新方法时，要按「最坏情况返回 null」去查调用方**——
+`Preference` 全家桶里只有 `MultiSelectListPreference` 对 null 不设防。
+

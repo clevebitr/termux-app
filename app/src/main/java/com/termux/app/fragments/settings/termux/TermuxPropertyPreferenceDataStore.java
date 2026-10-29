@@ -94,17 +94,31 @@ abstract class TermuxPropertyPreferenceDataStore extends PreferenceDataStore {
 
     @Override
     public void putStringSet(String key, @Nullable Set<String> values) {
+        // An empty set is written as an empty value instead of commenting the property out, since a
+        // commented out property would make the configuration use its default value again, which may
+        // select some items, like all of the notification events.
         String value = joinStringSet(values);
         if (isLastReadValue(key, value)) return;
 
         setTermuxPropertyValue(key, value);
     }
 
-    @Nullable
+    @NonNull
     @Override
     public Set<String> getStringSet(String key, @Nullable Set<String> defValues) {
+        // A property that exists but is empty means that the user selected nothing, while a property that
+        // does not exist at all means that the default value of the preference is used.
         String value = TermuxSharedProperties.getTermuxPropertyValue(mContext, key);
-        Set<String> values = DataUtils.isNullOrEmpty(value) ? defValues : splitStringSet(value);
+
+        Set<String> values;
+        if (value != null)
+            values = splitStringSet(value);
+        else if (defValues != null)
+            values = defValues;
+        else
+            // Never return null, since MultiSelectListPreference.setValues() passes the value to
+            // Set.addAll(), which crashes with a NullPointerException instead of treating it as empty.
+            values = new LinkedHashSet<>();
 
         setLastReadValue(key, joinStringSet(values));
         return values;
@@ -128,11 +142,13 @@ abstract class TermuxPropertyPreferenceDataStore extends PreferenceDataStore {
 
     /**
      * @return The comma separated {@code values}, sorted so that the comparison with the value that was
-     *         read is stable no matter the iteration order of the set, or {@code null} if it is empty.
+     *         read is stable no matter the iteration order of the set, an empty string if the set is
+     *         empty, or {@code null} if there is no set at all, which comments the property out.
      */
     @Nullable
-    private static String joinStringSet(@Nullable Set<String> values) {
-        if (values == null || values.isEmpty()) return null;
+    static String joinStringSet(@Nullable Set<String> values) {
+        if (values == null) return null;
+        if (values.isEmpty()) return "";
 
         List<String> sortedValues = new ArrayList<>(values);
         Collections.sort(sortedValues);
@@ -144,12 +160,12 @@ abstract class TermuxPropertyPreferenceDataStore extends PreferenceDataStore {
             joined.append(value);
         }
 
-        return joined.length() == 0 ? null : joined.toString();
+        return joined.toString();
     }
 
     /** @return The values of the comma separated {@code value}. */
     @NonNull
-    private static Set<String> splitStringSet(@NonNull String value) {
+    static Set<String> splitStringSet(@NonNull String value) {
         Set<String> values = new LinkedHashSet<>();
         for (String item : value.split(",")) {
             item = item.trim();
