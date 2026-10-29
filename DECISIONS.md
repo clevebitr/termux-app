@@ -792,3 +792,19 @@ ActionMode 会把禁用项直接隐藏**而不是画成灰色，于是粘贴整�
 6. **抽出 `TerminalDialogStyles`**：菜单对话框和最近通知对话框需要同一套「直角 + 1dp 描边 + 行按下高亮 +
    等宽文字 + `theme:` 配色」，原本要在两处各写一遍；抽成 helper 后 `TerminalMenuDialog` 也改为复用它。
 
+## 2026-10-30 — CI lint 挂了两个 NewApi：`areNotificationsEnabled()` 与 `FLAG_IMMUTABLE`
+
+CI 的 `Unit tests` 工作流其实也跑 `:app:lintDebug`，M8.5 第一次提交就挂在这上面（本地因为 NDK 跑不了 lint，
+没有提前发现）：
+
+1. `NotificationManager.areNotificationsEnabled()` 是 **API 24**，而 minSdk 是 21 →
+   必须用 `NotificationManagerCompat.from(context).areNotificationsEnabled()`（androidx 兼容实现）。
+2. `PendingIntent.FLAG_IMMUTABLE` 是 **API 23**。它是编译期常量，运行时不会崩，但 lint 仍会报 NewApi
+   （targetSdk 28 也不强制要求 immutable）→ 改成
+   `if (SDK_INT >= M) flags |= FLAG_IMMUTABLE;`。
+
+教训：**新增代码里凡是 `NotificationManager` / `PendingIntent` / `NotificationChannel` 这类带 API 级别门槛的
+调用，本地只能靠编译通过是不够的**——本机跑不了 lint（`:app:lintDebug` 会拉 NDK 的 x86_64 工具链），所以
+要么用 androidx 兼容类（`NotificationCompat` / `NotificationManagerCompat`），要么显式
+`Build.VERSION.SDK_INT` 判断，推之前自己过一遍。
+

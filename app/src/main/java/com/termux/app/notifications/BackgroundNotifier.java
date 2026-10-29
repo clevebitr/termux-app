@@ -9,6 +9,7 @@ import android.os.Build;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 
 import com.termux.R;
 import com.termux.app.TermuxActivity;
@@ -54,7 +55,9 @@ public final class BackgroundNotifier {
             (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
         if (notificationManager == null) return;
 
-        if (!notificationManager.areNotificationsEnabled()) {
+        // NotificationManagerCompat is used instead of NotificationManager, since the method that checks
+        // whether the notifications are enabled requires api level 24 on the latter.
+        if (!NotificationManagerCompat.from(mContext).areNotificationsEnabled()) {
             Logger.logVerbose(LOG_TAG, "Not posting a background notification, they are disabled for the app");
             return;
         }
@@ -66,8 +69,11 @@ public final class BackgroundNotifier {
         String text = notification.getTitle() != null ? notification.getBody() : null;
 
         Intent intent = TermuxActivity.newInstance(mContext);
-        PendingIntent pendingIntent = PendingIntent.getActivity(mContext, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        // The immutable flag is only available on api level 23, and is not required before api level 31.
+        int pendingIntentFlags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            pendingIntentFlags |= PendingIntent.FLAG_IMMUTABLE;
+        PendingIntent pendingIntent = PendingIntent.getActivity(mContext, 0, intent, pendingIntentFlags);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(mContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_terminal_notification)
