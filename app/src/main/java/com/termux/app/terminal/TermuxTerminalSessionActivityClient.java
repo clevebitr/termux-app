@@ -262,9 +262,21 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     public void onPasteTextFromClipboard(@Nullable TerminalSession session) {
         if (!mActivity.isVisible()) return;
 
+        // Paste into the terminal view of the session that asked for it, since the active pane may be a
+        // different one, like when the text was selected in the inactive pane of a split screen.
+        TerminalView terminalView = session != null ? mActivity.getTerminalViewForSession(session) : null;
+        if (terminalView == null) terminalView = mActivity.getTerminalView();
+        if (terminalView == null || terminalView.mEmulator == null) return;
+
         String text = ShareUtils.getTextStringFromClipboardIfSet(mActivity, true);
-        if (text != null)
-            mActivity.getTerminalView().mEmulator.paste(text);
+        if (text == null) {
+            // The paste action of the selection toolbar is always enabled, so the user must be told why
+            // nothing was pasted instead of getting no feedback at all.
+            mActivity.showToast(mActivity.getString(R.string.msg_clipboard_has_no_text), false);
+            return;
+        }
+
+        terminalView.mEmulator.paste(text);
     }
 
     @Override

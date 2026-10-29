@@ -1193,6 +1193,11 @@ selection-toolbar-items = copy,paste,more     # 默认；可用 id: copy / paste
 ```
 
 * 列表为空或全是未知 id 时**回退到默认三项**，否则用户就复制不了选中的文本了。
+* **粘贴项永远可用**（不再像上游那样按剪贴板是否为空置灰）：部分 ROM（实测 ColorOS/Oplus）的浮动
+  ActionMode 会把**禁用项直接隐藏**，导致「粘贴」整个消失；而且剪贴板内容可能在浮条显示期间变化。
+  剪贴板里确实没有文本时，点击会弹一句 toast「剪贴板里没有文本」而不是静默无反应。
+* 粘贴的目标是**发起粘贴的那个会话所在的窗格**（分屏时选中非活动窗格里的文字也粘对地方），
+  找不到窗格时才回退到当前活动窗格。
 * 浮条配色只能跟随 App 主题（`actionModeBackground` 是 XML drawable，拿不到运行时
   `colors.properties` 的颜色），这是系统限制；要完全跟随配色方案就得换成自制浮条（未做）。
 * 实现：`TerminalViewClient.getTextSelectionToolbarActions()`（默认返回三项）→

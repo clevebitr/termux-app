@@ -741,3 +741,18 @@ java.lang.IllegalStateException: Cannot call this method while RecyclerView is c
   `R$drawable` 都真实存在（classes2/3.dex 有引用），所以 `SelectionToolbarItemsPreference` 引用
   library R 是安全的。
 
+## 2026-10-29 — 选择浮条的「粘贴」消失：不要用 `setEnabled()` 门控 ActionMode 菜单项
+
+真机反馈「长按浮条没有粘贴」。原因：上游在 `onCreateActionMode()` 里用
+`clipboard.hasPrimaryClip()` 决定粘贴项是否 `setEnabled(...)`。**部分 ROM（本机是 ColorOS/Oplus）的浮动
+ActionMode 会把禁用项直接隐藏**而不是画成灰色，于是粘贴整个从浮条上消失；另外 Android 10+ 对剪贴板的
+访问在应用失焦时会受限，`hasPrimaryClip()` 在浮条创建的那一刻返回 false 也会造成同样的结果。
+
+修法：
+* 粘贴项**永远 enabled**（与复制一致），由点击回调决定能不能粘；剪贴板没有文本时
+  `onPasteTextFromClipboard()` 现在会 toast「剪贴板里没有文本」，不再静默——因为项一直是可点的，
+  静默会让人以为功能坏了。
+* 顺带修了分屏下粘错窗格的问题：粘贴目标改成 `getTerminalViewForSession(session)`，找不到才回退活动窗格
+  （上游无条件用 `getTerminalView()`，即当前活动窗格）。
+* 教训：**ActionMode / 菜单项的 `setEnabled(false)` 不能当作「隐藏」来用**，宁可保持可点 + 给出反馈。
+
