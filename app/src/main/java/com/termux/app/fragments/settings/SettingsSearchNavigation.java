@@ -47,7 +47,9 @@ public final class SettingsSearchNavigation {
             return;
         }
 
-        pagePreference.performClick();
+        // The same hook that androidx.preference calls when the user clicks the entry, which opens the page
+        // that the `fragment` attribute of the preference names.
+        source.onPreferenceTreeClick(pagePreference);
     }
 
     /** @return The preference of {@code group} that opens the page of {@code fragmentClassName}, or {@code null}. */

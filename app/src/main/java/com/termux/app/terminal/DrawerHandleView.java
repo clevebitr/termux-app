@@ -1,6 +1,5 @@
 package com.termux.app.terminal;
 
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -13,6 +12,7 @@ import android.view.ViewConfiguration;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 
 import com.termux.shared.view.ViewUtils;
 
@@ -176,7 +176,7 @@ public final class DrawerHandleView extends View {
         excludeFromSystemGestures(this, getWidth(), getHeight());
     }
 
-    @TargetApi(Build.VERSION_CODES.Q)
+    @RequiresApi(Build.VERSION_CODES.Q)
     private static void excludeFromSystemGestures(@NonNull View view, int width, int height) {
         view.setSystemGestureExclusionRects(Collections.singletonList(new Rect(0, 0, width, height)));
     }

@@ -1,5 +1,6 @@
 package com.termux.app.fragments.settings.termux;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -87,6 +88,9 @@ final class PreferenceResetUtils {
      * @return The preference that is shown at the location of {@code event}, or {@code null} if there is
      *         none, like when the touch is on the padding of the list.
      */
+    // `PreferenceGroupAdapter` is only restricted by convention (`@RestrictTo`), it is public at runtime,
+    // and it is the only way to map a row of the list to the preference that it shows.
+    @SuppressLint("RestrictedApi")
     @Nullable
     private static Preference getPreferenceAt(@NonNull RecyclerView recyclerView, float x, float y) {
         View child = recyclerView.findChildViewUnder(x, y);

@@ -7,6 +7,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.EditText;
 import android.widget.TextView;
 
@@ -50,7 +51,7 @@ public final class TerminalSearchController {
     @Nullable
     private Button mRegexButton;
     @Nullable
-    private Button mHistoryButton;
+    private ImageButton mHistoryButton;
 
     private boolean mCaseSensitive;
     private boolean mRegex;

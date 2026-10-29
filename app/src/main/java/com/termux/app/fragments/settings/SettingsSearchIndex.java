@@ -1,5 +1,6 @@
 package com.termux.app.fragments.settings;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Resources;
 import android.content.res.XmlResourceParser;
@@ -23,6 +24,7 @@ import org.xmlpull.v1.XmlPullParser;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * The index of the entries of the settings of the Termux app, which the search of the settings screen
@@ -159,6 +161,9 @@ public final class SettingsSearchIndex {
      * @return The text of {@code value}, which is resolved when it is a reference to a resource like
      *         {@code @string/...}, or {@code null} if it cannot be resolved.
      */
+    // A reference that the resource compiler left as a name can only be resolved by looking it up, which is
+    // the fallback for the case that the reference is not the id of the resource.
+    @SuppressLint("DiscouragedApi")
     @Nullable
     private static CharSequence resolve(@NonNull Context context, @Nullable String value) {
         if (value == null) return null;
@@ -199,7 +204,7 @@ public final class SettingsSearchIndex {
      */
     @NonNull
     public static List<Entry> search(@NonNull List<Entry> entries, @Nullable String query) {
-        String trimmedQuery = query == null ? "" : query.trim().toLowerCase();
+        String trimmedQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
         if (trimmedQuery.isEmpty()) return new ArrayList<>(entries);
 
         List<Entry> titleMatches = new ArrayList<>();
@@ -217,6 +222,6 @@ public final class SettingsSearchIndex {
     }
 
     private static boolean contains(@Nullable CharSequence text, @NonNull String lowerCaseQuery) {
-        return text != null && text.toString().toLowerCase().contains(lowerCaseQuery);
+        return text != null && text.toString().toLowerCase(Locale.ROOT).contains(lowerCaseQuery);
     }
 }
