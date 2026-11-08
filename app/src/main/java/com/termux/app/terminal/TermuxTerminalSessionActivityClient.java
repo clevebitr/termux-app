@@ -287,7 +287,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         if (terminalView == null || terminalView.mEmulator == null) return;
 
         String text = ShareUtils.getTextStringFromClipboardIfSet(mActivity, true);
-        if (text != null) terminalView.mEmulator.paste(text);
+        if (text != null) terminalView.pasteText(text);
     }
 
     @Override

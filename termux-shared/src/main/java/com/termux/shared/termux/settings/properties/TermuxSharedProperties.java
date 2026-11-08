@@ -880,6 +880,18 @@ public abstract class TermuxSharedProperties {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_SHELL_HISTORY_SYNC, true);
     }
 
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_KEEP_SCROLL_POSITION_ON_OUTPUT} boolean value.
+     *
+     * If enabled, the terminal view keeps the rows that are visible in the viewport when new output arrives
+     * while it is scrolled back into the transcript, so that the transcript can be read while a terminal
+     * program keeps writing, like a TUI that redraws itself. The view scrolls to the bottom again when the
+     * user scrolls to the bottom or writes to the terminal.
+     */
+    public boolean shouldKeepScrollPositionOnOutput() {
+        return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_KEEP_SCROLL_POSITION_ON_OUTPUT, true);
+    }
+
     public boolean isUsingCtrlSpaceWorkaround() {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_USE_CTRL_SPACE_WORKAROUND, true);
     }

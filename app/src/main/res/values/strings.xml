@@ -523,6 +523,16 @@
                     sessions that are open at the same time share it. It is applied to the bash sessions
                     when they are started, so open a new session and restart the running ones. (Default)</string>
 
+                <!-- Keep Scroll Position on Output -->
+                <string name="termux_terminal_view_keep_scroll_position_title">Keep Scroll Position while Output Arrives</string>
+                <string name="termux_terminal_view_keep_scroll_position_on">When the view is scrolled back
+                    into the transcript, new output does not scroll it to the bottom, so it can be read while
+                    a program keeps writing. It scrolls to the bottom again when the bottom is reached or when
+                    something is typed or pasted. (Default)</string>
+                <string name="termux_terminal_view_keep_scroll_position_off">Every new line of output
+                    scrolls the view to the bottom, so the transcript can only be read while the program is not
+                    writing anything. This is the behaviour of the upstream app.</string>
+
             <!-- Padding Category -->
             <string name="termux_terminal_view_padding_header">Terminal Padding</string>
             <string name="termux_terminal_view_padding_summary">In dp units, 0–100. Insets the

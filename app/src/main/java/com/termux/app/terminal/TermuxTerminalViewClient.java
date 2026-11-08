@@ -269,6 +269,11 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     }
 
     @Override
+    public boolean shouldKeepScrollPositionOnOutput() {
+        return mActivity.getProperties().shouldKeepScrollPositionOnOutput();
+    }
+
+    @Override
     public boolean shouldSwitchSessionOnSwipe() {
         return mActivity.getProperties().shouldSwitchSessionOnSwipe();
     }
@@ -1030,7 +1035,7 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
 
         String text = ShareUtils.getTextStringFromClipboardIfSet(mActivity, true);
         if (text != null)
-            session.getEmulator().paste(text);
+            mTerminalView.pasteText(text);
     }
 
 }

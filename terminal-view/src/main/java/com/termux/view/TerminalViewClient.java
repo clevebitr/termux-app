@@ -100,6 +100,18 @@ public interface TerminalViewClient {
      */
     boolean shouldTouchDragSendMouseDrag();
 
+    /**
+     * Whether the view should keep the rows that are visible in the viewport when new output arrives
+     * while it is scrolled back into the transcript, instead of scrolling to the bottom, so that the
+     * transcript can be read while a terminal program keeps writing, like a TUI that redraws itself.
+     *
+     * The view scrolls to the bottom again when the user scrolls to the bottom or writes to the
+     * terminal. A client that does not care can keep the default, which keeps the position.
+     */
+    default boolean shouldKeepScrollPositionOnOutput() {
+        return true;
+    }
+
     boolean isTerminalViewSelected();
 
 

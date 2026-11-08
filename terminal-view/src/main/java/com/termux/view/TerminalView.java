@@ -36,6 +36,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
 import android.widget.Scroller;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
@@ -731,14 +732,25 @@ public final class TerminalView extends View {
         }
 
         if (!skipScrolling && mTopRow != 0) {
-            // Scroll down if not already there.
-            if (mTopRow < -3) {
-                // Awaken scroll bars only if scrolling a noticeable amount
-                // - we do not want visible scroll bars during normal typing
-                // of one row at a time.
-                awakenScrollBars();
+            if (mClient.shouldKeepScrollPositionOnOutput()) {
+                // Keep the rows that are visible in the viewport stable while rows are added below them,
+                // so that the transcript can be read while a program keeps writing, like a TUI that
+                // redraws itself, instead of being scrolled to the bottom on every output. The view
+                // scrolls to the bottom again when the user scrolls to the bottom, which makes
+                // `mTopRow` 0, or writes to the terminal, see scrollToBottomOnInput().
+                setTopRow(Math.max(-rowsInHistory, Math.min(0, mTopRow - mEmulator.getScrollCounter())));
+                // Show the scrollbar, so that it is visible that the view is scrolled back and where it is.
+                if (mTopRow < -3) awakenScrollBars();
+            } else {
+                // Scroll down if not already there.
+                if (mTopRow < -3) {
+                    // Awaken scroll bars only if scrolling a noticeable amount
+                    // - we do not want visible scroll bars during normal typing
+                    // of one row at a time.
+                    awakenScrollBars();
+                }
+                setTopRow(0);
             }
-            setTopRow(0);
         }
 
         mEmulator.clearScrollCounter();
@@ -776,7 +788,7 @@ public final class TerminalView extends View {
         } else if (mTopRow != 0) {
             // Keep the rows that are visible in the viewport stable while rows are added below them,
             // the same way as onScreenUpdated() does when text is being selected.
-            setTopRow(Math.min(0, mTopRow - rowShift));
+            setTopRow(Math.max(-rowsInHistory, Math.min(0, mTopRow - rowShift)));
             if (isSelectingText() && rowShift > 0) decrementYTextSelectionCursors(rowShift);
         }
 
@@ -808,6 +820,28 @@ public final class TerminalView extends View {
         if (!mOutputRedrawPending) return;
         mOutputRedrawPending = false;
         removeCallbacks(mOutputRedrawRunnable);
+    }
+
+    /**
+     * Scroll to the bottom of the transcript and resume following the output.
+     *
+     * The view keeps the rows that are visible in the viewport when output arrives while it is scrolled
+     * back into the transcript, see {@link TerminalViewClient#shouldKeepScrollPositionOnOutput()}, so the
+     * view is scrolled to the bottom before the user writes to the terminal, since the echo of the input
+     * and the output of the command are shown at the bottom.
+     */
+    public void scrollToBottomOnInput() {
+        if (mTopRow != 0) setTopRow(0);
+    }
+
+    /**
+     * Paste {@code text} into the terminal of the session, after scrolling to the bottom so that the input
+     * is visible, see {@link #scrollToBottomOnInput()}.
+     */
+    public void pasteText(@NonNull String text) {
+        if (mEmulator == null) return;
+        scrollToBottomOnInput();
+        mEmulator.paste(text);
     }
 
     /**
@@ -971,7 +1005,7 @@ public final class TerminalView extends View {
                     ClipData.Item clipItem = clipData.getItemAt(0);
                     if (clipItem != null) {
                         CharSequence text = clipItem.coerceToText(getContext());
-                        if (!TextUtils.isEmpty(text)) mEmulator.paste(text.toString());
+                        if (!TextUtils.isEmpty(text)) pasteText(text.toString());
                     }
                 }
             } else if (mEmulator.isMouseTrackingActive()) { // BUTTON_PRIMARY.
@@ -1129,6 +1163,7 @@ public final class TerminalView extends View {
         } else if (event.isSystem() && (!mClient.shouldBackButtonBeMappedToEscape() || keyCode != KeyEvent.KEYCODE_BACK)) {
             return super.onKeyDown(keyCode, event);
         } else if (event.getAction() == KeyEvent.ACTION_MULTIPLE && keyCode == KeyEvent.KEYCODE_UNKNOWN) {
+            scrollToBottomOnInput();
             mTermSession.write(event.getCharacters());
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_LANGUAGE_SWITCH) {
@@ -1200,6 +1235,8 @@ public final class TerminalView extends View {
 
         if (mTermSession == null) return;
 
+        scrollToBottomOnInput();
+
         // Ensure cursor is shown when a key is pressed down like long hold on (arrow) keys
         if (mEmulator != null)
             mEmulator.setCursorBlinkState(true);
@@ -1269,6 +1306,7 @@ public final class TerminalView extends View {
         TerminalEmulator term = mTermSession.getEmulator();
         String code = KeyHandler.getCode(keyCode, keyMod, term.isCursorKeysApplicationMode(), term.isKeypadApplicationMode());
         if (code == null) return false;
+        scrollToBottomOnInput();
         mTermSession.write(code);
         return true;
     }

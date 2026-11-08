@@ -227,7 +227,12 @@ public final class TerminalEmulator {
     /** The number of terminal transcript rows that can be scrolled back to. */
     public static final int TERMINAL_TRANSCRIPT_ROWS_MIN = 100;
     public static final int TERMINAL_TRANSCRIPT_ROWS_MAX = 50000;
-    public static final int DEFAULT_TERMINAL_TRANSCRIPT_ROWS = 2000;
+    /**
+     * The default number of transcript rows, which is larger than the 2000 rows that upstream uses, since
+     * a long running program, like a TUI or a build log, fills 2000 rows quickly and the rows that are
+     * scrolled out are lost. Every row costs about 1KB with 80 columns, so this is about 5MB.
+     */
+    public static final int DEFAULT_TERMINAL_TRANSCRIPT_ROWS = 5000;
 
 
     /* The supported terminal cursor styles. */

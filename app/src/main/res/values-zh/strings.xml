@@ -488,6 +488,13 @@
                     所以关闭 App 也不会丢，同时开着的多个会话之间也能看到彼此的命令。只对启动时的 bash 会话生效，
                     改完请新开一个会话并重启正在运行的会话。（默认）</string>
 
+                <!-- Keep Scroll Position on Output -->
+                <string name="termux_terminal_view_keep_scroll_position_title">输出时保持滚动位置</string>
+                <string name="termux_terminal_view_keep_scroll_position_on">视图回滚到历史里以后，新输出不会把视图拽回底部，
+                    所以程序一直在写的时候也能翻历史看。手动滑回底部或输入/粘贴时才会回到底部。（默认）</string>
+                <string name="termux_terminal_view_keep_scroll_position_off">每来一行新输出就把视图拽回底部，
+                    所以只能在程序停下来的时候看历史。这是上游 App 的行为。</string>
+
             <!-- Padding Category -->
             <string name="termux_terminal_view_padding_header">终端内边距</string>
             <string name="termux_terminal_view_padding_summary">单位 dp，0–100。让终端内容与窗口边缘留白，
