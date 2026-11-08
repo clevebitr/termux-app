@@ -52,8 +52,19 @@ public final class StatusBarMetrics {
 
     /** The previous /proc/stat sample, `{idle, total}` jiffies, or null if not available. */
     @Nullable private long[] mPreviousProcStat;
+    /** The time the {@link #mPreviousProcStat} sample was taken, from {@link SystemClock#elapsedRealtime()}. */
+    private long mPreviousProcStatTime;
     /** Whether /proc/stat was readable on the last attempt, so that it is not read on every refresh. */
     private boolean mProcStatAvailable = true;
+
+    /**
+     * The minimum interval between two samples of the cpu usage and of the network traffic.
+     *
+     * A rate that is computed from two samples that were taken a few milliseconds apart is dominated by
+     * the rounding of the counters, so the previous sample is kept until it is this old. This matters when
+     * the status bar takes its first sample and then renders the segments right after it.
+     */
+    private static final long MIN_SAMPLE_INTERVAL_MS = 200;
 
     /** The previous network sample, `{rxBytes, txBytes, elapsedRealtime}`, or null. */
     @Nullable private long[] mPreviousNetworkSample;
@@ -195,13 +206,20 @@ public final class StatusBarMetrics {
             long[] procStat = readProcStat();
             if (procStat == null) {
                 mProcStatAvailable = false;
-            } else if (mPreviousProcStat != null) {
-                long totalDelta = procStat[1] - mPreviousProcStat[1];
-                long idleDelta = procStat[0] - mPreviousProcStat[0];
-                if (totalDelta > 0)
-                    cpu.percent = Math.max(0f, Math.min(100f, 100f * (totalDelta - idleDelta) / totalDelta));
+            } else {
+                long now = SystemClock.elapsedRealtime();
+                if (mPreviousProcStat == null) {
+                    mPreviousProcStat = procStat;
+                    mPreviousProcStatTime = now;
+                } else if (now - mPreviousProcStatTime >= MIN_SAMPLE_INTERVAL_MS) {
+                    long totalDelta = procStat[1] - mPreviousProcStat[1];
+                    long idleDelta = procStat[0] - mPreviousProcStat[0];
+                    if (totalDelta > 0)
+                        cpu.percent = Math.max(0f, Math.min(100f, 100f * (totalDelta - idleDelta) / totalDelta));
+                    mPreviousProcStat = procStat;
+                    mPreviousProcStatTime = now;
+                }
             }
-            mPreviousProcStat = procStat;
         }
 
         if (cpu.percent == UNKNOWN_PERCENT && cpu.averageFrequencyKHz > 0 && cpu.maxFrequencyKHz > 0)
@@ -282,12 +300,16 @@ public final class StatusBarMetrics {
         long now = SystemClock.elapsedRealtime();
         if (mPreviousNetworkSample != null) {
             long elapsed = now - mPreviousNetworkSample[2];
-            if (elapsed > 0) {
+            // The previous sample is kept until it is old enough to compute a rate from it, since a rate
+            // that is computed from two samples that are a few milliseconds apart would be a spike.
+            if (elapsed >= MIN_SAMPLE_INTERVAL_MS) {
                 network.rxRateBytesPerSecond = Math.max(0, (rxTotal - mPreviousNetworkSample[0]) * 1000 / elapsed);
                 network.txRateBytesPerSecond = Math.max(0, (txTotal - mPreviousNetworkSample[1]) * 1000 / elapsed);
+                mPreviousNetworkSample = new long[]{rxTotal, txTotal, now};
             }
+        } else {
+            mPreviousNetworkSample = new long[]{rxTotal, txTotal, now};
         }
-        mPreviousNetworkSample = new long[]{rxTotal, txTotal, now};
 
         return network;
     }

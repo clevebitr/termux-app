@@ -173,7 +173,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             // user probably consciously caused the title change in the current session and does not want
             // to be interrupted for that. The card is shown instead of the toast when the `title` event is
             // enabled, so that both are not shown for the same change.
-            if (!mAppEventNotifier.onTitleChanged(updatedSession))
+            if (!notifyTitleChangedSafely(updatedSession))
                 mActivity.showToast(toToastTitle(updatedSession), true);
         }
 
@@ -294,7 +294,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     public void onCommandFinished(@NonNull TerminalSession session, @NonNull TerminalCommandResult result) {
         // The notification cards are shown for the commands of all sessions, since the overlay is
         // shown over the whole terminal and the card says which session its command ran in.
-        if (mExitCodeNotifier.onCommandFinished(session, result)) return;
+        if (notifyCommandFinishedSafely(session, result)) return;
 
         // Fall back to the toast of the upstream app when the cards are disabled, which is only shown
         // for the current session since the user probably does not want to be interrupted by the
@@ -306,9 +306,42 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         mActivity.showToast(mActivity.getString(R.string.msg_command_failed, result.getExitCode()), false);
     }
 
+    /**
+     * Show the notification card of a finished command, without letting an exception escape into the
+     * terminal emulator.
+     *
+     * The emulator processes the output of the session on the main thread, so an exception that is thrown
+     * by one of the features that are hooked into it would crash the app and end the session. The cards are
+     * optional, so a failure is logged and the fallback of the app is used instead.
+     *
+     * @return Whether a card was shown for the command.
+     */
+    private boolean notifyCommandFinishedSafely(@NonNull TerminalSession session, @NonNull TerminalCommandResult result) {
+        try {
+            return mExitCodeNotifier.onCommandFinished(session, result);
+        } catch (Exception e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to show the notification card of the finished command", e);
+            return false;
+        }
+    }
+
+    /** Show the notification card of a title change, see {@link #notifyCommandFinishedSafely}. */
+    private boolean notifyTitleChangedSafely(@NonNull TerminalSession updatedSession) {
+        try {
+            return mAppEventNotifier.onTitleChanged(updatedSession);
+        } catch (Exception e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to show the notification card of the title change", e);
+            return false;
+        }
+    }
+
     @Override
     public void onTerminalNotification(@NonNull TerminalSession session, @NonNull TerminalNotification notification) {
-        mOscNotificationHandler.onTerminalNotification(session, notification);
+        try {
+            mOscNotificationHandler.onTerminalNotification(session, notification);
+        } catch (Exception e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to handle the OSC notification", e);
+        }
     }
 
     /**
@@ -323,12 +356,20 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
     @Override
     public void onOsc99Close(@NonNull TerminalSession session, @Nullable String id) {
-        mOscNotificationHandler.onOsc99Close(id);
+        try {
+            mOscNotificationHandler.onOsc99Close(id);
+        } catch (Exception e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to close the OSC notification", e);
+        }
     }
 
     @Override
     public void onOsc99AliveQuery(@NonNull TerminalSession session, @Nullable String id) {
-        mOscNotificationHandler.onOsc99AliveQuery(session, id);
+        try {
+            mOscNotificationHandler.onOsc99AliveQuery(session, id);
+        } catch (Exception e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to answer the OSC notification alive query", e);
+        }
     }
 
     @Override
@@ -337,8 +378,13 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
         // The card of a bell is only shown for the sessions that are not the current one, since a bell of
         // the current session is meant for the user that is looking at it anyway.
-        if (session != mActivity.getCurrentSession())
-            mAppEventNotifier.onBell(session);
+        if (session != mActivity.getCurrentSession()) {
+            try {
+                mAppEventNotifier.onBell(session);
+            } catch (Exception e) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Failed to show the notification card of the bell", e);
+            }
+        }
 
         switch (mActivity.getProperties().getBellBehaviour()) {
             case TermuxPropertyConstants.IVALUE_BELL_BEHAVIOUR_VIBRATE:

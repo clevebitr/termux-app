@@ -33,8 +33,10 @@ public class StatusBarController {
 
     private static final String LOG_TAG = "StatusBarController";
 
-    /** The interval of the handler that checks which segments are due to be refreshed. */
-    private static final long TICK_INTERVAL_MS = 200;
+    /** The minimum interval of the handler that refreshes the segments that are due. */
+    private static final long MIN_TICK_INTERVAL_MS = 100;
+    /** The maximum interval of the handler, so that a change of the system clock is picked up. */
+    private static final long MAX_TICK_INTERVAL_MS = 5000;
 
     @NonNull private final TermuxActivity mActivity;
     @NonNull private final StatusBarView mView;
@@ -56,8 +58,28 @@ public class StatusBarController {
     private final Runnable mTickRunnable = new Runnable() {
         @Override
         public void run() {
+            if (!mStarted) return;
             tick();
-            if (mStarted) mHandler.postDelayed(this, TICK_INTERVAL_MS);
+            scheduleNextTick();
+        }
+    };
+
+    /**
+     * The runnable that refreshes every segment once after the activity became visible.
+     *
+     * The refresh is deferred instead of being run in {@link #start()}, since it reads the battery
+     * state, {@code /proc} and the network interfaces on the main thread, which would delay the frame
+     * that shows the activity when it is first started.
+     */
+    private final Runnable mInitialRefreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!mStarted) return;
+            // The cpu usage and the network rates need two samples, so the first one is taken here and not
+            // while the activity is being started.
+            mMetrics.prime();
+            refreshAllSegments();
+            scheduleNextTick();
         }
     };
 
@@ -101,12 +123,17 @@ public class StatusBarController {
 
         mNextRefreshTimes.clear();
         if (mConfig.enabled && !mConfig.segments.isEmpty()) {
-            // The cpu usage and the network rates need two samples, so take the first one now.
-            mMetrics.prime();
-            // Show the values immediately instead of after the first interval.
-            refreshAllSegments();
+            // The cpu usage and the network rates need two samples. They are taken when the activity
+            // becomes visible instead of here, since this is called while the activity is created.
+            if (mStarted) {
+                // Show the values immediately instead of after the first interval.
+                refreshAllSegments();
+                scheduleNextTick();
+            }
             Logger.logDebug(LOG_TAG, "Reloaded status bar, segments: " + mConfig.segments.size());
         } else {
+            mHandler.removeCallbacks(mInitialRefreshRunnable);
+            mHandler.removeCallbacks(mTickRunnable);
             mView.setVisibility(android.view.View.GONE);
         }
     }
@@ -129,17 +156,19 @@ public class StatusBarController {
         mStarted = true;
 
         if (mConfig == null) reload();
-        if (mConfig == null || !mConfig.enabled) return;
+        if (mConfig == null || !mConfig.enabled || mConfig.segments.isEmpty()) return;
 
-        // The values may be stale after the activity was not visible, so show them immediately.
-        refreshAllSegments();
+        // The values may be stale after the activity was not visible, and the cpu usage and the network
+        // rates need two samples, so they are refreshed after the first frame instead of now.
+        mHandler.removeCallbacks(mInitialRefreshRunnable);
         mHandler.removeCallbacks(mTickRunnable);
-        mHandler.postDelayed(mTickRunnable, TICK_INTERVAL_MS);
+        mHandler.post(mInitialRefreshRunnable);
     }
 
     /** Stop refreshing the segments, called when the activity is not visible anymore. */
     public void stop() {
         mStarted = false;
+        mHandler.removeCallbacks(mInitialRefreshRunnable);
         mHandler.removeCallbacks(mTickRunnable);
     }
 
@@ -170,6 +199,28 @@ public class StatusBarController {
             refreshSegment(segment);
             mNextRefreshTimes.put(segment.id, now + segment.intervalMs);
         }
+    }
+
+    /**
+     * Schedule the next tick at the time that the next segment is due, instead of polling at a fixed
+     * interval, so that the main thread is woken up once per second for the clock of a status bar with
+     * a one second clock interval and not five times per second.
+     */
+    private void scheduleNextTick() {
+        mHandler.removeCallbacks(mTickRunnable);
+        if (!mStarted || mConfig == null) return;
+
+        long now = SystemClock.elapsedRealtime();
+        long next = Long.MAX_VALUE;
+        for (StatusBarConfig.Segment segment : mConfig.segments) {
+            Long nextRefreshTime = mNextRefreshTimes.get(segment.id);
+            long refreshTime = nextRefreshTime != null ? nextRefreshTime : now;
+            if (refreshTime < next) next = refreshTime;
+        }
+
+        long delay = next == Long.MAX_VALUE ? MAX_TICK_INTERVAL_MS : next - now;
+        delay = Math.max(MIN_TICK_INTERVAL_MS, Math.min(MAX_TICK_INTERVAL_MS, delay));
+        mHandler.postDelayed(mTickRunnable, delay);
     }
 
     /**

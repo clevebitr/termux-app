@@ -56,6 +56,16 @@ public final class TerminalSearchController {
     private boolean mCaseSensitive;
     private boolean mRegex;
 
+    /**
+     * The delay before the query of the bar is applied, so that a search is not run for every keystroke.
+     * The whole screen and transcript are searched for each query, which would make typing lag in a long
+     * session, and a regular expression may be expensive.
+     */
+    private static final long SEARCH_DEBOUNCE_MILLIS = 120;
+
+    /** The runnable that applies the query of the bar, which is scheduled by {@link #SEARCH_DEBOUNCE_MILLIS}. */
+    private final Runnable mApplyQueryRunnable = this::applyQuery;
+
     public TerminalSearchController(@NonNull TermuxActivity activity) {
         mActivity = activity;
         mPreferences = new TerminalSearchPreferences(activity);
@@ -86,11 +96,12 @@ public final class TerminalSearchController {
 
             @Override
             public void afterTextChanged(Editable s) {
-                TerminalView terminalView = mActivity.getTerminalView();
-                if (terminalView == null) return;
+                if (mTextInput == null) return;
 
-                terminalView.setSearchQuery(s.toString());
-                updateResults();
+                // The query is applied after a short delay instead of on every keystroke, since the whole
+                // screen and transcript are searched for each query, which would make typing lag.
+                mTextInput.removeCallbacks(mApplyQueryRunnable);
+                mTextInput.postDelayed(mApplyQueryRunnable, SEARCH_DEBOUNCE_MILLIS);
             }
         });
 
@@ -133,6 +144,7 @@ public final class TerminalSearchController {
 
         applySearchOptions();
         mSearchBar.setVisibility(View.VISIBLE);
+        mTextInput.removeCallbacks(mApplyQueryRunnable);
         mTextInput.setText(null);
         mTextInput.requestFocus();
         KeyboardUtils.showSoftKeyboard(mActivity, mTextInput);
@@ -148,6 +160,7 @@ public final class TerminalSearchController {
         addCurrentQueryToHistory();
 
         mSearchBar.setVisibility(View.GONE);
+        mTextInput.removeCallbacks(mApplyQueryRunnable);
         mTextInput.setText(null);
 
         TerminalView terminalView = mActivity.getTerminalView();
@@ -255,13 +268,35 @@ public final class TerminalSearchController {
         mHistoryButton.setAlpha(hasHistory ? 1f : 0.4f);
     }
 
+    /**
+     * Apply the query of the search bar to the terminal view and update the shown result count, which is
+     * delayed by {@link #SEARCH_DEBOUNCE_MILLIS} after the query changed.
+     */
+    private void applyQuery() {
+        if (mTextInput == null) return;
+
+        TerminalView terminalView = mActivity.getTerminalView();
+        if (terminalView == null) return;
+
+        terminalView.setSearchQuery(mTextInput.getText().toString());
+        updateResults();
+    }
+
     /** Select the next or the previous match of the query. */
     private void findNext(boolean forward) {
         TerminalView terminalView = mActivity.getTerminalView();
         if (terminalView == null) return;
 
-        terminalView.findNextSearchMatch(forward);
-        updateResults();
+        // The query that was typed may not have been applied yet, since it is applied after a delay. It is
+        // applied now instead, which already selects the most recent match, so the search must not jump to
+        // the next one and skip it.
+        if (mTextInput != null && mTextInput.removeCallbacks(mApplyQueryRunnable)) {
+            applyQuery();
+        } else {
+            terminalView.findNextSearchMatch(forward);
+            updateResults();
+        }
+
         addCurrentQueryToHistory();
     }
 

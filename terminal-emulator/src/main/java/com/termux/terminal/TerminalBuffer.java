@@ -228,6 +228,17 @@ public final class TerminalBuffer {
     /** The maximum number of matches that {@link #findAllMatches(String)} will return. */
     public static final int MAX_SEARCH_MATCHES = 5000;
 
+    /**
+     * The time budget of a single {@link #findAllMatches(String, boolean, boolean)} call, after which
+     * the matches that were found so far are returned.
+     *
+     * The search runs on the main thread, since the buffer cannot be read while the emulator writes to
+     * it, so a query that is too expensive would freeze the app. The budget is checked between the rows,
+     * so a single pathological regular expression on a single row may still take longer than this, but
+     * the common case of a long transcript with many matches is bounded.
+     */
+    public static final long MAX_SEARCH_MILLIS = 50;
+
     /** The mark of a row where a shell prompt started, from `OSC 133;A`. */
     public static final int COMMAND_MARK_PROMPT_START = 1;
     /** The mark of a row where a command started, from `OSC 133;C`, which is the row that is jumped to. */
@@ -445,7 +456,9 @@ public final class TerminalBuffer {
     /**
      * Find all non-overlapping matches of {@code query} in the screen and the transcript, sorted by row
      * and then column. A match that spans multiple rows because of line wrapping is returned as one
-     * {@link SearchMatch} per row. At most {@link #MAX_SEARCH_MATCHES} matches are returned.
+     * {@link SearchMatch} per row. At most {@link #MAX_SEARCH_MATCHES} matches are returned, and the search
+     * gives up after {@link #MAX_SEARCH_MILLIS} milliseconds and returns the matches that were found so far,
+     * so that a query cannot freeze the app.
      *
      * @param query The text to search for, which is a literal when {@code regex} is {@code false}.
      * @param caseSensitive Whether the case of the text and of the query must match.
@@ -468,8 +481,13 @@ public final class TerminalBuffer {
         List<SearchMatch> matches = new ArrayList<>();
         SearchableLine line = new SearchableLine();
 
+        // The budget is checked between the rows, see MAX_SEARCH_MILLIS.
+        final long deadlineNanos = System.nanoTime() + MAX_SEARCH_MILLIS * 1000000L;
+
         int row = -mActiveTranscriptRows;
         while (row < mScreenRows && matches.size() < MAX_SEARCH_MATCHES) {
+            if (System.nanoTime() > deadlineNanos) break;
+
             line.text.setLength(0);
             line.count = 0;
 

@@ -10,7 +10,10 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Reads the details of the process of a terminal session from {@code /proc}, like the name of the process
@@ -25,6 +28,24 @@ public final class SessionDetails {
     /** The maximum number of bytes to read from the files of a process. */
     private static final int PROCESS_FILE_MAX_READ_SIZE = 4096;
 
+    /**
+     * How long the details of a process are cached, since they are read from {@code /proc} on the main
+     * thread whenever a row of the sessions drawer is bound, which happens for every session every time
+     * the drawer is opened or the session list changes. The values are small and change slowly, so a short
+     * cache keeps the drawer smooth without showing stale details for long.
+     */
+    private static final long CACHE_TTL_MILLIS = 2000;
+
+    /** The cached details of a process, keyed by its pid. */
+    private static final Map<Integer, CachedDetails> CACHE = new HashMap<>();
+
+    private static final class CachedDetails {
+        @Nullable String processName;
+        long processNameCachedAtMillis;
+        @Nullable String workingDirectory;
+        long workingDirectoryCachedAtMillis;
+    }
+
     private SessionDetails() {
     }
 
@@ -34,6 +55,21 @@ public final class SessionDetails {
      */
     @Nullable
     public static String getForegroundProcessName(int pid) {
+        if (pid <= 0) return null;
+
+        CachedDetails details = getCachedDetails(pid);
+        long now = System.currentTimeMillis();
+        if (details != null && now - details.processNameCachedAtMillis <= CACHE_TTL_MILLIS)
+            return details.processName;
+
+        String processName = readForegroundProcessName(pid);
+        putCachedProcessName(pid, processName, now);
+        return processName;
+    }
+
+    /** Read the foreground process name of {@code pid} from {@code /proc} without the cache. */
+    @Nullable
+    private static String readForegroundProcessName(int pid) {
         if (pid <= 0) return null;
 
         try {
@@ -88,6 +124,21 @@ public final class SessionDetails {
      */
     @Nullable
     public static String getWorkingDirectory(int pid) {
+        if (pid <= 0) return null;
+
+        CachedDetails details = getCachedDetails(pid);
+        long now = System.currentTimeMillis();
+        if (details != null && now - details.workingDirectoryCachedAtMillis <= CACHE_TTL_MILLIS)
+            return details.workingDirectory;
+
+        String workingDirectory = readWorkingDirectory(pid);
+        putCachedWorkingDirectory(pid, workingDirectory, now);
+        return workingDirectory;
+    }
+
+    /** Read the working directory of {@code pid} with {@code /proc} without the cache. */
+    @Nullable
+    private static String readWorkingDirectory(int pid) {
         if (pid <= 0) return null;
 
         try {
@@ -149,6 +200,54 @@ public final class SessionDetails {
 
     private static String processFilePath(int pid, @NonNull String fileName) {
         return "/proc/" + pid + "/" + fileName;
+    }
+
+    /**
+     * @return The cached details of {@code pid}, whose fields are checked against {@link #CACHE_TTL_MILLIS}
+     *         by the caller, or {@code null} if nothing was cached for the process yet.
+     */
+    @Nullable
+    private static synchronized CachedDetails getCachedDetails(int pid) {
+        return CACHE.get(pid);
+    }
+
+    /** Store the process name of {@code pid}, keeping the other cached details of the process. */
+    private static synchronized void putCachedProcessName(int pid, @Nullable String processName, long now) {
+        CachedDetails details = getOrCreateCachedDetails(pid);
+        details.processName = processName;
+        details.processNameCachedAtMillis = now;
+        evictExpiredCachedDetails(now);
+    }
+
+    /** Store the working directory of {@code pid}, keeping the other cached details of the process. */
+    private static synchronized void putCachedWorkingDirectory(int pid, @Nullable String workingDirectory, long now) {
+        CachedDetails details = getOrCreateCachedDetails(pid);
+        details.workingDirectory = workingDirectory;
+        details.workingDirectoryCachedAtMillis = now;
+        evictExpiredCachedDetails(now);
+    }
+
+    @NonNull
+    private static CachedDetails getOrCreateCachedDetails(int pid) {
+        CachedDetails details = CACHE.get(pid);
+        if (details == null) {
+            details = new CachedDetails();
+            CACHE.put(pid, details);
+        }
+        return details;
+    }
+
+    /**
+     * Drop the details of the processes whose pid may have been reused by another process, so that the
+     * cache does not grow for every session that was ever opened.
+     */
+    private static void evictExpiredCachedDetails(long now) {
+        Iterator<CachedDetails> iterator = CACHE.values().iterator();
+        while (iterator.hasNext()) {
+            CachedDetails details = iterator.next();
+            long newest = Math.max(details.processNameCachedAtMillis, details.workingDirectoryCachedAtMillis);
+            if (now - newest > CACHE_TTL_MILLIS) iterator.remove();
+        }
     }
 
     /**
