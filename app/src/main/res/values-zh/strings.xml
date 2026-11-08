@@ -480,6 +480,14 @@
                 <string name="termux_terminal_view_switch_session_on_swipe_on">在终端上左右滑动会切换到上一个/下一个会话。
                     选择文本时以及终端程序开启了鼠标跟踪时不会触发。（默认）</string>
 
+                <!-- Shell History Sync -->
+                <string name="termux_terminal_view_shell_history_sync_title">保留命令历史</string>
+                <string name="termux_terminal_view_shell_history_sync_off">shell 只会在退出时把命令历史写入
+                    历史文件，所以 App 关闭时 shell 被直接杀掉，这个会话的历史就丢了。</string>
+                <string name="termux_terminal_view_shell_history_sync_on">每条命令执行完就把命令历史写入历史文件，
+                    所以关闭 App 也不会丢，同时开着的多个会话之间也能看到彼此的命令。只对启动时的 bash 会话生效，
+                    改完请新开一个会话并重启正在运行的会话。（默认）</string>
+
             <!-- Padding Category -->
             <string name="termux_terminal_view_padding_header">终端内边距</string>
             <string name="termux_terminal_view_padding_summary">单位 dp，0–100。让终端内容与窗口边缘留白，

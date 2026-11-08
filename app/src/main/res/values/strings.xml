@@ -513,6 +513,16 @@
                     switches to the previous or next session. It is not used while selecting text or while a
                     terminal program is using mouse tracking. (Default)</string>
 
+                <!-- Shell History Sync -->
+                <string name="termux_terminal_view_shell_history_sync_title">Keep Command History</string>
+                <string name="termux_terminal_view_shell_history_sync_off">The shell writes its command
+                    history to the history file only when it exits, so the history of a session is lost when
+                    the app is closed and the shell is killed without exiting.</string>
+                <string name="termux_terminal_view_shell_history_sync_on">The command history is written to
+                    the history file after every command, so it is kept when the app is closed, and the
+                    sessions that are open at the same time share it. It is applied to the bash sessions
+                    when they are started, so open a new session and restart the running ones. (Default)</string>
+
             <!-- Padding Category -->
             <string name="termux_terminal_view_padding_header">Terminal Padding</string>
             <string name="termux_terminal_view_padding_summary">In dp units, 0–100. Insets the

@@ -869,6 +869,17 @@ public abstract class TermuxSharedProperties {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_SWITCH_SESSION_ON_SWIPE, true);
     }
 
+    /**
+     * Get the {@link TermuxPropertyConstants#KEY_SHELL_HISTORY_SYNC} boolean value.
+     *
+     * If enabled, the bash sessions are started with a `PROMPT_COMMAND` that appends the command history
+     * to the history file after every command and reads the commands that other sessions appended, so that
+     * the history is not lost when the app kills the shells with `SIGKILL` on exit.
+     */
+    public boolean shouldSyncShellHistory() {
+        return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_SHELL_HISTORY_SYNC, true);
+    }
+
     public boolean isUsingCtrlSpaceWorkaround() {
         return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_USE_CTRL_SPACE_WORKAROUND, true);
     }

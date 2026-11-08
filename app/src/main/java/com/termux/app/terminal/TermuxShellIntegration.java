@@ -43,9 +43,11 @@ public final class TermuxShellIntegration {
     /**
      * The version of the installed scripts, which is written into them so that an outdated install
      * can be detected. Version 2 added the command line to the `OSC 133 ; D` mark, which the
-     * notification cards of failed commands show.
+     * notification cards of failed commands show. Version 3 removed the `\[` and `\]` markers from
+     * the `PS0` value, which `bash` does not interpret there and printed as control characters before
+     * the output of every command, and added the history sync to the zsh script.
      */
-    static final int SCRIPT_VERSION = 2;
+    static final int SCRIPT_VERSION = 3;
 
     /** The marker in the scripts that stores {@link #SCRIPT_VERSION}. */
     static final String VERSION_MARKER = "__TERMUX_OSC133_VERSION=";

@@ -120,6 +120,9 @@ import java.util.Set;
  *
  * - 0.30.0 (2026-10-27)
  *      - Add `IVALUE_VOLUME_KEY_ACTION_PREV_COMMAND` and `IVALUE_VOLUME_KEY_ACTION_NEXT_COMMAND`.
+ *
+ * - 0.31.0 (2026-10-30)
+ *      - Add `KEY_SHELL_HISTORY_SYNC`.
  */
 
 /**
@@ -211,6 +214,15 @@ public final class TermuxPropertyConstants {
     /** Defines the key for whether a horizontal swipe on the terminal view should switch to the next or
      * previous terminal session. */
     public static final String KEY_SWITCH_SESSION_ON_SWIPE =  "switch-session-on-swipe"; // Default: "switch-session-on-swipe"
+
+
+    /** Defines the key for whether the command history of the interactive bash sessions should be
+     * written to the history file (`~/.bash_history`) after every command instead of only when a shell
+     * exits, so that the history is kept when the app kills the shells with `SIGKILL` on exit and so that
+     * the sessions that are running at the same time can see the commands of each other. It is applied
+     * by setting `PROMPT_COMMAND` in the environment of the shell sessions, which non-interactive shells
+     * and other shells ignore. `zsh` sessions get it from the shell integration scripts instead. */
+    public static final String KEY_SHELL_HISTORY_SYNC =  "shell-history-sync"; // Default: "shell-history-sync"
 
 
     /** Defines the key for how the sessions drawer can be opened, which is `auto` to show the edge handle
@@ -924,6 +936,7 @@ public final class TermuxPropertyConstants {
         KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP,
         KEY_MOUSE_TAP_SHOWS_KEYBOARD,
         KEY_RUN_TERMUX_AM_SOCKET_SERVER,
+        KEY_SHELL_HISTORY_SYNC,
         KEY_SWITCH_SESSION_ON_SWIPE,
         KEY_TERMINAL_ONCLICK_URL_OPEN,
         KEY_TOUCH_DRAG_SENDS_MOUSE_DRAG,
@@ -1011,6 +1024,7 @@ public final class TermuxPropertyConstants {
         KEY_EXTRA_KEYS_TEXT_ALL_CAPS,
         KEY_EXTRA_KEYS_TILE_BACKGROUND,
         KEY_RUN_TERMUX_AM_SOCKET_SERVER,
+        KEY_SHELL_HISTORY_SYNC,
         KEY_SWITCH_SESSION_ON_SWIPE
     ));
 

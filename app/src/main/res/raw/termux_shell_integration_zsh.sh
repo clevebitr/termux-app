@@ -10,6 +10,13 @@
 #
 # The hooks are added with add-zsh-hook, so the existing precmd and preexec hooks keep working.
 #
+# The command history is synced between the sessions when the app sets the `TERMUX_SHELL_HISTORY_SYNC`
+# environment variable, which is what its `shell-history-sync` property does. This is the equivalent of
+# the `PROMPT_COMMAND="history -a; history -n"` that the app sets for bash, since zsh does not use that
+# variable. `inc_append_history` appends a command to the history file as soon as it is entered instead
+# of only when the shell exits, so that the history is kept when the app kills the shell with `SIGKILL`,
+# and `share_history` imports the commands that the other sessions appended.
+#
 # To remove it, use Settings -> Termux -> Terminal View -> Uninstall shell integration.
 
 # Do not do anything if the file has already been sourced, by this or another shell.
@@ -19,7 +26,11 @@ fi
 __TERMUX_OSC133_ZSH_LOADED=1
 
 # The version of these scripts, which is used to detect an outdated install.
-__TERMUX_OSC133_VERSION=2
+__TERMUX_OSC133_VERSION=3
+
+if [ -n "${TERMUX_SHELL_HISTORY_SYNC:-}" ]; then
+    setopt inc_append_history share_history
+fi
 
 # The command line of the command that is running, which is stored by the preexec hook, so that the
 # precmd hook does not have to read the history with a subshell on every prompt.

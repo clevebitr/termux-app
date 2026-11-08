@@ -12,6 +12,10 @@
 # other prompt hooks keep working. The command start mark uses PS0, which needs bash 4.4 or later.
 # Older versions still get the prompt and exit code marks.
 #
+# The command history is not handled here, since the app sets `PROMPT_COMMAND` in the environment of
+# the sessions with `history -a; history -n`, which appends the history to the history file after
+# every command instead of only when the shell exits. See the `shell-history-sync` property.
+#
 # To remove it, use Settings -> Termux -> Terminal View -> Uninstall shell integration.
 
 # Do not do anything if the file has already been sourced, by this or another shell.
@@ -21,7 +25,7 @@ fi
 __TERMUX_OSC133_BASH_LOADED=1
 
 # The version of these scripts, which is used to detect an outdated install.
-__TERMUX_OSC133_VERSION=2
+__TERMUX_OSC133_VERSION=3
 
 # Print the command line of the last command, so that the terminal can show it in the notification
 # card of a command that failed. The history entry starts with the history number, which is dropped
@@ -57,9 +61,13 @@ unset __termux_osc133_prompt_command_type
 
 # bash expands PS0 after a command line has been read and before the command is executed, which is
 # exactly where the command start mark belongs. It requires bash 4.4 or later.
+#
+# There are no `\[` and `\]` around the escape sequence, since bash only treats them as the markers of
+# a zero width sequence in PS1, not in PS0, where they would be printed literally as the `\001` and
+# `\002` control characters before the output of every command.
 if [ "${BASH_VERSINFO[0]}" -gt 4 ] || { [ "${BASH_VERSINFO[0]}" -eq 4 ] && [ "${BASH_VERSINFO[1]}" -ge 4 ]; }; then
     case "${PS0:-}" in
         *']133;C'*) ;;
-        *) PS0='\[\e]133;C\a\]'"${PS0:-}" ;;
+        *) PS0='\e]133;C\a'"${PS0:-}" ;;
     esac
 fi
