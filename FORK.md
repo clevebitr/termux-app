@@ -42,6 +42,7 @@
 | 23 | 程序主动发通知：OSC 99（分块/图标/按钮/查询/关闭/回报）、OSC 9、OSC 777 | `notification-osc-*` 或设置 → 通知 → 程序主动发送的通知 | OSC 通道**默认关**，限流 3 条/秒/会话 |
 | 24 | App 事件卡片（会话退出/插件结果/标题变化/bell）+ 后台系统通知 + 最近通知列表 | `notification-events-*`、`notification-background-enabled`、`notification-history-size` 或设置 → 通知 | 事件通道**默认关**；后台通知**默认关**；历史 50 条（仅内存） |
 | 25 | 代码结构（新代码的包划分，方便以后改） | — | — |
+| 28 | 命令历史跨会话保留 + 多会话共享（详见 §28） | `shell-history-sync`（设置 → 终端视图 → 保留命令历史） | **开**（等上游行为：`~/.bash_history` 在 App 关闭时会丢历史） |
 
 ### 里程碑时间线
 
@@ -1604,8 +1605,143 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 
 ---
 
-## 验证情况（真机）
+## 28. 命令历史跨会话保留（`shell-history-sync`）
 
+### 现象与根因
+
+上游 Termux 里「关掉 App 再打开，按上方向键找不到上次敲的命令」。根因**不是** bash 配置，而是 App 退出时
+给所有会话发 `SIGKILL`（`TermuxService.onDestroy()` → `killAllTermuxExecutionCommands()`），bash 根本没有机会
+执行退出流程，所以不会把历史写回 `~/.bash_history`。Termux 的 `bash.bashrc` 里只有
+`shopt -s histappend`（退出时「追加」而不是覆盖），也救不了被 `SIGKILL` 的情况。另外即使会话还活着，新开的
+会话也看不到它刚执行的命令，因为历史只存在内存里。
+
+### 做法
+
+不写用户的 `~/.bashrc`，而是给**会话进程的环境变量**加一条：
+
+```properties
+PROMPT_COMMAND            = history -a; history -n
+TERMUX_SHELL_HISTORY_SYNC = 1        # 只给 zsh 集成脚本看
+```
+
+* `history -a`：把本次会话新增的命令**追加**到 `$HISTFILE` → 进程被 `SIGKILL` 也不丢。
+* `history -n`：读取别的会话刚追加的行 → 多开会话能互相看到命令（等同 zsh 的 `share_history`）。
+* 两个都是 bash 内建，**不起子进程**，每条命令的开销是一次 append。
+* 只在环境里没有 `PROMPT_COMMAND` 时才注入，用户自己 export 了就不覆盖。
+* 非交互 shell（脚本、插件命令）不读 `PROMPT_COMMAND`，所以不受影响。
+* 实现位置：`termux-shared/.../TermuxShellEnvironment.java`（`ENV_PROMPT_COMMAND`、
+  `PROMPT_COMMAND_HISTORY_SYNC`）、属性常量 `KEY_SHELL_HISTORY_SYNC`。
+
+### zsh
+
+zsh 不认 `PROMPT_COMMAND`，所以由 shell 集成脚本接手（看到 `TERMUX_SHELL_HISTORY_SYNC` 就
+`setopt inc_append_history share_history`）。没装 shell 集成的 zsh 用户需要自己加这两行。
+
+### 开关与生效时机
+
+* `shell-history-sync`（默认 **true**）→ 设置 → Termux → 终端视图 → **保留命令历史**，或直接写
+  `termux.properties` 后 `termux-reload-settings`。
+* 环境变量在**创建会话时**取，所以改完要新开会话（或把正在跑的会话退出重开）。
+* 用户如果在 `~/.bashrc` 里自己重设 `PROMPT_COMMAND=...`，注入会被覆盖；把它们拼上
+  `history -a; history -n` 即可。
+
+### 同时修掉的一个渲染问题
+
+shell 集成脚本里的 `PS0='\[\e]133;C\a\]'` 是错的：bash **只在 PS1 里**把 `\[`/`\]` 当零宽标记，
+在 PS0 里会原样输出 `\001` 和 `\002` 两个控制字符（每条命令执行前都往终端流里注两个杂字节）。
+现在改成 `PS0='\e]133;C\a'`，并把集成脚本版本号 `__TERMUX_OSC133_VERSION` / `SCRIPT_VERSION`
+升到 **3**，设置页会提示「已安装的 shell 集成是旧版本」（见 §17）。
+
+---
+
+## 29. 稳定性与渲染审计（M11）
+
+### 29.1 与上游的改动量（对 `termux/termux-app@8629e63` 快照做 diff）
+
+| 指标 | 数值 |
+| --- | --- |
+| 新增文件 | **126 个 / 19,928 行**（其中源码与单测 120 个 / 16,393 行；说明文档、workflow、发行说明 6 个 / 3,535 行） |
+| 修改的上游文件 | **58 个，+7,210 / −425 行**（其中源码 53 个，+7,122 / −425） |
+| 主代码 Java 行数 | 上游 44,382 → 本 fork **60,525**（+36%） |
+| 单测行数 | 上游 3,047 → 本 fork **6,050**（47 个测试类） |
+
+按模块（源码 + 测试，不含资源与文档）：
+
+| 模块 | 新增 | 修改上游 |
+| --- | --- | --- |
+| `app` | 108 个文件 / 14,388 行 | 21 个文件，净增 3,182 行 |
+| `terminal-emulator` | 10 个文件 / 1,867 行 | 14 个文件，净增 1,311 行 |
+| `termux-shared` | 1 个文件 / 133 行 | 13 个文件，净增 1,306 行 |
+| `terminal-view` | 1 个文件 / 5 行 | 5 个文件，净增 898 行 |
+
+上游文件被改得最多的几个（改得越狠后期 rebase 越痛，尽量别再动）：
+
+| 文件 | +/− |
+| --- | --- |
+| `app/.../TermuxActivity.java` | +1,590 / −156 |
+| `terminal-view/.../TerminalView.java` | +679 / −12 |
+| `app/res/values/strings.xml` | +598 / −3 |
+| `termux-shared/.../TermuxPropertyConstants.java` | +555 / −3 |
+| `termux-shared/.../TermuxSharedProperties.java` | +397 / −1 |
+| `terminal-emulator/.../TerminalBuffer.java` | +377 / −4 |
+| `app/.../TermuxTerminalViewClient.java` | +298 / −64 |
+| `app/res/layout/activity_termux.xml` | +273 / −12 |
+| `termux-shared/.../ExtraKeysView.java` | +249 / −11 |
+| `terminal-emulator/.../TerminalEmulator.java` | +175 / −11 |
+
+结论：核心风险集中在 `TermuxActivity`（一个文件就吸了 1,590 行）和渲染三件套
+（`TerminalView` / `TerminalBuffer` / `TerminalEmulator`）。其中 `TerminalView` 的 679 行里大半是
+Gboard CJK、拖拽上报、滑切会话这类手势/输入代码，跟每帧渲染无关；**每帧真正多出来的成本只有**
+`TerminalRenderer` 里每行一次 `screen.getCommandMark(row)`（一次数组索引）和搜索高亮的矩形绘制，
+以及每格一次 `lineObject.getHyperlink(column)`（`mHyperlinks == null` 时直接返回 null）。
+每帧没有新增分配，搜索高亮数组只在查询变化时重建。
+
+### 29.2 为什么“大量输出”会卡：终端仿真本身就在主线程
+
+上游 `TerminalSession` 的设计是：IO 线程只负责从 pty 读字节丢进 `ByteQueue`，
+`MSG_NEW_INPUT` 把**解析和绘制都放在主线程**（`TerminalSession.mMainThreadHandler`）。
+所以所有挂在输出路径上的东西都会直接算进帧时间：
+
+| 挂在主线程输出路径上的 fork 代码 | 开销 | 备注 |
+| --- | --- | --- |
+| `TerminalEmulator` 新增的 OSC 8/52/133/9/99/777 分支 | 只在序列结束时跑一次 | 每条命令几次，不影响逐字节路径 |
+| `TerminalBuffer` 命令标记（`markPromptStart/Start/Finished`、滚动时拷标记） | 每行一个 bit 字段 + 一次赋值 | 比一次 `setChar` 便宜 |
+| `TerminalNotificationAssembler`（OSC 99 分块/图标） | 仅在程序发通知时；**图标解码（`BitmapFactory`）也在主线程** | 默认关；`notification-osc-icons=true` 且程序带图时才吃几毫秒 |
+| `ExitCodeNotifier`（失败命令卡片） | 每条命令一次，含一次 `getSelectedText` 全行拷贝 | 每条命令一次，可接受 |
+| 状态栏 tick | 之前是 **每 200ms 一次 Handler 轮询**，每秒读 `/proc/stat` + sysfs + 电池广播 | 已改成按各段 interval 定时（见 29.3） |
+| 抽屉列表绑定 | **每个会话 4 次 `/proc` 读 + 1 次 `realpath`**，每次打开抽屉重绑全部行 | 已加 2s TTL 缓存（见 29.3） |
+| 搜索 | 每次键入关键字都在主线程扫整个屏幕+回滚缓冲区（可上万行） | 已加 120ms 防抖 + 单次 50ms 预算（见 29.3） |
+
+### 29.3 本次修改（保守向：只改有确凿证据的热点）
+
+1. **命令历史**：`PROMPT_COMMAND="history -a; history -n"`，见 §28。
+2. **PS0 两个控制字符**：见 §28 末，shell 集成脚本 v3。
+3. **搜索防抖 + 预算**：`TerminalSearchController` 改变输入后 120ms 才搜（回车/点下一个时立即补搜一次）；
+   `TerminalBuffer.findAllMatches` 每行检查 50ms 预算，超出就返回已找到的匹配，避免长会话里输入卡住
+   主线程（也避免把 `findNext` 排在旧查询的结果上）。
+4. **抽屉会话详情缓存**：`SessionDetails` 对「前台进程名」「cwd」各记一个 2s 缓存的字段（pid 为键，
+   过期项顺手回收），抽屉打开/列表重绑不再每个会话读一遍 `/proc`。
+5. **状态栏调度**：`StatusBarController` 不再 200ms 固定轮询，而是按「下一个到期时间」`postDelayed`
+   （`[100ms, 5s]` 夹紧）；首次刷新从 `onStart()` 改成 `post()` 到下一帧，`prime()`（读 `/proc/stat`+sysfs）
+   也一并挪过去，冷启动不再在首帧前做这些。`StatusBarMetrics` 给 CPU/网络速率加了 200ms 最小采样间隔，
+   避免「刚 prime 完立刻渲染」算出一个假峰值。
+6. **可选功能不再能把 App 搞崩**：终端仿真在主线程跑，回调里抛异常就是一次崩溃 + 会话结束。
+   `TermuxTerminalSessionActivityClient` 里 fork 新加的通知链路（失败命令卡片 / OSC 通知 / 关闭与存活查询 /
+   标题变化 / bell）全部包了 `try/catch` + 日志，失败就退化成上游行为（toast 或什么都没有），终端不受影响。
+
+### 29.4 还没动、但下次出问题先查的地方
+
+* **OSC 99 图标解码在主线程**（`TerminalNotificationAssembler` → `BitmapFactory.decodeByteArray`）。默认关，
+  只有 `notification-osc-icons=true` 才走；如果以后发现“程序发通知时卡一下”，把它挪到后台线程 / 或再降上限。
+* **粘贴大文本**：上游就在主线程往 4KB 的 `ByteQueue` 写，写满会阻塞主线程等写字线程，与 fork 无关。
+* **`TermuxActivity` 的 1,590 行**：分屏/抽屉/状态栏/搜索/菜单都挂在这一个类里，是最大的重构债；
+  以后新增功能优先新建 `*Controller`（参考 `TerminalSplitScreenController`、`StatusBarController`）。
+* **搜索的正则**：预算只保证「行与行之间」能退出，单行上的灾难性回溯（如 `(a+)+$`）仍可能卡住；
+  真要彻底解决需要把匹配搬到后台线程 + 快照文本。
+
+---
+
+## 验证情况（真机）
 设备：OnePlus OPD2508 / ColorOS（Android 16 系 ROM，aarch64）。下面按「已在真机验证」和「尚未验证」分开列，
 未验证的项都只通过了本地编译 + 单测（本机无 lint：`:app:lintDebug` 需要 NDK 的 x86_64 工具链）。
 

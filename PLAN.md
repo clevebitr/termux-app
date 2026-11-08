@@ -3,7 +3,7 @@
 > 由 `plan` 工具维护，请勿直接编辑。步骤级进度以 `todo` 工具为准；决策与踩坑写入 DECISIONS.md。
 
 <!-- plan-bridge:state -->
-current: 
+current: M11
 auto-breakpoint: false
 <!-- /plan-bridge:state -->
 
@@ -19,6 +19,7 @@ auto-breakpoint: false
 - [x] M8 — 终端内通知体系（详见 #20-#24）：
 - [x] M9 — 已交付：通知质量收尾/分屏持久化/搜索增强（#44-#46）
 - [x] M10 — 已交付：抽屉配色/把手/概要 + 设置分组/搜索/长按默认（#47-#49）
+- [ ] M11 — 命令历史跨会话 + 稳定性/渲染审计（详见 #51-#52）
 
   - M8.1 渲染层（卡片栈/配色/自动消失）
   - M8.2 失败命令通道 + shell 集成 v2（上报命令行/耗时/序列号）
@@ -31,7 +32,7 @@ auto-breakpoint: false
      通道判定/历史/后台分支、`AppEventNotifier`）+ 三个 P3 小问题（`getTitle(null)` 的 `%1$d`
      陷阱、只有图标没有标题的 OSC 通知、`notification-osc-icons=false` 时仍解码图标）
 
-## Current
+## Current: M11 — 命令历史跨会话 + 稳定性/渲染审计（详见 #51-#52）
 
 goal: M10 全部交付：配色/把手/概要 + 设置分组/搜索/长按默认（#47-#49）
 breakpoint: 已推送 6 个提交（a6b27ac），等 CI + 真机验收 §10.4/§26

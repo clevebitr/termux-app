@@ -16,10 +16,11 @@ they are enabled, and all of them can also be changed in **Settings -> Termux**.
 | Notifications | Notification cards in the corner of the terminal for failed commands (with the command line, the working directory and the duration), for `OSC 9` / `OSC 99` / `OSC 777` requests of programs (buttons, icons, `p=?`/`p=alive` queries, click and close reports, rate limiting), and for app events (session exit, plugin result, title change, bell). Optional system notification when the app is in the background, and a recent notifications list in the long press menu. | FORK.md §20, §23, §24 |
 | Long press menu | Styled, configurable context menu (order and selection of the actions) and configurable text selection toolbar actions. | FORK.md §21, §22 |
 | Extra keys | Multiple panels, theme colours, tile background, popup hints, `SEARCH` / `SPLIT_V` / `SPLIT_H` / `SPLIT_CLOSE` keys, custom volume key actions. | FORK.md §9, §10, §11, §12, §13 |
-| Terminal | In-terminal search, OSC 52 clipboard policy, shell integration with command marks (jump to command, failure marks, exit code and command line), split screen, terminal padding. | FORK.md §14–§18 |
+| Terminal | In-terminal search (case sensitive and regular expression modes, recent queries), OSC 52 clipboard policy, shell integration with command marks (jump to command, failure marks, exit code and command line), split screen (persisted across activity recreation), terminal padding. | FORK.md §14–§18 |
 | Status bar | Optional status bar with clock, battery, memory, CPU, network, IP and proxy segments, sparklines, `theme:` colours and click actions. | FORK.md §19 |
 | Appearance | Italic font, OSC 8 hyperlinks, `night-mode=color-scheme`, day/night aware status bar icons, simplified chinese translation. | FORK.md §2, §3, §5, §8 |
 | Backup | `termux-backup` / `termux-restore` scripts and a settings entry. | FORK.md §6 |
+| Shell | The command history is kept when the app is closed and is shared by the sessions that are open at the same time, instead of being lost because the app kills the shells without them exiting. Enabled by default (`shell-history-sync`). | FORK.md §28 |
 
 Quick start for the notification cards:
 
@@ -38,8 +39,8 @@ from an older build, so that the scripts report the command line). See FORK.md �
 
 * The floating text selection toolbar keeps the system `ActionMode`, so its colours follow the app
   theme and not `colors.properties`, and only its actions can be configured (FORK.md §21.2).
-* The split screen is not persisted across activity recreation (planned).
-* Search is case sensitive and supports no regular expressions (planned).
+* A regular expression with catastrophic backtracking on a single wrapped line can still freeze the
+  search for a while; the search has a time budget between the rows, not inside one (FORK.md §29.4).
 * The notification cards are only fully verified on one device; see the "verification" section of
   FORK.md for what was tested on a device and what was not.
 * `OSC 99` notifications may be swallowed by `tmux`, depending on its `allow-passthrough` settings.

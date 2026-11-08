@@ -1116,3 +1116,53 @@ android 的主题属性不能在运行时改，这是唯一不引第二套主题
 
 顺带：`drawer-handle-*` 越界值按 fork 惯例**回落到默认值**（`ForkProperties.getInt` 的行为，不是 clamp），
 单测按这个语义写。
+
+## 2026-11-08 — 命令历史跨会话：根因是 SIGKILL，用环境变量 PROMPT_COMMAND 落盘（不写 ~/.bashrc）
+
+**现象**：关掉 App 再打开，`history` / 上方向键看不到上次的命令；同时开着的两个会话也看不到彼此刚执行的命令。
+
+**根因不是 bash 配置**：`TermuxService.onDestroy()` → `killAllTermuxExecutionCommands()` 给所有会话发 `SIGKILL`，bash 拿不到退出流程，所以不会写 `~/.bash_history`。Termux 的 `$PREFIX/etc/bash.bashrc` 只有 `shopt -s histappend`（退出时追加而非覆盖），救不了被 SIGKILL 的情况。历史只存在内存里，所以并发会话也互相看不见。已实测：给会话注入 `PROMPT_COMMAND='history -a; history -n'` 后，`kill -9` 掉 `bash -i`，`~/.bash_history` 里两条命令都在。
+
+**方案**：`TermuxShellEnvironment.getEnvironment()` 里注入环境变量（§28）：
+```java
+if (!environment.containsKey(ENV_PROMPT_COMMAND) && shouldSyncShellHistory()) {
+    environment.put(ENV_PROMPT_COMMAND, "history -a; history -n");
+    environment.put(ENV_TERMUX_SHELL_HISTORY_SYNC, "1");   // 只给 zsh 集成脚本看
+}
+```
+为什么不选别的：
+- **不写用户 `~/.bashrc`**：fork 已经有「shell 集成」写过 `~/.bashrc`，再自动追加一段会更难解释和卸载；环境变量零文件副作用，卸载 App 就没了。
+- **`history -a` + `history -n` 都是 bash 内建**，不起子进程；`-a` 是 append，`-n` 读别的会话新追加的行（≈ zsh 的 `share_history`）。顺序必须 `-a` 在前，否则 `-n` 会把自己的行再读一遍。
+- **不放进 shell 集成**：那样只有装了集成的用户才修好；这个 bug 是所有用户都有的数据丢失。
+- **只有 `!containsKey(PROMPT_COMMAND)` 才注入**：用户自己 export 过 `PROMPT_COMMAND` 就不覆盖（他自己负责拼上这两条，文档里写了）。
+- 非交互 shell（脚本、插件命令）不读 `PROMPT_COMMAND`，无副作用；`termux.env` 里也会带上，但那只影响从该文件起 shell 的场景。
+
+**属性**：`KEY_SHELL_HISTORY_SYNC = "shell-history-sync"`，默认 **true**（这是修 bug，不是可选功能，所以破例默认开，和 `switch-session-on-swipe` 同类）。必须同时加进 `TERMUX_APP_PROPERTIES_LIST` + `TERMUX_DEFAULT_TRUE_BOOLEAN_BEHAVIOUR_PROPERTIES_LIST`，漏一个 `SharedProperties.loadPropertiesFromDisk()` 会在启动时抛 `IllegalArgumentException` —— 加了个单测 `ShellHistorySyncTest` 守这两个集合，别再靠肉眼。
+
+**生效时机**：属性在**创建会话**时读，改完要新开会话；设置页 summary 里写清了。
+
+**zsh**：不认 `PROMPT_COMMAND`，由 shell 集成脚本接手：看到 `TERMUX_SHELL_HISTORY_SYNC` 就 `setopt inc_append_history share_history`。没装集成的 zsh 用户文档里给了两行。
+
+**顺手修的真 bug：PS0 里的 `\[` `\]`**。原脚本 `PS0='\[\e]133;C\a\]'`，但 bash **只在 PS1** 里把 `\[`/`\]` 当零宽标记，PS0 里原样输出 `\001`/`\002`（实测 `cat -v` 看到 `^A^[]133;C^G^B`），也就是每条命令执行前都往终端流里注两个控制字符（TerminalEmulator 当 C0 控制符忽略，所以表现为「没炸但脏」）。改成 `PS0='\e]133;C\a'`。因为脚本内容变了，`__TERMUX_OSC133_VERSION` 与 `TermuxShellIntegration.SCRIPT_VERSION` 一起升到 **3**，设置页会把「安装 shell 集成」的 summary 换成「旧版本」，用户重装一次即可。
+
+## 2026-11-08 — 稳定性审计：终端仿真在主线程，卡顿/ANR 热点逐个量化后修（附与上游 diff 统计）
+
+**先说结论性事实（决定了优化该往哪儿打）**：上游 `TerminalSession` 把 pty 读线程只当搬运工（`ByteQueue`），`MSG_NEW_INPUT` 把**字节解析 + 视图 invalidate 都放主线程**（`mMainThreadHandler`）。所以挂在终端输出路径上的任何代码都直接算进帧时间，反过来，`TerminalRenderer` 里每帧多一点开销也要按「行数 × 每行成本」算。
+
+**与上游 `termux/termux-app@8629e63` 快照的 diff（2026-11-08 统计）**：新增 126 个文件 / 19,928 行（源码+测试 120 个 / 16,393 行，其余是 FORK/DECISIONS/FORK_BUILD/workflow/发行说明）；修改上游 58 个文件 **+7,210 / −425**；主代码 Java 从 44,382 行涨到 60,525 行（+36%），单测从 3,047 涨到 6,050（47 个测试类）。改得最狠的上游文件：`TermuxActivity` +1590/−156、`TerminalView` +679/−12、`strings.xml` +598、`TermuxPropertyConstants` +555、`TermuxSharedProperties` +397、`TerminalBuffer` +377、`TermuxTerminalViewClient` +298/−64、`activity_termux.xml` +273、`ExtraKeysView` +249、`TerminalEmulator` +175。细节表格见 FORK.md §29.1。
+
+**逐项量化后确认「每帧多出来的」很小**：`TerminalRenderer` 每行一次 `getCommandMark`（数组索引）、每格一次 `getHyperlink`（`mHyperlinks==null` 直接返回 null）、搜索高亮只在查询变化时重建数组；`TerminalEmulator` 新增的 OSC 8/52/133/9/99/777 分支只在序列结束时跑一次，没碰逐字节路径。所以「卡顿」不是渲染循环本身，而是**主线程上被塞进来的其它活**。
+
+**修掉的四类主线程热点**（都有明确证据，不猜）：
+1. **搜索**：`afterTextChanged` 每敲一个字符就同步扫全屏 + 全部回滚行（长会话上万行，`findAllMatches` 每行还 `substring` 一次）。→ 120ms 防抖（`TerminalSearchController`，回车/点「下一个」时先 flush 再搜），`TerminalBuffer.findAllMatches` 加 `MAX_SEARCH_MILLIS=50` 预算，每行检查一次，超时返回已找到的。顺手修了个逻辑 bug：防抖后回车不能再按旧查询选下一个匹配。
+2. **抽屉会话详情**：`getView()` 每个会话读 4 个 `/proc` 文件 + `getCanonicalPath()`，`onDrawerOpened` 还会 `notifyDataSetChanged()` 重绑全部行；`updateDrawerSummary()` 再读一遍。→ `SessionDetails` 给「前台进程名」「cwd」各加 2s TTL 缓存（字段各带时间戳，别用一个 entry 级时间戳——会互相「续命」），过期项顺手回收。
+3. **状态栏**：之前 200ms 固定 `Handler` 轮询（5 次/秒），且 `onStart()` 里同步 `prime()` + `refreshAllSegments()`（读 `/proc/stat` + 每核 sysfs + 电池广播 + `ConnectivityManager` binder），冷启动首帧前就在干活。→ 改成按「下一个段到期时间」`postDelayed`（夹在 [100ms, 5s]），首刷 + `prime()` 挪到 `post()` 到下一帧。另外 `StatusBarMetrics` 给 CPU/网络速率加 200ms 最小采样间隔：`prime()` 完立刻渲染会用一个几毫秒的窗口算速率，那是**假峰值**（原来就有这个毛病，只是不明显）。
+4. **可选功能不该能把 App 搞崩**：终端仿真在主线程，回调里抛异常 = 崩溃 + 会话结束。`TermuxTerminalSessionActivityClient` 里 fork 加的通知链路（失败命令卡片 / OSC 通知 / 关闭与存活查询 / 标题变化 / bell）全部 `try/catch` + 日志，失败退化到上游行为（toast 或什么都不显示）。
+
+**明确没做的（写进文档避免下次重复讨论）**：
+- OSC 99 的图标解码仍在主线程（`TerminalNotificationAssembler` → `BitmapFactory`），默认关（`notification-osc-icons`），真出问题再挪后台线程。
+- 把仿真整体挪到 IO 线程是上游架构改动（`TerminalSession`/`TerminalView`/客户端全要重入），风险远超收益，不做。
+- 正则的灾难性回溯（单行 `(a+)+$`）预算挡不住，只能靠后台线程 + 文本快照彻底解决，记在 FORK.md §29.4。
+- 粘贴大文本会阻塞主线程（4KB `ByteQueue`）是上游行为，与 fork 无关。
+
+**本地验证**：`./gradlew :app:testDebugUnitTest` 129 个用例，只有 `FileReceiverActivityTest` 挂 —— 已用 `git stash` 在 d81c04f 干净树上复现，是 Robolectric teardown 的 `ShadowActivityThread.reset: ActivityThread not set`，**与本次改动无关**（本机环境问题）。`:terminal-emulator:testDebugUnitTest` 23 个测试类全绿。`:app:assembleDebug` 在本机跑不了：NDK 29 的 `ndk-build` 不支持 aarch64 host（`Unknown host CPU architecture: aarch64`），与 FORK.md 里「本机无 lint/无 APK」的既有记录一致，APK 交给 CI。
