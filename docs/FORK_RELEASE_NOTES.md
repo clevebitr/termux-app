@@ -21,6 +21,7 @@ they are enabled, and all of them can also be changed in **Settings -> Termux**.
 | Appearance | Italic font, OSC 8 hyperlinks, `night-mode=color-scheme`, day/night aware status bar icons, simplified chinese translation. | FORK.md §2, §3, §5, §8 |
 | Backup | `termux-backup` / `termux-restore` scripts and a settings entry. | FORK.md §6 |
 | Shell | The command history is kept when the app is closed and is shared by the sessions that are open at the same time, instead of being lost because the app kills the shells without them exiting. Enabled by default (`shell-history-sync`). | FORK.md §28 |
+| Reading back | Scrolling up in the transcript stays there while a program keeps writing, like a TUI or a build log, instead of being scrolled to the bottom on every line. Typing or pasting scrolls to the bottom again. The transcript keeps 5000 rows instead of 2000. | FORK.md §30 |
 
 Quick start for the notification cards:
 

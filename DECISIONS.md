@@ -1166,3 +1166,37 @@ if (!environment.containsKey(ENV_PROMPT_COMMAND) && shouldSyncShellHistory()) {
 - 粘贴大文本会阻塞主线程（4KB `ByteQueue`）是上游行为，与 fork 无关。
 
 **本地验证**：`./gradlew :app:testDebugUnitTest` 129 个用例，只有 `FileReceiverActivityTest` 挂 —— 已用 `git stash` 在 d81c04f 干净树上复现，是 Robolectric teardown 的 `ShadowActivityThread.reset: ActivityThread not set`，**与本次改动无关**（本机环境问题）。`:terminal-emulator:testDebugUnitTest` 23 个测试类全绿。`:app:assembleDebug` 在本机跑不了：NDK 29 的 `ndk-build` 不支持 aarch64 host（`Unknown host CPU architecture: aarch64`），与 FORK.md 里「本机无 lint/无 APK」的既有记录一致，APK 交给 CI。
+
+## 2026-11-08 — 回滚看历史被新输出拽回底部：根因是 onScreenUpdated() 无条件 setTopRow(0)，改成保持视口 + 输入回底部
+
+**现象**：在 pi（regular/inline TUI）、日志流、编译输出这种"一直在写"的程序里，往上滑看历史后**马上被弹回底部**，长对话根本没法往回读。
+
+**根因在 Termux，不在程序**：`TerminalView.onScreenUpdated()`（上游代码，fork 之前没动）：
+
+```java
+if (!skipScrolling && mTopRow != 0) {   // 只要新输出、没在选文本、程序没用 DECSET 1010
+    ...
+    setTopRow(0);                       // ← 无条件拍回底部
+}
+```
+
+只有两种例外不拍：正在长按选中文本，或程序主动 `DECSET 1010`（`TerminalEmulator.mAutoScrollDisabled`，extra keys 的 `SCROLL` 键就是切它）。所以只要程序反复写（pi 的流式 token / 状态行），视图永远回不去。
+
+**修法**：活动 pane 也用非活动 pane 已有的"内容稳定"语义（`onScreenOutput()` 里那份），并且加下限 clamp：
+
+```java
+if (mClient.shouldKeepScrollPositionOnOutput()) {
+    setTopRow(Math.max(-rowsInHistory, Math.min(0, mTopRow - mEmulator.getScrollCounter())));
+    if (mTopRow < -3) awakenScrollBars();   // 滚动条提示"没在底部"
+} else setTopRow(0);                        // 上游行为
+```
+
+**坑 1：必须补"输入回底部"**。上游是靠"输出必回底"顺带解决这件事的；改成不跟随以后，往上翻着打字会看不到回显。所以加 `TerminalView.scrollToBottomOnInput()`，挂在三个写入口 `inputCodePoint()`（IME commit 与字符键）、`handleKeyCode()`（方向键/功能键/extra keys 走的 KeyHandler 路径，注意要在 `handleKeyCodeAction` 之后——shift+PageUp/Down 是滚回滚缓冲，不能反手拍回底部）、`onKeyDown(ACTION_MULTIPLE)`，外加新的 `TerminalView.pasteText()`：长按菜单 `doPaste()`、剪贴板粘贴回调、`PASTE` 虚拟键三条路径都改走它（原来直接 `mEmulator.paste()`，绕过了视图）。
+
+**坑 2：clamp**。`TerminalBuffer.externalToInternalRow()` 越界会抛 `IllegalArgumentException`（不是返回非法索引），而"`mTopRow - rowShift`"在回滚行数满了、老行被裁掉时可能越界 → 必须 `Math.max(-rowsInHistory, …)`。非活动 pane 的 `onScreenOutput()` 原本也只 `Math.min(0, …)`，一起补了。
+
+**属性**：`KEY_KEEP_SCROLL_POSITION_ON_OUTPUT = "keep-scroll-position-on-output"`，默认 **true**（属于修上游使用体验的 bug，和 `shell-history-sync` 一样破例默认开），关掉回到上游"每行都拍回底部"。设置页开关在 设置 → 终端视图 → 「输出时保持滚动位置」；`TerminalViewClient` 里给的是 `default true`，所以 Termux:Float 不改代码也跟着受益。
+
+**回滚行数 2000 → 5000**：`TerminalEmulator.DEFAULT_TERMINAL_TRANSCRIPT_ROWS`。拥"保持位置"依赖回滚缓冲：位置越过缓冲就会被裁到最老一行，所以缓冲要大。按 80 列一行约 1KB（`char[96]` + `long[80]` + 对象头）→ 2000≈2MB、5000≈5MB。上限仍是 50000。测试里把 5000 写死成断言，避免以后被无意改回去。
+
+**没做的**：`SCROLL` 键（硬冻结，连在底部也不跟随）语义没变，也没加进默认布局——它适合"盯一段日志"，不适合日常；`keep-scroll-position-on-output` 已经覆盖日常需求。若以后要"显式开关 + 激活态高亮"，可以基于同一个 `mAutoScrollDisabled` 再包一层。\n\n**验证**：属性集合/默认值/行数默认值加单测（`KeepScrollPositionPropertyTest`，防"漏登记进 boolean 列表导致启动时 `IllegalArgumentException`"这个经典坑）；滚动行为本身需要真机（`TerminalSession` 要真 pty，单测起不来），已写进 FORK.md「尚未真机验证」。

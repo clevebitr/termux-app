@@ -43,6 +43,7 @@
 | 24 | App 事件卡片（会话退出/插件结果/标题变化/bell）+ 后台系统通知 + 最近通知列表 | `notification-events-*`、`notification-background-enabled`、`notification-history-size` 或设置 → 通知 | 事件通道**默认关**；后台通知**默认关**；历史 50 条（仅内存） |
 | 25 | 代码结构（新代码的包划分，方便以后改） | — | — |
 | 28 | 命令历史跨会话保留 + 多会话共享（详见 §28） | `shell-history-sync`（设置 → 终端视图 → 保留命令历史） | **开**（等上游行为：`~/.bash_history` 在 App 关闭时会丢历史） |
+| 30 | 回滚看历史时不被新输出拽回底部 + 回滚行数 2000 → 5000（详见 §30） | `keep-scroll-position-on-output`（设置 → 终端视图）、`terminal-transcript-rows` | **开**；5000 行（≈5MB） |
 
 ### 里程碑时间线
 
@@ -1741,6 +1742,66 @@ Gboard CJK、拖拽上报、滑切会话这类手势/输入代码，跟每帧渲
 
 ---
 
+## 30. 回滚看历史时不被新输出拽回底部（`keep-scroll-position-on-output`）
+
+### 现象
+
+在 pi、日志流、编译输出这类“一直在写”的程序里，**手指往上滑看历史，马上就被弹回底部**，一段长对话根本没法往回读。
+
+### 根因在 Termux，不在程序
+
+`terminal-view/.../TerminalView.java: onScreenUpdated()`（上游代码）里：只要有新输出，且没在选文本、程序也没用
+`DECSET 1010` 关掉自动滚动，就无条件 `setTopRow(0)` —— 把视图拍回底部。所以只要程序不停写，视图就永远回不去。
+
+### 修法
+
+把“活动 pane”也改成非活动 pane 已经在用的“内容稳定”语义：
+
+```java
+if (mClient.shouldKeepScrollPositionOnOutput()) {
+    // 新行加在下面，视图保持在同一内容上；越往上滑 mTopRow 越负
+    setTopRow(Math.max(-rowsInHistory, Math.min(0, mTopRow - mEmulator.getScrollCounter())));
+    if (mTopRow < -3) awakenScrollBars();   // 让滚动条提示“你没在底部”
+} else {
+    setTopRow(0);                            // 上游行为
+}
+```
+
+* 手动滑回底部（`mTopRow == 0`）就重新跟随输出；
+* **输入/粘贴时回到底部**（`TerminalView.scrollToBottomOnInput()`）：否则打字看不到回显。挂在 `inputCodePoint()`、
+  `handleKeyCode()`、`onKeyDown(ACTION_MULTIPLE)` 三个写入口 + `pasteText()`（长按菜单粘贴、剪贴板粘贴、
+  `PASTE` 虚拟键都走它）；
+* 回滚位置被裁剪（回滚行数满了）时会 clamp 到最老一行，不会抛 `IllegalArgumentException`（`externalToInternalRow()`
+  越界会抛，非活动 pane 的 `onScreenOutput()` 一起补了 clamp）。
+
+开关：`keep-scroll-position-on-output`（默认 **true**，设置 → 终端视图 → 输出时保持滚动位置）。关掉就是上游行为。
+
+### 回滚行数：2000 → 5000
+
+`TerminalEmulator.DEFAULT_TERMINAL_TRANSCRIPT_ROWS` 从 **2000** 改成 **5000**（≈5MB，一行 80 列约 1KB）。
+上面“保持位置”依赖回滚缓冲：位置越过缓冲就会被裁剪，所以缓冲越大越好用。要更大就写
+`terminal-transcript-rows = 10000`（上限 50000）。
+
+### 还想“彻底不跟随”时
+
+extra keys 里的 `SCROLL`（⇳）键 → `TerminalEmulator.toggleAutoScrollDisabled()`：硬冻结语义，
+输出继续在下面追加、视图完全不动（连在底部也不跟随），适合“盯着一段日志看”。默认布局里没有这个键：
+
+```properties
+extra-keys = [['ESC','/','-','HOME','UP','END','PGUP','SCROLL'],['TAB','CTRL','ALT','LEFT','DOWN','RIGHT','PGDN']]
+```
+
+### 顺手记录的其他滚动入口
+
+| 操作 | 行为 |
+| --- | --- |
+| 手指拖动 / 惯性滑动 | 程序没抓鼠标 → 滚回滚缓冲；程序抓了鼠标 → 发滚轮事件（`doScroll()`） |
+| 音量和键动作 `prev-command` / `next-command` | 跳到上/下一条命令（需 shell 集成） |
+| 右边缘命令刻度 | 点一下跳到那条命令 |
+| `shift+PageUp` / `shift+PageDown` | 按页滚回滚缓冲（`handleKeyCodeAction()`），需要硬件键盘 |
+
+---
+
 ## 验证情况（真机）
 设备：OnePlus OPD2508 / ColorOS（Android 16 系 ROM，aarch64）。下面按「已在真机验证」和「尚未验证」分开列，
 未验证的项都只通过了本地编译 + 单测（本机无 lint：`:app:lintDebug` 需要 NDK 的 x86_64 工具链）。
@@ -1776,6 +1837,11 @@ Gboard CJK、拖拽上报、滑切会话这类手势/输入代码，跟每帧渲
 * §22 控件交互细节（SeekBar 越界、颜色对话框、改完返回是否立即生效）。
 * §23 OSC：卡片按钮点击回报、`p=icon` 图标显示、`a=report`/`c=1` 回报、限流是否真的挡住刷屏。
 * §24 App 事件卡片、后台系统通知（App 不在前台时）、最近通知对话框（跳转/复制/清空）。
+* §28 命令历史：关闭 App 后重开看 `history`、多开会话互相看到命令、shell 集成 v3 重装提示、
+  `shell-history-sync=false` 是否真的不落盘（`bash --norc -i` 已本地验证过恢复与 SIGKILL 场景）。
+* §30 滚动：在 pi / `yes` 这类持续输出下往上翻看是否不被拽回底部、滑回底部是否恢复跟随、
+  打字/粘贴是否回到底部（`PASTE` 键/长按菜单/剪贴板三条路径）、回滚行数 5000 时的内存与 resize 耗时、
+  `keep-scroll-position-on-output=false` 是否回到上游行为、`SCROLL` 键冻结后的手感。
 
 ### 本地可跑的验证手段
 
