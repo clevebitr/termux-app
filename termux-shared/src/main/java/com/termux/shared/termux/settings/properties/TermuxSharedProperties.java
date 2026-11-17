@@ -860,6 +860,18 @@ public abstract class TermuxSharedProperties {
     }
 
     /**
+     * Get the {@link TermuxPropertyConstants#KEY_MOUSE_HOVER_SENDS_MOUSE_MOTION} boolean value.
+     *
+     * If enabled, then mouse movement without a pressed button is reported to terminal programs that asked
+     * for it with `DECSET 1003`, so that hover handling in TUI programs (a hovered scrollbar, link or chart
+     * point) works. Off by default, since every reported event costs main thread time in both the terminal
+     * view and the terminal program.
+     */
+    public boolean shouldSendMouseHoverMotion() {
+        return (boolean) getInternalPropertyValue(TermuxPropertyConstants.KEY_MOUSE_HOVER_SENDS_MOUSE_MOTION, true);
+    }
+
+    /**
      * Get the {@link TermuxPropertyConstants#KEY_SWITCH_SESSION_ON_SWIPE} boolean value.
      *
      * If enabled, then a horizontal swipe on the terminal view switches to the next or previous

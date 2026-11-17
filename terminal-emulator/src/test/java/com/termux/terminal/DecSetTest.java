@@ -112,4 +112,54 @@ public class DecSetTest extends TerminalTestCase {
 		assertEquals("", mOutput.getOutputAndClear());
 	}
 
+	/** DECSET 1000/1002/1003, the mutually exclusive mouse tracking modes. */
+	public void testMouseTrackingModes() {
+		withTerminalSized(3, 3);
+		assertFalse(mTerminal.isMouseTrackingActive());
+		assertFalse(mTerminal.isMouseMotionTrackingActive());
+
+		enterString("\033[?1000h"); // Press and release only.
+		assertTrue(mTerminal.isMouseTrackingActive());
+		assertFalse("1000 must not report movement", mTerminal.isMouseMotionTrackingActive());
+
+		enterString("\033[?1002h"); // Also movement while a button is pressed, replaces 1000.
+		assertTrue(mTerminal.isMouseTrackingActive());
+		assertFalse("1002 must not report hover movement", mTerminal.isMouseMotionTrackingActive());
+
+		enterString("\033[?1003h"); // Also movement without a button, replaces 1002.
+		assertTrue(mTerminal.isMouseTrackingActive());
+		assertTrue(mTerminal.isMouseMotionTrackingActive());
+
+		enterString("\033[?1003l");
+		assertFalse("Resetting 1003 must not leave 1000 or 1002 behind", mTerminal.isMouseTrackingActive());
+		assertFalse(mTerminal.isMouseMotionTrackingActive());
+	}
+
+	/** Hover movement is only reported for DECSET 1003 and only with the SGR protocol. */
+	public void testHoverMotionIsOnlyReportedForAnyEventSgrMode() {
+		withTerminalSized(3, 3);
+		mTerminal.sendMouseEvent(TerminalEmulator.MOUSE_NO_BUTTON_MOVED, 2, 3, true);
+		assertEquals("Hover movement must not be reported when mouse tracking is off", "", mOutput.getOutputAndClear());
+
+		enterString("\033[?1002h\033[?1006h");
+		mTerminal.sendMouseEvent(TerminalEmulator.MOUSE_NO_BUTTON_MOVED, 2, 3, true);
+		assertEquals("Hover movement must not be reported for DECSET 1002", "", mOutput.getOutputAndClear());
+
+		enterString("\033[?1003h");
+		mTerminal.sendMouseEvent(TerminalEmulator.MOUSE_NO_BUTTON_MOVED, 2, 3, true);
+		assertEquals("Hover movement must be reported as SGR button 35", "\033[<35;2;3M", mOutput.getOutputAndClear());
+
+		enterString("\033[?1006l"); // Without SGR there is no encoding for movement without a button.
+		mTerminal.sendMouseEvent(TerminalEmulator.MOUSE_NO_BUTTON_MOVED, 2, 3, true);
+		assertEquals("Hover movement must not be reported without the SGR protocol", "", mOutput.getOutputAndClear());
+	}
+
+	/** Dragging with the left button is still reported when only DECSET 1003 is active. */
+	public void testDragMotionIsReportedForAnyEventMode() {
+		withTerminalSized(3, 3);
+		enterString("\033[?1003h\033[?1006h");
+		mTerminal.sendMouseEvent(TerminalEmulator.MOUSE_LEFT_BUTTON_MOVED, 2, 2, true);
+		assertEquals("\033[<32;2;2M", mOutput.getOutputAndClear());
+	}
+
 }

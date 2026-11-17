@@ -269,6 +269,11 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     }
 
     @Override
+    public boolean shouldSendMouseHoverMotion() {
+        return mActivity.getProperties().shouldSendMouseHoverMotion();
+    }
+
+    @Override
     public boolean shouldKeepScrollPositionOnOutput() {
         return mActivity.getProperties().shouldKeepScrollPositionOnOutput();
     }

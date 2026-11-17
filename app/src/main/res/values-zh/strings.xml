@@ -351,6 +351,14 @@
                     （如在 TUI 里选择文本、调整窗格大小）可以处理它。此后使用鼠标跟踪的程序不会再
                     收到拖拽产生的滚轮事件。</string>
 
+                <!-- Mouse Hover Sends Mouse Motion -->
+                <string name="termux_mouse_hover_sends_mouse_motion_title">鼠标悬停上报鼠标移动</string>
+                <string name="termux_mouse_hover_sends_mouse_motion_off">鼠标不按键移动不会上报给终端程序，即使程序用
+                    `DECSET 1003` 请求了。（默认）</string>
+                <string name="termux_mouse_hover_sends_mouse_motion_on">鼠标悬停移动会上报给用 `DECSET 1003` 请求的
+                    终端程序，TUI 里的悬停反馈（悬停滚动条、链接、图表点）才有效。每个上报事件都会增加终端和程序的
+                    主线程开销，且只在格子变化时才上报。</string>
+
                 <!-- Mouse Tap Shows Keyboard -->
                 <string name="termux_mouse_tap_shows_keyboard_title">鼠标点按唤键盘</string>
                 <string name="termux_mouse_tap_shows_keyboard_off">鼠标点击以及鼠标跟踪生效时的点击会转发给终端，

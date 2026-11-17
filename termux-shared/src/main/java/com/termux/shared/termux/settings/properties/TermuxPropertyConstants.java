@@ -126,6 +126,9 @@ import java.util.Set;
  *
  * - 0.32.0 (2026-10-30)
  *      - Add `KEY_KEEP_SCROLL_POSITION_ON_OUTPUT`.
+ *
+ * - 0.33.0 (2026-11-17)
+ *      - Add `KEY_MOUSE_HOVER_SENDS_MOUSE_MOTION`.
  */
 
 /**
@@ -234,6 +237,13 @@ public final class TermuxPropertyConstants {
      * `DECSET 1010`. When enabled, the view scrolls to the bottom again when the user scrolls to the bottom
      * or writes to the terminal. See `TerminalView#onScreenUpdated(boolean)`. */
     public static final String KEY_KEEP_SCROLL_POSITION_ON_OUTPUT =  "keep-scroll-position-on-output"; // Default: "keep-scroll-position-on-output"
+
+
+    /** Defines the key for whether mouse movement without a pressed button is reported to terminal programs
+     * that asked for it with `DECSET 1003`, so that hover handling in TUI programs works. Every reported
+     * event costs main thread time in both the terminal view and the terminal program, so this is off by
+     * default. See `TerminalView#onHoverEvent(MotionEvent)` and `TerminalEmulator#isMouseMotionTrackingActive()`. */
+    public static final String KEY_MOUSE_HOVER_SENDS_MOUSE_MOTION =  "mouse-hover-sends-mouse-motion"; // Default: "mouse-hover-sends-mouse-motion"
 
 
     /** Defines the key for how the sessions drawer can be opened, which is `auto` to show the edge handle
@@ -947,6 +957,7 @@ public final class TermuxPropertyConstants {
         KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP,
         KEY_MOUSE_TAP_SHOWS_KEYBOARD,
         KEY_KEEP_SCROLL_POSITION_ON_OUTPUT,
+        KEY_MOUSE_HOVER_SENDS_MOUSE_MOTION,
         KEY_RUN_TERMUX_AM_SOCKET_SERVER,
         KEY_SHELL_HISTORY_SYNC,
         KEY_SWITCH_SESSION_ON_SWIPE,
@@ -1018,6 +1029,7 @@ public final class TermuxPropertyConstants {
         KEY_HIDE_EXTRA_KEYS_WHEN_SOFT_KEYBOARD_HIDDEN,
         KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP,
         KEY_MOUSE_TAP_SHOWS_KEYBOARD,
+        KEY_MOUSE_HOVER_SENDS_MOUSE_MOTION,
         KEY_TERMINAL_ONCLICK_URL_OPEN,
         KEY_TOUCH_DRAG_SENDS_MOUSE_DRAG,
         KEY_USE_CTRL_SPACE_WORKAROUND,

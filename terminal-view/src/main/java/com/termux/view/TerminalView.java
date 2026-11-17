@@ -96,6 +96,12 @@ public final class TerminalView extends View {
     private int mMouseScrollStartX = -1, mMouseScrollStartY = -1;
     /** Keep track of the time when a touch event leading to sending mouse scroll events started. */
     private long mMouseStartDownTime = -1;
+    /** Minimum interval between reported mouse motion events, see {@link #onHoverEvent(MotionEvent)}. */
+    private static final long MOUSE_HOVER_MOTION_INTERVAL_MS = 10;
+    /** Last cell reported as mouse motion, so that the same cell is not reported twice. */
+    private int mMouseHoverLastX = -1, mMouseHoverLastY = -1;
+    /** Uptime of the last reported mouse motion event. */
+    private long mMouseHoverLastTime = 0;
 
     final Scroller mScroller;
 
@@ -967,6 +973,46 @@ public final class TerminalView extends View {
                 if (!awakenScrollBars()) invalidate();
             }
         }
+    }
+
+    /**
+     * Report mouse movement without a pressed button to terminal programs that asked for it with
+     * `DECSET 1003` ({@link TerminalEmulator#isMouseMotionTrackingActive()}), so that hover handling
+     * in TUI programs, like a hovered scrollbar, a hovered link or a zoom on a chart, works.
+     *
+     * Only enabled when the client asks for it, see {@link TerminalViewClient#shouldSendMouseHoverMotion()},
+     * since every reported event costs main thread time in both the terminal and the program.
+     */
+    @Override
+    public boolean onHoverEvent(MotionEvent event) {
+        boolean handled = super.onHoverEvent(event);
+        if (mEmulator == null || mClient == null || !mClient.shouldSendMouseHoverMotion()) return handled;
+        // A finger does not hover; stylus hovering is not reported as mouse motion.
+        if (!event.isFromSource(InputDevice.SOURCE_MOUSE) || isSelectingText()) return handled;
+        if (!mEmulator.isMouseMotionTrackingActive()) return handled;
+
+        final int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_HOVER_EXIT) {
+            // Forget the last cell, so that entering it again after leaving the view is reported again.
+            mMouseHoverLastX = mMouseHoverLastY = -1;
+            mMouseHoverLastTime = 0;
+            return handled;
+        }
+        if (action != MotionEvent.ACTION_HOVER_ENTER && action != MotionEvent.ACTION_HOVER_MOVE) return handled;
+
+        int[] columnAndRow = getColumnAndRow(event, false);
+        if (columnAndRow[0] == mMouseHoverLastX && columnAndRow[1] == mMouseHoverLastY) return true;
+
+        // A mouse or touchpad reports movement far faster than a terminal program can use it. Bound the
+        // number of reported events; a moving pointer reports the newer cell with its next event anyway.
+        long now = SystemClock.uptimeMillis();
+        if (mMouseHoverLastTime != 0 && now - mMouseHoverLastTime < MOUSE_HOVER_MOTION_INTERVAL_MS) return true;
+
+        mMouseHoverLastX = columnAndRow[0];
+        mMouseHoverLastY = columnAndRow[1];
+        mMouseHoverLastTime = now;
+        sendMouseEventCode(event, TerminalEmulator.MOUSE_NO_BUTTON_MOVED, true);
+        return true;
     }
 
     /** Overriding {@link View#onGenericMotionEvent(MotionEvent)}. */

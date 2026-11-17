@@ -41,6 +41,10 @@ public class TermuxTerminalViewClientBase implements TerminalViewClient {
         return false;
     }
 
+    public boolean shouldSendMouseHoverMotion() {
+        return false;
+    }
+
     public boolean shouldSwitchSessionOnSwipe() {
         return false;
     }

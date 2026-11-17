@@ -101,6 +101,17 @@ public interface TerminalViewClient {
     boolean shouldTouchDragSendMouseDrag();
 
     /**
+     * Whether mouse movement without a pressed button should be reported to terminal programs that
+     * asked for it with `DECSET 1003`, so that hover handling in TUI programs works.
+     *
+     * This is off unless the user turns it on, since every reported event costs main thread time in
+     * both the terminal view and the terminal program.
+     */
+    default boolean shouldSendMouseHoverMotion() {
+        return false;
+    }
+
+    /**
      * Whether the view should keep the rows that are visible in the viewport when new output arrives
      * while it is scrolled back into the transcript, instead of scrolling to the bottom, so that the
      * transcript can be read while a terminal program keeps writing, like a TUI that redraws itself.

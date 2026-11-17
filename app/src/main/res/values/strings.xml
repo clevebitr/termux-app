@@ -369,6 +369,15 @@
                     panes in a TUI, can handle. Scrolling with a drag is then not reported as scroll wheel events
                     to programs that use mouse tracking.</string>
 
+                <!-- Mouse Hover Sends Mouse Motion -->
+                <string name="termux_mouse_hover_sends_mouse_motion_title">Mouse Hover Sends Mouse Motion</string>
+                <string name="termux_mouse_hover_sends_mouse_motion_off">Moving the mouse without pressing a button is
+                    not reported to terminal programs, even if they ask for it with `DECSET 1003`. (Default)</string>
+                <string name="termux_mouse_hover_sends_mouse_motion_on">Moving the mouse without a pressed button is
+                    reported to terminal programs that asked for it with `DECSET 1003`, which hover handling in TUI
+                    programs needs, like a hovered scrollbar, link or chart point. Every reported event costs main
+                    thread time in the terminal and in the program, and the cell is only reported when it changes.</string>
+
                 <!-- Mouse Tap Shows Keyboard -->
                 <string name="termux_mouse_tap_shows_keyboard_title">Show Keyboard on Mouse Tap</string>
                 <string name="termux_mouse_tap_shows_keyboard_off">Taps with a mouse or while mouse tracking is active
