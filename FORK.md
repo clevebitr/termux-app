@@ -44,6 +44,8 @@
 | 25 | 代码结构（新代码的包划分，方便以后改） | — | — |
 | 28 | 命令历史跨会话保留 + 多会话共享（详见 §28） | `shell-history-sync`（设置 → 终端视图 → 保留命令历史） | **开**（等上游行为：`~/.bash_history` 在 App 关闭时会丢历史） |
 | 30 | 回滚看历史时不被新输出拽回底部 + 回滚行数 2000 → 5000（详见 §30） | `keep-scroll-position-on-output`（设置 → 终端视图）、`terminal-transcript-rows` | **开**；5000 行（≈5MB） |
+| 31 | 鼠标滚轮上报实时坐标（悬停后不需要先点击，详见 §31） | — | 总是生效 |
+| 32 | 鼠标悬停上报鼠标移动（`DECSET 1003`，详见 §32） | `mouse-hover-sends-mouse-motion`（设置 → 终端键盘） | **关**（高级功能，opt-in） |
 
 ### 里程碑时间线
 
@@ -1802,6 +1804,131 @@ extra-keys = [['ESC','/','-','HOME','UP','END','PGUP','SCROLL'],['TAB','CTRL','A
 
 ---
 
+---
+
+## 31. 鼠标滚轮上报「上次点击」的坐标（`mouse-wheel-live-position`）
+
+### 现象
+
+用蓝牙鼠标（触控板同理）时：把指针**悬停**到另一个窗口/位置再滚轮，滚轮事件带的仍然是**上一次左键点击处**的坐标，
+不点击就一直不变。于是鼠标感知的程序（neovim 分屏、tmux、fzf、pi 等）滚的是「上次点击的那个窗口」，
+真正悬停的窗口反而不动。在 LazyVim 里表现为「滚终端窗口，编辑器窗口跟着滚」，非常容易误判成 neovim 的 bug。
+
+本机诊断（不需要装 App，Termux 里直接跑）：
+
+```sh
+printf '\e[?1000h\e[?1002h\e[?1006h'; cat -v; printf '\e[?1006l\e[?1002l\e[?1000l'
+# 悬停到不同位置各滚一格，看 ^[[<64;x;yM 里的 x;y
+# 期望：随指针位置变化；实际（修复前）：只有左键点过之后才变一次
+```
+
+### 根因
+
+`terminal-view/.../TerminalView.java: sendMouseEventCode()`（上游代码）把「手指滑动转滚轮」的语义套在了**所有输入源**上：
+
+```java
+if (mMouseStartDownTime == e.getDownTime()) {
+    x = mMouseScrollStartX;   // 复用整个手势第一格滚轮的坐标
+    y = mMouseScrollStartY;
+} else {
+    mMouseStartDownTime = e.getDownTime();
+    ...
+}
+```
+
+手指滑动时这是对的：一次滑动要连续发很多滚轮事件，坐标必须稳定在滑动起点，否则会随手指漂移。
+但鼠标的 `ACTION_SCROLL` 事件的 `downTime` 是**最近一次按键按下的时刻**——「点击之后的所有滚轮」共享同一个
+`downTime`，所以缓存只刷新一次，之后一直复用，直到下一次点击改写 `downTime`。
+
+### 修法
+
+只对非 `SOURCE_MOUSE`（手指、手写笔）保留「手势内固定坐标」，鼠标/触控板一律用事件自带的实时坐标：
+
+```java
+if (pressed
+    && (button == TerminalEmulator.MOUSE_WHEELDOWN_BUTTON || button == TerminalEmulator.MOUSE_WHEELUP_BUTTON)
+    && !e.isFromSource(InputDevice.SOURCE_MOUSE)) {
+    ... 原有缓存逻辑 ...
+}
+```
+
+影响面：
+
+* 鼠标滚轮上报的 `x;y` 变成实时值；手指滑动的行为完全不变（它不在 `SOURCE_MOUSE` 里）。
+* 一个滚轮格 = `doScroll()` 里的 3 个滚轮事件，现在这 3 个事件都带同一个实时坐标（同一个 `MotionEvent`），
+  和 xterm/kitty 等桌面的行为一致。
+
+### 验证
+
+1. 装新 APK 后跑上面那条 `cat -v` 诊断：指针移到不同位置再滚，`x;y` 应立即跟着变（不需要点击）。
+2. neovim：`<leader>ft` 打开终端跑 `htop`/`pi`，焦点留在编辑器，滚轮打在终端窗口上 → 只有终端窗口滚；
+   滚轮打在编辑器上 → 只有编辑器滚。
+
+---
+
+## 32. 鼠标悬停上报鼠标移动（`mouse-hover-sends-mouse-motion`，高级功能）
+
+### 为什么需要
+
+上面 §31 修好了滚轮坐标，但还有一类程序需要「不按键的鼠标移动」：`DECSET 1003`（any-event tracking）。
+之前 Termux 根本没有实现 1003（`mapDecSetBitToInternalBit()` 对它返回 -1），所以这类请求被静默忽略，
+后果是：
+
+* 鼠标感知的 TUI 的悬停反馈全部失效（悬停滚动条、悬停链接、图表/地图上的鼠标位置、`neovim` 里
+  依赖 `<MouseMove>` 的插件）；
+* 程序以为自己拿到了「全移动」模式，实际只拿到 `1002`（按键拖拽时的移动），行为与桌面终端不一致。
+
+### 实现
+
+1. `TerminalEmulator`：新增 `DECSET_BIT_MOUSE_TRACKING_ANY_EVENT`（`1 << 13`）映射 `1003`，并与
+   `1000` / `1002` 保持互斥（与真实终端一致：后设置的模式覆盖前一个）；新增
+   `isMouseMotionTrackingActive()`；新增 SGR 按键码常量 `MOUSE_NO_BUTTON_MOVED = 35`。
+2. `sendMouseEvent()`：`MOUSE_NO_BUTTON_MOVED` 只在「`1003` 已开启」且「SGR 协议已开启」时才发送
+   （旧版 X10 协议无法表达「不按键的移动」）；`MOUSE_LEFT_BUTTON_MOVED`（拖拽）在 `1002` 或 `1003`
+   下都会发送。
+3. `TerminalView.onHoverEvent()`：把 `ACTION_HOVER_MOVE`（`SOURCE_MOUSE`）翻译成 `\033[<35;x;yM`。
+   * 只在格子发生变化时上报（同一格子不重复发）；
+   * 两次上报至少间隔 `MOUSE_HOVER_MOTION_INTERVAL_MS = 10ms`（约 100 次/秒上限），指针继续移动时下一个
+     事件自然会带上更新的格子；
+   * `ACTION_HOVER_EXIT` 会清掉「上次格子」，从视图外移回来能重新上报；
+   * 文本选择模式、非鼠标输入源、程序没开 `1003` 时一律不报。
+4. 开关：`TerminalViewClient.shouldSendMouseHoverMotion()` → `TermuxTerminalViewClientBase` 默认 `false`
+   → `TermuxTerminalViewClient` 读属性 `mouse-hover-sends-mouse-motion`。设置页在
+   设置 → 终端键盘 → 「鼠标悬停上报鼠标移动」，默认**关**。
+
+### 用法
+
+```properties
+# ~/.termux/termux.properties
+mouse-hover-sends-mouse-motion=true
+```
+
+打开后，凡是发 `\033[?1003h` 的程序（`pi` 全屏模式、`glow`、部分 TUI 阅读器）就能收到鼠标悬停位置。
+注意这是「opt-in 的高级功能」：
+
+* 每个上报事件都会增加主线程开销（终端侧拼序列 + 程序侧解析/重绘），所以默认关闭；
+* 只对**声明了 `1003`** 的程序生效，普通 `vim`/`less` 不受影响；
+* 手指滑动的行为完全不变（只处理 `SOURCE_MOUSE`，且悬停不适用于手指）；
+* 顺带的副作用（正确的）：以前 `1003` 被忽略，只开 `1003` 的程序连点击/滚轮都收不到；现在 `1003` 会被真正实现，
+  所以即使开关关着，这类程序的点击/滚轮/拖拽也会正常上报，行为与桌面终端一致。
+
+### 验证
+
+1. 单测（无需真机）：
+   ```sh
+   ./gradlew :terminal-emulator:testDebugUnitTest --tests '*DecSetTest*' \
+              :app:testDebugUnitTest --tests '*MouseHoverMotionPropertyTest*'
+   ```
+   覆盖：`1000/1002/1003` 互斥与 `isMouseMotionTrackingActive()`、`\033[<35;x;yM` 只在
+   `1003`+SGR 下发送、`1003` 下拖拽仍上报 `\033[<32;x;yM`、属性 key 的注册与默认值。
+2. 真机：
+   ```sh
+   # 打开鼠标跟踪（1003）后悬停，应看到每换一格一条 ^[[<35;x;yM
+   printf '\e[?1000h\e[?1003h\e[?1006h'; cat -v; printf '\e[?1006l\e[?1003l\e[?1000l'
+   ```
+   在 neovim 里 `:set mouse=a` 后打开一个终端窗口跑 `htop`，悬停在进程列表上应立即高亮行；
+   以前的版本必须按键或点击才有反应。
+
 ## 验证情况（真机）
 设备：OnePlus OPD2508 / ColorOS（Android 16 系 ROM，aarch64）。下面按「已在真机验证」和「尚未验证」分开列，
 未验证的项都只通过了本地编译 + 单测（本机无 lint：`:app:lintDebug` 需要 NDK 的 x86_64 工具链）。
@@ -1842,6 +1969,10 @@ extra-keys = [['ESC','/','-','HOME','UP','END','PGUP','SCROLL'],['TAB','CTRL','A
 * §30 滚动：在 pi / `yes` 这类持续输出下往上翻看是否不被拽回底部、滑回底部是否恢复跟随、
   打字/粘贴是否回到底部（`PASTE` 键/长按菜单/剪贴板三条路径）、回滚行数 5000 时的内存与 resize 耗时、
   `keep-scroll-position-on-output=false` 是否回到上游行为、`SCROLL` 键冻结后的手感。
+* §31 鼠标滚轮坐标：悬停后滚轮是否上报实时坐标（`cat -v` 诊断）、neovim 分屏里滚轮是否只滚悬停窗口、
+  手指滑动滚轮坐标是否仍固定在滑动起点（不能被这次修改带坏）。
+* §32 鼠标悬停上报：`mouse-hover-sends-mouse-motion=true` 时悬停是否按格上报 `\033[<35;x;yM`、
+  同一格是否不重复上报、10ms 节流后的手感、`1003` 下拖拽与滚轮是否仍正常、关掉开关后是否完全回到旧行为。
 
 ### 本地可跑的验证手段
 
