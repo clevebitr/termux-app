@@ -930,7 +930,15 @@ public final class TerminalView extends View {
         int[] columnAndRow = getColumnAndRow(e, false);
         int x = columnAndRow[0] + 1;
         int y = columnAndRow[1] + 1;
-        if (pressed && (button == TerminalEmulator.MOUSE_WHEELDOWN_BUTTON || button == TerminalEmulator.MOUSE_WHEELUP_BUTTON)) {
+        // Turning a finger swipe into wheel events has to report the cell where the swipe
+        // started for the whole gesture, otherwise the reported cell drifts while the finger
+        // moves. A real mouse or touchpad is different: its ACTION_SCROLL events carry the
+        // downTime of the last button press, so caching the first reported position froze it
+        // until the next click (hovering never refreshed it). Mouse aware programs then
+        // scrolled the window the last click happened in instead of the hovered one.
+        if (pressed
+            && (button == TerminalEmulator.MOUSE_WHEELDOWN_BUTTON || button == TerminalEmulator.MOUSE_WHEELUP_BUTTON)
+            && !e.isFromSource(InputDevice.SOURCE_MOUSE)) {
             if (mMouseStartDownTime == e.getDownTime()) {
                 x = mMouseScrollStartX;
                 y = mMouseScrollStartY;
