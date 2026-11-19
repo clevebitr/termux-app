@@ -15,6 +15,8 @@
 | 旧模块 | 只读 | 同上 |
 | 阶段顺序 | 骨架 → 规划 → 动工 | `AGENTS.md` 第 5 节 |
 | 当前进度 | 阶段一完成，18 项单元测试通过 | `UPGRADE.md` 第 10.4 节 |
+| D1 | 采纳 A：复制基线 | 需求方于 2026-11-19 确认 |
+| D2 | 采纳 C：改用 `com.termux` 包名顶替旧应用 | 需求方于 2026-11-19 确认 |
 
 ---
 
@@ -26,7 +28,7 @@
 | --- | --- | --- | --- |
 | 只读依赖 | `implementation project(":terminal-view")` 等构建依赖，不修改源码 | 是 | 修改其源码、资源、构建脚本 |
 | 包装层 | 在 `app_new` 内包裹旧类，通过公开 API 或输出流拦截实现新行为 | 是 | 依赖旧类的私有成员或反射改写行为 |
-| 复制基线 | 把旧模块源码复制进 `app_new` 并迁移包名，形成独立基线 | 仅当决策点 D1 批准 | 复制后仍与旧模块共享文件 |
+| 复制基线 | 把旧模块源码复制进 `app_new` 并迁移包名，形成独立基线 | 仅当决策点 D1 批准 | 复制后仍与旧模块共享文件、或同时引用复制基线与原模块 |
 
 ---
 
@@ -45,7 +47,11 @@
 | B | 对 `terminal-emulator` 做最小补丁（每处改动单独提交、逐条记录） | 违反「旧代码只读」约束，需需求方书面豁免 | 旧模块重新与技术债耦合，合并上游成本回升 |
 | C | 只做包装层，放弃 R1 与 I1 | 无 | 桌面级体验的两项核心能力缺失，本计划目标无法达成 |
 
-**推荐 A**。若采纳，M12 的 R1 与 M14 的 I1 顺延至复制基线完成之后；R2 不受影响，可按包装层先行实现。
+**结论：采纳 A**（2026-11-19 确认）。复制范围为 `terminal-emulator` 与 `terminal-view` 两者的源码，
+理由：`terminal-view` 直接引用 `com.termux.terminal.*`，若只复制前者，构建中将同时存在两套 VT 类型与
+两个同名原生库 `libtermux`，产生类冲突与符号冲突。复制后在 `app_new/terminal-core/` 内形成独立基线，
+包名迁移为 `com.termux.shell.terminal` 与 `com.termux.shell.termview`，原生库保留模块名 `libtermux`。
+M12 的 R1 与 M14 的 I1 顺延至复制基线完成之后；R2 不受影响，可按包装层先行实现。
 
 ### D2 — 引导文件系统（bootstrap 与 `$PREFIX`）的归属（阻塞 M12-2）
 
@@ -58,7 +64,22 @@
 | B | 在 `app_new` 内重新实现 bootstrap 安装器（下载、校验、解压、权限修复、`termux-exec`） | 约 1500 行，且与旧模块功能重复 |
 | C | `app_new` 最终改用 `com.termux` 包名顶替旧应用 | 无法与旧应用并存对比；签名与 `sharedUserId` 约束回归 |
 
-**推荐 A**，并把 B 与 C 的取舍推迟到 M13.5，届时可基于 M12 的外壳成熟度再判断。
+**结论：采纳 C**（2026-11-19 确认），即 `app_new` 最终以 `com.termux` 包名顶替旧应用，直接复用既有 `$PREFIX`。
+
+采纳 C 带来下列必须同时满足的约束，缺一不可：
+
+| 编号 | 约束 | 说明 |
+| --- | --- | --- |
+| C-1 | 必须声明 `android:sharedUserId="com.termux"` | 旧应用已声明该属性；更新安装时 `sharedUserId` 不允许新增或变更，否则报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE` |
+| C-2 | 必须与旧应用同签名 | 否则报 `INSTALL_FAILED_SHARED_USER_INCOMPATIBLE`；签名流程见 `FORK_BUILD.md` |
+| C-3 | 无法与旧应用并存 | 同 `applicationId` 的安装即覆盖旧应用；「并存对比」这一收益相应取消 |
+| C-4 | 覆盖安装会破坏插件功能 | `Termux:API`、`Termux:Boot`、`Termux:Tasker`、`Termux:Widget`、`Termux:Float`、`Termux:Styling` 依赖旧应用的 `RUN_COMMAND` 服务与签名级权限；在移植对应服务之前，覆盖安装会使插件失效 |
+| C-5 | 开发期覆盖安装会终止正在运行的会话 | 覆盖安装等同于升级，进程重启，正在执行的命令与未保存的输出丢失 |
+
+**M12 期间的落地方式**：`app_new` 继续使用 `applicationId=com.termux.shell` 与独立数据目录，仅使用
+`/system/bin/sh` 验证外壳与帧管线；`sharedUserId`、签名与包名切换作为 M13.5 的前置任务单独实施，
+并在实施前完成 `$PREFIX` 备份（见 `FORK_BUILD.md` 第 4.4 节）。这样可在不触碰日常使用中的 Termux
+的前提下推进 M12 与 M13。
 
 ### D3 — 布局与配置的落盘位置
 
@@ -86,7 +107,8 @@ M12 与 M15-1（工具链）可并行；M13.5 与 M14 可并行；M16 不得早�
 
 | 编号 | 目标 | 改动文件（均在 `app_new/`，另有标注者除外） | 用法 | 验收 |
 | --- | --- | --- | --- | --- |
-| M12-1 | 接入终端库 | `build.gradle` 增加 `project(":terminal-emulator")`、`project(":terminal-view")` | 只读依赖 | `./gradlew :app_new:assembleDebug` 通过；APK 内含 `libtermux.so` |
+| M12-0 | 终端核心复制基线（D1=A） | 新增 `app_new/terminal-core/`：复制 `terminal-emulator` 与 `terminal-view` 源码，包名迁移为 `com.termux.shell.terminal` 与 `com.termux.shell.termview`，原生库保留 `libtermux` | 复制基线 | 迁移后 `:terminal-core:testDebugUnitTest` 中原有 24 个测试文件全部通过；`:terminal-core:assembleDebug` 产出单一 `libtermux.so` |
+| M12-1 | 接入终端库 | `build.gradle` 增加 `project(":terminal-core")`；根 `settings.gradle` 增加该模块 | 只读依赖（指向复制基线） | `./gradlew :app_new:assembleDebug` 通过；APK 内含 `libtermux.so` |
 | M12-2 | 进程内会话宿主 | 新增 `session/LocalSessionHost.java`、`session/SessionThread.java` | 只读依赖 | 单元测试覆盖创建、写入、关闭的幂等性；设备上出现交互式 shell 提示符 |
 | M12-3 | 会话视图挂载 | 新增 `pane/SessionViewFactory.java`；修改 `pane/PaneHostView.java` 为容器，改为按叶子定位子视图 | 只读依赖 | 四窗格各显示独立会话；切换窗格时视图不重建（以 `View` 实例标识验证） |
 | M12-4 | 终端视图客户端适配 | 新增 `terminal/TerminalViewClientAdapter.java`、`terminal/TerminalSessionClientAdapter.java` | 只读依赖 | 输入可回显；`Ctrl+C` 可中断前台进程；未实现项以 `TODO(M14)` 标注 |
@@ -114,11 +136,12 @@ M12 期间不得实现多窗口、页签、kitty 键序与拖放。
 
 | 编号 | 目标 | 改动文件 | 验收 |
 | --- | --- | --- | --- |
-| M13.5-1 | bootstrap 安装与校验 | 新增 `bootstrap/BootstrapInstaller.java`、`bootstrap/BootstrapManifest.java` | 安装失败时给出可复现的诊断信息；重复安装幂等 |
-| M13.5-2 | 环境变量与 `termux-exec` | 新增 `bootstrap/ShellEnvironment.java` | `$PREFIX`、`$HOME`、`$TMPDIR`、`LD_PRELOAD` 与旧应用行为一致 |
-| M13.5-3 | 存储映射与备份 | 新增 `bootstrap/StorageMapper.java` | `termux-setup-storage` 等价行为可用；备份与恢复见 `FORK.md` 第 6 节 |
+| M13.5-1 | 包名与共享用户切换（C-1、C-2） | `app_new/build.gradle`、`app_new/src/main/AndroidManifest.xml` | 覆盖安装成功；`/data/data/com.termux/files/usr` 可读写可执行 |
+| M13.5-2 | 既有 `$PREFIX` 兼容验证（C-3、C-5） | 新增 `runtime/PrefixProbe.java` | `bash`、`apt`、`proot-distro` 在既有前缀上可用；备份与恢复流程见 `FORK_BUILD.md` 第 4.4 节 |
+| M13.5-3 | 插件服务前置（C-4） | 新增 `plugin/RunCommandService.java` 等，或明确降级说明 | `Termux:API` 至少一条命令可用；未移植项在 `FORK.md` 中列为已知限制 |
 
-若 D2 选择 C（改用 `com.termux` 包名），本里程碑改为「复用旧应用数据目录的兼容性验证」，工作量约为一周。
+本里程碑直接采纳 D2 的 C 方案，不再实施自建 bootstrap 安装器；M13.5-3 的工作量较大，
+可拆为独立里程碑，但不得晚于首次对外发布。
 
 ---
 
@@ -190,3 +213,4 @@ Kotlin 引入不在 M15 范围内，单独评估后再排期。
 | 日期 | 变更 | 依据 |
 | --- | --- | --- |
 | 2026-11-19 | 建立本计划；确认先进程内接入；登记决策点 D1–D3 | 需求方确认与阶段一交付结果 |
+| 2026-11-19 | D1 采纳 A（复制基线，范围含 `terminal-view`）；D2 采纳 C（改用 `com.termux` 包名），登记约束 C-1…C-5；新增任务 M12-0；重写 M13.5 | 需求方确认 |
