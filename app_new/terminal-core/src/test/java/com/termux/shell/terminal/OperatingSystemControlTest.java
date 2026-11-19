@@ -1,0 +1,318 @@
+package com.termux.shell.terminal;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+
+/** "ESC ]" is the Operating System Command. */
+public class OperatingSystemControlTest extends TerminalTestCase {
+
+	public void testSetTitle() throws Exception {
+		List<ChangedTitle> expectedTitleChanges = new ArrayList<>();
+
+		withTerminalSized(10, 10);
+		enterString("\033]0;Hello, world\007");
+		assertEquals("Hello, world", mTerminal.getTitle());
+		expectedTitleChanges.add(new ChangedTitle(null, "Hello, world"));
+		assertEquals(expectedTitleChanges, mOutput.titleChanges);
+
+		enterString("\033]0;Goodbye, world\007");
+		assertEquals("Goodbye, world", mTerminal.getTitle());
+		expectedTitleChanges.add(new ChangedTitle("Hello, world", "Goodbye, world"));
+		assertEquals(expectedTitleChanges, mOutput.titleChanges);
+
+		enterString("\033]0;Goodbye, \u00F1 world\007");
+		assertEquals("Goodbye, \uu00F1 world", mTerminal.getTitle());
+		expectedTitleChanges.add(new ChangedTitle("Goodbye, world", "Goodbye, \uu00F1 world"));
+		assertEquals(expectedTitleChanges, mOutput.titleChanges);
+
+		// 2 should work as well (0 sets both title and icon).
+		enterString("\033]2;Updated\007");
+		assertEquals("Updated", mTerminal.getTitle());
+		expectedTitleChanges.add(new ChangedTitle("Goodbye, \uu00F1 world", "Updated"));
+		assertEquals(expectedTitleChanges, mOutput.titleChanges);
+
+		enterString("\033[22;0t");
+		enterString("\033]0;FIRST\007");
+		expectedTitleChanges.add(new ChangedTitle("Updated", "FIRST"));
+		assertEquals("FIRST", mTerminal.getTitle());
+		assertEquals(expectedTitleChanges, mOutput.titleChanges);
+
+		enterString("\033[22;0t");
+		enterString("\033]0;SECOND\007");
+		assertEquals("SECOND", mTerminal.getTitle());
+
+		expectedTitleChanges.add(new ChangedTitle("FIRST", "SECOND"));
+		assertEquals(expectedTitleChanges, mOutput.titleChanges);
+
+		enterString("\033[23;0t");
+		assertEquals("FIRST", mTerminal.getTitle());
+
+		expectedTitleChanges.add(new ChangedTitle("SECOND", "FIRST"));
+		assertEquals(expectedTitleChanges, mOutput.titleChanges);
+
+		enterString("\033[23;0t");
+		expectedTitleChanges.add(new ChangedTitle("FIRST", "Updated"));
+		assertEquals(expectedTitleChanges, mOutput.titleChanges);
+
+		enterString("\033[22;0t");
+		enterString("\033[22;0t");
+		enterString("\033[22;0t");
+		// Popping to same title should not cause changes.
+		enterString("\033[23;0t");
+		enterString("\033[23;0t");
+		enterString("\033[23;0t");
+		assertEquals(expectedTitleChanges, mOutput.titleChanges);
+	}
+
+	public void testTitleStack() throws Exception {
+		// echo -ne '\e]0;BEFORE\007' # set title
+		// echo -ne '\e[22t' # push to stack
+		// echo -ne '\e]0;AFTER\007' # set new title
+		// echo -ne '\e[23t' # retrieve from stack
+
+		withTerminalSized(10, 10);
+		enterString("\033]0;InitialTitle\007");
+		assertEquals("InitialTitle", mTerminal.getTitle());
+		enterString("\033[22t");
+		assertEquals("InitialTitle", mTerminal.getTitle());
+		enterString("\033]0;UpdatedTitle\007");
+		assertEquals("UpdatedTitle", mTerminal.getTitle());
+		enterString("\033[23t");
+		assertEquals("InitialTitle", mTerminal.getTitle());
+		enterString("\033[23t\033[23t\033[23t");
+		assertEquals("InitialTitle", mTerminal.getTitle());
+	}
+
+	public void testSetColor() throws Exception {
+		// "OSC 4; $INDEX; $COLORSPEC BEL" => Change color $INDEX to the color specified by $COLORSPEC.
+		withTerminalSized(4, 4).enterString("\033]4;5;#00FF00\007");
+		assertEquals(Integer.toHexString(0xFF00FF00), Integer.toHexString(mTerminal.mColors.mCurrentColors[5]));
+		enterString("\033]4;5;#00FFAB\007");
+		assertEquals(mTerminal.mColors.mCurrentColors[5], 0xFF00FFAB);
+		enterString("\033]4;255;#ABFFAB\007");
+		assertEquals(mTerminal.mColors.mCurrentColors[255], 0xFFABFFAB);
+		// Two indexed colors at once:
+		enterString("\033]4;7;#00FF00;8;#0000FF\007");
+		assertEquals(mTerminal.mColors.mCurrentColors[7], 0xFF00FF00);
+		assertEquals(mTerminal.mColors.mCurrentColors[8], 0xFF0000FF);
+	}
+
+	void assertIndexColorsMatch(int[] expected) {
+		for (int i = 0; i < 255; i++)
+			assertEquals("index=" + i, expected[i], mTerminal.mColors.mCurrentColors[i]);
+	}
+
+	public void testResetColor() throws Exception {
+		withTerminalSized(4, 4);
+		int[] initialColors = new int[TextStyle.NUM_INDEXED_COLORS];
+		System.arraycopy(mTerminal.mColors.mCurrentColors, 0, initialColors, 0, initialColors.length);
+		int[] expectedColors = new int[initialColors.length];
+		System.arraycopy(mTerminal.mColors.mCurrentColors, 0, expectedColors, 0, expectedColors.length);
+		Random rand = new Random();
+		for (int endType = 0; endType < 3; endType++) {
+			// Both BEL (7) and ST (ESC \) can end an OSC sequence.
+			String ender = (endType == 0) ? "\007" : "\033\\";
+			for (int i = 0; i < 255; i++) {
+				expectedColors[i] = 0xFF000000 + (rand.nextInt() & 0xFFFFFF);
+				int r = (expectedColors[i] >> 16) & 0xFF;
+				int g = (expectedColors[i] >> 8) & 0xFF;
+				int b = expectedColors[i] & 0xFF;
+				String rgbHex = String.format("%02x", r) + String.format("%02x", g) + String.format("%02x", b);
+				enterString("\033]4;" + i + ";#" + rgbHex + ender);
+				assertEquals(expectedColors[i], mTerminal.mColors.mCurrentColors[i]);
+			}
+		}
+
+		enterString("\033]104;0\007");
+		expectedColors[0] = TerminalColors.COLOR_SCHEME.mDefaultColors[0];
+		assertIndexColorsMatch(expectedColors);
+		enterString("\033]104;1;2\007");
+		expectedColors[1] = TerminalColors.COLOR_SCHEME.mDefaultColors[1];
+		expectedColors[2] = TerminalColors.COLOR_SCHEME.mDefaultColors[2];
+		assertIndexColorsMatch(expectedColors);
+		enterString("\033]104\007"); // Reset all colors.
+		assertIndexColorsMatch(TerminalColors.COLOR_SCHEME.mDefaultColors);
+	}
+
+	public void testSetClipboard() {
+		withTerminalSized(10, 10);
+		enterString("\033]52;c;" + TerminalBase64.encodeToString("Hello, world".getBytes(StandardCharsets.UTF_8)) + "\007");
+		assertEquals(1, mOutput.clipboardPuts.size());
+		assertEquals("Hello, world", mOutput.clipboardPuts.get(0));
+	}
+
+	public void testSetClipboardWithEmptySelection() {
+		withTerminalSized(10, 10);
+		enterString("\033]52;;" + TerminalBase64.encodeToString("Hello".getBytes(StandardCharsets.UTF_8)) + "\007");
+		assertEquals("Hello", mOutput.clipboardPuts.get(0));
+	}
+
+	public void testSetClipboardWithInvalidBase64IsIgnored() {
+		withTerminalSized(10, 10);
+		enterString("\033]52;c;not*valid*base64\007");
+		enterString("\033]52;c\007"); // No data at all.
+		assertEquals(0, mOutput.clipboardPuts.size());
+	}
+
+	public void testGetClipboard() {
+		withTerminalSized(10, 10);
+		mOutput.clipboardText = "Hello, world";
+		enterString("\033]52;c;?\007");
+		assertEquals(1, mOutput.clipboardReads);
+		// The response must be terminated with `ST` instead of `BEL`, so that it can be parsed even
+		// if the clipboard contains control characters.
+		assertEquals("\033]52;c;SGVsbG8sIHdvcmxk\033\\", mOutput.getOutputAndClear());
+	}
+
+	public void testGetClipboardWithMultipleSelectionTargets() {
+		withTerminalSized(10, 10);
+		mOutput.clipboardText = "abc";
+		enterString("\033]52;cp;?\033\\");
+		assertEquals("\033]52;cp;YWJj\033\\", mOutput.getOutputAndClear());
+	}
+
+	public void testGetClipboardIsIgnoredIfClientDoesNotAllowReadingIt() {
+		withTerminalSized(10, 10);
+		mOutput.clipboardText = null;
+		enterString("\033]52;c;?\007");
+		assertEquals(1, mOutput.clipboardReads);
+		assertEquals("", mOutput.getOutputAndClear());
+	}
+
+	public void testResettingTerminalResetsColor() throws Exception {
+		// "OSC 4; $INDEX; $COLORSPEC BEL" => Change color $INDEX to the color specified by $COLORSPEC.
+		withTerminalSized(4, 4).enterString("\033]4;5;#00FF00\007");
+		enterString("\033]4;5;#00FFAB\007").assertColor(5, 0xFF00FFAB);
+		enterString("\033]4;255;#ABFFAB\007").assertColor(255, 0xFFABFFAB);
+		mTerminal.reset();
+		assertIndexColorsMatch(TerminalColors.COLOR_SCHEME.mDefaultColors);
+	}
+
+	public void testSettingDynamicColors() {
+		// "${OSC}${DYNAMIC};${COLORSPEC}${BEL_OR_STRINGTERMINATOR}" => Change ${DYNAMIC} color to the color specified by $COLORSPEC where:
+		// DYNAMIC=10: Text foreground color.
+		// DYNAMIC=11: Text background color.
+		// DYNAMIC=12: Text cursor color.
+		withTerminalSized(3, 3).enterString("\033]10;#ABCD00\007").assertColor(TextStyle.COLOR_INDEX_FOREGROUND, 0xFFABCD00);
+		enterString("\033]11;#0ABCD0\007").assertColor(TextStyle.COLOR_INDEX_BACKGROUND, 0xFF0ABCD0);
+		enterString("\033]12;#00ABCD\007").assertColor(TextStyle.COLOR_INDEX_CURSOR, 0xFF00ABCD);
+		// Two special colors at once
+		// ("Each successive parameter changes the next color in the list. The value of P s tells the starting point in the list"):
+		enterString("\033]10;#FF0000;#00FF00\007").assertColor(TextStyle.COLOR_INDEX_FOREGROUND, 0xFFFF0000);
+		assertColor(TextStyle.COLOR_INDEX_BACKGROUND, 0xFF00FF00);
+		// Three at once:
+		enterString("\033]10;#0000FF;#00FF00;#FF0000\007").assertColor(TextStyle.COLOR_INDEX_FOREGROUND, 0xFF0000FF);
+		assertColor(TextStyle.COLOR_INDEX_BACKGROUND, 0xFF00FF00).assertColor(TextStyle.COLOR_INDEX_CURSOR, 0xFFFF0000);
+
+		// Without ending semicolon:
+		enterString("\033]10;#FF0000\007").assertColor(TextStyle.COLOR_INDEX_FOREGROUND, 0xFFFF0000);
+		// For background and cursor:
+		enterString("\033]11;#FFFF00;\007").assertColor(TextStyle.COLOR_INDEX_BACKGROUND, 0xFFFFFF00);
+		enterString("\033]12;#00FFFF;\007").assertColor(TextStyle.COLOR_INDEX_CURSOR, 0xFF00FFFF);
+
+		// Using string terminator:
+		String stringTerminator = "\033\\";
+		enterString("\033]10;#FF0000" + stringTerminator).assertColor(TextStyle.COLOR_INDEX_FOREGROUND, 0xFFFF0000);
+		// For background and cursor:
+		enterString("\033]11;#FFFF00;" + stringTerminator).assertColor(TextStyle.COLOR_INDEX_BACKGROUND, 0xFFFFFF00);
+		enterString("\033]12;#00FFFF;" + stringTerminator).assertColor(TextStyle.COLOR_INDEX_CURSOR, 0xFF00FFFF);
+	}
+
+	public void testReportSpecialColors() {
+		// "${OSC}${DYNAMIC};?${BEL}" => Terminal responds with the control sequence which would set the current color.
+		// Both xterm and libvte (gnome-terminal and others) use the longest color representation, which means that
+		// the response is "${OSC}rgb:RRRR/GGGG/BBBB"
+		withTerminalSized(3, 3).enterString("\033]10;#ABCD00\007").assertColor(TextStyle.COLOR_INDEX_FOREGROUND, 0xFFABCD00);
+		assertEnteringStringGivesResponse("\033]10;?\007", "\033]10;rgb:abab/cdcd/0000\007");
+		// Same as above but with string terminator. xterm uses the same string terminator in the response, which
+		// e.g. script posted at http://superuser.com/questions/157563/programmatic-access-to-current-xterm-background-color
+		// relies on:
+		assertEnteringStringGivesResponse("\033]10;?\033\\", "\033]10;rgb:abab/cdcd/0000\033\\");
+	}
+
+	/** `OSC 8` sets the hyperlink of the text that is printed after it, until it is cleared. */
+	public void testSetHyperlink() {
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://example.com\007link\033]8;;\007 tail");
+		assertLineIs(0, "link tail ");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(3, 0));
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(4, 0));
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(5, 0));
+	}
+
+	public void testSetHyperlinkWithParams() {
+		// The params contain the optional id that terminal programs use to group hyperlinks and are ignored.
+		withTerminalSized(10, 3);
+		enterString("\033]8;id=1234;https://example.com\007link\033]8;;\007");
+		assertLineIs(0, "link      ");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(3, 0));
+	}
+
+	public void testSetHyperlinkTerminatedWithStringTerminator() {
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://example.com\033\\link\033]8;;\033\\ tail");
+		assertLineIs(0, "link tail ");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(4, 0));
+	}
+
+	public void testSetMultipleHyperlinksOnSameLine() {
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://one.example.com\007one\033]8;;\007 \033]8;;https://two.example.com\007two\033]8;;\007");
+		assertLineIs(0, "one two   ");
+		assertEquals("https://one.example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://one.example.com", mTerminal.getScreen().getHyperlinkAtLocation(2, 0));
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(3, 0));
+		assertEquals("https://two.example.com", mTerminal.getScreen().getHyperlinkAtLocation(4, 0));
+		assertEquals("https://two.example.com", mTerminal.getScreen().getHyperlinkAtLocation(6, 0));
+	}
+
+	public void testSetHyperlinkWithWideCharacter() {
+		// Unicode Character 'CJK UNIFIED IDEOGRAPH-679C' (U+679C), a character of display width 2.
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://example.com\007\u679C\033]8;;\007x");
+		// A character of display width 2 is stored as a single java char, so the row only uses 9 chars
+		// for the 10 columns that it spans together with the 'x'.
+		char[] expectedLine = new char[9];
+		Arrays.fill(expectedLine, ' ');
+		expectedLine[0] = '\u679C';
+		expectedLine[1] = 'x';
+		assertLineIs(0, new String(expectedLine));
+		// A character of display width 2 spans two cells, so both of its cells are part of the hyperlink.
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(1, 0));
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(2, 0));
+	}
+
+	public void testSetHyperlinkPersistsUntilCleared() {
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://example.com\007one\r\ntwo\033]8;;\007");
+		assertLinesAre("one       ", "two       ", "          ");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(2, 1));
+	}
+
+	public void testSetHyperlinkClearedOnErase() {
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://example.com\007link\033]8;;\007");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		enterString("\033[4D\033[4X");
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+	}
+
+	public void testSetHyperlinkClearedOnReset() {
+		withTerminalSized(10, 3);
+		enterString("\033]8;;https://example.com\007a");
+		assertEquals("https://example.com", mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+		enterString("\033c");
+		placeCursorAndAssert(0, 0);
+		enterString("b");
+		assertNull(mTerminal.getScreen().getHyperlinkAtLocation(0, 0));
+	}
+
+}
