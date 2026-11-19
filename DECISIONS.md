@@ -1222,3 +1222,26 @@ if (mClient.shouldKeepScrollPositionOnOutput()) {
 
 **提交规范：** 自本次起，本仓库提交信息改用 Conventional Commits，格式为 `type: 一句话描述`，
 不再沿用上游的 `Added:`、`Changed:`、`Fixed:` 前缀。
+
+## 2026-11-19 — 终端核心复制基线（D1=A）与包名迁移
+
+**结论：** 采纳 D1 方案 A，把 `terminal-emulator` 与 `terminal-view` 一并复制为 `app_new/terminal-core/`，
+包名迁移为 `com.termux.shell.terminal` 与 `com.termux.shell.termview`，原生库模块名保留 `libtermux`。
+旧模块 `terminal-emulator`、`terminal-view` 保持只读，新外壳不再引用二者。
+
+**必须一并复制 `terminal-view` 的原因：** 1) 它直接 import `com.termux.terminal.*`，只复制 emulator 会导致
+`terminal-view` 继续指向旧包，两套 VT 类型并存；2) 两个模块都构建 `libtermux.so`，同一 APK 内会出现同名原生库
+冲突；3) 脏行增量与键序协议需要同时改动解析器（emulator）与渲染/按键路径（view），分属两模块会被迫双线修改。
+
+**迁移要点与坑：**
+- 包名替换顺序无冲突（`com.termux.terminal` 与 `com.termux.view` 互不为前缀），但必须在全树统一执行，
+  包括 `src/test`。
+- JNI 采用名称绑定（`Java_com_termux_terminal_JNI_*`），改包名必须同步改 `src/main/jni/termux.c` 的函数名，
+  否则运行期 `UnsatisfiedLinkError`；改动后以 `nm -D --defined-only libtermux.so` 核对导出符号。
+- `terminal-view` 的 `R` 类引用（`R.string.copy_text`、`R.drawable.text_select_handle_*`）随资源迁移，
+  模块 `namespace` 取 `com.termux.shell.termview`（资源源自 view），emulator 包不使用 `R`。
+- `unitTests.returnDefaultValues = true` 必须保留，否则依赖 `android.graphics` 的既有测试无法运行。
+- 复制基线的验证强度来自既有测试：迁移后 23 个测试类、239 项断言全部通过，可视为 P-1（符号与包名遗漏）的主证据。
+
+**后续约束：** 此后 VT 层改动只允许发生在 `app_new/terminal-core/`；上游 VT 修复需手工挑选，并在
+`docs/DELIVERY_PLAN.md` 第 11 节 P-4 中登记对照结果。
