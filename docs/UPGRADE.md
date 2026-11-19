@@ -277,6 +277,9 @@ OSC 8 / 52 / 99 / 777 / 133、sixel + iTerm 图片、`DECSET 1004` 焦点、`DEC
 顺序理由：R1/R2 改的是 `TerminalView`/`TerminalEmulator`，与 M13 的壳层重构**文件冲突最小**，
 先做能立刻开箱验收；W0 是 M13/M14 的前置；T1 是纯构建改动，适合任意时刻插队。
 
+> 本节为方案级排期。可执行的任务分解、文件清单与验收标准见
+> [`DELIVERY_PLAN.md`](DELIVERY_PLAN.md)；两者不一致时以交付计划为准，并同步修订本节。
+
 ---
 
 ## 5. 上游合并节奏
@@ -432,7 +435,7 @@ terminal-render-cache=true              # 默认 true
 
 说明：上述结果为本机实测，**未**在设备或模拟器上安装运行，界面行为尚未获得真机验证。
 
-### 10.5 阶段二（规划）须产出的内容
+### 10.5 阶段二（规划）的产出要求（已由 `docs/DELIVERY_PLAN.md` 满足）
 
 1. 以 `app_new` 的包边界为单位，把第 3 节的 W0–W3、I1–I4、R1–R3 拆为可独立提交的任务，逐项给出改动文件与验收命令；
 2. 明确 W0 拆分结果与 `SessionHost` 跨进程边界的一致性检查项；
@@ -449,3 +452,6 @@ terminal-render-cache=true              # 默认 true
 | 行级渲染缓存 | wezterm / alacritty 的 damage 上报 | 只重绘受损行 |
 | 拖放语义 | Windows Terminal（拖文件插入路径）、iTerm2 | 默认复制 vs 插路径的取舍 |
 | 自适应布局 | `androidx.window` + Material 3 Adaptive | compact/medium/expanded 三档 |
+
+补充说明（阶段二结论）：终端接入采用**先进程内接入、`targetSdk` 保持 28** 的路线，理由与代价见
+[`DELIVERY_PLAN.md`](DELIVERY_PLAN.md) 第 0 节与第 2 节；第 6 节的方案 B 顺延为 M16，不作为前期阻塞项。
