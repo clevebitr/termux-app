@@ -1200,3 +1200,25 @@ if (mClient.shouldKeepScrollPositionOnOutput()) {
 **回滚行数 2000 → 5000**：`TerminalEmulator.DEFAULT_TERMINAL_TRANSCRIPT_ROWS`。拥"保持位置"依赖回滚缓冲：位置越过缓冲就会被裁到最老一行，所以缓冲要大。按 80 列一行约 1KB（`char[96]` + `long[80]` + 对象头）→ 2000≈2MB、5000≈5MB。上限仍是 50000。测试里把 5000 写死成断言，避免以后被无意改回去。
 
 **没做的**：`SCROLL` 键（硬冻结，连在底部也不跟随）语义没变，也没加进默认布局——它适合"盯一段日志"，不适合日常；`keep-scroll-position-on-output` 已经覆盖日常需求。若以后要"显式开关 + 激活态高亮"，可以基于同一个 `mAutoScrollDisabled` 再包一层。\n\n**验证**：属性集合/默认值/行数默认值加单测（`KeepScrollPositionPropertyTest`，防"漏登记进 boolean 列表导致启动时 `IllegalArgumentException`"这个经典坑）；滚动行为本身需要真机（`TerminalSession` 要真 pty，单测起不来），已写进 FORK.md「尚未真机验证」。
+
+## 2026-11-19 — 新外壳独立模块 app_new 与协作约束
+
+**结论：** 新外壳以独立模块 `app_new`（`applicationId=com.termux.shell`）推进，旧模块 `app/`、`terminal-view/`、
+`terminal-emulator/`、`termux-shared/` 保持只读；协作约束写入 `AGENTS.md`，方案与排期写入 `docs/UPGRADE.md`。
+旧模块唯一改动为 `settings.gradle` 新增 `include ':app_new'`，属构建装配，单独提交。
+
+**判定依据：** 1) 旧模块的 `TermuxActivity`（2447 行）与两个 Client（1046 行、774 行）已被 fork 特性深度改写，
+在其上继续叠加窗格与多窗口能力会导致无法维护，也无法与上游 0.119 系列合并；2) `TerminalSession` 位于
+`terminal-emulator` 模块，新外壳无需依赖 `app` 模块即可自行创建会话，因此可以完全独立演进；
+3) 独立包名可与旧应用同机并存，便于逐项对比，不触发 `sharedUserId` 与签名约束（该约束仅涉及插件生态，
+由运行时侧继续保留 `com.termux` 包名承担，见 `docs/UPGRADE.md` 第 6 节方案 B）。
+
+**取值：** `minSdk=24`（旧模块的 21 无实际收益）；`targetSdk` 默认 28，可用 `-PappNewTargetSdk=36` 覆盖，
+原因仍是 Android 10 起的 exec 与 W^X 限制；骨架阶段使用 Java 17 源码级别，暂不引入 Kotlin 插件。
+
+**验证：** 本机 `./gradlew :app_new:assembleDebug :app_new:testDebugUnitTest :app_new:lintDebug` 全部通过，
+共 18 项单元测试；未做真机验证。构建过程中 Gradle 自动安装了 `ndk/29.0.14206865`，故
+`DECISIONS.md` 中「本机无法编译」的旧记录仅适用于当时的 Termux 内环境，现以 `AGENTS.md` 第 7 节为准。
+
+**提交规范：** 自本次起，本仓库提交信息改用 Conventional Commits，格式为 `type: 一句话描述`，
+不再沿用上游的 `Added:`、`Changed:`、`Fixed:` 前缀。
