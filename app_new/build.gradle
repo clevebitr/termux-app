@@ -1,0 +1,55 @@
+plugins {
+    id "com.android.application"
+}
+
+// 新外壳的 targetSdk。默认取 28，原因见 docs/UPGRADE.md 第 6 节：exec 与 W^X 约束。
+// 通过 -PappNewTargetSdk=36 可切换为现代外壳形态，须配合运行时拆分启用。
+def appNewTargetSdk = (rootProject.findProperty("appNewTargetSdk") ?: "28").toInteger();
+
+android {
+    namespace "com.termux.shell"
+
+    compileSdkVersion project.properties.compileSdkVersion.toInteger()
+
+    defaultConfig {
+        applicationId "com.termux.shell"
+        // 新外壳的 minSdk 高于旧模块：旧模块的 21 已无实际收益，仅保留兼容分支。
+        minSdkVersion 24
+        targetSdkVersion appNewTargetSdk
+        versionCode 1
+        versionName "0.1.0"
+    }
+
+    buildTypes {
+        debug {
+            // 骨架阶段使用工具链默认调试签名，便于与旧模块并装对比。
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    lint {
+        abortOnError true
+    }
+}
+
+dependencies {
+    implementation "androidx.annotation:annotation:1.9.0"
+    implementation "androidx.core:core:1.13.1"
+    implementation "androidx.appcompat:appcompat:1.6.1"
+    implementation "androidx.window:window:1.1.0"
+    implementation "com.google.android.material:material:1.12.0"
+
+    testImplementation "junit:junit:4.13.2"
+}

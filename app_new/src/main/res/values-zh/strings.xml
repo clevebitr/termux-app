@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Termux 外壳</string>
+    <string name="shell_header">布局档位：%1$s ｜ 窗格数：%2$d</string>
+    <string name="shell_rail_title">会话</string>
+    <string name="shell_split_horizontal">左右分割</string>
+    <string name="shell_split_vertical">上下分割</string>
+    <string name="shell_close_pane">关闭窗格</string>
+    <string name="shell_new_window">新建窗口</string>
+    <string name="shell_empty_pane">空窗格</string>
+    <string name="size_class_compact">紧凑</string>
+    <string name="size_class_medium">中等</string>
+    <string name="size_class_expanded">展开</string>
+</resources>

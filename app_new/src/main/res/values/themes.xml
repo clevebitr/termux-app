@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 骨架阶段采用 Material 3 日夜主题，配色跟随系统；终端配色方案联动在后续里程碑接入。 -->
+    <style name="Theme.Shell" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

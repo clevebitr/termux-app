@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Termux Shell</string>
+    <string name="shell_header">Layout: %1$s | Panes: %2$d</string>
+    <string name="shell_rail_title">Sessions</string>
+    <string name="shell_split_horizontal">Split left/right</string>
+    <string name="shell_split_vertical">Split top/bottom</string>
+    <string name="shell_close_pane">Close pane</string>
+    <string name="shell_new_window">New window</string>
+    <string name="shell_empty_pane">Empty pane</string>
+    <string name="size_class_compact">compact</string>
+    <string name="size_class_medium">medium</string>
+    <string name="size_class_expanded">expanded</string>
+</resources>
