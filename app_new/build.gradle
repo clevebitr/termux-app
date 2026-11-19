@@ -45,6 +45,9 @@ android {
 }
 
 dependencies {
+    // 终端核心复制基线。不得同时依赖 :terminal-emulator 与 :terminal-view，否则出现重复类与重复原生库。
+    implementation project(":terminal-core")
+
     implementation "androidx.annotation:annotation:1.9.0"
     implementation "androidx.core:core:1.13.1"
     implementation "androidx.appcompat:appcompat:1.6.1"
