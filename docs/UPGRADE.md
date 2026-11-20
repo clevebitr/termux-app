@@ -5,7 +5,8 @@
 > 2. **app 外壳（窗口 / 窗格 / 输入 / 帧 / 视觉）**要换成什么结构，才能给出真正的桌面级体验。
 >
 > 特性说明在 [`FORK.md`](../FORK.md)，构建/签名在 [`FORK_BUILD.md`](../FORK_BUILD.md)，
-> 决策与踩坑在 [`DECISIONS.md`](../DECISIONS.md)。
+> 决策与踩坑在 [`DECISIONS.md`](../DECISIONS.md)；新外壳模块的决策在
+> [`app_new/DECISIONS.md`](../app_new/DECISIONS.md)（由 plan 工具追加）。
 > **`PLAN.md` 由 plan 工具维护，本文件不改它**；里程碑落地时把 M12–M15 喂给 plan 工具即可。
 
 ---
@@ -260,6 +261,8 @@ OSC 8 / 52 / 99 / 777 / 133、sixel + iTerm 图片、`DECSET 1004` 焦点、`DEC
   可选 `font-ligatures=true`。现状逐 run `drawTextRun`，混排不可靠。
 * **`SGR-pixels`(1016)** 鼠标、**kitty graphics protocol**（图片复用现有 `TerminalBitmap`/`ITermImage` 抽象）。
 * **命令面板**（`Ctrl+Shift+P`）：搜索/切换会话/切主题/开分屏，桌面级常见入口。
+  **状态：骨架已交付**（`app_new` 的 `commands/` 与 `ui/CommandPaletteController`，见 §10.2）；
+  会话切换与主题切换命令在 M12-2 之后接入。
 * **会话持久化**：进程被杀后按 `pane-layout.json` 恢复 + `detach` 策略下用 `tmux`/`dtach` 兜底（可选依赖）。
 
 ---
@@ -405,11 +408,13 @@ terminal-render-cache=true              # 默认 true
 | --- | --- | --- | --- |
 | `com.termux.shell` | `ShellApplication` | 进程入口与单例装配 | 已实现（内存配置） |
 | `com.termux.shell.log` | `ShellLog` | 统一日志标签 `Shell/<子标签>` | 已实现 |
-| `com.termux.shell.config` | `SettingsRepository`、`MemorySettingsRepository` | 配置访问契约 | 契约与内存实现；持久化实现待阶段三 |
-| `com.termux.shell.ui` | `ShellActivity`、`LayoutHost`、`WindowWidthClass`、`WindowSizeResolver` | 窗口宿主、档位判定、布局装配、系统栏内边距 | 已实现（三档布局与多窗口声明） |
-| `com.termux.shell.pane` | `PaneNode`、`PaneLeaf`、`PaneSplit`、`PaneLayoutController`、`PaneLayoutCodec`、`PaneHostView` | 窗格树结构、结构操作、序列化、绘制与分割条拖拽 | 结构层已实现；终端视图挂载待阶段三 |
+| `com.termux.shell.config` | `SettingsRepository`、`MemorySettingsRepository`、`ShellPaths`、`SettingsSpec`、`PropertiesSettingsRepository` | 配置访问契约、路径解析、配置项定义表、属性文件实现 | 属性文件实现已接入；模板生成与非法值回退已验证 |
+| `com.termux.shell.ui` | `ShellActivity`、`LayoutHost`、`WindowWidthClass`、`WindowSizeResolver`、`TabStripView`、`CommandPaletteController`、`ShellViewOptions`、`ThemeColors` | 窗口宿主、档位判定、布局装配、标签栏、命令面板、自绘视图取色 | 已实现（占位内容，无终端视图） |
+| `com.termux.shell.tabs` | `WorkspaceTab`、`TabWorkspace`、`TabWorkspaceCodec` | 窗口级标签模型、标签集合操作、布局编码 v2 | 已实现（上限 8 标签） |
+| `com.termux.shell.commands` | `ShellCommand`、`CommandCatalog`、`CommandFilter` | 命令定义、命令清单、筛选规则 | 已实现 |
+| `com.termux.shell.pane` | `PaneNode`、`PaneLeaf`、`PaneSplit`、`PaneLayoutController`、`PaneLayoutCodec`、`PaneHostView` | 窗格树结构、结构操作、序列化、绘制、分割条拖拽与点选聚焦 | 结构层已实现；终端视图挂载待 M12-3 |
 | `com.termux.shell.session` | `SessionHost`、`SessionDescriptor`、`SessionId` | 会话宿主契约（预留跨进程边界） | 仅契约，无实现 |
-| `com.termux.shell.input` | `InputRouter`、`KeymapTable` | 输入路由契约、键位表解析 | 键位表已实现；路由待接入 |
+| `com.termux.shell.input` | `InputRouter`、`KeymapTable`、`KeymapLoader`、`ShellAction`、`ShellInputRouter` | 输入路由契约、键位表解析与展示、默认键位、动作名称、按键路由 | 已接入窗口宿主；拖放与鼠标语义待 M14 |
 | `com.termux.shell.render` | `FrameScheduler`、`DirtyRows` | 帧调度契约、脏行区间 | 契约与值对象已实现；调度器待阶段三 |
 
 ### 10.3 阶段一明确未实现的内容
@@ -420,12 +425,12 @@ terminal-render-cache=true              # 默认 true
 2. 终端视图挂载与渲染（含脏行增量、同步输出、行缓存）；
 3. 键序编码（kitty keyboard 协议、`modifyOtherKeys`）与拖放；
 4. 布局持久化写入磁盘与冷启动恢复（编解码器已就绪，读写位置待定）；
-5. 页签栏、会话侧栏内容、状态栏与通知区域；
+5. 会话侧栏内容、状态栏与通知区域；标签栏已交付（窗口级，占位内容）；
 6. 设置页与 `termux.properties` 兼容层。
 
-### 10.4 阶段一验证结果
+### 10.4 验证结果
 
-本地环境：JDK 21、Android SDK（`platforms/android-36`、`build-tools/35.0.0`、`ndk/29.0.14206865`）、Gradle 9.2.1。
+骨架阶段的构建与测试结果（当时环境具备 JDK 21 与 Android SDK）。
 
 | 命令 | 结果 |
 | --- | --- |
@@ -433,7 +438,21 @@ terminal-render-cache=true              # 默认 true
 | `./gradlew :app_new:testDebugUnitTest` | 通过，18 项单元测试（档位判定 5 项、脏行区间 5 项、键位表解析 8 项） |
 | `./gradlew :app_new:lintDebug` | 通过（`abortOnError` 已启用） |
 
-说明：上述结果为本机实测，**未**在设备或模拟器上安装运行，界面行为尚未获得真机验证。
+标签栏、配置层与命令面板交付时的验证方式（当前环境缺 Android SDK build-tools，`./gradlew` 不可执行）：
+
+| 检查 | 结果 |
+| --- | --- |
+| `javac --release 17`：`app_new/src/main/java` 全部源码 | 通过（类路径为 `platforms/android-36` 的 `android.jar`、Material/AndroidX 的 `classes.jar`、按资源生成的 `R` 存根） |
+| `javac`：`app_new/src/test/java` 全部源码 | 通过 |
+| `org.junit.runner.JUnitCore`：9 个测试类 | 通过，56 项（新增标签模型 9 项、布局编码 4 项、配置读取 6 项、命令筛选 7 项、窗格控制器 8 项、默认键位 4 项） |
+| 资源检查（仓库外脚本） | 通过：XML 可解析、`@string`/`@drawable`/`@layout`/`@menu`/`@id` 引用均存在、`values` 与 `values-zh` 键集合一致 |
+
+**未验证**：资源编译（`aapt2`）、清单合并、布局 inflate、主题属性解析的实际结果，以及全部界面交互；
+以上需在具备 Android SDK 的环境或 CI 中补跑 `:app_new:assembleDebug`、`:app_new:testDebugUnitTest`、
+`:app_new:lintDebug`，并在设备上按 §9 清单验收。
+
+新增测试依赖：`org.json:json:20240303`（仅 `testImplementation`）。理由：平台的 `android.jar` 中
+`org.json` 为抛出 `RuntimeException("Stub!")` 的存根，布局编码器的单元测试需要可用实现。
 
 ### 10.5 阶段二（规划）的产出要求（已由 `docs/DELIVERY_PLAN.md` 满足）
 

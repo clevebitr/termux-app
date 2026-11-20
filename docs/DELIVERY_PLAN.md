@@ -14,10 +14,11 @@
 | 新代码位置 | 仅 `app_new/` | `AGENTS.md` 第 3 节 |
 | 旧模块 | 只读 | 同上 |
 | 阶段顺序 | 骨架 → 规划 → 动工 | `AGENTS.md` 第 5 节 |
-| 当前进度 | 阶段一完成，18 项单元测试通过 | `UPGRADE.md` 第 10.4 节 |
 | D1 | 采纳 A：复制基线 | 需求方于 2026-11-19 确认 |
 | D2 | 采纳 C：改用 `com.termux` 包名顶替旧应用 | 需求方于 2026-11-19 确认 |
-| 当前进度 | M12-0、M12-1 已完成；下一步为 M12-2 | 本文件第 4 节 |
+| D3 | 采纳：应用私有主目录 + `home/.termux` 配置目录 | 本文件第 2 节；实现见 `ShellPaths` |
+| D4 | 采纳：窗口级标签栏（每标签一棵窗格树） | 需求方确认；见 `app_new/DECISIONS.md` #1 |
+| 当前进度 | M12-0、M12-1、M13-2a…M13-2d 已完成 | 本文件第 4、5 节 |
 
 ---
 
@@ -85,7 +86,14 @@ M12 的 R1 与 M14 的 I1 顺延至复制基线完成之后；R2 不受影响，
 ### D3 — 布局与配置的落盘位置
 
 候选：应用私有 `filesDir`（简单、随卸载清理）与 `~/.termux/`（与旧应用习惯一致、便于用户编辑）。
-**建议**：布局文件写入应用私有目录，用户可配置项写入 `~/.termux/shell.properties` 并在文档中说明。
+
+**结论：采纳组合方案。** 用户可配置项写入应用私有主目录下的 `home/.termux/shell.properties` 与
+`home/.termux/keymap.properties`；窗格与标签布局写入应用私有目录的 `layout/`（M13-3 实现）。
+骨架阶段 `applicationId` 为 `com.termux.shell`，其 `home` 位于应用私有目录内；M13.5 切换到 `com.termux`
+包名后同一路径即真实用户主目录，路径计算集中在 `config/ShellPaths`，切换时不需要改调用方。
+
+文件在首次启动时按模板生成（含中文说明），删除某项即回退默认值；取值非法时忽略并在日志中列出键名。
+配置文件在进程启动时同步读取，重载通过命令面板的「重新加载配置文件」触发。
 
 ---
 
@@ -94,7 +102,7 @@ M12 的 R1 与 M14 的 I1 顺延至复制基线完成之后；R2 不受影响，
 | 里程碑 | 目标 | 关键任务 | 预计工期 | 进入条件 | 退出条件 |
 | --- | --- | --- | --- | --- | --- |
 | **M12** | 外壳承接真实会话，帧管线可用 | M12-1…M12-6 | 2 周 | D2 已确认 | 真机会话可交互；流式输出无半帧；单元测试与 Lint 通过 |
-| **M13** | 多窗口与窗格树接入终端视图 | M13-1…M13-6 | 3 周 | D1、D3 已确认 | 两窗口并行；四窗格 + 页签；布局冷启动恢复 |
+| **M13** | 多窗口与窗格树接入终端视图 | M13-1…M13-6、M13-2a…M13-2d | 3 周 | D1、D3、D4 已确认 | 两窗口并行；四窗格 + 标签栏；布局冷启动恢复 |
 | **M13.5** | 引导文件系统与真实负载 | M13.5-1…M13.5-3 | 2 周 | D2 的 B/C 已选定 | `apt update`、`proot-distro` 可用 |
 | **M14** | 桌面级输入 | M14-1…M14-5 | 2.5 周 | M13 退出 | kitty 键序正确；拖放可用；横向滚轮可用 |
 | **M15** | 工程与视觉现代化 | M15-1…M15-4 | 3 周 | 与 M13 之后的任一时间点并行 | AGP 9 构建通过；三档布局在折叠屏与桌面窗口下无回归 |
@@ -125,7 +133,14 @@ M12 期间不得实现多窗口、页签、kitty 键序与拖放。
 | 编号 | 目标 | 改动文件 | 用法 | 验收 |
 | --- | --- | --- | --- | --- |
 | M13-1 | 窗口与会话组映射 | 新增 `ui/TaskSessionRegistry.java`；修改 `ui/ShellActivity.java` | — | 桌面窗口模式下两窗口各自独立会话；划掉一个窗口不影响另一窗口 |
-| M13-2 | 窗格容器与页签栏 | 新增 `pane/PaneContainerView.java`、`ui/TabStripView.java` | — | 每叶子支持多页签；页签可切换、关闭、重排 |
+| M13-2 | 窗格容器与标签栏骨架 | 新增 `ui/TabStripView.java`、`tabs/TabWorkspace.java`、`tabs/WorkspaceTab.java`、`tabs/TabWorkspaceCodec.java`；修改 `pane/PaneLeaf.java`、`pane/PaneLayoutCodec.java`、`pane/PaneHostView.java` | — | 窗口级标签栏：新建、切换、关闭、左右移动、长按菜单；旋转与被系统回收后标签与窗格结构恢复；标签数量与窗格数量受上限约束 |
+| M13-2a | 配置文件配置层 | 新增 `config/ShellPaths.java`、`config/SettingsSpec.java`、`config/PropertiesSettingsRepository.java`；修改 `ShellApplication`、`app_new/build.gradle` | — | 首次启动生成 `home/.termux/shell.properties` 与 `keymap.properties` 模板；合法取值生效、非法取值回退并记日志；`reload-config` 立即生效 |
+| M13-2b | 键位表落到外壳动作 | 新增 `input/KeymapLoader.java`、`input/ShellAction.java`、`input/ShellInputRouter.java`；修改 `input/KeymapTable.java` | — | 默认键位覆盖标签页 / 窗格 / 窗口三组动作；快捷键展示文本用于命令面板；`keymap-enabled=false` 时全部按键交还终端 |
+| M13-2c | 命令面板 | 新增 `commands/ShellCommand.java`、`commands/CommandCatalog.java`、`commands/CommandFilter.java`、`ui/CommandPaletteController.java`、`layout/dialog_command_palette.xml`、`layout/item_command_row.xml` | — | 顶部浮动卡片、输入即筛选、方向键选择、回车执行、Esc 关闭；不可执行命令置灰；与快捷键、溢出菜单共用同一动作实现 |
+| M13-2d | MD3 视觉基线 | 修改 `ui/LayoutHost.java`、`ui/ShellActivity.java`、`res/layout/activity_shell.xml`、`res/values/themes.xml`、`res/values*/strings.xml`；新增 `ui/ThemeColors.java`、`ui/ShellViewOptions.java`、`res/drawable/ic_*.xml`、`res/menu/*.xml` | — | 标题行 + 标签栏 + 窗格区的三段结构；标签栏可置顶或置底；日夜模式切换后自绘颜色同步更新；侧栏在中等与展开档位常驻 |
+
+> 说明：M13-2 原计划的「每个窗格内多页签」按 D4 改为「窗口级标签栏，每个标签一棵窗格树」，
+> 与 Windows Terminal 的语义一致。窗格内容在 M12-2…M12-4 完成前保持占位。
 | M13-3 | 布局落盘与恢复 | 新增 `pane/PaneLayoutStore.java`（路径见 D3） | — | 冷启动恢复分割结构与各叶子滚动位置；布局文件损坏时回退单窗格 |
 | M13-4 | 档位驱动布局 | 修改 `ui/LayoutHost.java`、`ui/WindowSizeResolver.java` | — | 折叠展开、自由窗口拖拽、桌面窗口下布局切换不重建 Activity |
 | M13-5 | 焦点与导航 | 新增 `pane/PaneNavigator.java` | — | 方向键与 `Alt+方向` 迁移焦点；关闭窗格后焦点按规则落到兄弟叶子 |
@@ -191,6 +206,7 @@ Kotlin 引入不在 M15 范围内，单独评估后再排期。
 | 帧率 | 设备侧记录 `Choreographer` 掉帧统计，`yes` 持续输出 60 s | M12-5、M12-6、M13-6 |
 | 交互 | 设备清单：输入回显、`Ctrl+C`、窗格切换、页签切换、拖放、横向滚轮 | M12-2…M12-4、M13-2、M14-2…M14-4 |
 | 持久化 | 冷启动后布局与滚动位置恢复；布局文件损坏时回退 | M13-3 |
+| 无 Android SDK 时的替代验证 | `javac` 编译主源与测试源（`platforms/android-36` 的 `android.jar` + Maven AAR 的 `classes.jar` + `R` 存根），`org.junit.runner.JUnitCore` 运行单元测试；资源引用与语言文件对齐用仓库外脚本检查 | M12 之后全部 |
 | 兼容性 | 桌面窗口模式、分屏、折叠屏展开与折叠 | M13-1、M13-4、M15-3 |
 
 设备侧验证须逐条记录于提交说明，未执行项须标注「未验证」。
@@ -217,3 +233,5 @@ Kotlin 引入不在 M15 范围内，单独评估后再排期。
 | 2026-11-19 | D1 采纳 A（复制基线，范围含 `terminal-view`）；D2 采纳 C（改用 `com.termux` 包名），登记约束 C-1…C-5；新增任务 M12-0；重写 M13.5 | 需求方确认 |
 | 2026-11-19 | M12-0 完成：`app_new/terminal-core/` 复制 64 个文件（含 23 个测试类），包名迁移为 `com.termux.shell.terminal` 与 `com.termux.shell.termview`，JNI 符号同步迁移；239 项单元测试通过，Lint 通过 | 本机实测 |
 | 2026-11-19 | M12-1 完成：`app_new` 以只读依赖方式接入 `:terminal-core`；APK 含 4 个 ABI 的 `libtermux.so` | 本机实测 |
+| 2026-11-19 | 确认 D3（组合方案）与 D4（窗口级标签栏）；新增任务 M13-2a…M13-2d，修订 M13-2 的验收口径；补充无 Android SDK 时的替代验证方式 | 需求方确认与本次交付 |
+| 2026-11-19 | M13-2、M13-2a…M13-2d 完成：标签栏、配置层、键位表、命令面板与 MD3 视觉基线；56 项单元测试通过；Gradle 构建未执行（本机缺 Android SDK build-tools） | 本机 `javac` + `JUnitCore` 实测 |
