@@ -5,83 +5,41 @@ import androidx.annotation.Nullable;
 
 import com.termux.shell.session.SessionId;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 /**
  * 叶子窗格。
  *
- * <p>目的：描述一个可显示区域及其承载的页签集合。一个叶子在界面上对应一个 {@code TerminalView} 实例，
- * 切换页签时不重建该视图，以避免渲染器状态丢失。
+ * <p>目的：描述一个可显示区域及其承载的会话。一个叶子在界面上对应一个终端视图实例。
  *
- * <p>骨架阶段说明：页签列表可以为空，此时该叶子显示空窗格占位内容。会话创建在运行时接入后启用。
+ * <p>骨架阶段说明：会话标识可以为空，此时该叶子显示空窗格占位内容；会话创建与视图挂载在后续里程碑完成。
  *
- * <p>约束：页签索引与列表长度必须保持一致；本类型非线程安全，仅在主线程或控制器内部使用。
+ * <p>约束：本类型非线程安全，仅在主线程或控制器内部使用。
  */
 public final class PaneLeaf extends PaneNode {
 
-    private final List<SessionId> mTabs = new ArrayList<>();
-    private int mActiveTabIndex = -1;
+    private SessionId mSessionId;
     private int mScrollRow;
 
     public PaneLeaf(@NonNull String id) {
         super(id);
     }
 
-    @NonNull
-    public List<SessionId> getTabs() {
-        return Collections.unmodifiableList(mTabs);
-    }
-
+    /**
+     * 返回本窗格承载的会话标识；尚未分配会话时返回 null。
+     */
     @Nullable
-    public SessionId getActiveTab() {
-        if (mActiveTabIndex < 0 || mActiveTabIndex >= mTabs.size()) {
-            return null;
-        }
-        return mTabs.get(mActiveTabIndex);
-    }
-
-    public int getActiveTabIndex() {
-        return mActiveTabIndex;
+    public SessionId getSessionId() {
+        return mSessionId;
     }
 
     /**
-     * 追加页签并将其设为当前页签。
+     * 设置本窗格承载的会话标识。传入 null 表示解除绑定，用于会话结束后的占位状态。
      */
-    public void addTab(@NonNull SessionId sessionId) {
-        mTabs.add(sessionId);
-        mActiveTabIndex = mTabs.size() - 1;
+    public void setSessionId(@Nullable SessionId sessionId) {
+        mSessionId = sessionId;
     }
 
-    /**
-     * 移除指定页签。
-     *
-     * @return 是否实际移除。索引越界时返回 false。
-     */
-    public boolean removeTab(int index) {
-        if (index < 0 || index >= mTabs.size()) {
-            return false;
-        }
-        mTabs.remove(index);
-        if (mTabs.isEmpty()) {
-            mActiveTabIndex = -1;
-        } else if (mActiveTabIndex >= mTabs.size()) {
-            mActiveTabIndex = mTabs.size() - 1;
-        }
-        return true;
-    }
-
-    public boolean selectTab(int index) {
-        if (index < 0 || index >= mTabs.size()) {
-            return false;
-        }
-        mActiveTabIndex = index;
-        return true;
-    }
-
-    public boolean hasSessions() {
-        return !mTabs.isEmpty();
+    public boolean hasSession() {
+        return mSessionId != null;
     }
 
     public int getScrollRow() {

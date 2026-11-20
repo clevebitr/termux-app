@@ -49,10 +49,48 @@ public final class PaneLayoutController {
         return mFocusedLeaf;
     }
 
-    public void setFocusedLeaf(@NonNull PaneLeaf leaf) {
-        if (collectLeaves().contains(leaf)) {
-            mFocusedLeaf = leaf;
+    /**
+     * 把焦点切换到指定叶子。
+     *
+     * @return 焦点是否发生变化。叶子不属于当前树或已是焦点时返回 false。
+     */
+    public boolean setFocusedLeaf(@NonNull PaneLeaf leaf) {
+        if (leaf == mFocusedLeaf || !collectLeaves().contains(leaf)) {
+            return false;
         }
+        mFocusedLeaf = leaf;
+        return true;
+    }
+
+    /**
+     * 把焦点循环移动到下一个叶子。
+     *
+     * <p>顺序与深度优先遍历一致；最后一个叶子之后回到第一个叶子。方向导航（上下左右）在里程碑 M13-5 实现。
+     *
+     * @return 焦点是否发生变化。仅有一个叶子时返回 false。
+     */
+    public boolean focusNext() {
+        return focusRelative(1);
+    }
+
+    /**
+     * 把焦点循环移动到上一个叶子。
+     *
+     * @return 焦点是否发生变化。仅有一个叶子时返回 false。
+     */
+    public boolean focusPrevious() {
+        return focusRelative(-1);
+    }
+
+    private boolean focusRelative(int offset) {
+        List<PaneLeaf> leaves = collectLeaves();
+        if (leaves.size() < 2) {
+            return false;
+        }
+        int current = leaves.indexOf(mFocusedLeaf);
+        int size = leaves.size();
+        mFocusedLeaf = leaves.get(((current + offset) % size + size) % size);
+        return true;
     }
 
     /**

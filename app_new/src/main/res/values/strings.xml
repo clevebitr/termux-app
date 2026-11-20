@@ -1,14 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Termux Shell</string>
-    <string name="shell_header">Layout: %1$s | Panes: %2$d</string>
+    <string name="shell_header">%1$s · Panes: %2$d</string>
     <string name="shell_rail_title">Sessions</string>
-    <string name="shell_split_horizontal">Split left/right</string>
-    <string name="shell_split_vertical">Split top/bottom</string>
-    <string name="shell_close_pane">Close pane</string>
-    <string name="shell_new_window">New window</string>
-    <string name="shell_empty_pane">Empty pane</string>
+    <string name="shell_rail_summary">%1$d tabs · %2$d panes</string>
+    <string name="shell_rail_hint">The session list arrives in a later milestone.</string>
+    <string name="shell_tab_title">Shell %1$d</string>
+    <string name="shell_pane_placeholder">Pane %1$s (placeholder)</string>
+    <string name="shell_command_palette">Command palette</string>
+    <string name="shell_new_tab">New tab</string>
+    <string name="shell_overflow">Window actions</string>
+    <string name="shell_tab_limit">Tab limit reached</string>
+    <string name="shell_pane_limit">Pane limit reached</string>
+    <string name="shell_tab_close_denied">A window keeps at least one tab</string>
+    <string name="shell_pane_close_denied">A window keeps at least one pane</string>
+    <string name="shell_config_reloaded">Configuration reloaded; theme changes apply after the window reloads</string>
+    <string name="shell_config_reload_failed">Failed to reload configuration</string>
     <string name="size_class_compact">compact</string>
     <string name="size_class_medium">medium</string>
     <string name="size_class_expanded">expanded</string>
+
+    <string name="command_category_tab">Tab</string>
+    <string name="command_category_pane">Pane</string>
+    <string name="command_category_window">Window</string>
+    <string name="command_new_tab">New tab</string>
+    <string name="command_close_tab">Close tab</string>
+    <string name="command_next_tab">Next tab</string>
+    <string name="command_previous_tab">Previous tab</string>
+    <string name="command_move_tab_left">Move tab left</string>
+    <string name="command_move_tab_right">Move tab right</string>
+    <string name="command_split_right">Split right</string>
+    <string name="command_split_down">Split down</string>
+    <string name="command_close_pane">Close pane</string>
+    <string name="command_focus_next_pane">Focus next pane</string>
+    <string name="command_focus_previous_pane">Focus previous pane</string>
+    <string name="command_new_window">New window</string>
+    <string name="command_toggle_tab_bar">Toggle tab bar</string>
+    <string name="command_reload_config">Reload configuration</string>
+
+    <string name="palette_hint">Type a command</string>
+    <string name="palette_empty">No matching commands</string>
 </resources>

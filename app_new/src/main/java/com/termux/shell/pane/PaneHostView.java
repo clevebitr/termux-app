@@ -12,7 +12,8 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.termux.shell.R;
+import com.google.android.material.R;
+import com.termux.shell.ui.ThemeColors;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -50,7 +51,10 @@ public final class PaneHostView extends View {
     private final Paint mLabelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private final Map<PaneSplit, SplitGeometry> mGeometry = new HashMap<>();
+    private final Map<PaneLeaf, RectF> mLeafBounds = new HashMap<>();
     private final float mHitSlopPx;
+    private final float mBorderWidthPx;
+    private final float mFocusedBorderWidthPx;
 
     @Nullable
     private PaneLayoutController mController;
@@ -73,34 +77,36 @@ public final class PaneHostView extends View {
         mHitSlopPx = HIT_SLOP_DP * density;
 
         mLeafFillPaint.setStyle(Paint.Style.FILL);
-        mLeafFillPaint.setColor(resolveThemeColor(
-            com.google.android.material.R.attr.colorSurfaceVariant, 0xFF202124));
-
         mBorderPaint.setStyle(Paint.Style.STROKE);
-        mBorderPaint.setStrokeWidth(BORDER_WIDTH_DP * density);
-        mBorderPaint.setColor(resolveThemeColor(
-            com.google.android.material.R.attr.colorOutline, 0xFF5F6368));
-
         mDividerPaint.setStyle(Paint.Style.FILL);
-        mDividerPaint.setColor(resolveThemeColor(
-            com.google.android.material.R.attr.colorOutlineVariant, 0xFF3C4043));
-
         mActiveDividerPaint.setStyle(Paint.Style.FILL);
-        mActiveDividerPaint.setColor(resolveThemeColor(
-            com.google.android.material.R.attr.colorPrimary, 0xFF8AB4F8));
 
         mLabelPaint.setAntiAlias(true);
         mLabelPaint.setTextSize(TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP, LABEL_TEXT_SIZE_SP, getResources().getDisplayMetrics()));
-        mLabelPaint.setColor(resolveThemeColor(
-            com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFFE8EAED));
         mLabelPaint.setTextAlign(Paint.Align.CENTER);
+
+        mBorderWidthPx = BORDER_WIDTH_DP * density;
+        mFocusedBorderWidthPx = FOCUSED_BORDER_WIDTH_DP * density;
+        refreshThemeColors();
+    }
+
+    /**
+     * 重新解析主题颜色。日夜模式切换后由宿主调用，避免自绘颜色停留在旧主题。
+     */
+    public void refreshThemeColors() {
+        mLeafFillPaint.setColor(ThemeColors.resolve(getContext(), R.attr.colorSurfaceVariant, 0xFF202124));
+        mBorderPaint.setColor(ThemeColors.resolve(getContext(), R.attr.colorOutline, 0xFF5F6368));
+        mDividerPaint.setColor(ThemeColors.resolve(getContext(), R.attr.colorOutlineVariant, 0xFF3C4043));
+        mActiveDividerPaint.setColor(ThemeColors.resolve(getContext(), R.attr.colorPrimary, 0xFF8AB4F8));
+        mLabelPaint.setColor(ThemeColors.resolve(getContext(), R.attr.colorOnSurfaceVariant, 0xFFE8EAED));
+        invalidate();
     }
 
     /**
      * 设置窗格树控制器并触发重绘。
      */
-    public void setController(@NonNull PaneLayoutController controller) {
+    public void setController(@Nullable PaneLayoutController controller) {
         mController = controller;
         mDraggingSplit = null;
         invalidate();
@@ -111,6 +117,7 @@ public final class PaneHostView extends View {
         super.onDraw(canvas);
         PaneLayoutController controller = mController;
         mGeometry.clear();
+        mLeafBounds.clear();
         if (controller == null) {
             return;
         }
@@ -156,15 +163,13 @@ public final class PaneHostView extends View {
 
     private void drawLeaf(@NonNull Canvas canvas, @NonNull PaneLeaf leaf, boolean focused,
                           float left, float top, float right, float bottom) {
+        mLeafBounds.put(leaf, new RectF(left, top, right, bottom));
         canvas.drawRect(left, top, right, bottom, mLeafFillPaint);
 
-        mBorderPaint.setStrokeWidth((focused ? FOCUSED_BORDER_WIDTH_DP : BORDER_WIDTH_DP)
-            * getResources().getDisplayMetrics().density);
+        mBorderPaint.setStrokeWidth(focused ? mFocusedBorderWidthPx : mBorderWidthPx);
         canvas.drawRect(left + 0.5f, top + 0.5f, right - 0.5f, bottom - 0.5f, mBorderPaint);
 
-        String label = leaf.hasSessions()
-            ? getContext().getString(R.string.shell_header, leaf.getId(), leaf.getTabs().size())
-            : getContext().getString(R.string.shell_empty_pane);
+        String label = getContext().getString(com.termux.shell.R.string.shell_pane_placeholder, leaf.getId());
         float centerX = (left + right) / 2f;
         float centerY = (top + bottom) / 2f - (mLabelPaint.ascent() + mLabelPaint.descent()) / 2f;
         canvas.drawText(label, centerX, centerY, mLabelPaint);
@@ -181,7 +186,8 @@ public final class PaneHostView extends View {
             case MotionEvent.ACTION_DOWN: {
                 PaneSplit hit = findSplitAt(event.getX(), event.getY());
                 if (hit == null) {
-                    return false;
+                    // 落点在窗格内部时接管按下事件，以便在抬起时切换焦点；落点在空白处则不接管。
+                    return findLeafAt(event.getX(), event.getY()) != null;
                 }
                 mDraggingSplit = hit;
                 mDragStartRatio = hit.getRatio();
@@ -214,7 +220,19 @@ public final class PaneHostView extends View {
                 }
                 return true;
             }
-            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_UP: {
+                if (mDraggingSplit != null) {
+                    mDraggingSplit = null;
+                    invalidate();
+                    return true;
+                }
+                PaneLeaf leaf = findLeafAt(event.getX(), event.getY());
+                if (leaf != null && controller.setFocusedLeaf(leaf)) {
+                    invalidate();
+                    return true;
+                }
+                return false;
+            }
             case MotionEvent.ACTION_CANCEL: {
                 if (mDraggingSplit == null) {
                     return false;
@@ -229,6 +247,16 @@ public final class PaneHostView extends View {
     }
 
     @Nullable
+    private PaneLeaf findLeafAt(float x, float y) {
+        for (Map.Entry<PaneLeaf, RectF> entry : mLeafBounds.entrySet()) {
+            if (entry.getValue().contains(x, y)) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    @Nullable
     private PaneSplit findSplitAt(float x, float y) {
         for (Map.Entry<PaneSplit, SplitGeometry> entry : mGeometry.entrySet()) {
             RectF divider = entry.getValue().mDivider;
@@ -238,19 +266,6 @@ public final class PaneHostView extends View {
             }
         }
         return null;
-    }
-
-    private int resolveThemeColor(int attribute, int fallback) {
-        TypedValue value = new TypedValue();
-        if (getContext().getTheme().resolveAttribute(attribute, value, true)) {
-            if (value.resourceId != 0) {
-                return getContext().getColor(value.resourceId);
-            }
-            if (value.type >= TypedValue.TYPE_FIRST_COLOR_INT && value.type <= TypedValue.TYPE_LAST_COLOR_INT) {
-                return value.data;
-            }
-        }
-        return fallback;
     }
 
     /**
