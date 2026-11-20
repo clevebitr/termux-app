@@ -15,5 +15,5 @@ auto-breakpoint: false
 
 ## Current: M14 — 会话宿主与终端视图挂载（M12-2…M12-4）
 
-goal: 标签栏+配置+命令面板骨架已实现，56 项测试通过
-breakpoint: 待 CI/真机补跑 assembleDebug 与界面验收
+goal: CI 构建通过：单测 + assembleDebug 全绿
+breakpoint: 演示 APK 已发布 shell-demo，待设备反馈
