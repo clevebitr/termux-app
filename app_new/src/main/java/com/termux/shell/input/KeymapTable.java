@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -19,11 +20,10 @@ import java.util.Map;
  *
  * <p>语法：每行一条绑定，格式为 {@code 修饰键+按键 = 动作}，例如：
  * <pre>
- * # 窗口与窗格
+ * # 标签页
  * ctrl+shift+t = new-tab
  * ctrl+shift+w = close-tab
- * alt+left     = focus-pane-left
- * alt+1        = focus-pane-1
+ * alt+left     = focus-previous-pane
  * </pre>
  * 以 {@code #} 开头的行与空行被忽略；修饰键取值为 {@code ctrl}、{@code alt}、{@code shift}、
  * {@code meta}，可组合；按键取值为单个字母、单个数字，或 {@code tab}、{@code enter}、
@@ -33,15 +33,16 @@ import java.util.Map;
  *
  * <p>约束：
  * <ul>
- *     <li>解析为纯计算过程，不得依赖 Android 运行时，因此可在 JVM 单元测试中直接验证；</li>
+ *     <li>解析为纯计算过程，不依赖 Android 运行时，因此可在 JVM 单元测试中直接验证；</li>
  *     <li>非法行被跳过而非抛出异常，跳过的行数与原因由调用方记录日志；</li>
- *     <li>同一按键组合重复出现时，首条绑定生效，后续绑定被忽略。</li>
+ *     <li>同一按键组合重复出现时，首条绑定生效，后续绑定被忽略；</li>
+ *     <li>动作名称本身不做校验：动作是否被界面实现由 {@link ShellAction} 判定。</li>
  * </ul>
  */
 public final class KeymapTable {
 
     /** 空表。用于外壳快捷键被整体禁用的场景。 */
-    public static final KeymapTable EMPTY = new KeymapTable(Collections.emptyMap());
+    public static final KeymapTable EMPTY = new KeymapTable(Collections.<Integer, Binding>emptyMap());
 
     private static final int MODIFIER_NONE = 0;
     /** 内部修饰位。使用自有位定义而非平台掩码，避免平台掩码的低位落在同一位置导致组合冲突。 */
@@ -50,9 +51,9 @@ public final class KeymapTable {
     private static final int MODIFIER_SHIFT = 1 << 2;
     private static final int MODIFIER_META = 1 << 3;
 
-    private final Map<Integer, String> mBindings;
+    private final Map<Integer, Binding> mBindings;
 
-    private KeymapTable(@NonNull Map<Integer, String> bindings) {
+    private KeymapTable(@NonNull Map<Integer, Binding> bindings) {
         mBindings = bindings;
     }
 
@@ -67,7 +68,7 @@ public final class KeymapTable {
         if (lines == null || lines.isEmpty()) {
             return EMPTY;
         }
-        Map<Integer, String> bindings = new HashMap<>();
+        Map<Integer, Binding> bindings = new HashMap<>();
         for (String rawLine : lines) {
             Binding parsed = parseLine(rawLine);
             if (parsed == null) {
@@ -75,7 +76,7 @@ public final class KeymapTable {
             }
             int key = bindingKey(parsed.mKeyCode, parsed.mModifiers);
             if (!bindings.containsKey(key)) {
-                bindings.put(key, parsed.mAction);
+                bindings.put(key, parsed);
             }
         }
         return new KeymapTable(Collections.unmodifiableMap(bindings));
@@ -108,7 +109,23 @@ public final class KeymapTable {
         if (mBindings.isEmpty()) {
             return null;
         }
-        return mBindings.get(bindingKey(keyCode, normalizeModifiers(metaState)));
+        Binding binding = mBindings.get(bindingKey(keyCode, normalizeModifiers(metaState)));
+        return binding == null ? null : binding.mAction;
+    }
+
+    /**
+     * 返回绑定到指定动作的快捷键展示文本，例如 {@code Ctrl+Shift+T}。
+     *
+     * <p>同一动作绑定多个组合时返回按解析顺序的第一条；未绑定时返回 null。
+     */
+    @Nullable
+    public String findShortcut(@NonNull String action) {
+        for (Binding binding : mBindings.values()) {
+            if (binding.mAction.equals(action)) {
+                return binding.mDisplay;
+            }
+        }
+        return null;
     }
 
     public int size() {
@@ -119,7 +136,7 @@ public final class KeymapTable {
         return mBindings.isEmpty();
     }
 
-    @NonNull
+    @Nullable
     private static Binding parseLine(@Nullable String rawLine) {
         if (rawLine == null) {
             return null;
@@ -148,15 +165,16 @@ public final class KeymapTable {
             modifiers |= modifier;
         }
 
-        int keyCode = keyCodeOf(tokens[tokens.length - 1].trim());
+        String keyToken = tokens[tokens.length - 1].trim();
+        int keyCode = keyCodeOf(keyToken);
         if (keyCode == KeyEvent.KEYCODE_UNKNOWN) {
             return null;
         }
-        return new Binding(keyCode, modifiers, action);
+        return new Binding(keyCode, modifiers, action, describe(modifierNames(modifiers), keyDisplayName(keyToken)));
     }
 
     private static int modifierOf(@NonNull String token) {
-        switch (token.toLowerCase(java.util.Locale.ROOT)) {
+        switch (token.toLowerCase(Locale.ROOT)) {
             case "ctrl":
             case "control":
                 return MODIFIER_CTRL;
@@ -174,7 +192,7 @@ public final class KeymapTable {
     }
 
     private static int keyCodeOf(@NonNull String token) {
-        String name = token.toLowerCase(java.util.Locale.ROOT);
+        String name = token.toLowerCase(Locale.ROOT);
         if (name.length() == 1) {
             char c = name.charAt(0);
             if (c >= 'a' && c <= 'z') {
@@ -224,6 +242,82 @@ public final class KeymapTable {
         }
     }
 
+    @NonNull
+    private static List<String> modifierNames(int modifiers) {
+        List<String> names = new ArrayList<>(4);
+        if ((modifiers & MODIFIER_CTRL) != 0) {
+            names.add("Ctrl");
+        }
+        if ((modifiers & MODIFIER_ALT) != 0) {
+            names.add("Alt");
+        }
+        if ((modifiers & MODIFIER_SHIFT) != 0) {
+            names.add("Shift");
+        }
+        if ((modifiers & MODIFIER_META) != 0) {
+            names.add("Meta");
+        }
+        return names;
+    }
+
+    @NonNull
+    private static String keyDisplayName(@NonNull String token) {
+        String name = token.trim();
+        if (name.length() == 1) {
+            return name.toUpperCase(Locale.ROOT);
+        }
+        switch (name.toLowerCase(Locale.ROOT)) {
+            case "esc":
+            case "escape":
+                return "Esc";
+            case "pgup":
+            case "pageup":
+                return "PageUp";
+            case "pgdn":
+            case "pagedown":
+                return "PageDown";
+            case "return":
+            case "enter":
+                return "Enter";
+            case "space":
+                return "Space";
+            case "tab":
+                return "Tab";
+            case "left":
+                return "Left";
+            case "right":
+                return "Right";
+            case "up":
+                return "Up";
+            case "down":
+                return "Down";
+            case "home":
+                return "Home";
+            case "end":
+                return "End";
+            case "backspace":
+                return "Backspace";
+            case "del":
+            case "delete":
+                return "Delete";
+            default:
+                return name;
+        }
+    }
+
+    @NonNull
+    private static String describe(@NonNull List<String> modifiers, @NonNull String keyName) {
+        if (modifiers.isEmpty()) {
+            return keyName;
+        }
+        StringBuilder builder = new StringBuilder();
+        for (String modifier : modifiers) {
+            builder.append(modifier).append('+');
+        }
+        builder.append(keyName);
+        return builder.toString();
+    }
+
     /**
      * 把平台修饰位归一化为内部修饰位。
      *
@@ -259,11 +353,13 @@ public final class KeymapTable {
         private final int mKeyCode;
         private final int mModifiers;
         private final String mAction;
+        private final String mDisplay;
 
-        private Binding(int keyCode, int modifiers, @NonNull String action) {
+        private Binding(int keyCode, int modifiers, @NonNull String action, @NonNull String display) {
             mKeyCode = keyCode;
             mModifiers = modifiers;
             mAction = action;
+            mDisplay = display;
         }
     }
 }

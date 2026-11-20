@@ -55,4 +55,6 @@ dependencies {
     implementation "com.google.android.material:material:1.12.0"
 
     testImplementation "junit:junit:4.13.2"
+    // 平台 android.jar 中的 org.json 为抛出异常的存根，单元测试需要可用的实现。
+    testImplementation "org.json:json:20240303"
 }
