@@ -1,0 +1,103 @@
+name: Shell Demo Build
+
+# 构建新外壳（app_new）的调试 APK，并把产物发布到 `shell-demo` 预发布页，便于在设备上安装查看。
+# 与旧应用的 Fork Build 分离：本工作流只构建 :app_new，不涉及签名密钥与插件仓库。
+# 触发条件：手动触发，或 app_new、构建装配文件变更后推送到 master。
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - 'app_new/**'
+      - 'settings.gradle'
+      - 'build.gradle'
+      - 'gradle.properties'
+      - 'gradle/wrapper/gradle-wrapper.properties'
+      - '.github/workflows/app_new_debug_build.yml'
+
+concurrency:
+  group: shell-demo-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  JAVA_VERSION: '17'
+  RELEASE_TAG: 'shell-demo'
+
+jobs:
+  build:
+    name: Build shell demo APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Setup java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Unit tests
+        run: ./gradlew :app_new:testDebugUnitTest --console=plain
+
+      - name: Build debug APK
+        run: ./gradlew :app_new:assembleDebug --console=plain
+
+      - name: Locate APK
+        id: apk
+        run: |
+          set -euo pipefail
+          APK="$(find app_new/build/outputs/apk/debug -name '*.apk' | head -1)"
+          if [ -z "$APK" ]; then
+            echo "::error::未找到 app_new 的调试 APK"
+            find app_new/build/outputs -name '*.apk' || true
+            exit 1
+          fi
+          NAME="termux-shell-${GITHUB_SHA:0:7}-debug.apk"
+          cp "$APK" "$RUNNER_TEMP/$NAME"
+          echo "path=$RUNNER_TEMP/$NAME" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          ls -l "$RUNNER_TEMP/$NAME"
+          {
+            echo "### 外壳骨架演示构建"
+            echo ""
+            echo "* 提交：\`${GITHUB_SHA:0:7}\`"
+            echo "* APK：\`$NAME\`"
+            echo "* 包名：\`com.termux.shell\`（可与官方 Termux 并存安装）"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: termux-shell-debug
+          if-no-files-found: error
+          path: ${{ steps.apk.outputs.path }}
+
+      - name: Publish demo release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          NOTES="新外壳（app_new）骨架演示构建。
+
+          - 提交：${GITHUB_SHA}
+          - 包名：com.termux.shell，可与官方 Termux 并存安装
+          - 内容：窗口级标签栏、配置文件、命令面板；窗格内为占位内容，尚未挂载终端
+
+          构建产物由 CI 自动生成，仅用于查看界面。"
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --prerelease \
+              --title "外壳骨架演示（自动构建）" \
+              --notes "$NOTES"
+          else
+            gh release edit "$RELEASE_TAG" --notes "$NOTES"
+          fi
+          gh release upload "$RELEASE_TAG" "${{ steps.apk.outputs.path }}" --clobber
+          echo "下载地址：https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${{ steps.apk.outputs.name }}"
