@@ -207,6 +207,7 @@ Kotlin 引入不在 M15 范围内，单独评估后再排期。
 | 交互 | 设备清单：输入回显、`Ctrl+C`、窗格切换、页签切换、拖放、横向滚轮 | M12-2…M12-4、M13-2、M14-2…M14-4 |
 | 持久化 | 冷启动后布局与滚动位置恢复；布局文件损坏时回退 | M13-3 |
 | 无 Android SDK 时的替代验证 | `javac` 编译主源与测试源（`platforms/android-36` 的 `android.jar` + Maven AAR 的 `classes.jar` + `R` 存根），`org.junit.runner.JUnitCore` 运行单元测试；资源引用与语言文件对齐用仓库外脚本检查 | M12 之后全部 |
+| 外壳演示构建 | `.github/workflows/app_new_debug_build.yml`：运行 `:app_new:testDebugUnitTest` 与 `:app_new:assembleDebug`，产物上传为构建产物并发布到预发布页 `shell-demo` | M13 之后全部（按需手动触发） |
 | 兼容性 | 桌面窗口模式、分屏、折叠屏展开与折叠 | M13-1、M13-4、M15-3 |
 
 设备侧验证须逐条记录于提交说明，未执行项须标注「未验证」。
@@ -235,3 +236,4 @@ Kotlin 引入不在 M15 范围内，单独评估后再排期。
 | 2026-11-19 | M12-1 完成：`app_new` 以只读依赖方式接入 `:terminal-core`；APK 含 4 个 ABI 的 `libtermux.so` | 本机实测 |
 | 2026-11-19 | 确认 D3（组合方案）与 D4（窗口级标签栏）；新增任务 M13-2a…M13-2d，修订 M13-2 的验收口径；补充无 Android SDK 时的替代验证方式 | 需求方确认与本次交付 |
 | 2026-11-19 | M13-2、M13-2a…M13-2d 完成：标签栏、配置层、键位表、命令面板与 MD3 视觉基线；56 项单元测试通过；Gradle 构建未执行（本机缺 Android SDK build-tools） | 本机 `javac` + `JUnitCore` 实测 |
+| 2026-11-19 | 新增外壳演示构建工作流 `app_new_debug_build.yml`（需求方要求通过 CI 出包查看界面）；单独成文件，不修改既有工作流 | 需求方要求 |

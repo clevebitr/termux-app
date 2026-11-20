@@ -43,3 +43,14 @@
 替代验证：下载 platforms/android-36 的 android.jar，按 Maven POM 递归解析 Material/AndroidX 的 classes.jar，从资源生成 R 存根，用 javac 编译 app_new/src/main/java 与测试源，再用 org.junit.runner.JUnitCore 运行 9 个测试类共 56 项；另以仓库外脚本检查资源 XML、资源引用与 values/values-zh 键集合。全部通过。
 
 未验证：aapt2 资源编译、清单合并、布局 inflate、主题属性解析结果、lintDebug，以及全部界面交互（标签栏点击 / 长按 / 关闭、命令面板输入与键盘操作、配置变更后的界面重建）。以上需在 CI 或具备 Android SDK 的机器上补跑，并按 docs/DELIVERY_PLAN.md 第 10 节的设备清单验收；本次交付不声称界面已验证。
+
+## 2026-11-20 — 新增外壳演示构建工作流（不修改既有工作流）
+
+背景：需求方要求在 CI 上构建并可安装查看外壳骨架界面。既有 workflow 中 Fork Build 会顺带构建 app_new，但其触发路径不含 app_new/**，且产物与旧应用 APK 混在一起、需要签名校验。
+
+结论：新增独立工作流 .github/workflows/app_new_debug_build.yml（AGENTS 第 3.4 节要求新增构建任务先记录方案，本次由需求方明确要求）。内容：
+- 触发：workflow_dispatch 手动触发；或 app_new/**、settings.gradle、build.gradle、gradle.properties、wrapper 属性变更后推送 master。
+- 步骤：setup-java 17 → ./gradlew :app_new:testDebugUnitTest → :app_new:assembleDebug → 上传构建产物 → 以 GITHUB_TOKEN 创建或更新预发布页 shell-demo 并覆盖上传 APK。
+- 产物命名 termux-shell-<sha7>-debug.apk，包名 com.termux.shell，可与官方 Termux 并存安装；不带 sharedUserId，不涉及签名密钥与插件仓库。
+
+取舍：不改动 fork_build.yml / debug_build.yml，避免影响旧应用发布链路；预发布页而非构建产物链接，是因为构建产物下载需要登录 GitHub，直接发布 release 资源便于在手机上直接安装。
