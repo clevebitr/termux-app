@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 启动首帧背景，取值与 Compose 浅色主题的 surface 令牌一致。 -->
+    <color name="window_background">#FFFBFF</color>
+</resources>

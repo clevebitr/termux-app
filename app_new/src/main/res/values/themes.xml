@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 骨架阶段采用 Material 3 日夜主题，配色跟随系统；终端配色方案联动在后续里程碑接入。 -->
-    <style name="Theme.Shell" parent="Theme.Material3.DayNight.NoActionBar">
+    <!--
+        窗口级主题只提供首帧背景与系统栏设置；界面本身由 Compose 绘制，
+        因此不依赖 Material Components 或 AppCompat 的 XML 主题。
+    -->
+    <style name="Theme.Shell" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/window_background</item>
     </style>
 </resources>
