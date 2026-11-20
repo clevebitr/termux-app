@@ -89,7 +89,7 @@ jobs:
 
           - 提交：${GITHUB_SHA}
           - 包名：com.termux.shell，可与官方 Termux 并存安装
-          - 内容：窗口级标签栏、配置文件、命令面板；窗格内为占位内容，尚未挂载终端
+          - 内容：Kotlin + Compose 实现的窗口级标签栏、配置文件与命令面板；窗格内为占位内容，尚未挂载终端
 
           构建产物由 CI 自动生成，仅用于查看界面。"
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
