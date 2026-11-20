@@ -54,3 +54,12 @@
 - 产物命名 termux-shell-<sha7>-debug.apk，包名 com.termux.shell，可与官方 Termux 并存安装；不带 sharedUserId，不涉及签名密钥与插件仓库。
 
 取舍：不改动 fork_build.yml / debug_build.yml，避免影响旧应用发布链路；预发布页而非构建产物链接，是因为构建产物下载需要登录 GitHub，直接发布 release 资源便于在手机上直接安装。
+
+## 2026-11-20 — 演示 APK 使用固定文件名与固定下载地址
+
+问题：首版工作流把产物命名为 termux-shell-<sha7>-debug.apk，每次推送都会在 shell-demo 发布页新增一个资源，下载地址随提交变化，链接容易失效，也无法让同一地址始终指向最新构建。
+
+结论：产物固定命名为 termux-shell-demo-debug.apk，上传时使用 --clobber 覆盖同名资源；提交哈希写入发布说明与构建摘要，需要追溯具体提交时查看说明即可。下载地址固定为：
+https://github.com/clevebitr/termux-app/releases/download/shell-demo/termux-shell-demo-debug.apk
+
+注意：app_new/PLAN.md 也位于 app_new/** 触发路径内，纯文档提交同样会触发一次构建；工作流已设置 concurrency 并取消进行中的旧构建，因此不会堆积。
