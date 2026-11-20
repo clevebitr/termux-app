@@ -5,6 +5,10 @@ buildscript {
     }
     dependencies {
         classpath "com.android.tools.build:gradle:8.13.2"
+        // 新外壳模块使用 Kotlin 与 Compose。版本选择依据见 docs/UPGRADE.md 第 12 节：
+        // Kotlin 2.2.20 是 Gradle 9.2.1 官方测试过的版本，Compose 编译器自 Kotlin 2.0 起随语言版本发布。
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20"
+        classpath "org.jetbrains.kotlin:compose-compiler-gradle-plugin:2.2.20"
     }
 }
 

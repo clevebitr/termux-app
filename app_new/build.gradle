@@ -2,9 +2,17 @@ plugins {
     id "com.android.application"
 }
 
+// Kotlin 与 Compose 编译器插件由根构建脚本的 buildscript 类路径提供，此处仅应用。
+apply plugin: "kotlin-android"
+apply plugin: "org.jetbrains.kotlin.plugin.compose"
+
 // 新外壳的 targetSdk。默认取 28，原因见 docs/UPGRADE.md 第 6 节：exec 与 W^X 约束。
 // 通过 -PappNewTargetSdk=36 可切换为现代外壳形态，须配合运行时拆分启用。
 def appNewTargetSdk = (rootProject.findProperty("appNewTargetSdk") ?: "28").toInteger();
+
+// Compose 与 Kotlin 工具链版本。两者必须与根构建脚本声明的 Kotlin 插件版本一致。
+def composeBomVersion = "2025.10.01"
+def activityComposeVersion = "1.10.1"
 
 android {
     namespace "com.termux.shell"
@@ -22,7 +30,7 @@ android {
 
     buildTypes {
         debug {
-            // 骨架阶段使用工具链默认调试签名，便于与旧模块并装对比。
+            // 演示包使用工具链默认调试签名，便于与旧模块并装对比。
         }
         release {
             minifyEnabled false
@@ -36,6 +44,7 @@ android {
     }
 
     buildFeatures {
+        compose true
         buildConfig true
     }
 
@@ -44,15 +53,25 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
 dependencies {
     // 终端核心复制基线。不得同时依赖 :terminal-emulator 与 :terminal-view，否则出现重复类与重复原生库。
     implementation project(":terminal-core")
 
-    implementation "androidx.annotation:annotation:1.9.0"
-    implementation "androidx.core:core:1.13.1"
-    implementation "androidx.appcompat:appcompat:1.6.1"
-    implementation "androidx.window:window:1.1.0"
-    implementation "com.google.android.material:material:1.12.0"
+    // Compose 版本由 BOM 统一管理，各库不再单独声明版本。
+    implementation platform("androidx.compose:compose-bom:$composeBomVersion")
+    implementation "androidx.activity:activity-compose:$activityComposeVersion"
+    implementation "androidx.compose.ui:ui"
+    implementation "androidx.compose.foundation:foundation"
+    implementation "androidx.compose.material3:material3"
+    implementation "androidx.compose.material:material-icons-core"
+
+    debugImplementation "androidx.compose.ui:ui-tooling"
 
     testImplementation "junit:junit:4.13.2"
     // 平台 android.jar 中的 org.json 为抛出异常的存根，单元测试需要可用的实现。
