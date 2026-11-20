@@ -18,7 +18,8 @@
 | D2 | 采纳 C：改用 `com.termux` 包名顶替旧应用 | 需求方于 2026-11-19 确认 |
 | D3 | 采纳：应用私有主目录 + `home/.termux` 配置目录 | 本文件第 2 节；实现见 `ShellPaths` |
 | D4 | 采纳：窗口级标签栏（每标签一棵窗格树） | 需求方确认；见 `app_new/DECISIONS.md` #1 |
-| 当前进度 | M12-0、M12-1、M13-2a…M13-2d 已完成 | 本文件第 4、5 节 |
+| 当前进度 | M12-0、M12-1、M13-2a…M13-2d、M13-7 已完成 | 本文件第 4、5 节 |
+| 技术栈 | Kotlin 2.2.20 + Compose BOM 2025.10.01（壳层）；终端核心保持 Java 复制基线 | `UPGRADE.md` 第 12 节；需求方于 2026-11-20 确认 |
 
 ---
 
@@ -139,8 +140,11 @@ M12 期间不得实现多窗口、页签、kitty 键序与拖放。
 | M13-2c | 命令面板 | 新增 `commands/ShellCommand.java`、`commands/CommandCatalog.java`、`commands/CommandFilter.java`、`ui/CommandPaletteController.java`、`layout/dialog_command_palette.xml`、`layout/item_command_row.xml` | — | 顶部浮动卡片、输入即筛选、方向键选择、回车执行、Esc 关闭；不可执行命令置灰；与快捷键、溢出菜单共用同一动作实现 |
 | M13-2d | MD3 视觉基线 | 修改 `ui/LayoutHost.java`、`ui/ShellActivity.java`、`res/layout/activity_shell.xml`、`res/values/themes.xml`、`res/values*/strings.xml`；新增 `ui/ThemeColors.java`、`ui/ShellViewOptions.java`、`res/drawable/ic_*.xml`、`res/menu/*.xml` | — | 标题行 + 标签栏 + 窗格区的三段结构；标签栏可置顶或置底；日夜模式切换后自绘颜色同步更新；侧栏在中等与展开档位常驻 |
 
+| M13-7 | 技术栈迁移（Kotlin + Compose） | 根 `build.gradle` 增加 Kotlin 与 Compose 编译器插件 classpath；`app_new/build.gradle` 应用插件并声明 Compose 依赖；`src/main/java` 与 `src/test/java` 整体迁移到 `src/main/kotlin`、`src/test/kotlin` | — | `:app_new:testDebugUnitTest` 与 `:app_new:assembleDebug` 在 CI 通过；单元测试数量不低于迁移前的 56 项；壳层界面全部由 Compose 绘制 |
+
 > 说明：M13-2 原计划的「每个窗格内多页签」按 D4 改为「窗口级标签栏，每个标签一棵窗格树」，
 > 与 Windows Terminal 的语义一致。窗格内容在 M12-2…M12-4 完成前保持占位。
+> M13-7 把壳层实现语言与界面框架替换为 Kotlin + Compose，终端视图仍以 `AndroidView` 承载。
 | M13-3 | 布局落盘与恢复 | 新增 `pane/PaneLayoutStore.java`（路径见 D3） | — | 冷启动恢复分割结构与各叶子滚动位置；布局文件损坏时回退单窗格 |
 | M13-4 | 档位驱动布局 | 修改 `ui/LayoutHost.java`、`ui/WindowSizeResolver.java` | — | 折叠展开、自由窗口拖拽、桌面窗口下布局切换不重建 Activity |
 | M13-5 | 焦点与导航 | 新增 `pane/PaneNavigator.java` | — | 方向键与 `Alt+方向` 迁移焦点；关闭窗格后焦点按规则落到兄弟叶子 |
@@ -237,3 +241,4 @@ Kotlin 引入不在 M15 范围内，单独评估后再排期。
 | 2026-11-19 | 确认 D3（组合方案）与 D4（窗口级标签栏）；新增任务 M13-2a…M13-2d，修订 M13-2 的验收口径；补充无 Android SDK 时的替代验证方式 | 需求方确认与本次交付 |
 | 2026-11-19 | M13-2、M13-2a…M13-2d 完成：标签栏、配置层、键位表、命令面板与 MD3 视觉基线；56 项单元测试通过；Gradle 构建未执行（本机缺 Android SDK build-tools） | 本机 `javac` + `JUnitCore` 实测 |
 | 2026-11-19 | 新增外壳演示构建工作流 `app_new_debug_build.yml`（需求方要求通过 CI 出包查看界面）；单独成文件，不修改既有工作流 | 需求方要求 |
+| 2026-11-20 | M13-7 完成：壳层迁移到 Kotlin 2.2.20 + Compose BOM 2025.10.01，删除 Java 实现与自绘视图、XML 布局；60 项单元测试通过，CI 构建与单测通过；APK 11.7 MB | 需求方确认与 CI 实测 |

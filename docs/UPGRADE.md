@@ -417,6 +417,11 @@ terminal-render-cache=true              # 默认 true
 | `com.termux.shell.input` | `InputRouter`、`KeymapTable`、`KeymapLoader`、`ShellAction`、`ShellInputRouter` | 输入路由契约、键位表解析与展示、默认键位、动作名称、按键路由 | 已接入窗口宿主；拖放与鼠标语义待 M14 |
 | `com.termux.shell.render` | `FrameScheduler`、`DirtyRows` | 帧调度契约、脏行区间 | 契约与值对象已实现；调度器待阶段三 |
 
+> 说明：M13-7（第 12 节）之后，上表所列类型均已迁移为 Kotlin（文件扩展名 `.kt`）；
+> `TabStripView`、`LayoutHost`、`CommandPaletteController`、`ThemeColors`、`WindowSizeResolver`
+> 已删除，分别由 Compose 标签栏、界面组合函数、命令面板对话框、`MaterialTheme` 与
+> `BoxWithConstraints` 取代。
+
 ### 10.3 阶段一明确未实现的内容
 
 下列内容属阶段三（动工）范围，骨架中仅保留契约或空位，阶段二不得提前实现：
@@ -447,9 +452,8 @@ terminal-render-cache=true              # 默认 true
 | `org.junit.runner.JUnitCore`：9 个测试类 | 通过，56 项（新增标签模型 9 项、布局编码 4 项、配置读取 6 项、命令筛选 7 项、窗格控制器 8 项、默认键位 4 项） |
 | 资源检查（仓库外脚本） | 通过：XML 可解析、`@string`/`@drawable`/`@layout`/`@menu`/`@id` 引用均存在、`values` 与 `values-zh` 键集合一致 |
 
-**未验证**：资源编译（`aapt2`）、清单合并、布局 inflate、主题属性解析的实际结果，以及全部界面交互；
-以上需在具备 Android SDK 的环境或 CI 中补跑 `:app_new:assembleDebug`、`:app_new:testDebugUnitTest`、
-`:app_new:lintDebug`，并在设备上按 §9 清单验收。
+补充：以上未验证项已由 CI 的 `app_new_debug_build.yml` 补跑 `:app_new:testDebugUnitTest` 与
+`:app_new:assembleDebug`，两者均通过；`lintDebug` 仍未执行。设备侧交互仍需人工验收。
 
 新增测试依赖：`org.json:json:20240303`（仅 `testImplementation`）。理由：平台的 `android.jar` 中
 `org.json` 为抛出 `RuntimeException("Stub!")` 的存根，布局编码器的单元测试需要可用实现。
@@ -474,3 +478,56 @@ terminal-render-cache=true              # 默认 true
 
 补充说明（阶段二结论）：终端接入采用**先进程内接入、`targetSdk` 保持 28** 的路线，理由与代价见
 [`DELIVERY_PLAN.md`](DELIVERY_PLAN.md) 第 0 节与第 2 节；第 6 节的方案 B 顺延为 M16，不作为前期阻塞项。
+
+## 12. 外壳技术栈：Kotlin 与 Compose（2026-11-20）
+
+**结论：** 新外壳 `app_new` 的界面层与逻辑层全部迁移到 Kotlin + Jetpack Compose，Java 版本全部删除；
+终端核心 `app_new/terminal-core` 保持复制基线的 Java 源码，不参与迁移。终端视图将来以
+`AndroidView` 嵌入 Compose，不进入 Compose 合成，从而保留脏行增量与自绘性能。
+
+### 12.1 版本矩阵
+
+| 项 | 取值 | 依据 |
+| --- | --- | --- |
+| Kotlin（含 Gradle 插件） | `2.2.20` | Gradle 9.2.x 官方测试范围上限为 KGP 2.2.20（Gradle 兼容矩阵） |
+| Compose 编译器插件 | `org.jetbrains.kotlin.plugin.compose:2.2.20` | 自 Kotlin 2.0 起随语言版本发布，不再单独维护 Compose→Kotlin 兼容表 |
+| Compose BOM | `2025.10.01`（ui/foundation 1.9.4、material3 1.4.0、material-icons-core 1.7.8） | 单一 BOM 统一版本，避免各库版本漂移 |
+| activity-compose | `1.10.1` | 提供 `ComponentActivity.setContent` 与 `enableEdgeToEdge` |
+| AGP / Gradle / JDK | `8.13.2` / `9.2.1` / `17` | 与根构建一致，不引入工具链升级 |
+| compileSdk / minSdk / targetSdk | `36` / `24` / `28` | 与骨架阶段一致；`targetSdk` 仍受 `exec` 与 W^X 约束 |
+
+### 12.2 结构性改动
+
+* 删除 `material`（View 体系）、`appcompat`、`androidx.window` 与 `androidx.core` 的直接依赖；
+  窗口级主题改为平台主题 `android:Theme.Material.*.NoActionBar`，只负责首帧背景与系统栏设置。
+* 删除全部自绘视图（标签栏、窗格宿主）与 XML 布局、菜单、图标资源；标签栏、窗格容器、命令面板、
+  侧栏与标题行改由 Compose 组件绘制。
+* 状态模型改为不可变数据（`PaneNode` 密封接口 + `PaneSplit`/`PaneLeaf`，`TabWorkspace` 返回新实例），
+  由 `ShellController` 以 Compose 状态持有；原先的 `TabStripView`、`LayoutHost`、
+  `CommandPaletteController`、`ThemeColors`、`WindowSizeResolver` 全部移除。
+* 宽度档位改由 `BoxWithConstraints` 的可用宽度推导，因此不再需要 `androidx.window`。
+* `AppCompatDelegate` 不再参与主题切换：`app-theme` 配置在 Compose 主题层解释，重载配置后立即生效，
+  不再依赖 Activity 重建。
+
+### 12.3 边界与约束
+
+* **终端视图不进入 Compose 合成**：`TerminalView` 是高吞吐自绘视图，必须用 `AndroidView` 承载，
+  否则会破坏 dirty-row 增量与同步输出的收益（见第 3 节 R1/R2）。
+* **终端核心保持 Java**：`app_new/terminal-core` 是复制基线，迁移 Kotlin 会扩大与上游的差异，
+  且现有 239 项测试的价值在于原样保留。Kotlin 代码通过 `project(":terminal-core")` 直接调用。
+* **构建装配改动单独提交**：根 `build.gradle` 增加 Kotlin 与 Compose 编译器插件类路径，
+  `app_new/build.gradle` 应用插件并声明依赖；该提交需与代码、文档分别提交（见第 3 节约束）。
+* **版本协同**：升级 Kotlin 必须同步升级 Compose 编译器插件与 BOM，并按 CI 结果验证，
+  不得只在本地提高其中之一。
+
+### 12.4 验证
+
+| 检查 | 结果 |
+| --- | --- |
+| 本地 `kotlinc 2.4.21` + `kotlin-compose-compiler-plugin` 编译全部主源与测试源 | 通过 |
+| 本地 `org.junit.runner.JUnitCore` 运行 10 个测试类 | 通过，60 项 |
+| CI `:app_new:testDebugUnitTest` | 通过 |
+| CI `:app_new:assembleDebug` | 通过，产物 11.7 MB（Compose debug 包，未开启压缩） |
+
+**未验证**：真机上的 Compose 渲染、命令面板输入法交互、分割条拖拽手感与主题切换效果。
+这些需按 `docs/DELIVERY_PLAN.md` 第 10 节的设备清单验收。

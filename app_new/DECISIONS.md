@@ -63,3 +63,29 @@
 https://github.com/clevebitr/termux-app/releases/download/shell-demo/termux-shell-demo-debug.apk
 
 注意：app_new/PLAN.md 也位于 app_new/** 触发路径内，纯文档提交同样会触发一次构建；工作流已设置 concurrency 并取消进行中的旧构建，因此不会堆积。
+
+## 2026-11-20 — 壳层迁移到 Kotlin 2.2.20 + Compose BOM 2025.10.01（M13-7）
+
+结论：app_new 的界面层与逻辑层全部改为 Kotlin + Jetpack Compose，Java 实现与自绘 View、XML 布局、菜单与图标资源全部删除；terminal-core 复制基线保持 Java 只读，终端视图将来以 AndroidView 嵌入 Compose。
+
+版本选择：Kotlin 2.2.20（Gradle 9.2.x 官方测试的 KGP 上限，且 Compose 编译器自 Kotlin 2.0 起随语言版本发布）、Compose BOM 2025.10.01（ui/foundation 1.9.4、material3 1.4.0、material-icons-core 1.7.8）、activity-compose 1.10.1。AGP 8.13.2、Gradle 9.2.1、JDK 17、compileSdk 36 不变。
+
+结构性改动：
+- 根 build.gradle 的 buildscript 增加 kotlin-gradle-plugin 与 compose-compiler-gradle-plugin classpath；app_new 用 apply plugin 应用（AGP 已在根 classpath，沿用同一模式）。
+- 状态模型改为不可变：sealed interface PaneNode + PaneSplit/PaneLeaf，TabWorkspace 的每个操作返回新实例；新增 ShellController 以 mutableStateOf 持有工作区、视图选项与主题模式，Compose 据此重组。
+- 删除 TabStripView / LayoutHost / CommandPaletteController / ThemeColors / WindowSizeResolver；标签栏、标题行、侧栏、窗格容器、命令面板改为 Compose 组件；宽度档位改由 BoxWithConstraints 推导，因此移除 androidx.window 依赖；窗口主题改为平台 XML 主题，仅负责首帧背景，AppCompatDelegate 不再参与主题切换。
+- 单元测试从 JUnit4+Java 迁移为 JUnit4+Kotlin，窗格测试由 PaneLayoutControllerTest 改为 PaneLayoutTest，测试总数由 56 增至 60。
+
+取舍与风险：
+- Compose 版本与 Kotlin 版本强耦合，升级必须同步升级 BOM 与编译器插件，按 CI 结果验证，不能只改其一。
+- 终端视图不得进入 Compose 合成，否则破坏脏行增量；由 M14 在窗格叶子内以 AndroidView 承载。
+- 删除 material/appcompat 直接依赖后，APK 体积 Debug 包为 11.7 MB（Compose 运行时占主因），release 需靠 R8 与 Compose 按需裁剪。
+
+## 2026-11-20 — Kotlin/Compose 迁移的本地与 CI 验证方式
+
+本地环境无法执行 Gradle（Termux aarch64 无可用的 aapt2），因此迁移期间采用两级替代验证：
+1. 安装 Termux 的 kotlin 2.4.21（本地编译器版本高于项目 2.2.20，仅用于语法与类型检查，避免使用新版本专有语法）。
+2. 用 kotlinc 编译纯逻辑层并对测试运行 JUnitCore：先排除 Compose 文件编译通过 60 项测试；随后下载 Compose BOM 对应 AAR 的 classes.jar（ui-android 1.9.4、foundation-android 1.9.4、material3-android 1.4.0、material-icons-core-android 1.7.8、activity-compose 1.10.1 及其传递依赖），配合 kotlin-compose-compiler-plugin（非 embeddable 版本，否则 kotlinc 的非 embeddable 编译器缺少 shaded intellij 类会抛 NoClassDefFoundError）编译全部主源，通过。
+3. 注意类路径顺序：Compose 依赖会带入旧版 kotlin-stdlib 与 android.jar 的 org.json 存根，必须把 kotlin-stdlib 2.4.21 与 org.json:json 放在 android.jar 之前，否则出现 lowercase/buildList 无法解析、JSONObject 抛 Stub! 等假错误。
+
+CI：app_new_debug_build.yml 上 :app_new:testDebugUnitTest 与 :app_new:assembleDebug 均通过（run 44781087804，2m16s），产物 11.7 MB。lintDebug 仍未执行；真机上的 Compose 渲染、命令面板输入法交互、分割条拖拽手感与主题切换效果未验证。
