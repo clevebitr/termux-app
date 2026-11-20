@@ -59,7 +59,8 @@ jobs:
             find app_new/build/outputs -name '*.apk' || true
             exit 1
           fi
-          NAME="termux-shell-${GITHUB_SHA:0:7}-debug.apk"
+          # 固定文件名，使发布页上的下载地址恒定指向最新构建。
+          NAME="termux-shell-demo-debug.apk"
           cp "$APK" "$RUNNER_TEMP/$NAME"
           echo "path=$RUNNER_TEMP/$NAME" >> "$GITHUB_OUTPUT"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
@@ -68,7 +69,7 @@ jobs:
             echo "### 外壳骨架演示构建"
             echo ""
             echo "* 提交：\`${GITHUB_SHA:0:7}\`"
-            echo "* APK：\`$NAME\`"
+            echo "* APK：\`$NAME\`（提交 ${GITHUB_SHA:0:7}）"
             echo "* 包名：\`com.termux.shell\`（可与官方 Termux 并存安装）"
           } >> "$GITHUB_STEP_SUMMARY"
 
