@@ -257,38 +257,81 @@ gh secret set TERMUX_KEY_PASSWORD      --repo <owner>/termux-app
 
 ## 6. 在 Termux 里本机构建（可行，比 CI 快）
 
-> 以前本地没法编译（没有 JDK / SDK）；现在的 Termux 里 `openjdk-21` + `android-sdk`
-> （`$PREFIX/opt/android-sdk`，含 platforms 34/35 与 build-tools 35.0.0）都装好了，
-> Gradle wrapper 也能正常下载运行，可以只在本地做编译/单测验证，不必等 CI。
+本机是 aarch64 的 Termux。JDK 21、Android SDK（`platform-tools`、`platforms;android-36`、
+`build-tools;35.0.0` 与 `36.0.0`）与 Gradle wrapper 9.2.1 配好后，Java/Kotlin 编译、单元测试与
+APK 打包（含终端核心的原生库）都能在本地完成，不必等 CI。
+
+### 6.1 环境搭建（重装系统后按此重建）
+
+```sh
+pkg install openjdk-21 aapt2 unzip
+
+# sdkmanager 是纯 Java 实现，不依赖宿主架构的预编译二进制。
+export JAVA_HOME=$PREFIX/lib/jvm/java-21-openjdk
+export ANDROID_HOME=$PREFIX/opt/android-sdk
+export ANDROID_SDK_ROOT=$ANDROID_HOME
+mkdir -p $ANDROID_HOME/cmdline-tools
+curl -L -o $TMPDIR/cmdline-tools.zip \
+  https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
+unzip -q $TMPDIR/cmdline-tools.zip -d $TMPDIR/cmdline-tools
+cp -r $TMPDIR/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+  "platform-tools" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0"
+```
+
+以下三处配置必须覆盖，否则构建会在资源编译阶段失败：
+
+1. `~/.bashrc` 的 `JAVA_HOME` 指向 `$PREFIX/lib/jvm/java-21-openjdk`（历史配置指向已不存在的
+   `java-17-openjdk`，而 `PATH` 里的 `java` 实际是 21）。
+2. 仓库根目录的 `local.properties`（已在 `.gitignore` 中）写入
+   `sdk.dir=/data/data/com.termux/files/usr/opt/android-sdk`。
+3. 用户级 `~/.gradle/gradle.properties` 写入
+   `android.aapt2FromMavenOverride=/data/data/com.termux/files/usr/bin/aapt2`：AGP 从 Maven 取到的
+   aapt2 只有 linux-x86_64 版本，在 aarch64 上会报 `AAPT2 ... Daemon startup failed`；Termux 的
+   `aapt2` 包是本机原生版本。该配置放在用户级目录，不进仓库，也不影响 CI。
+
+### 6.2 NDK 垫片（aarch64 宿主必做）
+
+带原生模块的首次构建会自动安装 NDK r29（`ndk/29.0.14206865`），但官方 NDK 只提供
+`toolchains/llvm/prebuilt/linux-x86_64` 宿主工具链，`ndk-build` 在 aarch64 上直接报
+`ERROR: Unknown host CPU architecture: aarch64`。可行做法是让 Termux 原生 clang 充当宿主工具链，
+脚本位于 `~/.local/bin/setup-termux-ndk-shim.sh`（仅本机使用，不进仓库；NDK 重装或版本变化后重跑）：
+
+1. 修改 `build/tools/ndk_bin_common.sh`：接受 aarch64 宿主，并 `export HOST_ARCH`。
+   `build/core/init.mk` 从环境变量读取 `HOST_ARCH`，未导出时会静默回落到 `linux-x86_64`。
+2. 建立 `toolchains/llvm/prebuilt/linux-arm64`：`clang`、`clang++` 包装为 `$PREFIX/bin/clang`，
+   显式传 `-resource-dir` 与 `--sysroot`；其余 llvm 工具与 `python3` 软链到 `$PREFIX/bin`；
+   `sysroot`、`lib` 指向 NDK 自带的 `linux-x86_64` 副本（其内容与宿主架构无关）。
+
+注意：写入包装脚本前必须先删除同名软链，否则重定向会穿透软链，把 `$PREFIX/bin/clang-21` 覆盖成
+包装脚本，造成 clang 自我递归。
+
+### 6.3 常用命令
 
 ```sh
 cd ~/termux-app
-export ANDROID_HOME=$PREFIX/opt/android-sdk
-export ANDROID_SDK_ROOT=$ANDROID_HOME
 
-# 编译主 App（含 terminal-view / terminal-shared / terminal-emulator）
-./gradlew :app:compileDebugJavaWithJavac \
-  -x downloadBootstraps \
-  -Pandroid.aapt2FromMavenOverride=$ANDROID_HOME/build-tools/35.0.0/aapt2
+# 新外壳：编译、单测、出包（AGENTS.md 第 7 节要求的验证组合）
+./gradlew :app_new:assembleDebug :app_new:testDebugUnitTest
 
-# 单测
-./gradlew test -x downloadBootstraps \
-  -Pandroid.aapt2FromMavenOverride=$ANDROID_HOME/build-tools/35.0.0/aapt2
+# 旧模块：仅编译 Java 源码
+./gradlew :app:compileDebugJavaWithJavac -x downloadBootstraps
 ```
 
-两个参数的原因：
+`-x downloadBootstraps` 的原因：`app/build.gradle` 把 `downloadBootstraps` 挂在 `javaCompile` 上，
+它会从 GitHub 下 4 个 bootstrap zip 塞进 assets。编译/单测不需要它，网络差时它会让整个
+task graph 直接失败（`SocketException: Unexpected end of file`）。
 
-* `-x downloadBootstraps`：`app/build.gradle` 把 `downloadBootstraps` 挂在 `javaCompile` 上，
-  它会从 GitHub 下 4 个 bootstrap zip 塞进 assets。编译/单测不需要它，网络差时它会让整个
-  task graph 直接失败（`SocketException: Unexpected end of file`）。
-* `-Pandroid.aapt2FromMavenOverride=...`：Maven 上的 aapt2 只有 linux-x86_64 版，在 arm64
-  Termux 上会报 `AAPT2 aapt2-8.x Daemon #0: Daemon startup failed`。换成本机 build-tools
-  里的 aapt2 即可（AGP 会警告版本不一致，但能正常出包）。
+已在本机实测：Java/Kotlin 编译、`:app_new:testDebugUnitTest`、`:app_new:assembleDebug`
+（四个 ABI 的 `libtermux.so` 均构建成功）、`:app:compileDebugJavaWithJavac` 全部通过。
+两处已知现象：
 
-第一次运行会下载 AGP/依赖并自动安装 SDK Platform 36（约 8 分钟），之后增量编译 15–60 秒。
-已知：`app:testDebugUnitTest` 里的 `FileReceiverActivityTest` 在本机会因为 Robolectric 的
-`ShadowActivityThread.reset: ActivityThread not set` 在 teardown 阶段 NPE 失败（与本仓库改动无关，
-单独跑该测试同样失败），CI 上正常；其余单测全绿。
+* `stripDebugDebugSymbols` 会跳过并提示 `Unable to strip the following libraries`，原因是 AGP 在
+  aarch64 宿主上找不到可用的 strip 工具，产物是未裁剪的 `.so`（体积偏大，不影响运行）。
+* `app:testDebugUnitTest` 里的 `FileReceiverActivityTest` 在本机会因为 Robolectric 的
+  `ShadowActivityThread.reset: ActivityThread not set` 在 teardown 阶段 NPE 失败（与本仓库改动无关，
+  单独跑该测试同样失败），CI 上正常。
 
 `assembleDebug` 需要 bootstrap zip（`-x` 掉也能出包，但首次启动没有环境可装），CI 的
 `fork-latest` Release 仍然是最省事的出包方式。
@@ -309,24 +352,20 @@ sha256sum app/src/main/cpp/bootstrap-aarch64.zip
 # 必须是 ea2aeba8819e517db711f8c32369e89e7c52cee73e07930ff91185e1ab93f4f3（aarch64 / apt-android-7）
 ```
 
-2. **能跑的 NDK**：Gradle 自动下的 NDK r29 只有 `linux-x86_64` 工具链，在 aarch64 的 Termux 上
-   `ndk-build` 直接报 `ERROR: Unknown host CPU architecture: aarch64`。Termux 的 `android-ndk`
-   包（r27b）带 `linux-aarch64` 预编译工具链，把它挂到 SDK 里再用 `-PndkVersion` 指过去即可：
-
-```sh
-ln -sfn $PREFIX/opt/android-ndk $PREFIX/opt/android-sdk/ndk/27.1.12297006
-```
+2. **可用的 NDK**：按 §6.2 装上 aarch64 垫片后，官方 NDK r29 即可用于 `ndk-build`，不需要再用
+   Termux 的 `android-ndk` 包（该软件包在当前镜像中已不可安装）。
 
 3. 只构建当前 ABI（否则另外 3 个 ABI 会因为缺 zip 而失败）：
 
 ```sh
 export ANDROID_HOME=$PREFIX/opt/android-sdk
 ./gradlew :app:assembleDebug -x downloadBootstraps \
-  -PndkVersion=27.1.12297006 \
   -Pandroid.injected.build.abi=arm64-v8a \
-  -Pandroid.injected.testOnly=false \
-  -Pandroid.aapt2FromMavenOverride=$ANDROID_HOME/build-tools/35.0.0/aapt2
+  -Pandroid.injected.testOnly=false
 ```
+
+aapt2 覆盖已写入用户级 `~/.gradle/gradle.properties`（见 §6.1），无需每次传参；如需临时改用其他
+版本，可再加 `-Pandroid.aapt2FromMavenOverride=<路径>`。
 
 `-Pandroid.injected.testOnly=false` 必须加：一旦用了任何 `android.injected.*`（如上面的 ABI），
 AGP 会把 debug 包标成 `android:testOnly="true"`，系统安装器会拒绝并提示

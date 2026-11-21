@@ -1245,3 +1245,17 @@ if (mClient.shouldKeepScrollPositionOnOutput()) {
 
 **后续约束：** 此后 VT 层改动只允许发生在 `app_new/terminal-core/`；上游 VT 修复需手工挑选，并在
 `docs/DELIVERY_PLAN.md` 第 11 节 P-4 中登记对照结果。
+
+## 2026-11-21 — 重建 Termux 本机构建环境（aapt2 覆盖与 NDK aarch64 垫片）
+
+结论：环境重置后本机 JDK 目录与 Android SDK 均已不存在。重建后 :app_new:assembleDebug、:app_new:testDebugUnitTest 与 :app:compileDebugJavaWithJavac 均可在本地执行，APK 内含四个 ABI 的 libtermux.so。完整步骤见 FORK_BUILD.md 第 6 节。
+
+坑：
+- ~/.bashrc 的 JAVA_HOME 仍指向已不存在的 java-17-openjdk，而 PATH 中的 java 实际是 21。Gradle 以 JAVA_HOME 为准，必须改为 java-21-openjdk。
+- SDK 需重新安装：sdkmanager 为纯 Java 实现，在 aarch64 上可用；AGP 8.13.2 需要 build-tools 35.0.0 与 36.0.0、platforms;android-36、platform-tools。
+- aapt2 覆盖写入用户级 ~/.gradle/gradle.properties，指向 Termux aapt2 软件包提供的原生二进制，避免 AGP 拉取 linux-x86_64 版本后报 AAPT2 Daemon startup failed。
+- NDK r29 只带 linux-x86_64 宿主工具链，ndk-build 报 Unknown host CPU architecture: aarch64。垫片要点：build/tools/ndk_bin_common.sh 需接受 aarch64 并 export HOST_ARCH，原因是 build/core/init.mk 只从环境变量读取该值，未导出时静默回落到 linux-x86_64，症状是重新出现 Syntax error: ")" unexpected；垫片目录取 linux-arm64（由 HOST_ARCH=arm64 推导），其中 clang、clang++ 包装为 $PREFIX/bin/clang 并显式传 -resource-dir（NDK 的 lib/clang/21）与 --sysroot（NDK 的 sysroot），其余 llvm 工具与 python3 软链到 $PREFIX/bin。
+- 写包装脚本前必须先删除同名软链，否则重定向会穿透软链，把 $PREFIX/bin/clang-21 覆盖成包装脚本，导致 clang 自我递归；表现为单次编译耗时数十秒且 CPU 打满，极易误判为「clang 本身很慢」。
+- stripDebugDebugSymbols 在 aarch64 宿主上被跳过（AGP 找不到可用 strip 工具），产物为未裁剪的 .so，体积偏大但不影响运行。
+
+未验证：真机安装与运行；:app:assembleDebug 需要 bootstrap zip，本次未产出旧模块 APK。
