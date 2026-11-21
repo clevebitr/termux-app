@@ -14,6 +14,14 @@ sealed interface PaneNode {
     val id: String
 }
 
+/** 窗格聚焦方向，用于方向键导航。 */
+enum class PaneDirection {
+    LEFT,
+    RIGHT,
+    UP,
+    DOWN,
+}
+
 /** 分割方向，按「子节点的排列方向」定义，避免「横向分割/纵向分割」表述产生歧义。 */
 enum class SplitOrientation {
     /** 子节点左右排列，分割条为竖直线。 */
@@ -143,6 +151,87 @@ object PaneLayout {
         val clamped = clampRatio(ratio)
         return replace(root, splitId) { split ->
             if (split is PaneSplit) split.copy(ratio = clamped) else split
+        }
+    }
+
+    /**
+     * 按方向查找相邻叶子。
+     *
+     * 行为：先把窗格树换算为归一化矩形，再取位于目标方向、且与当前叶子在正交轴上重叠最大的叶子；
+     * 重叠相同则以距离最近者优先。用于方向键在窗格之间移动焦点。
+     *
+     * @return 目标叶子标识；该方向没有相邻叶子时返回 null。
+     */
+    fun focusInDirection(root: PaneNode, focusedLeafId: String, direction: PaneDirection): String? {
+        val rects = HashMap<String, Rect>()
+        collectRects(root, 0f, 0f, 1f, 1f, rects)
+        val current = rects[focusedLeafId] ?: return null
+        val tolerance = 0.0005f
+        var best: String? = null
+        var bestOverlap = -1f
+        var bestDistance = Float.MAX_VALUE
+        for ((id, rect) in rects) {
+            if (id == focusedLeafId) {
+                continue
+            }
+            val ahead = when (direction) {
+                PaneDirection.LEFT -> rect.right <= current.left + tolerance
+                PaneDirection.RIGHT -> rect.left >= current.right - tolerance
+                PaneDirection.UP -> rect.bottom <= current.top + tolerance
+                PaneDirection.DOWN -> rect.top >= current.bottom - tolerance
+            }
+            if (!ahead) {
+                continue
+            }
+            val overlap = when (direction) {
+                PaneDirection.LEFT, PaneDirection.RIGHT ->
+                    minOf(current.bottom, rect.bottom) - maxOf(current.top, rect.top)
+                PaneDirection.UP, PaneDirection.DOWN ->
+                    minOf(current.right, rect.right) - maxOf(current.left, rect.left)
+            }
+            val distance = when (direction) {
+                PaneDirection.LEFT -> current.left - rect.right
+                PaneDirection.RIGHT -> rect.left - current.right
+                PaneDirection.UP -> current.top - rect.bottom
+                PaneDirection.DOWN -> rect.top - current.bottom
+            }
+            val better = overlap > bestOverlap + tolerance ||
+                (kotlin.math.abs(overlap - bestOverlap) <= tolerance && distance < bestDistance)
+            if (better) {
+                best = id
+                bestOverlap = overlap
+                bestDistance = distance
+            }
+        }
+        return best
+    }
+
+    /** 归一化矩形，坐标取值 0 至 1。 */
+    private data class Rect(val left: Float, val top: Float, val right: Float, val bottom: Float)
+
+    private fun collectRects(
+        node: PaneNode,
+        left: Float,
+        top: Float,
+        width: Float,
+        height: Float,
+        out: MutableMap<String, Rect>,
+    ) {
+        when (node) {
+            is PaneLeaf -> out[node.id] = Rect(left, top, left + width, top + height)
+            is PaneSplit -> when (node.orientation) {
+                SplitOrientation.HORIZONTAL -> {
+                    val firstWidth = width * node.ratio
+                    collectRects(node.first, left, top, firstWidth, height, out)
+                    collectRects(node.second, left + firstWidth, top, width - firstWidth, height, out)
+                }
+
+                SplitOrientation.VERTICAL -> {
+                    val firstHeight = height * node.ratio
+                    collectRects(node.first, left, top, width, firstHeight, out)
+                    collectRects(node.second, left, top + firstHeight, width, height - firstHeight, out)
+                }
+            }
         }
     }
 

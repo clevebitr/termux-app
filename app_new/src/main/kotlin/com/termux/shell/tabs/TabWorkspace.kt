@@ -1,6 +1,7 @@
 package com.termux.shell.tabs
 
 import com.termux.shell.pane.PaneLayout
+import com.termux.shell.pane.PaneDirection
 import com.termux.shell.pane.PaneLeaf
 import com.termux.shell.pane.SplitOrientation
 
@@ -128,6 +129,17 @@ data class TabWorkspace(
     fun focusRelative(delta: Int): TabWorkspace? {
         val tab = activeTab
         val target = PaneLayout.focusRelative(tab.leaves, tab.focusedLeaf.id, delta) ?: return null
+        return updateActiveTab { it.copy(focusedLeafId = target) }
+    }
+
+    /**
+     * 按方向把焦点移到相邻窗格。
+     *
+     * @return 新工作区；该方向没有相邻窗格时返回 null。
+     */
+    fun focusDirection(direction: PaneDirection): TabWorkspace? {
+        val tab = activeTab
+        val target = PaneLayout.focusInDirection(tab.root, tab.focusedLeaf.id, direction) ?: return null
         return updateActiveTab { it.copy(focusedLeafId = target) }
     }
 

@@ -14,6 +14,26 @@ import org.junit.Test
 class KeymapTableTest {
 
     @Test
+    fun defaultKeymapBindsDirectionalPaneFocus() {
+        val table = KeymapTable.parse(KeymapLoader.defaultLines)
+
+        assertEquals(
+            ShellAction.FOCUS_PANE_RIGHT,
+            table.findAction(
+                KeyEvent.KEYCODE_DPAD_RIGHT,
+                KeyEvent.META_CTRL_ON or KeyEvent.META_ALT_ON,
+            ),
+        )
+        assertEquals(
+            ShellAction.FOCUS_PANE_UP,
+            table.findAction(
+                KeyEvent.KEYCODE_DPAD_UP,
+                KeyEvent.META_CTRL_ON or KeyEvent.META_ALT_ON,
+            ),
+        )
+    }
+
+    @Test
     fun parsesSingleModifierBinding() {
         val table = KeymapTable.parse("ctrl+t = new-tab")
         assertEquals(1, table.size)

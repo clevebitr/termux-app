@@ -87,4 +87,12 @@
     <string name="settings_fullscreen">全屏沉浸模式</string>
     <string name="settings_fullscreen_hint">隐藏状态栏与导航栏；从屏幕边缘滑动可临时调出。</string>
     <string name="command_toggle_session_rail">切换会话列表</string>
+
+    <string name="command_focus_pane_left">聚焦左侧窗格</string>
+    <string name="command_focus_pane_right">聚焦右侧窗格</string>
+    <string name="command_focus_pane_up">聚焦上方窗格</string>
+    <string name="command_focus_pane_down">聚焦下方窗格</string>
+    <string name="shell_pane_hint">终端会话接入后显示在这里</string>
+
+    <string name="session_attached_to">标签 %1$s</string>
 </resources>

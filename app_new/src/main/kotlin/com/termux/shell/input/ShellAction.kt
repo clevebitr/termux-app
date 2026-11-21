@@ -25,6 +25,10 @@ object ShellAction {
     const val CLOSE_PANE = "close-pane"
     const val FOCUS_NEXT_PANE = "focus-next-pane"
     const val FOCUS_PREVIOUS_PANE = "focus-previous-pane"
+    const val FOCUS_PANE_LEFT = "focus-pane-left"
+    const val FOCUS_PANE_RIGHT = "focus-pane-right"
+    const val FOCUS_PANE_UP = "focus-pane-up"
+    const val FOCUS_PANE_DOWN = "focus-pane-down"
     const val NEW_WINDOW = "new-window"
     const val COMMAND_PALETTE = "command-palette"
     const val TOGGLE_TAB_BAR = "toggle-tab-bar"
@@ -33,6 +37,7 @@ object ShellAction {
     private val ALL: Set<String> = linkedSetOf(
         NEW_TAB, CLOSE_TAB, NEXT_TAB, PREVIOUS_TAB, MOVE_TAB_LEFT, MOVE_TAB_RIGHT,
         SPLIT_RIGHT, SPLIT_DOWN, CLOSE_PANE, FOCUS_NEXT_PANE, FOCUS_PREVIOUS_PANE,
+        FOCUS_PANE_LEFT, FOCUS_PANE_RIGHT, FOCUS_PANE_UP, FOCUS_PANE_DOWN,
         NEW_WINDOW, COMMAND_PALETTE, TOGGLE_TAB_BAR, RELOAD_CONFIG,
     )
 

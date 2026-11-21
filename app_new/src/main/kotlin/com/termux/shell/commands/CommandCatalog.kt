@@ -4,6 +4,7 @@ import android.content.Context
 import com.termux.shell.R
 import com.termux.shell.input.KeymapTable
 import com.termux.shell.input.ShellAction
+import com.termux.shell.pane.PaneDirection
 
 /**
  * 命令面板的命令清单构建器。
@@ -30,6 +31,7 @@ object CommandCatalog {
         fun closePane()
         fun focusNextPane()
         fun focusPreviousPane()
+        fun focusPane(direction: PaneDirection)
         fun newWindow()
         fun toggleTabBar()
         fun reloadConfig()
@@ -75,6 +77,18 @@ object CommandCatalog {
                 keymap.findShortcut(ShellAction.FOCUS_NEXT_PANE), true, actions::focusNextPane),
             ShellCommand(ShellAction.FOCUS_PREVIOUS_PANE, context.getString(R.string.command_focus_previous_pane),
                 paneCategory, keymap.findShortcut(ShellAction.FOCUS_PREVIOUS_PANE), true, actions::focusPreviousPane),
+            ShellCommand(ShellAction.FOCUS_PANE_LEFT, context.getString(R.string.command_focus_pane_left),
+                paneCategory, keymap.findShortcut(ShellAction.FOCUS_PANE_LEFT), true,
+                { actions.focusPane(PaneDirection.LEFT) }),
+            ShellCommand(ShellAction.FOCUS_PANE_RIGHT, context.getString(R.string.command_focus_pane_right),
+                paneCategory, keymap.findShortcut(ShellAction.FOCUS_PANE_RIGHT), true,
+                { actions.focusPane(PaneDirection.RIGHT) }),
+            ShellCommand(ShellAction.FOCUS_PANE_UP, context.getString(R.string.command_focus_pane_up),
+                paneCategory, keymap.findShortcut(ShellAction.FOCUS_PANE_UP), true,
+                { actions.focusPane(PaneDirection.UP) }),
+            ShellCommand(ShellAction.FOCUS_PANE_DOWN, context.getString(R.string.command_focus_pane_down),
+                paneCategory, keymap.findShortcut(ShellAction.FOCUS_PANE_DOWN), true,
+                { actions.focusPane(PaneDirection.DOWN) }),
             ShellCommand(ShellAction.NEW_WINDOW, context.getString(R.string.command_new_window), windowCategory,
                 keymap.findShortcut(ShellAction.NEW_WINDOW), true, actions::newWindow),
             ShellCommand(ShellAction.TOGGLE_TAB_BAR, context.getString(R.string.command_toggle_tab_bar),

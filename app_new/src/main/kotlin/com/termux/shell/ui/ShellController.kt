@@ -12,6 +12,7 @@ import com.termux.shell.commands.CommandCatalog
 import com.termux.shell.commands.ShellCommand
 import com.termux.shell.config.SettingsSpec
 import com.termux.shell.input.ShellAction
+import com.termux.shell.pane.PaneDirection
 import com.termux.shell.pane.SplitOrientation
 import com.termux.shell.session.SessionRecord
 import com.termux.shell.session.SessionRegistry
@@ -163,6 +164,10 @@ class ShellController(
             ShellAction.CLOSE_PANE -> closePane()
             ShellAction.FOCUS_NEXT_PANE -> focusNextPane()
             ShellAction.FOCUS_PREVIOUS_PANE -> focusPreviousPane()
+            ShellAction.FOCUS_PANE_LEFT -> focusPane(PaneDirection.LEFT)
+            ShellAction.FOCUS_PANE_RIGHT -> focusPane(PaneDirection.RIGHT)
+            ShellAction.FOCUS_PANE_UP -> focusPane(PaneDirection.UP)
+            ShellAction.FOCUS_PANE_DOWN -> focusPane(PaneDirection.DOWN)
             ShellAction.NEW_WINDOW -> newWindow()
             ShellAction.COMMAND_PALETTE -> openPalette()
             ShellAction.TOGGLE_TAB_BAR -> toggleTabBar()
@@ -352,6 +357,11 @@ class ShellController(
 
     override fun focusPreviousPane() {
         workspace.focusRelative(-1)?.let { workspace = it }
+    }
+
+    /** 按方向聚焦相邻窗格；该方向没有相邻窗格时保持焦点不变。 */
+    override fun focusPane(direction: PaneDirection) {
+        workspace.focusDirection(direction)?.let { workspace = it }
     }
 
     override fun newWindow() {

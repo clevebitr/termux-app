@@ -75,6 +75,46 @@ class PaneLayoutTest {
     }
 
     @Test
+    fun focusInDirectionMovesAcrossHorizontalSplit() {
+        val split = PaneLayout.split(PaneLeaf("pane-1"), "pane-1", SplitOrientation.HORIZONTAL)!!.root
+
+        assertEquals("pane-2", PaneLayout.focusInDirection(split, "pane-1", PaneDirection.RIGHT))
+        assertEquals("pane-1", PaneLayout.focusInDirection(split, "pane-2", PaneDirection.LEFT))
+        assertNull(PaneLayout.focusInDirection(split, "pane-1", PaneDirection.LEFT))
+        assertNull(PaneLayout.focusInDirection(split, "pane-1", PaneDirection.UP))
+        assertNull(PaneLayout.focusInDirection(split, "pane-1", PaneDirection.DOWN))
+    }
+
+    @Test
+    fun focusInDirectionMovesAcrossVerticalSplit() {
+        val split = PaneLayout.split(PaneLeaf("pane-1"), "pane-1", SplitOrientation.VERTICAL)!!.root
+
+        assertEquals("pane-2", PaneLayout.focusInDirection(split, "pane-1", PaneDirection.DOWN))
+        assertEquals("pane-1", PaneLayout.focusInDirection(split, "pane-2", PaneDirection.UP))
+        assertNull(PaneLayout.focusInDirection(split, "pane-1", PaneDirection.RIGHT))
+    }
+
+    @Test
+    fun focusInDirectionPicksNeighbourInGrid() {
+        val horizontal = PaneLayout.split(PaneLeaf("pane-1"), "pane-1", SplitOrientation.HORIZONTAL)!!.root
+        val withTopRight = PaneLayout.split(horizontal, "pane-2", SplitOrientation.VERTICAL)!!.root
+        val grid = PaneLayout.split(withTopRight, "pane-1", SplitOrientation.VERTICAL)!!.root
+
+        // 2x2 网格：左上 pane-1、右上 pane-2、左下 pane-4、右下 pane-3。
+        assertEquals("pane-2", PaneLayout.focusInDirection(grid, "pane-1", PaneDirection.RIGHT))
+        assertEquals("pane-4", PaneLayout.focusInDirection(grid, "pane-1", PaneDirection.DOWN))
+        assertEquals("pane-3", PaneLayout.focusInDirection(grid, "pane-2", PaneDirection.DOWN))
+        assertEquals("pane-2", PaneLayout.focusInDirection(grid, "pane-3", PaneDirection.UP))
+        assertEquals("pane-1", PaneLayout.focusInDirection(grid, "pane-2", PaneDirection.LEFT))
+        assertEquals("pane-3", PaneLayout.focusInDirection(grid, "pane-4", PaneDirection.RIGHT))
+    }
+
+    @Test
+    fun focusInDirectionReturnsNullForUnknownLeaf() {
+        assertNull(PaneLayout.focusInDirection(PaneLeaf("pane-1"), "pane-9", PaneDirection.RIGHT))
+    }
+
+    @Test
     fun replaceLeavesTreeUnchangedOutsideTarget() {
         val split = PaneLayout.split(PaneLeaf("pane-1"), "pane-1", SplitOrientation.HORIZONTAL)!!.root
         val replaced = PaneLayout.replace(split, "pane-1") { node ->
