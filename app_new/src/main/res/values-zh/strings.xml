@@ -83,4 +83,8 @@
     <string name="settings_config_file">配置文件路径</string>
     <string name="settings_keymap_file">键位表路径</string>
     <string name="settings_version">版本</string>
+
+    <string name="settings_fullscreen">全屏沉浸模式</string>
+    <string name="settings_fullscreen_hint">隐藏状态栏与导航栏；从屏幕边缘滑动可临时调出。</string>
+    <string name="command_toggle_session_rail">切换会话列表</string>
 </resources>

@@ -121,6 +121,12 @@ fun SettingsScreen(controller: ShellController) {
                 checked = controller.viewOptions.showTabCloseButton,
                 onCheckedChange = controller::setTabCloseButtonVisible,
             )
+            SwitchRow(
+                title = stringResource(R.string.settings_fullscreen),
+                description = stringResource(R.string.settings_fullscreen_hint),
+                checked = controller.fullscreen,
+                onCheckedChange = controller::updateFullscreen,
+            )
 
             SectionTitle(stringResource(R.string.settings_section_sessions))
             SwitchRow(

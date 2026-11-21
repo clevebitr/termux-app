@@ -2,13 +2,18 @@ package com.termux.shell.ui
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.SideEffect
 import com.termux.shell.R
 import com.termux.shell.ShellApplication
 import com.termux.shell.config.SettingsSpec
@@ -59,6 +64,10 @@ class ShellActivity : ComponentActivity() {
                 SettingsSpec.THEME_LIGHT -> false
                 else -> isSystemInDarkTheme()
             }
+            // 系统栏图标与系统栏显隐跟随应用内主题，而不是仅跟随系统深色设置。
+            SideEffect {
+                applyWindowAppearance(darkTheme, controller.fullscreen)
+            }
             ShellTheme(darkTheme = darkTheme) {
                 ShellScreen(controller)
             }
@@ -68,6 +77,42 @@ class ShellActivity : ComponentActivity() {
             SUB_TAG,
             "窗口已创建，${controller.workspace.describeState()}，主题=${controller.themeMode}",
         )
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // 从系统栏滑出、切换应用或分屏获得的焦点都会重置系统栏显隐，需要重新应用。
+        if (hasFocus && ::controller.isInitialized) {
+            applyWindowAppearance(currentDarkTheme(), controller.fullscreen)
+        }
+    }
+
+    /**
+     * 同步系统栏外观与显隐。
+     *
+     * 行为：图标亮暗跟随 Compose 主题；全屏模式隐藏状态栏与导航栏，并允许从屏幕边缘滑动临时调出。
+     *
+     * 约束：只在窗口获得焦点时调用，避免在失焦窗口上反复请求显隐造成闪烁。
+     */
+    private fun applyWindowAppearance(darkTheme: Boolean, fullscreen: Boolean) {
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = !darkTheme
+        insetsController.isAppearanceLightNavigationBars = !darkTheme
+        if (fullscreen) {
+            insetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+        } else {
+            insetsController.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    /** 按配置项与系统设置计算当前是否为深色主题，供非组合上下文使用。 */
+    private fun currentDarkTheme(): Boolean = when (controller.themeMode) {
+        SettingsSpec.THEME_DARK -> true
+        SettingsSpec.THEME_LIGHT -> false
+        else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

@@ -83,4 +83,8 @@
     <string name="settings_config_file">Configuration file</string>
     <string name="settings_keymap_file">Keymap file</string>
     <string name="settings_version">Version</string>
+
+    <string name="settings_fullscreen">Immersive fullscreen</string>
+    <string name="settings_fullscreen_hint">Hides the status and navigation bars; swipe from an edge to show them temporarily.</string>
+    <string name="command_toggle_session_rail">Toggle session list</string>
 </resources>

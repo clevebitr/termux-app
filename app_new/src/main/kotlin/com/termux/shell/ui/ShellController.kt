@@ -68,6 +68,11 @@ class ShellController(
     )
         private set
 
+    var fullscreen: Boolean by mutableStateOf(
+        settings.getBoolean(SettingsSpec.KEY_FULLSCREEN, true),
+    )
+        private set
+
     var commandPaletteEnabled: Boolean by mutableStateOf(
         settings.getBoolean(SettingsSpec.KEY_COMMAND_PALETTE_ENABLED, true),
     )
@@ -230,6 +235,15 @@ class ShellController(
         persist(SettingsSpec.KEY_SESSION_RAIL_VISIBLE, visible.toString()) { sessionRailVisible = visible }
     }
 
+    /** 切换会话列表显隐；宽屏下侧栏与标题栏按钮共用本方法。 */
+    fun toggleSessionRail() {
+        updateSessionRailVisible(!sessionRailVisible)
+    }
+
+    fun updateFullscreen(enabled: Boolean) {
+        persist(SettingsSpec.KEY_FULLSCREEN, enabled.toString()) { fullscreen = enabled }
+    }
+
     fun setTabBarVisible(visible: Boolean) {
         persist(SettingsSpec.KEY_TAB_BAR_VISIBLE, visible.toString()) {
             viewOptions = viewOptions.withTabBarVisible(visible)
@@ -358,6 +372,7 @@ class ShellController(
         layoutMode = settings.getString(SettingsSpec.KEY_LAYOUT_MODE, SettingsSpec.LAYOUT_AUTO)
             ?: SettingsSpec.LAYOUT_AUTO
         sessionRailVisible = settings.getBoolean(SettingsSpec.KEY_SESSION_RAIL_VISIBLE, true)
+        fullscreen = settings.getBoolean(SettingsSpec.KEY_FULLSCREEN, true)
         commandPaletteEnabled = settings.getBoolean(SettingsSpec.KEY_COMMAND_PALETTE_ENABLED, true)
         val keymap = settings.getBoolean(SettingsSpec.KEY_KEYMAP_ENABLED, true)
         if (keymap != keymapEnabled) {

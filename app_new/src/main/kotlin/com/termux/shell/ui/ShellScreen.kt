@@ -22,7 +22,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -141,7 +141,7 @@ private fun WideShell(controller: ShellController, widthClass: WindowWidthClass)
                     .width(if (widthClass == WindowWidthClass.EXPANDED) ExpandedRailWidth else CompactRailWidth)
                     .fillMaxHeight(),
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
         Box(Modifier.weight(1f).fillMaxHeight()) {
             ShellBody(controller, compactLayout = false)
@@ -190,6 +190,11 @@ private fun ShellHeaderBar(controller: ShellController, compactLayout: Boolean) 
             IconButton(onClick = controller::openSessionDrawer) {
                 Icon(Icons.Filled.Menu, contentDescription = stringResource(R.string.shell_open_sessions))
             }
+        } else {
+            // 宽屏下会话列表可随时收起，收起后由本按钮重新展开。
+            IconButton(onClick = controller::toggleSessionRail) {
+                Icon(Icons.Filled.Menu, contentDescription = stringResource(R.string.command_toggle_session_rail))
+            }
         }
         Text(
             text = if (compactLayout) {
@@ -236,6 +241,7 @@ private fun WindowMenu(controller: ShellController, close: () -> Unit) {
         R.string.command_close_pane to { controller.closePane() },
         R.string.command_toggle_tab_bar to { controller.toggleTabBar() },
         R.string.shell_command_palette to { controller.openPalette() },
+        R.string.command_toggle_session_rail to { controller.toggleSessionRail() },
         R.string.settings_open to { controller.openSettings() },
         R.string.command_reload_config to { controller.reloadConfig() },
         R.string.command_new_window to { controller.newWindow() },

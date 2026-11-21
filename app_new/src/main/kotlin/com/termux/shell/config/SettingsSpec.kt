@@ -22,6 +22,7 @@ object SettingsSpec {
     const val KEY_TAB_WIDTH_MODE = "tab-width-mode"
     const val KEY_LAYOUT_MODE = "layout-mode"
     const val KEY_SESSION_RAIL_VISIBLE = "session-rail-visible"
+    const val KEY_FULLSCREEN = "fullscreen"
     const val KEY_COMMAND_PALETTE_ENABLED = "command-palette-enabled"
     const val KEY_KEYMAP_ENABLED = "keymap-enabled"
 
@@ -120,7 +121,11 @@ object SettingsSpec {
         ),
         Entry(
             KEY_SESSION_RAIL_VISIBLE, Type.BOOLEAN, "true", emptyList(),
-            "宽屏下是否常驻会话列表；关闭后会话列表仅通过抽屉打开。",
+            "宽屏下是否常驻会话列表；关闭后会话列表仅通过抽屉或标题栏按钮打开。",
+        ),
+        Entry(
+            KEY_FULLSCREEN, Type.BOOLEAN, "true", emptyList(),
+            "是否隐藏状态栏与导航栏；隐藏后从屏幕边缘滑动可临时调出系统栏。",
         ),
         Entry(
             KEY_COMMAND_PALETTE_ENABLED, Type.BOOLEAN, "true", emptyList(),
