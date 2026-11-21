@@ -88,6 +88,75 @@ class PropertiesSettingsRepository private constructor(private val file: File) :
 
     override fun keys(): Set<String> = values.keys.toSet()
 
+    /**
+     * 写入单项配置并立即落盘。
+     *
+     * 行为：先按配置项定义归一化取值，随后重写配置文件，仅替换该键所在行，其余行（含注释与未知键）
+     * 原样保留；写入采用「临时文件 + 重命名」，避免写到一半时留下残缺文件。
+     *
+     * 约束：会访问磁盘，必须由调用方在后台线程调用；写入失败时内存快照保持不变。
+     */
+    @Synchronized
+    override fun put(key: String, value: String): Boolean {
+        val entry = SettingsSpec.find(key) ?: return false
+        val normalized = entry.normalize(value) ?: return false
+        if (values[key] == normalized) {
+            return true
+        }
+        if (!writeValue(key, normalized)) {
+            return false
+        }
+        values = HashMap(values).apply { put(key, normalized) }
+        return true
+    }
+
+    /** 把单项写入替换到已有行；文件缺少该键时追加到末尾。 */
+    private fun writeValue(key: String, value: String): Boolean {
+        val parent = file.parentFile
+        if (parent != null && !parent.isDirectory && !parent.mkdirs()) {
+            return false
+        }
+        val lines = try {
+            if (file.isFile) file.readLines(StandardCharsets.UTF_8) else emptyList()
+        } catch (e: IOException) {
+            return false
+        }
+        val prefix = "$key="
+        var replaced = false
+        val newLines = ArrayList<String>(lines.size + 1)
+        for (line in lines) {
+            if (!replaced && line.startsWith(prefix)) {
+                newLines += prefix + value
+                replaced = true
+            } else {
+                newLines += line
+            }
+        }
+        if (!replaced) {
+            newLines += prefix + value
+        }
+        val temp = File(parent ?: file.absoluteFile.parentFile, file.name + ".tmp")
+        val written = try {
+            temp.writeText(newLines.joinToString("\n", postfix = "\n"), StandardCharsets.UTF_8)
+            true
+        } catch (e: IOException) {
+            false
+        }
+        if (!written) {
+            temp.delete()
+            return false
+        }
+        if (file.exists() && !file.delete()) {
+            temp.delete()
+            return false
+        }
+        if (!temp.renameTo(file)) {
+            temp.delete()
+            return false
+        }
+        return true
+    }
+
     companion object {
 
         /**

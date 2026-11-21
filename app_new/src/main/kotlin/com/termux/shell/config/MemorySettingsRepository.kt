@@ -26,6 +26,13 @@ class MemorySettingsRepository(initialValues: Map<String, Any> = emptyMap()) : S
 
     override fun keys(): Set<String> = values.keys.toSet()
 
+    override fun put(key: String, value: String): Boolean {
+        val entry = SettingsSpec.find(key) ?: return false
+        val normalized = entry.normalize(value) ?: return false
+        values[key] = normalized
+        return true
+    }
+
     fun putBoolean(key: String, value: Boolean) {
         values[key] = value
     }

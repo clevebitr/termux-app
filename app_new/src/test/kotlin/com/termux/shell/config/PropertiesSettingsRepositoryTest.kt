@@ -112,6 +112,57 @@ class PropertiesSettingsRepositoryTest {
         assertNotNull(repository.getInvalidKeys())
     }
 
+    @Test
+    fun putRewritesOnlyTargetLineAndKeepsComments() {
+        val file = File(directory, "shell.properties")
+        writeFile(
+            file,
+            "# 顶部注释\napp-theme=system\n# 段间注释\nexperimental-key=value\ntab-bar-visible=true\n",
+        )
+        val repository = PropertiesSettingsRepository.open(file)
+
+        assertTrue(repository.put(SettingsSpec.KEY_APP_THEME, SettingsSpec.THEME_DARK))
+        assertEquals(SettingsSpec.THEME_DARK, repository.getString(SettingsSpec.KEY_APP_THEME, null))
+
+        val lines = file.readLines(StandardCharsets.UTF_8)
+        assertEquals("# 顶部注释", lines[0])
+        assertEquals("app-theme=dark", lines[1])
+        assertEquals("# 段间注释", lines[2])
+        assertEquals("experimental-key=value", lines[3])
+        assertTrue(repository.keys().contains("experimental-key"))
+    }
+
+    @Test
+    fun putAppendsKeyMissingFromFile() {
+        val file = File(directory, "shell.properties")
+        writeFile(file, "app-theme=light\n")
+        val repository = PropertiesSettingsRepository.open(file)
+
+        assertTrue(repository.put(SettingsSpec.KEY_LAYOUT_MODE, SettingsSpec.LAYOUT_TABLET))
+        assertEquals(SettingsSpec.LAYOUT_TABLET, repository.getString(SettingsSpec.KEY_LAYOUT_MODE, null))
+        assertTrue(file.readLines(StandardCharsets.UTF_8).contains("layout-mode=tablet"))
+    }
+
+    @Test
+    fun putRejectsUnknownKeyAndInvalidValue() {
+        val file = File(directory, "shell.properties")
+        val repository = PropertiesSettingsRepository.open(file)
+
+        assertFalse(repository.put("experimental-key", "value"))
+        assertFalse(repository.put(SettingsSpec.KEY_APP_THEME, "purple"))
+        assertEquals(SettingsSpec.THEME_SYSTEM, repository.getString(SettingsSpec.KEY_APP_THEME, null))
+    }
+
+    @Test
+    fun putIsVisibleAfterReload() {
+        val file = File(directory, "shell.properties")
+        val repository = PropertiesSettingsRepository.open(file)
+        assertTrue(repository.put(SettingsSpec.KEY_LAYOUT_MODE, SettingsSpec.LAYOUT_PHONE))
+
+        val reopened = PropertiesSettingsRepository.open(file)
+        assertEquals(SettingsSpec.LAYOUT_PHONE, reopened.getString(SettingsSpec.KEY_LAYOUT_MODE, null))
+    }
+
     private fun writeFile(file: File, content: String) {
         OutputStreamWriter(FileOutputStream(file), StandardCharsets.UTF_8).use { writer ->
             writer.write(content)

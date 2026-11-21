@@ -20,6 +20,8 @@ object SettingsSpec {
     const val KEY_TAB_BAR_POSITION = "tab-bar-position"
     const val KEY_TAB_CLOSE_BUTTON = "tab-close-button"
     const val KEY_TAB_WIDTH_MODE = "tab-width-mode"
+    const val KEY_LAYOUT_MODE = "layout-mode"
+    const val KEY_SESSION_RAIL_VISIBLE = "session-rail-visible"
     const val KEY_COMMAND_PALETTE_ENABLED = "command-palette-enabled"
     const val KEY_KEYMAP_ENABLED = "keymap-enabled"
 
@@ -32,6 +34,11 @@ object SettingsSpec {
 
     const val TAB_WIDTH_EQUAL = "equal"
     const val TAB_WIDTH_COMPACT = "compact"
+
+    /** 界面形态：自动按窗口宽度选择，或固定为手机与平板形态。 */
+    const val LAYOUT_AUTO = "auto"
+    const val LAYOUT_PHONE = "phone"
+    const val LAYOUT_TABLET = "tablet"
 
     /** 配置项类型，取值语义由 [Entry.normalize] 负责。 */
     enum class Type {
@@ -105,6 +112,15 @@ object SettingsSpec {
             KEY_TAB_WIDTH_MODE, Type.CHOICE, TAB_WIDTH_EQUAL,
             listOf(TAB_WIDTH_EQUAL, TAB_WIDTH_COMPACT),
             "标签宽度模式：equal 平均分配宽度，compact 按标题宽度收缩，超出时横向滚动。",
+        ),
+        Entry(
+            KEY_LAYOUT_MODE, Type.CHOICE, LAYOUT_AUTO,
+            listOf(LAYOUT_AUTO, LAYOUT_PHONE, LAYOUT_TABLET),
+            "界面形态：auto 按窗口宽度自动选择，phone 固定单窗格布局，tablet 固定桌面布局。",
+        ),
+        Entry(
+            KEY_SESSION_RAIL_VISIBLE, Type.BOOLEAN, "true", emptyList(),
+            "宽屏下是否常驻会话列表；关闭后会话列表仅通过抽屉打开。",
         ),
         Entry(
             KEY_COMMAND_PALETTE_ENABLED, Type.BOOLEAN, "true", emptyList(),

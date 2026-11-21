@@ -17,6 +17,14 @@ interface SettingsRepository {
 
     fun getString(key: String, defaultValue: String?): String?
 
+    /**
+     * 写入单项配置。
+     *
+     * @return 是否写入成功。键未在 [SettingsSpec] 中定义、取值未通过校验或磁盘写入失败时返回 false，
+     * 此时内存快照保持不变。
+     */
+    fun put(key: String, value: String): Boolean
+
     /** 返回当前快照中出现过的全部键名，用于设置页枚举与调试输出。 */
     fun keys(): Set<String>
 }
