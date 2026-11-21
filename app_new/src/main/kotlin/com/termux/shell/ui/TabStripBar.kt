@@ -146,7 +146,8 @@ private fun TabItem(
                     style = MaterialTheme.typography.labelLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
+                    // 标题占满剩余宽度，关闭按钮因此被推到标签右端；省略号由 maxLines/overflow 处理。
+                    modifier = Modifier.weight(1f),
                 )
                 if (showCloseButton && workspace.size > 1) {
                     CloseButton(
