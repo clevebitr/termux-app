@@ -3,6 +3,9 @@ package com.termux.shell.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -28,8 +31,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -101,7 +110,7 @@ fun TabStripBar(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 private fun TabItem(
     workspace: TabWorkspace,
@@ -113,11 +122,18 @@ private fun TabItem(
     val tab = workspace.tabs[index]
     val active = index == workspace.activeIndex
     var menuExpanded by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val background = when {
+        active -> MaterialTheme.colorScheme.secondaryContainer
+        hovered -> MaterialTheme.colorScheme.surfaceVariant
+        else -> MaterialTheme.colorScheme.surface
+    }
 
     Box(modifier) {
         Surface(
             shape = TabShape,
-            color = if (active) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+            color = background,
             contentColor = if (active) {
                 MaterialTheme.colorScheme.onSecondaryContainer
             } else {
@@ -127,7 +143,23 @@ private fun TabItem(
                 .fillMaxWidth()
                 .padding(end = 4.dp)
                 .clip(TabShape)
+                .hoverable(interactionSource)
+                .pointerHoverIcon(PointerIcon.Hand)
+                .pointerInput(Unit) {
+                    // 指针右键与长按等价：直接打开标签菜单，避免只能长按才出现菜单。
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            if (event.type == PointerEventType.Press && event.buttons.isSecondaryPressed) {
+                                menuExpanded = true
+                                event.changes.forEach { change -> change.consume() }
+                            }
+                        }
+                    }
+                }
                 .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = null,
                     onClick = { controller.selectTab(index) },
                     onLongClick = { menuExpanded = true },
                 ),

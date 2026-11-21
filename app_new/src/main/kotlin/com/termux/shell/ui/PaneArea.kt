@@ -3,6 +3,8 @@ package com.termux.shell.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -25,7 +27,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -130,7 +135,22 @@ private fun SplitHandle(
     onRatioChange: (Float) -> Unit,
 ) {
     val currentRatio by rememberUpdatedState(ratio)
-    val color = MaterialTheme.colorScheme.outlineVariant
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val color = if (hovered) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
+    val context = LocalContext.current
+    val resizeIcon = remember(context, vertical) {
+        val type = if (vertical) {
+            android.view.PointerIcon.TYPE_HORIZONTAL_DOUBLE_ARROW
+        } else {
+            android.view.PointerIcon.TYPE_VERTICAL_DOUBLE_ARROW
+        }
+        PointerIcon(android.view.PointerIcon.getSystemIcon(context, type))
+    }
     Box(
         Modifier
             .then(
@@ -141,6 +161,8 @@ private fun SplitHandle(
                 },
             )
             .background(color)
+            .hoverable(interactionSource)
+            .pointerHoverIcon(resizeIcon)
             .pointerInput(totalPx) {
                 if (totalPx <= 0f) {
                     return@pointerInput

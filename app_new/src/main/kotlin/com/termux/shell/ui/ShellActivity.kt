@@ -1,5 +1,6 @@
 package com.termux.shell.ui
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
@@ -43,6 +44,8 @@ class ShellActivity : ComponentActivity() {
             ?: TabWorkspace.initial(getString(R.string.shell_tab_title, 1))
         controller = ShellController(this, initialWorkspace).apply {
             onNewWindow = { openNewWindow() }
+            // 设置页切换「外壳快捷键」后立即生效，无需重建窗口。
+            onKeymapEnabledChanged = { enabled -> inputRouter.shellShortcutsEnabled = enabled }
             onMessage = { messageResId ->
                 Toast.makeText(this@ShellActivity, messageResId, Toast.LENGTH_SHORT).show()
             }
@@ -76,7 +79,10 @@ class ShellActivity : ComponentActivity() {
      * 快捷键优先于视图默认处理。
      *
      * 说明：只在按下事件上查询键位表；未命中时交回系统分发，保证终端视图与文本选择等行为不受影响。
+     * `ComponentActivity` 把该方法标注为库内可见，但覆写它是受支持的用法（运行时无限制），
+     * 因此在此显式抑制检查；若后续改用无障碍过滤，需要同时复核这里的优先级。
      */
+    @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN && inputRouter.onKeyDown(event)) {
             return true
