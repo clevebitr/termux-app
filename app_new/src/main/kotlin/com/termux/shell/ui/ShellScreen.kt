@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -118,6 +120,7 @@ private fun CompactShell(controller: ShellController) {
                     compact = false,
                     onFocus = { controller.focusSession(it) },
                     modifier = Modifier.fillMaxHeight(),
+                    headerActions = { SessionRailActions(controller) },
                 )
             }
         },
@@ -140,6 +143,7 @@ private fun WideShell(controller: ShellController, widthClass: WindowWidthClass)
                 modifier = Modifier
                     .width(if (widthClass == WindowWidthClass.EXPANDED) ExpandedRailWidth else CompactRailWidth)
                     .fillMaxHeight(),
+                headerActions = { SessionRailActions(controller) },
             )
             VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
@@ -180,10 +184,12 @@ private fun ShellBody(controller: ShellController, compactLayout: Boolean) {
 @Composable
 private fun ShellHeaderBar(controller: ShellController, compactLayout: Boolean) {
     val tab = controller.workspace.activeTab
-    var menuExpanded by remember { mutableStateOf(false) }
 
     Row(
-        Modifier.fillMaxWidth().padding(start = if (compactLayout) 4.dp else 16.dp, end = 4.dp),
+        Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .padding(start = 4.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (compactLayout) {
@@ -212,21 +218,42 @@ private fun ShellHeaderBar(controller: ShellController, compactLayout: Boolean) 
                 Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.shell_command_palette))
             }
         }
-        IconButton(onClick = controller::newTab) {
-            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.shell_new_tab))
+    }
+}
+
+/**
+ * 会话栏顶部操作入口。
+ *
+ * 行为：新建标签、打开设置与窗口菜单；紧凑侧栏中由 FlowRow 自动换行。
+ * 约束：按钮只在会话栏内出现，会话栏收起时通过标题栏的切换按钮恢复。
+ */
+@Composable
+private fun SessionRailActions(controller: ShellController) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    IconButton(onClick = controller::newTab, modifier = Modifier.size(36.dp)) {
+        Icon(
+            imageVector = Icons.Filled.Add,
+            contentDescription = stringResource(R.string.shell_new_tab),
+            modifier = Modifier.size(18.dp),
+        )
+    }
+    IconButton(onClick = controller::openSettings, modifier = Modifier.size(36.dp)) {
+        Icon(
+            imageVector = Icons.Filled.Settings,
+            contentDescription = stringResource(R.string.settings_open),
+            modifier = Modifier.size(18.dp),
+        )
+    }
+    Box {
+        IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(36.dp)) {
+            Icon(
+                imageVector = Icons.Filled.MoreVert,
+                contentDescription = stringResource(R.string.shell_overflow),
+                modifier = Modifier.size(18.dp),
+            )
         }
-        if (!compactLayout) {
-            IconButton(onClick = controller::openSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings_open))
-            }
-        }
-        Box {
-            IconButton(onClick = { menuExpanded = true }) {
-                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.shell_overflow))
-            }
-            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                WindowMenu(controller) { menuExpanded = false }
-            }
+        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            WindowMenu(controller) { menuExpanded = false }
         }
     }
 }

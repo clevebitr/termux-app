@@ -27,6 +27,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
@@ -137,11 +138,8 @@ private fun SplitHandle(
     val currentRatio by rememberUpdatedState(ratio)
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
-    val color = if (hovered) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.outlineVariant
-    }
+    // 分隔条默认不可见，仅保留拖拽热区；指针悬停时显示细线提示可拖动。
+    val lineColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
     val context = LocalContext.current
     val resizeIcon = remember(context, vertical) {
         val type = if (vertical) {
@@ -160,7 +158,7 @@ private fun SplitHandle(
                     Modifier.fillMaxWidth().height(DividerThickness)
                 },
             )
-            .background(color)
+            .background(if (hovered) lineColor else Color.Transparent)
             .hoverable(interactionSource)
             .pointerHoverIcon(resizeIcon)
             .pointerInput(totalPx) {
@@ -178,17 +176,18 @@ private fun SplitHandle(
 @Composable
 private fun PaneLeafView(leaf: PaneLeaf, focused: Boolean, controller: ShellController) {
     val shape = RoundedCornerShape(8.dp)
+    // 取消常驻边框：只有聚焦窗格显示 1dp 强调色描边，未聚焦窗格不加线，避免分割线隐藏后仍有两道细线。
     val borderColor = if (focused) {
         MaterialTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.outlineVariant
+        Color.Transparent
     }
     Box(
         Modifier
             .fillMaxSize()
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceVariant, shape)
-            .border(if (focused) 2.dp else 1.dp, borderColor, shape)
+            .border(1.dp, borderColor, shape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -197,10 +196,18 @@ private fun PaneLeafView(leaf: PaneLeaf, focused: Boolean, controller: ShellCont
             },
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = stringResource(R.string.shell_pane_placeholder, leaf.id),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = stringResource(R.string.shell_pane_placeholder, leaf.id),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.shell_pane_hint),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
     }
 }

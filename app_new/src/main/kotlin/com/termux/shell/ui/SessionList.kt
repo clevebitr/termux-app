@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,7 +47,9 @@ import com.termux.shell.session.SessionState
  * 约束：本组件不修改会话集合，全部操作通过回调交由 [ShellController] 发起。
  *
  * @param compact 紧凑密度用于中等宽度档的常驻侧栏；完整密度用于展开档与手机端抽屉。
+ * @param headerActions 会话栏顶部的操作入口（新建标签、设置、窗口菜单），由调用方提供。
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SessionList(
     registry: SessionRegistry,
@@ -52,26 +57,41 @@ fun SessionList(
     compact: Boolean,
     onFocus: (SessionRecord) -> Unit,
     modifier: Modifier = Modifier,
+    headerActions: @Composable RowScope.() -> Unit = {},
 ) {
     val attached = registry.attached()
     val detached = registry.detached()
 
     Column(modifier.background(MaterialTheme.colorScheme.surfaceVariant)) {
-        Row(
+        Column(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(horizontal = if (compact) 6.dp else 12.dp, vertical = 8.dp),
         ) {
-            Text(
-                text = stringResource(R.string.shell_rail_title),
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = registry.size.toString(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.shell_rail_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (!compact) {
+                    Text(
+                        text = registry.size.toString(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            // 新建、设置与窗口操作随会话列表一起展示；紧凑侧栏由 FlowRow 自动换行。
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                content = headerActions,
             )
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -167,7 +187,11 @@ private fun SessionRow(
             )
             if (!compact) {
                 Text(
-                    text = if (record.isAttached) record.tabTitle else stateLabel(record.state),
+                    text = if (record.isAttached) {
+                        stringResource(R.string.session_attached_to, record.tabTitle)
+                    } else {
+                        stateLabel(record.state)
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -179,7 +203,7 @@ private fun SessionRow(
             Text(
                 text = stateLabel(record.state),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             )
         }
     }

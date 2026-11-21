@@ -2,12 +2,15 @@ package com.termux.shell.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
@@ -47,6 +50,7 @@ import com.termux.shell.config.SettingsSpec
  *
  * 约束：本页不缓存配置值，全部取值来自控制器状态，因此外部重载后界面会同步刷新。
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(controller: ShellController) {
     Column(
@@ -62,7 +66,7 @@ fun SettingsScreen(controller: ShellController) {
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
-            SectionTitle(stringResource(R.string.settings_section_appearance))
+            SectionTitle(stringResource(R.string.settings_section_appearance), showDivider = false)
             ChoiceRow(
                 title = stringResource(R.string.settings_theme),
                 options = listOf(
@@ -191,12 +195,18 @@ private fun SettingsHeader(controller: ShellController) {
 }
 
 @Composable
-private fun SectionTitle(text: String) {
+private fun SectionTitle(text: String, showDivider: Boolean = true) {
+    if (showDivider) {
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+            modifier = Modifier.padding(top = 16.dp),
+        )
+    }
     Text(
         text = text,
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+        modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
     )
 }
 
@@ -210,6 +220,7 @@ private fun SwitchRow(
     Row(
         Modifier
             .fillMaxWidth()
+            .heightIn(min = 52.dp)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -245,11 +256,12 @@ private fun ChoiceRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Row(
-            Modifier
+        FlowRow(
+            modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             for ((value, label) in options) {
                 FilterChip(

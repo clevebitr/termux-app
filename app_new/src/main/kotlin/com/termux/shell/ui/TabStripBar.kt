@@ -1,6 +1,7 @@
 package com.termux.shell.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.hoverable
@@ -11,7 +12,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.isSecondaryPressed
@@ -164,29 +168,40 @@ private fun TabItem(
                     onLongClick = { menuExpanded = true },
                 ),
         ) {
-            Row(
-                Modifier.padding(
-                    start = 12.dp,
-                    end = if (showCloseButton) 6.dp else 12.dp,
-                    top = 8.dp,
-                    bottom = 8.dp,
-                ),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = tab.title,
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    // 标题占满剩余宽度，关闭按钮因此被推到标签右端；省略号由 maxLines/overflow 处理。
-                    modifier = Modifier.weight(1f),
-                )
-                if (showCloseButton && workspace.size > 1) {
-                    CloseButton(
-                        active = active,
-                        onClick = { controller.closeTabAt(index) },
+            Column {
+                Row(
+                    Modifier.padding(
+                        start = 12.dp,
+                        end = if (showCloseButton) 6.dp else 12.dp,
+                        top = 8.dp,
+                        bottom = 8.dp,
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = tab.title,
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        // 标题占满剩余宽度，关闭按钮因此被推到标签右端；省略号由 maxLines/overflow 处理。
+                        modifier = Modifier.weight(1f),
                     )
+                    if (showCloseButton && workspace.size > 1) {
+                        CloseButton(
+                            active = active,
+                            onClick = { controller.closeTabAt(index) },
+                        )
+                    }
                 }
+                // 选中指示条固定高度，切换标签时标签高度不跳动。
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .background(
+                            if (active) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        ),
+                )
             }
         }
         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
@@ -230,12 +245,33 @@ private fun CloseButton(active: Boolean, onClick: () -> Unit) {
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    var pressing by remember { mutableStateOf(false) }
+    val background = when {
+        pressing || hovered -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+        else -> Color.Transparent
+    }
     Box(
         Modifier
             .padding(start = 6.dp)
             .size(20.dp)
             .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick),
+            .background(background)
+            .hoverable(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        pressing = event.changes.any { it.pressed }
+                    }
+                }
+            },
         contentAlignment = Alignment.Center,
     ) {
         Icon(
