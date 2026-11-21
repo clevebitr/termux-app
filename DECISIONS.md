@@ -1259,3 +1259,39 @@ if (mClient.shouldKeepScrollPositionOnOutput()) {
 - stripDebugDebugSymbols 在 aarch64 宿主上被跳过（AGP 找不到可用 strip 工具），产物为未裁剪的 .so，体积偏大但不影响运行。
 
 未验证：真机安装与运行；:app:assembleDebug 需要 bootstrap zip，本次未产出旧模块 APK。
+
+## 2026-11-21 — 交互层可行性结论：窗口级接管可行、保留键需无障碍授权、虚拟键鼠无需权限
+
+调研结论与三条实现边界，依据见 docs/UPGRADE.md 第 13.2 节：
+
+1. 键盘与鼠标在应用窗口内可以完整接管：Activity.dispatchKeyEvent 覆盖派发给窗口的全部按键；View.requestPointerCapture（API 26）在窗口获得焦点时可隐藏系统光标并投递 SOURCE_MOUSE_RELATIVE 相对位移，失焦自动取消。
+2. 系统保留键在无权限时不可拦截：AOSP CTS KeyEventInterceptTest 明确规定 KEYCODE_HOME、KEYCODE_ASSIST、KEYCODE_VOICE_ASSIST 永不派发给应用。要拦截必须可选启用 AccessibilityService（canRequestFilterKeyEvents），其 onKeyEvent 先于设备策略、输入法与应用收到事件，返回 true 可消费，且必须成对消费 down/up。
+3. 虚拟键鼠完全可行且不需要系统权限：按键编码后直接写入会话 pty；虚拟指针位移换算为终端鼠标上报，terminal-core 已支持 DECSET 1000/1002/1003 与 SGR 编码。反向的 InputManager.injectInputEvent 需要 INJECT_EVENTS 权限，第三方应用不可用，因此虚拟输入不得走系统注入。
+
+三条边界：默认只做窗口级捕获，不申请无障碍权限，设置页如实说明系统保留键仍由系统处理；不接管系统级手势、导航条与分屏；虚拟输入只写会话，不模拟系统事件。
+
+待确认决策点：D5（捕获默认层级）、D7（指针模式默认值与 minSdk），见 docs/DELIVERY_PLAN.md 第 13.1 节。
+
+## 2026-11-21 — 会话/窗格/标签三层模型与自适应界面、设置页范围
+
+会话管理与标签栏当前信息重复：侧栏 SessionRail 只显示标签数与当前窗格数，与 TabStripBar 同构。改为三层职责：
+
+- 会话（session）= 进程与 pty，独立标识，可脱离视图存在；
+- 窗格（pane）= 某会话的视口，一个会话同时最多附着在一个窗格；
+- 标签（tab）= 窗格树容器，标签栏只负责布局与切换。
+
+侧栏与手机端抽屉改为会话注册表：列出全部会话、附着位置、运行状态与最近输出摘要，提供聚焦、移动到其他标签、脱离（detach）、结束四项操作。关闭标签默认结束其会话；配置项 session-detach-on-tab-close 置 true 时改为脱离，可从会话列表重新附着。该语义待需求方确认（docs/DELIVERY_PLAN.md 第 13.1 节 D6）。
+
+自适应界面按已有 WindowWidthClass 三档实现：紧凑档单窗格、会话以抽屉承载、纵向空间优先给终端；中等档常驻窄侧栏与标签栏；展开档按桌面形态显示宽侧栏、标签栏、多窗格与指针悬停细节。设置页分节展示外观、会话、输入、终端、关于，与配置文件双向同步：界面写入文件，外部修改由「重新加载配置文件」生效，非法取值回退默认并记录键名。
+
+任务拆解见 docs/DELIVERY_PLAN.md 第 13.2 至 13.5 节（M15-M18）。
+
+## 2026-11-21 — 外壳里程碑登记位置与 M15–M18 的进入条件
+
+plan 工具当前只读写仓库根目录的 PLAN.md 与 DECISIONS.md（扩展配置 planPath/decisionsPath 未指向 app_new），而根 PLAN.md 记录的还是旧应用里程碑（停在 M11）。为避免里程碑散落在两个文件，约定：
+
+- 外壳的新里程碑 M15–M18 统一登记在根 PLAN.md，任务拆解与验收标准写在 docs/DELIVERY_PLAN.md 第 13 节；
+- app_new/PLAN.md 停留在 M14（会话宿主与终端视图挂载）的历史快照，只作为当时交付记录，不再更新；
+- 若日后把 plan 工具指向 app_new/PLAN.md，需一次性迁移 M15–M18 的登记，避免编号重复。
+
+M15、M16 的进入条件是 M14（会话宿主与终端视图挂载）完成：没有真实终端视图与焦点，指针捕获与按键捕获都无法验收。M15-3、M16-5、M17-3 分别依赖待确认决策 D5、D7、D6，未确认前不得动工。
