@@ -1308,3 +1308,16 @@ M15、M16 的进入条件是 M14（会话宿主与终端视图挂载）完成：
 验证：本机 :app_new:assembleDebug、:app_new:testDebugUnitTest（74 项）、:app_new:lintDebug 全部通过。lint 原有的 RestrictedApi 错误来自覆写 ComponentActivity.dispatchKeyEvent，已加 @SuppressLint 并写明理由，M15 实现捕获策略时需复核该覆写。
 
 未完成（依赖后续里程碑）：会话脱离/结束/移动（需 M14 真实会话）、指针与按键捕获开关（M15/M16）、无障碍授权状态提示（M18-3 依赖 M15-3）。
+
+## 2026-11-21 — 修复平板布局、深色配色与会话列表显隐的成因与修法
+
+需求方报告四个问题，均已修复并记录成因，避免后续重犯：
+
+1. 平板视图丢失标签栏与终端视图。成因：WideShell 把 HorizontalDivider 当竖向分隔条使用，该组件默认 fillMaxWidth 且为无权重子项，在 Row 中先占满剩余宽度，导致带 weight 的主区域宽度为 0。修法：改用 VerticalDivider（宽 1dp）。
+2. 深色模式下文字与图标仍为黑色。成因：MaterialTheme 只提供 colorScheme/typography/shapes，不提供 LocalContentColor，未显式指定颜色的 Text 与 Icon 回退到默认黑色。修法：ShellTheme 内用 Surface(color = surface, contentColor = onSurface) 包裹内容。
+3. 系统栏图标不跟随应用内主题。成因：enableEdgeToEdge 按系统深色设置决定栏图标明暗，与应用内主题选择无关。修法：在组合中以 SideEffect 调用 WindowCompat.getInsetsController 设置 isAppearanceLightStatusBars 与 isAppearanceLightNavigationBars，并在窗口重新获得焦点时重新应用。
+4. 应用不是全屏。修法：新增 fullscreen 配置项（默认 true）与设置开关；隐藏状态栏与导航栏，systemBarsBehavior 设为 BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE，使边缘滑动可临时调出；关闭开关即恢复显示。
+
+同时补齐会话列表的显隐入口：宽屏标题栏新增切换按钮，溢出菜单新增「切换会话列表」，与设置页开关共用同一状态并写回配置。
+
+验证：本机 assembleDebug、testDebugUnitTest（74 项）、lintDebug 通过；未做真机验收，平板布局与全屏表现需设备确认。
