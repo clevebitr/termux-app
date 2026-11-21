@@ -1295,3 +1295,16 @@ plan 工具当前只读写仓库根目录的 PLAN.md 与 DECISIONS.md（扩展�
 - 若日后把 plan 工具指向 app_new/PLAN.md，需一次性迁移 M15–M18 的登记，避免编号重复。
 
 M15、M16 的进入条件是 M14（会话宿主与终端视图挂载）完成：没有真实终端视图与焦点，指针捕获与按键捕获都无法验收。M15-3、M16-5、M17-3 分别依赖待确认决策 D5、D7、D6，未确认前不得动工。
+
+## 2026-11-21 — M17/M18 首批交付：会话注册表、三档界面与设置页
+
+按 D5（窗口级默认、无障碍可选）、D6（三层模型）、D7（默认触屏直通、minSdk 24）与「先做 M17+M18」的选择，本次交付：
+
+- 配置层：SettingsRepository 增加 put；PropertiesSettingsRepository 按行替换写入、保留注释与未知键、临时文件加重命名；新增 layout-mode（auto/phone/tablet）与 session-rail-visible 两个配置项。
+- 会话注册表：session/SessionRegistry 以「会话/窗格/标签」三层派生记录，支持 attached/detached 查询与 upsert/remove；占位会话使用 pending: 前缀与 PENDING 状态，界面据此禁用未实现的操作并给出说明。
+- 界面：ShellScreen 三档布局（紧凑档单窗格加会话抽屉、中等与展开档常驻侧栏）、SessionList 三种密度、标签悬停与右键菜单、分割条悬停高亮与缩放指针、返回键关闭设置与抽屉。
+- 设置页：外观/会话/输入/关于四组，开关与选项即时生效并写回配置文件；写盘在单线程执行器完成，失败时提示；键位表开关切换后立即更新输入路由。
+
+验证：本机 :app_new:assembleDebug、:app_new:testDebugUnitTest（74 项）、:app_new:lintDebug 全部通过。lint 原有的 RestrictedApi 错误来自覆写 ComponentActivity.dispatchKeyEvent，已加 @SuppressLint 并写明理由，M15 实现捕获策略时需复核该覆写。
+
+未完成（依赖后续里程碑）：会话脱离/结束/移动（需 M14 真实会话）、指针与按键捕获开关（M15/M16）、无障碍授权状态提示（M18-3 依赖 M15-3）。

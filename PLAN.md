@@ -38,5 +38,5 @@ auto-breakpoint: false
 
 ## Current: M11 — 命令历史跨会话 + 稳定性/渲染审计（详见 #51-#52）
 
-goal: 交互层已调研并规划 M15–M18（#56–#59）
-breakpoint: 待 D5–D7 确认；M15 依赖 M14 会话视图挂载
+goal: M17/M18 首批交付：界面、会话列表与设置页（#60）
+breakpoint: 待 M14 会话接入后补会话操作，再开工 M15
