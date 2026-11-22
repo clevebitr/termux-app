@@ -95,7 +95,7 @@ dependencies {
 
     testImplementation "junit:junit:4.13.2"
     // 平台 android.jar 中的 org.json 为抛出异常的存根，单元测试需要可用的实现。
-    testImplementation "org.json:json:20240303"
+    testImplementation "org.json:json:20260814"
 
     // Compose UI 测试（androidTest 源集）。Robolectric 在 Termux 不可用，原因见 docs/UI_REVIEW.md 第 10.5 节。
     androidTestImplementation platform("androidx.compose:compose-bom:$composeBomVersion")
