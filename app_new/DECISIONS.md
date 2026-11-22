@@ -89,3 +89,41 @@ https://github.com/clevebitr/termux-app/releases/download/shell-demo/termux-shel
 3. 注意类路径顺序：Compose 依赖会带入旧版 kotlin-stdlib 与 android.jar 的 org.json 存根，必须把 kotlin-stdlib 2.4.21 与 org.json:json 放在 android.jar 之前，否则出现 lowercase/buildList 无法解析、JSONObject 抛 Stub! 等假错误。
 
 CI：app_new_debug_build.yml 上 :app_new:testDebugUnitTest 与 :app_new:assembleDebug 均通过（run 44781087804，2m16s），产物 11.7 MB。lintDebug 仍未执行；真机上的 Compose 渲染、命令面板输入法交互、分割条拖拽手感与主题切换效果未验证。
+
+## 2026-11-22 — 分层与状态管理重构：ShellViewModel + ConfigSource + 提示事件（M13-8）
+
+审核结论：原 ShellController 同时承担工作区操作、界面导航、设置镜像与落盘、会话注册表派生、路径暴露与提示回调，共 410 行；持有 Activity Context 与 ShellApplication 静态单例，无法在 JVM 测试；7 个独立设置状态字段在重载时逐项赋值；提示经 onMessage(resId) 回调到 Activity Toast；命令目录位于 commands 包却依赖 Context/R。
+
+重构：
+1) ShellController 改为 ShellViewModel（androidx.lifecycle.ViewModel），构造注入 ConfigSource（配置/键位/路径/重载）、titleFactory、SettingsPersister；不持有 Context、资源或静态单例。onCleared 取消写协程。
+2) 设置状态聚合为不可变 ShellSettings 快照（主题、布局、侧栏、全屏、命令面板、键位、视图选项），重载时整体替换；所有写入走 updateSetting(key,value,transform)，先乐观更新界面，再由 SettingsPersister 写入磁盘；失败发布 SETTINGS_SAVE_FAILED。
+3) 提示改为 ShellNotice 枚举 + consumeNotice 一次性事件，界面映射为字符串并显示 Snackbar；新建窗口改为 newWindowRequestToken 事件并在窗口消费后归零，避免窗口重建时重复创建。
+4) 命令目录迁移到 ui/ShellCommandCatalog（依赖资源与键位表），commands 包只保留 ShellCommand 与 CommandFilter 纯逻辑；界面在面板打开时构造一次命令清单。
+5) Activity 只负责生命周期、输入路由（LaunchedEffect 同步 viewModel.keymap/keymapEnabled）、系统栏与实例状态保存；导航状态（面板、设置页、抽屉）移入视图模型，窗口重配置不丢失。
+6) MemorySettingsRepository 的 getBoolean/getInt/getString 统一兼容 put 存入的文本与 putBoolean 存入的布尔值，修复测试替身读回默认值的缺陷。
+
+新增依赖：androidx.lifecycle:lifecycle-viewmodel:2.9.4、org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2（协程用于后台落盘与主线程回调）。
+
+## 2026-11-22 — 界面动效与交互细节：覆盖层、过渡动画与触控目标
+
+动效：
+- 命令面板由独立 Dialog 改为窗口内覆盖层，随 Activity 窗口淡入并轻微缩放（0.98→1.0），遮罩点击与返回键关闭，imePadding 避让输入法；卡片用 detectTapGestures 消费点击，避免点输入框被遮罩关闭。
+- 标签栏显隐使用 expand/shrink + fade；标签底色、内容色与 2dp 选中指示条使用 140–160ms 颜色过渡；长按标签触发 LongPress 触觉反馈。
+- 标题行使用 AnimatedContent 交叉淡入；设置页与主界面之间淡入淡出；会话侧栏收起/展开使用水平展开动画，宽度随档位 180ms 过渡。
+- 窗格焦点描边颜色与宽度过渡，分割条在悬停或拖拽时以 120ms 淡入 45% 强调色；命令面板选中行背景 120ms 过渡。
+- 所有动画使用 Compose 默认 MotionDurationScale，系统关闭动画时自动即时切换。
+
+细节：
+- 会话栏操作按钮 36dp→40dp，新标签按钮 40dp，标签关闭按钮 20dp→28dp，图标同步微调。
+- 修复标签栏新增按钮与关闭按钮在无按压反馈时的视觉突兀：统一使用颜色过渡的背景态。
+- 修复 MemorySettingsRepository 读取与写入存储类型不一致（详见 #9）。
+
+## 2026-11-22 — 仓库 Actions 被禁用：本轮 CI 构建未能执行
+
+现象：推送提交 8742db2 后 workflow_dispatch 与 push 均未创建运行。手动触发返回 HTTP 422「Actions has been disabled for this repository」；此时 GET /repos/clevebitr/termux-app/actions/permissions 返回 enabled=true，workflow 列表中的 Shell Demo Build 状态为 active，仓库未归档、未禁用，且账号对仓库有 admin 权限。
+
+已排查：PUT /actions/permissions 开启、检查 workflow 状态、检查 fork/archived/disabled 字段、检查所选 actions 策略，均未解除。原因在 GitHub 侧（仓库或账号层面），本地无法继续处理。
+
+影响：M13-8 的 CI 验证（:app_new:testDebugUnitTest 与 :app_new:assembleDebug）与 shell-demo APK 更新未执行。本地替代验证：kotlinc 2.4.21 + Compose 编译器插件编译全部主源通过；JUnitCore 运行 13 个测试类共 94 项全部通过。
+
+后续：需要仓库管理员在 GitHub 设置中恢复 Actions（Settings → Actions → General），恢复后推送任意 app_new 变更或手动触发 workflow 即可重新出包；在此期间不得声称界面/安装包已验证。

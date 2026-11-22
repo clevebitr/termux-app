@@ -16,5 +16,5 @@ auto-breakpoint: false
 
 ## Current: M14 — 会话宿主与终端视图挂载（M12-2…M12-4）
 
-goal: Kotlin/Compose 壳层 CI 构建与 60 项单测通过
-breakpoint: Compose 版演示 APK 已发布，待设备反馈
+goal: 分层/状态/动效重构完成，94 项单测通过
+breakpoint: Actions 被仓库禁用，CI 出包待恢复后补跑

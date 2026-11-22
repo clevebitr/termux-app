@@ -18,7 +18,7 @@
 | D2 | 采纳 C：改用 `com.termux` 包名顶替旧应用 | 需求方于 2026-11-19 确认 |
 | D3 | 采纳：应用私有主目录 + `home/.termux` 配置目录 | 本文件第 2 节；实现见 `ShellPaths` |
 | D4 | 采纳：窗口级标签栏（每标签一棵窗格树） | 需求方确认；见 `app_new/DECISIONS.md` #1 |
-| 当前进度 | M12-0、M12-1、M13-2a…M13-2d、M13-7 已完成 | 本文件第 4、5 节 |
+| 当前进度 | M12-0、M12-1、M13-2a…M13-2d、M13-7、M13-8 已完成 | 本文件第 4、5 节 |
 | 技术栈 | Kotlin 2.2.20 + Compose BOM 2025.10.01（壳层）；终端核心保持 Java 复制基线 | `UPGRADE.md` 第 12 节；需求方于 2026-11-20 确认 |
 
 ---
@@ -142,9 +142,12 @@ M12 期间不得实现多窗口、页签、kitty 键序与拖放。
 
 | M13-7 | 技术栈迁移（Kotlin + Compose） | 根 `build.gradle` 增加 Kotlin 与 Compose 编译器插件 classpath；`app_new/build.gradle` 应用插件并声明 Compose 依赖；`src/main/java` 与 `src/test/java` 整体迁移到 `src/main/kotlin`、`src/test/kotlin` | — | `:app_new:testDebugUnitTest` 与 `:app_new:assembleDebug` 在 CI 通过；单元测试数量不低于迁移前的 56 项；壳层界面全部由 Compose 绘制 |
 
+| M13-8 | 分层与状态管理重构 | 新增 `ui/ShellViewModel.kt`、`ui/ShellSettings.kt`、`ui/ShellNotice.kt`、`config/ConfigSource.kt`、`config/ApplicationConfigSource.kt`；`commands/CommandCatalog` 迁移为 `ui/ShellCommandCatalog`；重写 `ShellActivity`、`ShellScreen`、`CommandPaletteView`、`PaneArea`、`TabStripBar` | — | 视图模型不依赖 `Context` 与资源；设置状态聚合为单快照；提示改为 Snackbar；新增 `ShellViewModelTest`；界面动效覆盖标签栏、标题、侧栏、窗格与命令面板 |
+
 > 说明：M13-2 原计划的「每个窗格内多页签」按 D4 改为「窗口级标签栏，每个标签一棵窗格树」，
 > 与 Windows Terminal 的语义一致。窗格内容在 M12-2…M12-4 完成前保持占位。
 > M13-7 把壳层实现语言与界面框架替换为 Kotlin + Compose，终端视图仍以 `AndroidView` 承载。
+> M13-8 收敛了分层与状态管理，并补齐界面动效；CI 因仓库禁用 Actions 暂未补跑。
 | M13-3 | 布局落盘与恢复 | 新增 `pane/PaneLayoutStore.java`（路径见 D3） | — | 冷启动恢复分割结构与各叶子滚动位置；布局文件损坏时回退单窗格 |
 | M13-4 | 档位驱动布局 | 修改 `ui/LayoutHost.java`、`ui/WindowSizeResolver.java` | — | 折叠展开、自由窗口拖拽、桌面窗口下布局切换不重建 Activity |
 | M13-5 | 焦点与导航 | 新增 `pane/PaneNavigator.java` | — | 方向键与 `Alt+方向` 迁移焦点；关闭窗格后焦点按规则落到兄弟叶子 |
@@ -242,6 +245,7 @@ Kotlin 引入不在 M15 范围内，单独评估后再排期。
 | 2026-11-19 | M13-2、M13-2a…M13-2d 完成：标签栏、配置层、键位表、命令面板与 MD3 视觉基线；56 项单元测试通过；Gradle 构建未执行（本机缺 Android SDK build-tools） | 本机 `javac` + `JUnitCore` 实测 |
 | 2026-11-19 | 新增外壳演示构建工作流 `app_new_debug_build.yml`（需求方要求通过 CI 出包查看界面）；单独成文件，不修改既有工作流 | 需求方要求 |
 | 2026-11-20 | M13-7 完成：壳层迁移到 Kotlin 2.2.20 + Compose BOM 2025.10.01，删除 Java 实现与自绘视图、XML 布局；60 项单元测试通过，CI 构建与单测通过；APK 11.7 MB | 需求方确认与 CI 实测 |
+| 2026-11-22 | M13-8 完成：分层与状态管理重构（ShellViewModel、ConfigSource、设置快照、提示事件）与界面动效；94 项单元测试通过；CI 因仓库禁用 Actions 未执行 | 本地 kotlinc + JUnitCore 实测 |
 | 2026-11-21 | 追加第 13 节：交互层（系统按键捕获、指针接管、虚拟键鼠）、自适应界面与会话注册表、设置页；登记决策点 D5–D7 与里程碑 M15–M18 | 需求方提出，可行性结论见 `UPGRADE.md` 第 13 节 |
 | 2026-11-21 | `M17`、`M18` 部分完成：配置写回与两个新配置项、会话注册表、三种密度的会话列表、三档自适应界面、设置页与写回接线、标签与分割条的指针交互。未完成项：会话脱离与移动、指针与按键捕获开关（依赖 M14–M16）。本机 `assembleDebug`、74 项单元测试与 `lintDebug` 通过 | 本机实测 |
 | 2026-11-21 | 修复需求方报告的四个界面问题：宽屏分隔条挤占主区域、深色模式内容色缺失、系统栏图标不跟随应用主题、缺少全屏模式；并补齐会话列表显隐入口（标题栏按钮与菜单项）。本机 `assembleDebug`、74 项单元测试与 `lintDebug` 通过 | 需求方反馈与本机实测 |

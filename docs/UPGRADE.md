@@ -634,3 +634,59 @@ terminal-render-cache=true              # 默认 true
 * 会话的聚焦以外操作（脱离、结束、移动到其他标签）需要真实会话进程，随 `M14` 完成；
 * 指针捕获、虚拟键鼠、触控板与系统按键捕获分别属于 `M15`、`M16`，设置页的输入分组届时补充相应开关；
 * 无障碍授权状态与指针模式可用性提示属于 `M18-3`，依赖 `M15-3` 的状态接口。
+
+## 14. 分层与状态管理重构（2026-11-22）
+
+本轮针对壳层代码做结构审核与动效打磨，目标是把「界面状态」和「界面绘制」彻底分开，并把原先集中在
+单个控制器里的多项职责拆到合适的层。
+
+### 14.1 审核发现
+
+| 问题 | 影响 | 处理 |
+| --- | --- | --- |
+| `ShellController` 同时承担工作区操作、界面导航、设置镜像与落盘、会话注册表派生、路径暴露与提示回调 | 单文件 410 行，职责混淆；持有 `Context` 与进程静态单例，无法在 JVM 测试 | 改为 `ShellViewModel`，依赖 `ConfigSource`、标题工厂与 `SettingsPersister` 注入；`onCleared` 取消写协程 |
+| 设置状态分散在 7 个 `mutableStateOf` 字段（主题、布局、侧栏、全屏、命令面板、键位、视图选项） | 重载配置需逐项赋值，存在中间态；新增配置项要改四处 | 聚合为不可变 `ShellSettings` 快照，重载时整体替换；读写方法统一走 `updateSetting` |
+| 设置写入直接使用 `Handler` + `Executors` | 线程模型混在视图模型里，测试无法同步验证 | 抽出 `ShellViewModel.SettingsPersister`，生产实现使用 IO 协程，失败回到主线程发布提示 |
+| 提示通过 `onMessage(resId)` 回调到 Activity 的 Toast | 无法排队、样式与 MD3 不一致、视图模型依赖资源标识 | 改为 `ShellNotice` 枚举 + Snackbar；`consumeNotice()` 保证一次性 |
+| 命令目录位于 `commands` 包却依赖 `Context` 与 `R` | 纯模型包被界面细节污染 | 迁移为 `ui/ShellCommandCatalog`，`commands` 只保留 `ShellCommand` 与 `CommandFilter` 纯逻辑 |
+| 界面导航状态（命令面板、设置页、会话抽屉）由 Activity 作用域持有 | 窗口重建后状态丢失 | 移入视图模型，随窗口重配置存活 |
+| 新建窗口通过 `onNewWindow` 回调直接持有 Activity | 视图模型间接持有窗口引用 | 改为一次性令牌 `newWindowRequestToken`，由窗口消费后创建任务 |
+
+### 14.2 分层约定
+
+```
+ui/（Compose 绘制与交互）
+  ├─ ShellActivity          生命周期、输入路由、系统栏
+  ├─ ShellViewModel         状态与动作，不依赖 Context/资源
+  ├─ ShellCommandCatalog    命令文案与快捷键展示（界面层）
+  └─ components             TabStripBar / PaneArea / CommandPaletteView / SettingsScreen
+commands/                   纯命令模型与筛选（无 Android 依赖）
+config/                     配置契约、属性文件实现、ConfigSource
+input/                      键位表、动作名、输入路由
+pane/ tabs/ session/        不可变模型与会话注册表
+render/                     帧调度契约
+```
+
+### 14.3 动效与细节
+
+| 交互 | 处理 |
+| --- | --- |
+| 命令面板 | 由独立对话框改为窗口内覆盖层，淡入 + 0.98 缩放进入；遮罩点击与返回键关闭；`imePadding` 避让输入法 |
+| 标签栏显隐 | 展开/收起 + 淡入淡出，避免内容区跳变 |
+| 标签切换 | 标签底色、内容色与 2dp 选中指示条使用 140–160ms 颜色过渡；长按增加触觉反馈 |
+| 标题行 | 标签标题交叉淡入，避免文字突跳 |
+| 会话侧栏 | 收起/展开水平动画；宽度随档位 180ms 过渡 |
+| 窗格 | 焦点描边颜色与宽度过渡；分割条悬停/拖拽时淡入强调色细线 |
+| 命令面板列表 | 选中行背景颜色过渡 |
+| 触控目标 | 会话栏按钮 36dp → 40dp，标签关闭按钮 20dp → 28dp，新标签按钮 40dp |
+| 设置页 | 与主界面之间淡入淡出切换 |
+
+所有动画使用 Compose 默认的 `MotionDurationScale`，系统关闭动画时会自动缩短为即时切换。
+
+### 14.4 验证
+
+| 检查 | 结果 |
+| --- | --- |
+| 本地 `kotlinc` + Compose 编译器插件编译全部主源 | 通过 |
+| 本地 `JUnitCore`：13 个测试类（含新增 `ShellViewModelTest` 15 项） | 通过，94 项 |
+| CI `:app_new:testDebugUnitTest` / `:app_new:assembleDebug` | **未执行**：GitHub Actions 在仓库层面被禁用（`Actions has been disabled for this repository`），需仓库管理员恢复后补跑 |
