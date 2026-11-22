@@ -745,4 +745,4 @@ render/                     帧调度契约
 | --- | --- |
 | 本地 `kotlinc` + Compose 编译器编译全部主源 | 通过 |
 | 本地 `JUnitCore`：17 个测试类 | 通过，112 项（新增配置模型 6 项、编码 3 项、存储 5 项、标签绑定与标题编号 3 项） |
-| CI | 原始仓库 Actions 仍被禁用；通过镜像仓库 `clevebitr/termux-shell-demo` 构建 |
+| CI | 原始仓库 Actions 仍被禁用；镜像仓库 `clevebitr/termux-shell-demo` 构建通过（run 45030178803，单测 + assembleDebug），APK 11.9 MB |
