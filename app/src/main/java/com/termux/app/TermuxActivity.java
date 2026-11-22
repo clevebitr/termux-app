@@ -22,6 +22,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MotionEvent;
 import android.view.View;
@@ -77,6 +78,8 @@ import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.app.terminal.TermuxSessionsListViewController;
 import com.termux.app.terminal.io.TerminalToolbarViewPager;
+import com.termux.app.commands.ShellCommandCatalog;
+import com.termux.app.commands.ShellCommandPalette;
 import com.termux.app.ext.ForkExtensions;
 import com.termux.app.ext.host.ExtensionManager;
 import com.termux.app.terminal.TermuxTerminalViewClient;
@@ -1669,6 +1672,64 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             default:
                 break;
         }
+    }
+
+    /**
+     * Open the command palette.
+     *
+     * <p>The palette reuses the rules of the terminal context menu through {@link ShellCommandCatalog}, so
+     * that an action that is hidden or disabled in the menu is shown the same way here. The commands run
+     * through the existing action dispatcher, which keeps a single implementation per action.</p>
+     */
+    public void showCommandPalette() {
+        TerminalSession session = getCurrentSession();
+        if (session == null || mTerminalView == null) return;
+
+        TerminalMenuItems.State state = new TerminalMenuItems.State(
+            isSplitScreenEnabled(),
+            !DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText()),
+            mTerminalView.isAutoFillEnabled(),
+            mNotificationManager != null && mNotificationManager.isEnabled(),
+            mNotificationManager != null && !mNotificationManager.getRecentNotifications().isEmpty(),
+            session.isRunning());
+
+        List<com.termux.app.commands.ShellCommand> commands = ShellCommandCatalog.build(
+            this, state, action -> action.getTitle(this, session),
+            new ShellCommandCatalog.Host() {
+                @Override
+                public void runTerminalMenuAction(@NonNull TerminalMenuAction action) {
+                    onTerminalMenuActionSelected(action);
+                }
+
+                @Override
+                public void addNewSession() {
+                    mTermuxTerminalSessionActivityClient.addNewSession(false, null);
+                }
+
+                @Override
+                public void toggleSoftKeyboard() {
+                    toggleSoftKeyboard();
+                }
+            });
+        ShellCommandPalette.show(this, commands);
+    }
+
+    /**
+     * Open the command palette with Ctrl+Shift+P.
+     *
+     * <p>Intercepted at the activity level so that the shortcut works whether the terminal view or another
+     * child has the focus; the combination is not used by common terminal programs, and the handler returns
+     * the event as handled only when the palette was actually shown.</p>
+     */
+    @Override
+    public boolean dispatchKeyEvent(@NonNull KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN
+            && event.isCtrlPressed() && event.isShiftPressed()
+            && event.getKeyCode() == KeyEvent.KEYCODE_P) {
+            showCommandPalette();
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     /**

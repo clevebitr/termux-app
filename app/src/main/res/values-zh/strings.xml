@@ -43,6 +43,10 @@
 
     <!-- Terminal Sidebar and Shortcuts -->
     <string name="action_new_session">新建会话</string>
+    <string name="command_palette_hint">输入命令</string>
+    <string name="command_palette_empty">没有匹配的命令</string>
+    <string name="command_category_terminal">终端</string>
+    <string name="command_category_app">应用</string>
     <string name="action_new_session_failsafe">安全模式</string>
     <string name="title_max_terminals_reached">已达最大终端数</string>
     <string name="msg_max_terminals_reached">请先关闭已有会话再新建。</string>
