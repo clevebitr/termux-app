@@ -1713,7 +1713,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
                 @Override
                 public void toggleSoftKeyboard() {
-                    toggleSoftKeyboard();
+                    // The request handler follows the configured soft keyboard behaviour, and it is the
+                    // implementation that the drawer button uses; calling this method again would recurse.
+                    mTermuxTerminalViewClient.onToggleSoftKeyboardRequest();
                 }
             });
         ShellCommandPalette.show(this, commands);
