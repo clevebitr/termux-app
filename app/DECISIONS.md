@@ -32,3 +32,20 @@
 3. 禁用语义：贡献点立即移除、视图与定时器由扩展 onDisable 释放、VT 级行为在下次创建终端视图时生效。
 4. 扩展设置页为程序化构建，暂不进入 SettingsSearchIndex（该索引只读 XML 页面）；后续加页时再评估。
 5. 本机 :app:assembleDebug 因 NDK 缺 libc++_shared 失败（环境问题，非本次改动）；:app:compileDebugJavaWithJavac 与 :app:testDebugUnitTest 可运行，测试 143 项中 1 项为既有的 Robolectric 4.10 + JDK 21 失败。
+
+## 2026-11-22 — 备份功能提取为扩展包与设置项可见性贡献点
+
+第一个真实扩展已提取（提交 26efb73），用于验证「贡献点 + 用户禁用 + 设置页联动」闭环。
+
+做法：
+- 新增贡献点 `Extension.preferenceKeys()`：扩展声明自己拥有的设置项键（`app:key`）。禁用扩展时，`TermuxPreferencesFragment` 在加载 `termux_preferences.xml` 后调用 `ExtensionPreferences.applyPreferenceVisibility()` 隐藏这些键，因此不能出现「页面还能打开但功能已停用」的状态。
+- `ext.backup`：`TermuxBackupUtils` 与 `BackupPreferencesFragment` 从 `backup/`、`fragments/settings/termux/` 迁入 `com.termux.app.ext.backup`；新增 `BackupExtension`（id=backup，默认启用，声明 preferenceKeys=["backup"]，onEnable/onDisable 为空实现，因为该功能不持有视图或监听）。`ForkExtensions` 登记该扩展。
+- 设置 XML 为备份项补 `app:key="backup"` 并把 `app:fragment` 指向新包；`SettingsSearchIndex` 更新导入。
+- `PreferenceResetUtils` 由包内可见改为 public（跨包使用）；`PreferenceResetSourceTest` 的页面清单改为「页面名 → 路径」映射，避免页面移动后守卫测试静默失效。
+
+约定：
+1. 扩展若拥有设置页，必须声明 `preferenceKeys()`，否则禁用后入口仍会显示。
+2. 扩展的 `onDisable()` 必须释放视图、监听与定时器；不持有资源的扩展写空实现并注释原因。
+3. 迁移功能时保持资源（string/drawable/raw）留在 app 主模块，避免单模块内无法按扩展拆分资源的问题；后续拆分 Gradle 模块时再评估资源归属。
+
+验证：`:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 147 项中 146 通过，1 项为既有的 Robolectric 4.10 + JDK 21 失败；`:app:assembleDebug` 仍受本机 NDK（libc++_shared）缺失阻塞。

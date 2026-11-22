@@ -16,7 +16,7 @@
 | 推荐方案 | **A：单模块包级扩展 + 运行时注册表**，包结构按未来可拆模块的方式命名；VT 级功能登记为 `builtin` 扩展，仅可禁用其行为 |
 | 不推荐方案 | Gradle 多模块（编译期组合、用户无法动态增删，且拆分成本高）、动态加载 APK/dex（签名、权限、安全与调试成本） |
 | 前置工作 | 拆 `TermuxActivity`（2447 行 / 124 方法）为四个控制器；建立 `ext.api` 契约与 `ExtensionHost`；再迁第一个扩展包试点 |
-| 试点建议 | `statusbar`（6 文件 1961 行，独立性最好、已有配置与测试） |
+| 试点建议 | 已完成 `ext.backup`（最小闭环）；下一个为 `ext.statusbar`（6 文件 1961 行） |
 
 ---
 
@@ -227,7 +227,8 @@ public final class ExtensionHost {
 | 扩展登记表 `ForkExtensions` | 已建立，当前为空 |
 | 设置页「扩展」 | 已实现（程序化构建），开关写 `SharedPreferences("termux-extensions")`，禁用被依赖项时弹确认 |
 | `TermuxActivity` 接线 | `onCreate` 末尾创建并应用、`onResume` 重新应用、`onDestroy` 释放 |
-| 贡献点（菜单项/命令/设置项/视图装饰器/会话观察者） | **尚未定义**，等第一个真实扩展（`ext.statusbar`）确定需求后再加，避免空接口 |
+| 贡献点（菜单项/命令/设置项/视图装饰器/会话观察者） | 已定义 `Extension.preferenceKeys()`（设置项可见性）；其余贡献点在对应功能迁移时再加，避免空接口 |
+| 第一个扩展 `ext.backup` | 已提取（`app/ext/backup/`，含 `BackupExtension`、`TermuxBackupUtils`、`BackupPreferencesFragment`）；默认启用，禁用后设置项隐藏 |
 
 已知限制：
 
