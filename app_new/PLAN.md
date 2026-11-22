@@ -16,5 +16,5 @@ auto-breakpoint: false
 
 ## Current: M14 — 会话宿主与终端视图挂载（M12-2…M12-4）
 
-goal: 重构与动效已交付：94 项单测 + 镜像 CI 通过
-breakpoint: 镜像仓库已出包，原仓库 Actions 待 GitHub 恢复
+goal: 系统 shell 会话闭环已交付，123 项单测 + 镜像 CI 通过
+breakpoint: 等待真机验证会话宿主；M13.5 是发行版/SSH 前置
