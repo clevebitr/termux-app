@@ -9,7 +9,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.R;
-import com.termux.app.ext.backup.BackupExtension;
+import com.termux.app.ext.api.Extension;
+import com.termux.app.ext.api.ExtensionSettingsPage;
 import com.termux.app.ext.host.ExtensionHost;
 import com.termux.app.fragments.settings.termux.AppearancePreferencesFragment;
 import com.termux.app.ext.backup.BackupPreferencesFragment;
@@ -25,6 +26,7 @@ import com.termux.shared.logger.Logger;
 import org.xmlpull.v1.XmlPullParser;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -68,7 +70,7 @@ public final class SettingsSearchIndex {
         }
     }
 
-    private static final Page[] PAGES = new Page[]{
+    private static final Page[] CORE_PAGES = new Page[]{
         new Page(R.string.termux_appearance_preferences_title, R.xml.termux_appearance_preferences,
             AppearancePreferencesFragment.class.getName()),
         new Page(R.string.termux_keyboard_preferences_title, R.xml.termux_keyboard_preferences,
@@ -83,11 +85,24 @@ public final class SettingsSearchIndex {
             TerminalMenuPreferencesFragment.class.getName()),
         new Page(R.string.termux_notification_preferences_title, R.xml.termux_notification_preferences,
             NotificationPreferencesFragment.class.getName()),
-        new Page(R.string.termux_backup_preferences_title, R.xml.termux_backup_preferences,
-            BackupPreferencesFragment.class.getName(), BackupExtension.ID),
         new Page(R.string.termux_debugging_preferences_title, R.xml.termux_debugging_preferences,
             DebuggingPreferencesFragment.class.getName()),
     };
+
+    /**
+     * @return The pages of the shell followed by the pages that the installed extensions declare, each tagged
+     *         with its extension so that the entries of a disabled one can be dropped.
+     */
+    @NonNull
+    private static List<Page> pages(@NonNull ExtensionHost host) {
+        List<Page> pages = new ArrayList<>(Arrays.asList(CORE_PAGES));
+        for (Extension extension : host.installed()) {
+            for (ExtensionSettingsPage page : extension.settingsPages()) {
+                pages.add(new Page(page.titleRes, page.xmlRes, page.fragmentClassName, extension.id()));
+            }
+        }
+        return pages;
+    }
 
     /** An entry of a page, like a list or a switch preference, that the search can find. */
     public static final class Entry {
@@ -133,9 +148,10 @@ public final class SettingsSearchIndex {
     /** @return The entries of all pages of the settings, in the order of the pages and of their entries. */
     @NonNull
     public static List<Entry> build(@NonNull Context context) {
+        ExtensionHost host = ExtensionHost.get(context);
         List<Entry> entries = new ArrayList<>();
-        for (Page page : PAGES) addPageEntries(context, page, entries);
-        return withoutDisabledExtensions(entries, ExtensionHost.get(context).disabledIds());
+        for (Page page : pages(host)) addPageEntries(context, page, entries);
+        return withoutDisabledExtensions(entries, host.disabledIds());
     }
 
     /**

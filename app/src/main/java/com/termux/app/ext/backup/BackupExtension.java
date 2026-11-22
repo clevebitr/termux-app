@@ -5,6 +5,7 @@ import androidx.annotation.NonNull;
 import com.termux.R;
 import com.termux.app.ext.api.Extension;
 import com.termux.app.ext.api.ExtensionContext;
+import com.termux.app.ext.api.ExtensionSettingsPage;
 
 import java.util.Collections;
 import java.util.List;
@@ -45,6 +46,14 @@ public final class BackupExtension implements Extension {
     @Override
     public List<String> preferenceKeys() {
         return Collections.singletonList(PREFERENCE_KEY);
+    }
+
+    @NonNull
+    @Override
+    public List<ExtensionSettingsPage> settingsPages() {
+        return Collections.singletonList(new ExtensionSettingsPage(
+            R.string.termux_backup_preferences_title, R.xml.termux_backup_preferences,
+            BackupPreferencesFragment.class.getName()));
     }
 
     @Override

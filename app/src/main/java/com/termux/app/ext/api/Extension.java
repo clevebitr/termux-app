@@ -59,10 +59,24 @@ public interface Extension {
      *
      * <p>The settings screen hides a key while its extension is disabled, so that disabling a feature
      * removes its entry instead of leaving a page that does nothing. Keys are the {@code app:key} values
-     * of the preference XML.</p>
+     * of the preference XML. The key has to be declared on the root settings page, because the visibility
+     * pass runs there; a guard test fails when a declared key does not exist in that XML.</p>
      */
     @NonNull
     default List<String> preferenceKeys() {
+        return Collections.emptyList();
+    }
+
+    /**
+     * The settings pages that this extension provides.
+     *
+     * <p>The settings search reads the pages from this list, so that the entries of a disabled extension
+     * stop being findable without the search index knowing the extension by name. A page must also refuse to
+     * show its actions while its extension is disabled, since hiding the entry is not enough: the page can be
+     * opened from a search result that was built before the extension was disabled.</p>
+     */
+    @NonNull
+    default List<ExtensionSettingsPage> settingsPages() {
         return Collections.emptyList();
     }
 
