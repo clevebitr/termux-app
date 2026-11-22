@@ -3,8 +3,10 @@ package com.termux.shell.ui
 import com.termux.shell.config.ConfigSource
 import com.termux.shell.config.MemorySettingsRepository
 import com.termux.shell.config.SettingsRepository
+import com.termux.shell.config.ProfileStore
 import com.termux.shell.config.SettingsSpec
 import com.termux.shell.input.KeymapTable
+import com.termux.shell.session.SessionProfile
 import com.termux.shell.session.SessionRecord
 import com.termux.shell.session.SessionState
 import com.termux.shell.tabs.TabWorkspace
@@ -14,13 +16,37 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 /** [ShellViewModel] 的状态变更、设置写入与一次性事件测试。 */
 class ShellViewModelTest {
 
+    private class FakeProfileStore : ProfileStore {
+
+        private val state = MutableStateFlow<List<SessionProfile>>(emptyList())
+
+        override val profiles: StateFlow<List<SessionProfile>> = state
+
+        override fun save(profile: SessionProfile): Boolean {
+            state.value = state.value.filterNot { it.id == profile.id } + profile
+            return true
+        }
+
+        override fun delete(id: String): Boolean {
+            val before = state.value
+            state.value = before.filterNot { it.id == id }
+            return before.size != state.value.size
+        }
+
+        override fun reload(): Boolean = true
+    }
+
     private class FakeConfigSource : ConfigSource {
 
         val repository: SettingsRepository = MemorySettingsRepository()
+
+        val profileStore: FakeProfileStore = FakeProfileStore()
 
         var keymapTable: KeymapTable = KeymapTable.parse("ctrl+shift+t = new-tab")
 
@@ -36,6 +62,8 @@ class ShellViewModelTest {
             reloadCount++
             return reloadResult
         }
+
+        override fun profiles(): ProfileStore = profileStore
 
         override val configFilePath: String = "/tmp/shell.properties"
 
@@ -229,6 +257,47 @@ class ShellViewModelTest {
         val viewModel = newViewModel()
         assertFalse(viewModel.focusSession(record(tabId = null, leafId = null)))
         assertEquals(ShellNotice.SESSION_ACTION_UNAVAILABLE, viewModel.notice)
+    }
+
+    @Test
+    fun newTabWithProfileUsesProfileNameAndBinding() {
+        val config = FakeConfigSource()
+        val profile = SessionProfile(id = "p1", name = "dev", command = "bash -l")
+        config.profileStore.save(profile)
+        val viewModel = newViewModel(config = config)
+
+        viewModel.newTab(profile)
+
+        assertEquals("dev", viewModel.workspace.activeTab.title)
+        assertEquals("p1", viewModel.workspace.activeTab.profileId)
+    }
+
+    @Test
+    fun titleNumberingDoesNotRepeatAfterClosingTabs() {
+        val viewModel = newViewModel()
+        viewModel.newTab()
+        viewModel.newTab()
+        val titles = viewModel.workspace.tabs.map { it.title }
+        assertEquals(listOf("one", "Shell 2", "Shell 3"), titles)
+
+        viewModel.closeTabAt(1)
+        viewModel.newTab()
+
+        val afterClose = viewModel.workspace.tabs.map { it.title }
+        assertEquals(afterClose.size, afterClose.toSet().size)
+        assertEquals("Shell 4", viewModel.workspace.activeTab.title)
+    }
+
+    @Test
+    fun profileLookupReturnsSharedStoreEntries() {
+        val config = FakeConfigSource()
+        val profile = SessionProfile(id = "p1", name = "dev")
+        config.profileStore.save(profile)
+        val viewModel = newViewModel(config = config)
+
+        assertEquals(profile, viewModel.profileById("p1"))
+        assertNull(viewModel.profileById("missing"))
+        assertNull(viewModel.profileById(null))
     }
 
     @Test

@@ -95,4 +95,26 @@
     <string name="shell_pane_hint">终端会话接入后显示在这里</string>
 
     <string name="session_attached_to">标签 %1$s</string>
+    <string name="settings_section_profiles">会话配置</string>
+    <string name="settings_profiles_count">已配置 %1$d 条</string>
+    <string name="settings_profile_add">新增会话</string>
+    <string name="settings_profile_edit">编辑</string>
+    <string name="settings_profile_delete">删除</string>
+    <string name="settings_profile_empty">尚未配置会话。</string>
+    <string name="settings_profile_name">名称</string>
+    <string name="settings_profile_kind">类型</string>
+    <string name="settings_profile_kind_shell">终端</string>
+    <string name="settings_profile_kind_distro">发行版</string>
+    <string name="settings_profile_kind_ssh">SSH 主机</string>
+    <string name="settings_profile_command">启动命令（可选）</string>
+    <string name="settings_profile_cwd">工作目录（可选）</string>
+    <string name="settings_profile_env">环境变量（KEY=VALUE，每行一条）</string>
+    <string name="settings_profile_distro">发行版名称</string>
+    <string name="settings_profile_ssh_host">SSH 主机地址</string>
+    <string name="settings_profile_save">保存</string>
+    <string name="settings_profile_cancel">取消</string>
+    <string name="settings_profile_invalid">名称与所选类型对应的字段不能为空。</string>
+    <string name="settings_profile_save_failed">会话配置保存失败</string>
+    <string name="settings_profile_delete_failed">会话配置删除失败</string>
+    <string name="command_new_profile_tab">新建会话：%1$s</string>
 </resources>

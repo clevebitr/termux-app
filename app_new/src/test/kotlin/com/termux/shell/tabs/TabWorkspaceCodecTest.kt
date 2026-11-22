@@ -46,6 +46,16 @@ class TabWorkspaceCodecTest {
     }
 
     @Test
+    fun roundTripKeepsProfileBinding() {
+        val workspace = TabWorkspace.initial("dev")
+        val bound = workspace.updateActiveTab { it.copy(profileId = "profile-1") }
+
+        val decoded = TabWorkspaceCodec.decode(TabWorkspaceCodec.encode(bound))
+        assertNotNull(decoded)
+        assertEquals("profile-1", decoded!!.tabs[0].profileId)
+    }
+
+    @Test
     fun decodeRejectsMalformedDocuments() {
         assertNull(TabWorkspaceCodec.decode(null))
         assertNull(TabWorkspaceCodec.decode(""))

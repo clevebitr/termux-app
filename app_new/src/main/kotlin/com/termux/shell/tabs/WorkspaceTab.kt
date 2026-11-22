@@ -10,6 +10,9 @@ import com.termux.shell.pane.PaneNode
  * 目的：表达「一个标签对应一棵独立窗格树」的窗口模型，与 Windows Terminal 的标签语义一致。
  * 切换标签等价于整体替换当前窗格树，标签内部仍可继续分割为多个窗格。
  *
+ * 会话归属（模型 B）：一个标签有一个主会话（首个窗格），分屏产生额外会话；
+ * [profileId] 记录启动该主会话所用的会话配置，分屏窗格沿用同一配置。
+ *
  * 约束：本类型不可变；[id] 在标签存活期间不得变更，并作为布局编码中的稳定键。
  */
 data class WorkspaceTab(
@@ -17,6 +20,7 @@ data class WorkspaceTab(
     val title: String,
     val root: PaneNode,
     val focusedLeafId: String = PaneLayout.firstLeaf(root).id,
+    val profileId: String? = null,
 ) {
 
     init {

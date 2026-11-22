@@ -51,6 +51,7 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +63,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.termux.shell.R
+import com.termux.shell.commands.ShellCommand
 import kotlin.math.roundToInt
 
 /**
@@ -84,6 +86,7 @@ import kotlin.math.roundToInt
 fun ShellScreen(viewModel: ShellViewModel) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val profiles by viewModel.profiles.collectAsState()
 
     LaunchedEffect(viewModel.notice) {
         val notice = viewModel.consumeNotice() ?: return@LaunchedEffect
@@ -114,7 +117,18 @@ fun ShellScreen(viewModel: ShellViewModel) {
             enter = fadeIn(tween(120)) + scaleIn(tween(150), initialScale = 0.98f),
             exit = fadeOut(tween(90)) + scaleOut(tween(90), targetScale = 0.98f),
         ) {
-            val commands = remember { ShellCommandCatalog.create(context, viewModel.keymap, viewModel, viewModel) }
+            val commands = remember(viewModel.keymap, profiles) {
+                ShellCommandCatalog.create(context, viewModel.keymap, viewModel, viewModel) +
+                    profiles.map { profile ->
+                        ShellCommand(
+                            id = "new-profile-${profile.id}",
+                            title = context.getString(R.string.command_new_profile_tab, profile.name),
+                            category = context.getString(R.string.command_category_tab),
+                            shortcut = null,
+                            enabled = true,
+                        ) { viewModel.newTab(profile) }
+                    }
+            }
             CommandPaletteView(commands = commands, onDismiss = viewModel::closePalette)
         }
 

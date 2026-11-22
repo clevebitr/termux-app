@@ -95,4 +95,26 @@
     <string name="shell_pane_hint">The terminal session renders here once wired</string>
 
     <string name="session_attached_to">Tab %1$s</string>
+    <string name="settings_section_profiles">Session profiles</string>
+    <string name="settings_profiles_count">%1$d configured</string>
+    <string name="settings_profile_add">Add session</string>
+    <string name="settings_profile_edit">Edit</string>
+    <string name="settings_profile_delete">Delete</string>
+    <string name="settings_profile_empty">No session profiles yet.</string>
+    <string name="settings_profile_name">Name</string>
+    <string name="settings_profile_kind">Type</string>
+    <string name="settings_profile_kind_shell">Shell</string>
+    <string name="settings_profile_kind_distro">Distribution</string>
+    <string name="settings_profile_kind_ssh">SSH host</string>
+    <string name="settings_profile_command">Start command (optional)</string>
+    <string name="settings_profile_cwd">Working directory (optional)</string>
+    <string name="settings_profile_env">Environment (KEY=VALUE, one per line)</string>
+    <string name="settings_profile_distro">Distribution name</string>
+    <string name="settings_profile_ssh_host">SSH host</string>
+    <string name="settings_profile_save">Save</string>
+    <string name="settings_profile_cancel">Cancel</string>
+    <string name="settings_profile_invalid">Name and the field for the selected type are required.</string>
+    <string name="settings_profile_save_failed">Failed to save session profile</string>
+    <string name="settings_profile_delete_failed">Failed to delete session profile</string>
+    <string name="command_new_profile_tab">New session: %1$s</string>
 </resources>

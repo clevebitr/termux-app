@@ -39,6 +39,7 @@ object TabWorkspaceCodec {
     private const val KEY_ID = "id"
     private const val KEY_TITLE = "title"
     private const val KEY_FOCUSED_LEAF = "focusedLeaf"
+    private const val KEY_PROFILE = "profile"
     private const val KEY_ROOT = "root"
     private const val KEY_TYPE = "type"
     private const val KEY_ORIENTATION = "orientation"
@@ -72,6 +73,7 @@ object TabWorkspaceCodec {
                 encodedTab.put(KEY_ID, tab.id)
                 encodedTab.put(KEY_TITLE, tab.title)
                 encodedTab.put(KEY_FOCUSED_LEAF, tab.focusedLeaf.id)
+                tab.profileId?.let { encodedTab.put(KEY_PROFILE, it) }
                 encodedTab.put(KEY_ROOT, encodeNode(tab.root))
                 tabs.put(encodedTab)
             }
@@ -113,7 +115,8 @@ object TabWorkspaceCodec {
                 val focused = encodedTab.optString(KEY_FOCUSED_LEAF, "")
                     .takeIf { it.isNotEmpty() && PaneLayout.findLeaf(root, it) != null }
                     ?: PaneLayout.firstLeaf(root).id
-                tabs += WorkspaceTab(id, title, root, focused)
+                val profileId = encodedTab.optString(KEY_PROFILE, "").takeIf { it.isNotEmpty() }
+                tabs += WorkspaceTab(id, title, root, focused, profileId)
             }
             DecodedWorkspace(tabs, json.optInt(KEY_ACTIVE_TAB, 0))
         } catch (e: JSONException) {

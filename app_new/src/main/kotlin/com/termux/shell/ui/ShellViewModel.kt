@@ -14,6 +14,7 @@ import com.termux.shell.input.KeymapTable
 import com.termux.shell.input.ShellAction
 import com.termux.shell.pane.PaneDirection
 import com.termux.shell.pane.SplitOrientation
+import com.termux.shell.session.SessionProfile
 import com.termux.shell.session.SessionRecord
 import com.termux.shell.session.SessionRegistry
 import com.termux.shell.tabs.TabWorkspace
@@ -22,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 
 /**
@@ -103,6 +105,13 @@ class ShellViewModel(
     val configFilePath: String get() = configSource.configFilePath
 
     val keymapFilePath: String get() = configSource.keymapFilePath
+
+    /** 会话配置列表。所有窗口共享同一状态流，任一窗口修改后其他窗口自动刷新。 */
+    val profiles: StateFlow<List<SessionProfile>> = configSource.profiles().profiles
+
+    /** 按标识查找会话配置；不存在时返回 null。 */
+    fun profileById(profileId: String?): SessionProfile? =
+        profileId?.let { id -> profiles.value.firstOrNull { it.id == id } }
 
     /** 按工作区派生的会话注册表。会话宿主接入后，绑定关系由工作区的叶子承载。 */
     fun sessions(): SessionRegistry = SessionRegistry.fromWorkspace(workspace)
@@ -289,8 +298,68 @@ class ShellViewModel(
     }
 
     override fun newTab() {
-        workspace.newTab(titleFactory(workspace.size + 1))?.let { workspace = it }
+        newTab(null)
+    }
+
+    /**
+     * 新建标签。
+     *
+     * @param profile 启动主会话所用的会话配置；为空表示使用默认 shell。
+     * 分屏产生的附加会话沿用同一配置，启动逻辑由会话宿主在 M14 之后实现。
+     */
+    fun newTab(profile: SessionProfile?) {
+        val title = profile?.name ?: titleFactory(workspace.nextTabNumber)
+        workspace.newTab(title, profile?.id)?.let { workspace = it }
             ?: publishNotice(ShellNotice.TAB_LIMIT)
+    }
+
+    /** 按配置标识新建标签；标识不存在时回退为默认 shell。 */
+    fun newTabWithProfile(profileId: String) {
+        newTab(profileById(profileId))
+    }
+
+    /**
+     * 保存会话配置。
+     *
+     * 说明：写入在 IO 线程完成；成功后同步改名使用该配置的标签，避免列表与标签标题不一致。
+     */
+    fun saveProfile(profile: SessionProfile) {
+        writeScope.launch {
+            val saved = runCatching { configSource.profiles().save(profile) }.getOrDefault(false)
+            withContext(Dispatchers.Main) {
+                if (!saved) {
+                    publishNotice(ShellNotice.PROFILE_SAVE_FAILED)
+                } else {
+                    workspace = workspace.copy(
+                        tabs = workspace.tabs.map { tab ->
+                            if (tab.profileId == profile.id) tab.copy(title = profile.name) else tab
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * 删除会话配置。
+     *
+     * 说明：使用该配置的标签保留标题，但清除绑定，避免后续启动时引用不存在的配置。
+     */
+    fun deleteProfile(profileId: String) {
+        writeScope.launch {
+            val deleted = runCatching { configSource.profiles().delete(profileId) }.getOrDefault(false)
+            withContext(Dispatchers.Main) {
+                if (!deleted) {
+                    publishNotice(ShellNotice.PROFILE_DELETE_FAILED)
+                } else {
+                    workspace = workspace.copy(
+                        tabs = workspace.tabs.map { tab ->
+                            if (tab.profileId == profileId) tab.copy(profileId = null) else tab
+                        },
+                    )
+                }
+            }
+        }
     }
 
     override fun closeTab() {

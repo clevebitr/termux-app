@@ -28,6 +28,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -36,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import com.termux.shell.BuildConfig
 import com.termux.shell.R
 import com.termux.shell.config.SettingsSpec
+import com.termux.shell.session.ProfileKind
+import com.termux.shell.session.SessionProfile
 
 /**
  * 设置页。
@@ -53,6 +60,10 @@ import com.termux.shell.config.SettingsSpec
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(controller: ShellViewModel) {
+    val profiles by controller.profiles.collectAsState()
+    var editingProfile by remember { mutableStateOf<SessionProfile?>(null) }
+    var editorVisible by remember { mutableStateOf(false) }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -140,6 +151,46 @@ fun SettingsScreen(controller: ShellViewModel) {
                 onCheckedChange = controller::updateSessionRailVisible,
             )
 
+            SectionTitle(stringResource(R.string.settings_section_profiles))
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_profiles_count, profiles.size),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = {
+                        editingProfile = null
+                        editorVisible = true
+                    },
+                ) {
+                    Text(stringResource(R.string.settings_profile_add))
+                }
+            }
+            if (profiles.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.settings_profile_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            } else {
+                for (profile in profiles) {
+                    ProfileRow(
+                        profile = profile,
+                        onEdit = {
+                            editingProfile = profile
+                            editorVisible = true
+                        },
+                        onDelete = { controller.deleteProfile(profile.id) },
+                    )
+                }
+            }
+
             SectionTitle(stringResource(R.string.settings_section_input))
             SwitchRow(
                 title = stringResource(R.string.settings_keymap_enabled),
@@ -168,6 +219,54 @@ fun SettingsScreen(controller: ShellViewModel) {
                 }
             }
             Spacer(Modifier.height(16.dp))
+        }
+    }
+
+    if (editorVisible) {
+        ProfileEditorDialog(
+            initial = editingProfile,
+            onDismiss = { editorVisible = false },
+            onSave = controller::saveProfile,
+        )
+    }
+}
+
+/** 单条会话配置：名称、类型摘要与编辑/删除入口。 */
+@Composable
+private fun ProfileRow(
+    profile: SessionProfile,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val detail = when (profile.kind) {
+        ProfileKind.SHELL -> profile.command.ifBlank {
+            stringResource(R.string.settings_profile_kind_shell)
+        }
+
+        ProfileKind.DISTRO -> "${stringResource(R.string.settings_profile_kind_distro)} · ${profile.distro}"
+        ProfileKind.SSH -> "SSH · ${profile.sshHost}"
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(profile.name, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        TextButton(onClick = onEdit) {
+            Text(stringResource(R.string.settings_profile_edit))
+        }
+        TextButton(onClick = onDelete) {
+            Text(stringResource(R.string.settings_profile_delete))
         }
     }
 }

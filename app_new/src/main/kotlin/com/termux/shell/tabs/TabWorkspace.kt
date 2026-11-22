@@ -35,14 +35,21 @@ data class TabWorkspace(
     val activeTab: WorkspaceTab
         get() = tabs[activeIndex]
 
-    /** 追加标签并设为当前标签。标签数量已达上限时返回 null。 */
-    fun newTab(title: String): TabWorkspace? {
+    /**
+     * 追加标签并设为当前标签。标签数量已达上限时返回 null。
+     *
+     * @param profileId 启动主会话所用的会话配置标识；为空表示使用默认 shell。
+     */
+    fun newTab(title: String, profileId: String? = null): TabWorkspace? {
         if (title.isEmpty() || tabs.size >= MAX_TAB_COUNT) {
             return null
         }
-        val tab = WorkspaceTab("tab-$nextTabNumber", title, PaneLeaf("pane-1"))
+        val tab = WorkspaceTab("tab-$nextTabNumber", title, PaneLeaf("pane-1"), profileId = profileId)
         return copy(tabs = tabs + tab, activeIndex = tabs.size, nextTabNumber = nextTabNumber + 1)
     }
+
+    /** 返回使用指定会话配置的标签数量，用于提示「配置仍被占用」。 */
+    fun tabCountForProfile(profileId: String): Int = tabs.count { it.profileId == profileId }
 
     /** 选中指定标签。索引越界或已是当前标签时返回 null。 */
     fun select(index: Int): TabWorkspace? {
