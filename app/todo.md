@@ -10,9 +10,9 @@
 
 | 项 | 值 |
 | --- | --- |
-| 分支 | `refactor/app-extensions` |
+| 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `f9d5ff1 docs: 修正命令目录接口注释描述的范围` |
+| 最近提交 | `601cc22 docs: 新建 app/todo.md 记录代码进度与计划` |
 | 规模 | `TermuxActivity` 2523 行；`commands/` 4 文件 362 行；`terminal/menu/` 4 文件 590 行 |
 | 验证 | 本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 164 项、1 项既有失败 |
 
@@ -107,7 +107,7 @@
 | `:app:testDebugUnitTest` | 164 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现） |
 | `:app:assembleDebug` | 未执行，本机 NDK 缺 `libc++_shared` |
 | 设备验证 | 未执行，无 `adb` |
-| CI | 以推送后的 PR 结果为准 |
+| CI | 推送后由 PR 触发；本机无 `gh`，状态待确认 |
 
 ---
 
