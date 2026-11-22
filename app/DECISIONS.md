@@ -49,3 +49,21 @@
 3. 迁移功能时保持资源（string/drawable/raw）留在 app 主模块，避免单模块内无法按扩展拆分资源的问题；后续拆分 Gradle 模块时再评估资源归属。
 
 验证：`:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 147 项中 146 通过，1 项为既有的 Robolectric 4.10 + JDK 21 失败；`:app:assembleDebug` 仍受本机 NDK（libc++_shared）缺失阻塞。
+
+## 2026-11-22 — 禁用语义定为「入口不可达 + 运行时闸门」，并修复搜索绕过
+
+需求方确认禁用语义取 A：禁用 = 入口不可达 + 运行时闸门，已安装到 $PREFIX/bin 的 shell 命令保留，由页面说明手动清理方式。理由：删除用户已安装命令与「不代用户删除数据」的约束冲突。
+
+缺陷定位（症状：禁用扩展后设置搜索仍能进入其功能页）：
+1. 唯一强制点是 ExtensionPreferences.applyPreferenceVisibility 调用 setVisible(false)，且只在 TermuxPreferencesFragment 调用一次，语义等价于「隐藏入口」，不代表「关闭功能」。
+2. SettingsSearchIndex.PAGES 为静态数组，硬编码 termux_backup_preferences.xml，build() 无状态过滤，SettingsSearchDialog 直接使用。
+3. SettingsSearchNavigation.findPagePreference 只比较 getFragment()，不检查 isVisible()，onPreferenceTreeClick 因此能打开已隐藏的页面。
+4. BackupExtension.onEnable/onDisable 为空实现，BackupPreferencesFragment 与 TermuxBackupUtils 无任何状态判断。
+
+本次修复：
+- SettingsSearchIndex.Page 与 Entry 增加 extensionId，build() 末尾按禁用集合过滤（纯函数 withoutDisabledExtensions，2 项测试）。
+- SettingsSearchNavigation.open 打开前二次校验：条目必须可见，且所属扩展必须处于运行态。
+- BackupPreferencesFragment.onCreatePreferences 先查 ExtensionPreferences.isRunning(context, BackupExtension.ID)，未启用则显示占位说明并直接返回，不提供备份、恢复与命令安装动作。
+- BackupExtension 增加 ID 常量，PREFERENCE_KEY 复用该常量。
+
+未验证：真机交互与「禁用后搜索无结果」的实际表现未在设备上确认，本机仅通过 :app:compileDebugJavaWithJavac 与 :app:testDebugUnitTest 的相关包测试。
