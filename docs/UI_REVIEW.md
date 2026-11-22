@@ -157,7 +157,7 @@ ShellActivity                    窗口宿主：边到边、系统栏、快捷�
 | D1 | P1 | 设置项新增需同步改四处（`SettingsSpec`、`ShellSettings`、`ShellViewModel` 的写回方法、`SettingsScreen` 的行式组件），且每项的 `selected` 计算与 `copy` 变换高度重复 | 引入「配置项 → 控件」描述层（布尔项、选项项、文本项、路径项），设置页从 `SettingsSpec.entries` 与 `ShellSettings` 派生渲染 |
 | D2 | P1 | 页面重构无回归保护：`ui` 层仅有 `ShellViewModelTest`、`WindowWidthClassTest`、`AdaptiveLayoutTest` 三个测试，无 Compose UI 测试、无截图测试、无 `androidTest` 源集 | 引入 `androidx.compose.ui:ui-test-junit4`（配 Robolectric 或 instrumented），至少覆盖「开关写回」「删除确认」「返回键逐层关闭」「抽屉开合」四条路径 |
 | D3 | P2 | 注释与实现不一致：多处 KDoc 声明的行为尚未实现（`SessionRegistry` 的「由上层 upsert 补充」、`ApplicationConfigSource` 的「不依赖静态字段」、主题生效时机） | 未实现项统一改为 `TODO(里程碑编号)`，与 `AGENTS.md` 第 2.5 条一致，便于检索与验收 |
-| D4 | P2 | 三个文件超过 350 行：`ShellViewModel` 592、`ShellScreen` 413、`SettingsScreen` 390 | 与 A4、A6 同批拆分 |
+| D4 | 已处理 | 原三个大文件：`ShellViewModel` 拆分完成后由 669 行降至 546 行（其中约 180 行为转发），`SettingsScreen` 约 500 行、`ShellScreen` 约 420 行尚未拆包 | 页面层拆分（A6）仍待进行 |
 | D5 | P2 | 重复结构：10 个 `updateXxx` 写回方法模板相同；`ChoiceRow` 的 `selected` 用 `if/else` 映射常量；`ProfileRow` 的类型摘要分支应移入模型层 | 用描述层（D1）与 `SessionProfile.summary()` 消除重复 |
 | D6 | P2 | 构建验证依赖外部脚本或 CI：本机 `:app_new:testDebugUnitTest` 因依赖未缓存且仓库不可达而失败，历次里程碑以「`kotlinc` + `JUnitCore` 替代验证」记录 | 固化 `tools/verify.sh`（参数化的替代验证入口），或在 `~/.gradle/init.d` 配置可达镜像，使本地可重复验证 |
 
@@ -273,7 +273,8 @@ ShellActivity                    窗口宿主：边到边、系统栏、快捷�
 | 4 会话状态 | `8daf0e4` | `SessionRegistry.fromWorkspace` 接受 `describe` 查询，区分未绑定／运行／已退出并填充标题与工作目录；视图模型订阅 `SessionHost.Observer` 并以 `sessionRevision` 通知界面；`LocalSessionHost.closeSession` 补发退出通知；修正运行中会话显示「无会话」的文案缺陷 | 新增 5 项测试（注册表 3 项、视图模型 2 项）；共 137 项通过 |
 | 5 无障碍 | `c1c7419` | 标签行高 48dp、关闭按钮改用 `IconButton`（触摸目标 48dp）、`Role.Tab` 与 `selected` 语义；分割条命中区 12dp + 2dp 细线，新增双击复位与三个无障碍动作；会话行补 `Role.Button`、`selected`、`stateDescription`；会话列表改 `LazyColumn`；标题行固定提供窗口菜单 | 编译与 Lint 通过 |
 | 6 样式 | `bd1697c`、`1eb0666` | 命令面板按分组呈现（分组标题 + `secondaryContainer` 选中态 + 搜索图标）；主题在 Android 12 及以上跟随系统取色，低版本回退默认配色 | 编译与 Lint 通过 |
-| 11 交互补完 | 见本次提交 | 标签栏改为 `LazyRow` 并按需滚动到选中标签；长按拖动调整顺序（原地抬手仍打开标签菜单，右键菜单保留）；新增「绝对位置移动」动作；会话配置删除后提示条提供「撤销」，并抽出 `ProfileWriter` 使保存、删除、撤销可在 JVM 中同步测试 | 新增 4 项视图模型测试；共 164 项通过 |
+| 12 视图拆分 | 见本次提交 | `ShellViewModel` 由 669 行的集中实现拆为「协调者 + 四个控制器」：`ShellNavigator`（69 行，导航与返回键）、`WorkspaceController`（197 行，标签/窗格/会话绑定）、`SettingsController`（140 行，设置快照、写回与回滚）、`ProfileController`（83 行，配置增删改与撤销）；窗口状态持有者只保留转发、跨控制器联动、提示、键位表、新窗口请求与布局写入 | 164 项既有测试全部通过，用于验证拆分前后行为等价；`assembleDebug`、`lintDebug`、`assembleDebugAndroidTest` 通过 |
+| 11 交互补完 | `ee24432` | 标签栏改为 `LazyRow` 并按需滚动到选中标签；长按拖动调整顺序（原地抬手仍打开标签菜单，右键菜单保留）；新增「绝对位置移动」动作；会话配置删除后提示条提供「撤销」，并抽出 `ProfileWriter` 使保存、删除、撤销可在 JVM 中同步测试 | 新增 4 项视图模型测试；共 164 项通过 |
 | 10 布局恢复 | `bf43839` | 新增 `config/LayoutStore` 与 `FileLayoutStore`：把标签、窗格树与当前标签写入 `filesDir/layout/window-layout.json`（原子替换、版本校验、损坏回退）；窗口启动时按「实例状态 → 布局文件 → 单标签」顺序恢复，退到后台时保存 | 新增 6 项存储测试与 2 项视图模型测试；共 160 项通过 |
 | 9 测试 | `12cc963`、`430534f` | 新增 `ui/settings/SettingsSearch`（纯函数，可测）与测试替身 `UiTestFixtures`；补齐设置页搜索、描述层写回接线、原子写入共 15 项 JVM 测试；新增 `androidTest` 源集的设置页交互测试（编译已验证，运行待设备或 CI） | 单元测试 152 项通过；`assembleDebugAndroidTest` 通过 |
 | 8 持久化 | `16bc6c0` | 新增 `config/AtomicFileReplace`：临时文件 + `sync()` + 同目录重命名，设置文件与会话配置共用；移除「先删除原文件再改名」的窗口；设置写入失败时回滚到修改前快照（保留期间其它成功修改） | 新增 4 项测试（原子替换 3 项、视图模型回滚 2 项中的 1 项）；共 142 项通过 |
@@ -297,7 +298,6 @@ ShellActivity                    窗口宿主：边到边、系统栏、快捷�
 | --- | --- | --- | --- |
 | C3 | P1 | 键盘弹出期间单次 PTY resize | 去抖点在终端核心层，本轮约束为不修改 |
 | D7 | P2 | 依赖版本升级（`activity-compose`、`lifecycle`、`org.json`） | 需在 `docs/UPGRADE.md` 记录理由，并按「一次提交一组」拆分 |
-| A4 | P2 | `ShellViewModel` 剩余拆分（工作区动作、profile、导航） | 无设备验证前置，分步进行 |
 | B6 | P1 | 终端分组设置（字号、配色、虚拟按键行） | 依赖 M16-4/M16-5 |
 | A5 | P1 | 视图池与组合期副作用彻底分离 | 已加 `onRelease` 与重新挂载保护，仍建议改为显式视图宿主 |
 
