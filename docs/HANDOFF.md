@@ -9,7 +9,8 @@
 ## 1. 一句话状态
 
 `app/` 的扩展 API 骨架、第一个扩展（备份）、终端菜单规则下沉、命令面板（含四个入口）与终端右键转发均已完成，
-并在 PR #1 上通过 CI（单元测试 + Lint + 双 ABI 构建 + 签名 APK）；**菜单收敛、控制器拆分与其余扩展迁移尚未开始**。
+并在 PR #1 上通过 CI（单元测试 + Lint + 双 ABI 构建 + 签名 APK）；**扩展禁用语义已在 M-E1 改为「入口不可达 +
+运行时闸门」，菜单收敛、控制器拆分与其余扩展迁移尚未开始**。
 
 ---
 
@@ -22,13 +23,13 @@
 | 原型（冻结） | `app_new/`（Kotlin/Compose 外壳，27 个提交，仅作参考） |
 | 工作分支 | `refactor/app-extensions`（已推送，PR #1：`refactor: app 扩展 API 重构与命令面板`） |
 | PR 状态 | `OPEN` / `MERGEABLE`；Unit tests、Build（apt-android-5/7）、Fork Build（testkey）、Wrapper 校验全部 success |
-| 未提交 | `app_new/PLAN.md`（早于本会话的改动，待需求方决定保留或回滚） |
+| 未提交 | `app_new/PLAN.md`（早于本会话的改动）；`app/PLAN.md`（本会话 `plan init` 生成，工具按当前工作目录解析路径，与根 `PLAN.md` 的约定不一致，待需求方决定删除或调整工具配置） |
 
 新会话的第一条命令：
 
 ```bash
 git checkout refactor/app-extensions
-git status --short          # 应只有 app_new/PLAN.md
+git status --short          # 应只有 app_new/PLAN.md 与 app/PLAN.md
 git log --oneline -12
 ```
 
@@ -50,19 +51,22 @@ git log --oneline -12
 ### 3.2 扩展框架（`app/src/main/java/com/termux/app/ext/`）
 
 ```
-ext/api/       Extension、ExtensionContext
+ext/api/       Extension、ExtensionContext、ExtensionSettingsPage
 ext/host/      ExtensionSpec、ExtensionState、ExtensionStatus、
                ExtensionGraph（依赖拓扑/缺依赖/依赖环/级联；纯 Java 可测）、
+               ExtensionHost（进程级唯一状态源：statuses/stateOf/isRunning/disabledIds/setEnabled）、
                ExtensionPreferences（enabled.<id> 读写、设置项可见性）、
                ExtensionManager（启动/停止、异常隔离、Activity 生命周期内持有）
 ext/ForkExtensions  本构建的扩展登记表（当前登记 backup）
-ext/backup/   BackupExtension、TermuxBackupUtils、BackupPreferencesFragment
+ext/backup/   BackupExtension、TermuxBackupUtils、BackupPreferencesFragment（含运行时闸门）
 ```
 
 - 状态存储：`SharedPreferences("termux-extensions")`，键 `enabled.<id>`；
+- 状态读取统一走 `ExtensionHost`，宿主、扩展设置页、设置搜索与页面闸门共用同一判断；
 - 设置页：`fragments/settings/termux/ExtensionsPreferencesFragment`（程序化构建），入口在 `termux_preferences.xml` 的「扩展」分类；
 - 接线：`TermuxActivity.setupExtensions()`（`onCreate` 末尾）、`onResume` 重新应用、`onDestroy` 释放；
-- 贡献点现状：`Extension.preferenceKeys()`（禁用后隐藏设置入口）；其余贡献点等第一个需要它的扩展再加。
+- 贡献点：`Extension.preferenceKeys()`（根设置页条目可见性）、`Extension.settingsPages()`（搜索索引页面表与页面归属）；
+- 禁用语义（需求方确认 A）：入口不可达 + 运行时闸门，已安装到 `$PREFIX/bin` 的脚本保留不删。
 
 ### 3.3 命令面板（`app/src/main/java/com/termux/app/commands/`）
 
@@ -106,27 +110,33 @@ ext/backup/   BackupExtension、TermuxBackupUtils、BackupPreferencesFragment
    `ShadowActivityThread.reset` 失败；CI（JDK 17）不复现。
 5. **本机仓库访问**：`repo.maven.apache.org` 返回 403，已在仓库外 `~/.gradle/init.d/mirror.gradle` 配置
    阿里云镜像与 Robolectric 下载源，不进入仓库。
-6. **设置搜索索引只读 XML 页面**：扩展设置页是程序化构建，不在搜索结果中；新加 XML 页面需同步
-   `SettingsSearchIndex` 的页面列表。
+6. **设置搜索索引只读 XML 页面**：扩展设置页是程序化构建，不在搜索结果中；新加 XML 页面需在
+   `Extension.settingsPages()` 声明归属（自动进入索引并参与禁用过滤），核心页则加入
+   `SettingsSearchIndex.CORE_PAGES`。
 7. **守卫测试**：`PreferenceResetSourceTest` 校验每个设置页安装长按复位监听，页面清单是「类名 → 路径」映射，
-   移动页面时要同步更新。
+   移动页面时要同步更新；`ExtensionRegistrySourceTest` 校验扩展声明的 key 存在于 `termux_preferences.xml`、
+   声明的页面源码调用 `isRunning(`、页面声明不重复。
 
 ---
 
 ## 5. 未完成事项（按建议顺序）
 
+扩展闸门层（M-E1）已完成：唯一状态源 `ExtensionHost`、设置页贡献点 `Extension.settingsPages()`、搜索与导航
+过滤、页面运行时闸门、空分类收起与三项守卫测试，记录见 `app/DECISIONS.md` #4–#5。下列顺序不变。
+
 | 序 | 任务 | 要点 | 验收 |
 | --- | --- | --- | --- |
 | 1 | 菜单收敛 | 抽屉按钮与长按菜单里的窗口级动作指向命令面板；保留终端上下文菜单与标签级菜单 | 同一动作只有一份实现；面板与菜单行为一致 |
 | 2 | X1 控制器 | `TerminalMenuAction` 分发改为「命令目录 + 动作映射」，与面板共用；再抽 `DrawerController` | `TermuxActivity` 方法数下降，动作实现唯一 |
-| 3 | `ext.statusbar` | 6 文件 1961 行；需新增「视图装饰器」贡献点 | 可启用/禁用；禁用后无残留视图与定时器 |
+| 3 | `ext.statusbar` | 6 文件 1961 行；需新增「视图装饰器」贡献点 + 页面闸门 | 可启用/禁用；禁用后无残留视图与定时器 |
 | 4 | `ext.notifications` | 13 文件 2704 行，依赖事件源与状态栏（可选） | 禁用后卡片、后台通知、历史全部停止 |
 | 5 | 其他扩展 | `ext.menu`/`ext.split`/`ext.drawer`/`ext.search`/`ext.volumekeys` | 逐项可禁用 |
 | 6 | `builtin.vt` 开关页 | 仅属性开关（OSC52/133、1004、悬停、滚动保持、内边距） | 设置页明确标注「核心能力，仅可关闭行为」 |
 | 7 | 设备验证 | 无 `adb`，需出包后按 `FORK.md` §33 与验收矩阵逐项确认 | 记录到 PR 或 `FORK.md` |
 
-**设备验证重点**（未验证项）：命令面板四个入口；虚拟键 `F12` 在 `extra-keys` 中的配置；右键在 `vim`/`tmux`
-中的表现与 shell 中的菜单回退；分屏下右键坐标换算；抽屉按钮着色与暗色主题；扩展设置页开关后返回终端的即时生效。
+**设备验证重点**（未验证项）：禁用扩展后设置搜索不再出现其条目；禁用后直接进入功能页只显示停用说明；
+命令面板四个入口；虚拟键 `F12` 在 `extra-keys` 中的配置；右键在 `vim`/`tmux` 中的表现与 shell 中的菜单回退；
+分屏下右键坐标换算；抽屉按钮着色与暗色主题；扩展设置页开关后返回终端的即时生效。
 
 ---
 
