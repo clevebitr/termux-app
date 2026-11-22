@@ -154,6 +154,10 @@ M12 期间不得实现多窗口、页签、kitty 键序与拖放。
 > M13-7 把壳层实现语言与界面框架替换为 Kotlin + Compose，终端视图仍以 `AndroidView` 承载。
 > M13-8 收敛了分层与状态管理，并补齐界面动效；CI 因仓库禁用 Actions 暂未补跑。
 | M13-3 | 布局落盘与恢复 | 新增 `pane/PaneLayoutStore.java`（路径见 D3） | — | 冷启动恢复分割结构与各叶子滚动位置；布局文件损坏时回退单窗格 |
+
+> 2026-11-23 状态：分割结构与当前标签已实现冷启动恢复（`config/FileLayoutStore`，路径
+> `filesDir/layout/window-layout.json`，原子写、版本校验、损坏回退）；各叶子的滚动位置尚未持久化，
+> 需要终端视图提供读取滚动位置的接口。
 | M13-4 | 档位驱动布局 | 修改 `ui/LayoutHost.java`、`ui/WindowSizeResolver.java` | — | 折叠展开、自由窗口拖拽、桌面窗口下布局切换不重建 Activity |
 | M13-5 | 焦点与导航 | 新增 `pane/PaneNavigator.java` | — | 方向键与 `Alt+方向` 迁移焦点；关闭窗格后焦点按规则落到兄弟叶子 |
 | M13-6 | 帧管线适配多窗格 | 修改 `render/ChoreographerFrameScheduler.java` | — | 四窗格同时输出时掉帧率仍低于 5%/s |
