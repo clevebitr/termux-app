@@ -277,6 +277,7 @@ Kotlin 引入不在 M15 范围内，单独评估后再排期。
 | 2026-11-21 | 窗格分隔条改为不可见热区（仅悬停显示细线），新建/设置/窗口菜单移入会话栏，新增 Ctrl+Alt+方向键的方向聚焦（含命令面板条目与默认键位），打磨标签栏指示条、会话列表信息层级、设置页排版与窗格样式。本机 `assembleDebug`、79 项单元测试与 `lintDebug` 通过 | 需求方反馈与本机实测 |
 | 2026-11-23 | 按 `docs/UI_REVIEW.md` 实施页面架构与设置页改造：导航状态统一层级与返回键、设置页改为配置描述驱动（搜索、分组卡片、宽屏两栏、删除确认）、抽取设置写入与会话绑定协作对象、会话列表接入宿主真实状态、无障碍与触摸目标修复、命令面板分组与系统取色。终端核心层未修改。本机 `assembleDebug`、137 项单元测试与 `lintDebug` 通过；设备侧未验证；里程碑编号待登记 | 需求方要求与本机实测 |
 | 2026-11-23 | 继续 `docs/UI_REVIEW.md` 批次：配置写入原子化与失败回滚、Lint 收敛、界面测试基线（JVM 单元测试 164 项；Robolectric 在 Termux 因缺少 Conscrypt JNI 不可用，界面测试改放 `androidTest`）、冷启动布局恢复（M13-3 的部分验收）、标签拖拽排序与会话配置撤销、activity-compose 与 lifecycle 升级（受 compileSdk 36 限制停留在 1.12.4 / 2.10.0）。本机 `assembleDebug`、164 项单元测试、`lintDebug`与 `assembleDebugAndroidTest` 通过；设备侧未验证 | 需求方要求与本机实测 |
+| 2026-11-23 | 页面层按「屏幕 — 区块 — 行」拆包：`ui/shell`、`ui/settings`、`ui/pane`、`ui/session`、`ui/tabs`、`ui/palette` 各自成包；`pane/PaneNode` 拆为类型与布局函数；视图模型工厂独立。主源 79 文件 8517 行，超过 300 行的只剩 `ShellViewModel`（522 行，门面）。新增架构复审与可扩展性报告 `docs/ARCHITECTURE_REVIEW.md`。本机 `assembleDebug`、164 项单元测试、`lintDebug`、`assembleDebugAndroidTest` 通过；设备侧未验证 | 需求方要求与本机实测 |
 
 
 ---
