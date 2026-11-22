@@ -37,27 +37,8 @@ jobs:
       - name: Unit tests
         run: ./gradlew :app_new:testDebugUnitTest --console=plain
 
-      - name: Prepare debug keystore
-        run: |
-          set -euo pipefail
-          KEYSTORE="$HOME/.android/debug.keystore"
-          if [ ! -f "$KEYSTORE" ]; then
-            mkdir -p "$(dirname "$KEYSTORE")"
-            keytool -genkeypair -keystore "$KEYSTORE" \
-              -storepass android -keypass android \
-              -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-          fi
-          echo "KEYSTORE=$KEYSTORE" >> "$GITHUB_ENV"
-
       - name: Build release APK
-        run: |
-          set -euo pipefail
-          ./gradlew :app_new:assembleRelease --console=plain \
-            -Pandroid.injected.signing.store.file="$KEYSTORE" \
-            -Pandroid.injected.signing.store.password=android \
-            -Pandroid.injected.signing.key.alias=androiddebugkey \
-            -Pandroid.injected.signing.key.password=android
+        run: ./gradlew :app_new:assembleRelease --console=plain
 
       - name: Locate APK
         id: apk
@@ -78,7 +59,7 @@ jobs:
             echo ""
             echo "* 提交：\`${GITHUB_SHA:0:7}\`"
             echo "* APK：\`$NAME\`"
-            echo "* 签名：CI 生成的调试签名（与 debug 包同密钥，可直接覆盖安装）"
+            echo "* 签名：仓库公开测试密钥（与 debug 包同证书，可直接覆盖安装）"
             echo "* 用途：对比 debug 包的运行时性能，不作为发布产物"
           } >> "$GITHUB_STEP_SUMMARY"
 

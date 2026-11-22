@@ -812,11 +812,13 @@ Compose PaneArea
 | `minifyEnabled` | false | **true** |
 | `shrinkResources` | false | **true** |
 | R8 规则 | 不适用 | `proguard-rules.pro`：保留 `com.termux.shell.terminal.JNI` 的名称绑定；保留终端包与视图包类名便于诊断 |
-| 签名 | 调试签名 | CI 生成的调试签名（与 debug 包同密钥，可直接覆盖安装） |
+| 签名 | 仓库公开测试密钥 `app/testkey_untrusted.jks` | 同一测试密钥（与 debug 包同证书，可直接覆盖安装；不同 CI 运行之间也可升级） |
 | 用途 | 常规查看 | 仅用于性能对比，不作为发布产物 |
 
 工作流：`.github/workflows/app_new_release_build.yml`，手动触发；产物发布到同一 `shell-demo`
-发布页，文件名为 `termux-shell-demo-release.apk`，与 debug 包并存。
+发布页，文件名为 `termux-shell-demo-release.apk`，与 debug 包并存。两个演示工作流统一使用
+仓库自带的公开测试密钥（FORK_BUILD.md 中 `testkey` 模式同一把密钥），因此 debug/release
+可互相覆盖安装，也不会出现「每次 CI 换签名导致无法升级」的问题。
 
 ### 17.2 对比方法
 

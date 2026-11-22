@@ -28,11 +28,24 @@ android {
         versionName "0.1.0"
     }
 
+    // 演示包统一使用旧模块自带的公开测试密钥（testkey），使 debug 与 release 包、
+    // 以及不同 CI 运行之间的产物使用同一证书，可以直接覆盖安装。该密钥是公开的，
+    // 仅用于测试与演示，不用于发布。
+    signingConfigs {
+        demo {
+            storeFile rootProject.file("app/testkey_untrusted.jks")
+            storePassword "xrj45yWGLbsO7W0v"
+            keyAlias "alias"
+            keyPassword "xrj45yWGLbsO7W0v"
+        }
+    }
+
     buildTypes {
         debug {
-            // 演示包使用工具链默认调试签名，便于与旧模块并装对比。
+            signingConfig signingConfigs.demo
         }
         release {
+            signingConfig signingConfigs.demo
             // 性能验证包：开启 R8 代码压缩与资源裁剪，减少 Compose/terminal-core 的体积与加载开销。
             minifyEnabled true
             shrinkResources true
