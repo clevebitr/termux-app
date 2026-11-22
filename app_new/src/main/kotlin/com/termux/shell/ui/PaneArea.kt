@@ -1,5 +1,6 @@
 package com.termux.shell.ui
 
+import android.view.ViewGroup
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -47,7 +48,6 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import android.view.ViewGroup
 import com.termux.shell.R
 import com.termux.shell.pane.PaneLeaf
 import com.termux.shell.pane.PaneNode
