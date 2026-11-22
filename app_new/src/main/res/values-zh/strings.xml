@@ -12,7 +12,7 @@
     <string name="shell_pane_limit">窗格数量已达上限</string>
     <string name="shell_tab_close_denied">每个窗口至少保留一个标签页</string>
     <string name="shell_pane_close_denied">每个窗口至少保留一个窗格</string>
-    <string name="shell_config_reloaded">配置已重新加载，主题变化在窗口重建后生效</string>
+    <string name="shell_config_reloaded">配置与键位表已重新加载</string>
     <string name="shell_config_reload_failed">配置加载失败</string>
     <string name="size_class_compact">紧凑</string>
     <string name="size_class_medium">中等</string>
@@ -56,6 +56,7 @@
     <string name="settings_section_input">输入</string>
     <string name="settings_section_about">关于</string>
     <string name="settings_theme">主题</string>
+    <string name="settings_theme_hint">修改后立即生效，系统栏图标随之更新。</string>
     <string name="settings_theme_system">跟随系统</string>
     <string name="settings_theme_light">浅色</string>
     <string name="settings_theme_dark">深色</string>
@@ -78,7 +79,13 @@
     <string name="settings_keymap_enabled">外壳快捷键</string>
     <string name="settings_keymap_enabled_hint">关闭后全部按键交给终端处理。</string>
     <string name="settings_command_palette">命令面板</string>
+    <string name="settings_command_palette_hint">关闭后标题栏与溢出菜单不再提供命令面板入口。</string>
     <string name="settings_reload_config">重新加载配置文件</string>
+    <string name="settings_reload_config_hint">重新读取配置文件与键位表，用于应用手工编辑的结果。</string>
+    <string name="settings_cancel">取消</string>
+    <string name="settings_search_hint">搜索设置</string>
+    <string name="settings_search_clear">清除搜索</string>
+    <string name="settings_search_empty">没有匹配的设置项。</string>
     <string name="settings_save_failed">配置保存失败</string>
     <string name="settings_config_file">配置文件路径</string>
     <string name="settings_keymap_file">键位表路径</string>
@@ -100,6 +107,11 @@
     <string name="settings_profile_add">新增会话</string>
     <string name="settings_profile_edit">编辑</string>
     <string name="settings_profile_delete">删除</string>
+    <string name="settings_profile_delete_confirm_title">删除会话配置？</string>
+    <string name="settings_profile_delete_confirm_message">将删除「%1$s」。已打开标签的标题保持不变，后续新建标签不再引用该配置。</string>
+    <string name="settings_profile_delete_confirm">删除</string>
+    <string name="settings_profile_summary_distro">发行版 · %1$s</string>
+    <string name="settings_profile_summary_ssh">SSH · %1$s</string>
     <string name="settings_profile_empty">尚未配置会话。</string>
     <string name="settings_profile_name">名称</string>
     <string name="settings_profile_kind">类型</string>
