@@ -1,6 +1,5 @@
 package com.termux.shell.ui
 
-import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -62,8 +61,8 @@ import com.termux.shell.session.SessionProfile
 import com.termux.shell.ui.settings.ProfilesBlock
 import com.termux.shell.ui.settings.SectionBlock
 import com.termux.shell.ui.settings.SettingsBlock
-import com.termux.shell.ui.settings.SettingsItem
 import com.termux.shell.ui.settings.SettingsItemRow
+import com.termux.shell.ui.settings.SettingsSearch
 import com.termux.shell.ui.settings.SettingsSectionCard
 import com.termux.shell.ui.settings.ShellSettingsCatalog
 
@@ -99,7 +98,7 @@ fun SettingsScreen(controller: ShellViewModel) {
 
     val blocks = ShellSettingsCatalog.blocks(controller, profiles)
     // 显示块与查询一起决定渲染结果；条目数量很小，不做记忆化，避免状态变化时遗漏刷新。
-    val visibleBlocks = filterBlocks(context, blocks, query)
+    val visibleBlocks = SettingsSearch.filter(blocks, query, context::getString)
 
     Column(
         Modifier
@@ -454,40 +453,4 @@ private fun profileSummary(profile: SessionProfile): String = when (profile.kind
 
     ProfileKind.DISTRO -> stringResource(R.string.settings_profile_summary_distro, profile.distro)
     ProfileKind.SSH -> stringResource(R.string.settings_profile_summary_ssh, profile.sshHost)
-}
-
-/**
- * 按查询过滤显示块。
- *
- * 行为：查询为空时原样返回；非空时只保留包含命中项的配置分组，并隐藏会话配置区块。
- * 约束：纯函数，只读取传入的块与查询，不访问控制器。
- */
-private fun filterBlocks(
-    context: Context,
-    blocks: List<SettingsBlock>,
-    query: String,
-): List<SettingsBlock> {
-    val trimmed = query.trim()
-    if (trimmed.isEmpty()) {
-        return blocks
-    }
-    return blocks.mapNotNull { block ->
-        when (block) {
-            is SectionBlock -> {
-                val items = block.section.items.filter { item -> matches(context, item, trimmed) }
-                if (items.isEmpty()) null else SectionBlock(block.section.copy(items = items))
-            }
-
-            is ProfilesBlock -> null
-        }
-    }
-}
-
-/** 判断单个设置项是否命中查询。 */
-private fun matches(context: Context, item: SettingsItem, query: String): Boolean {
-    if (context.getString(item.titleRes).contains(query, ignoreCase = true)) {
-        return true
-    }
-    val description = item.descriptionRes?.let { context.getString(it) }.orEmpty()
-    return description.contains(query, ignoreCase = true)
 }
