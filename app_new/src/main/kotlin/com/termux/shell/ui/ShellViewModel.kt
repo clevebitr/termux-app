@@ -519,28 +519,4 @@ class ShellViewModel(
     private fun publishNotice(notice: ShellNotice) {
         this.notice = notice
     }
-
-    /**
-     * 视图模型工厂。
-     *
-     * 说明：构造参数包含应用级配置来源、初始工作区与标题工厂；标题工厂使用应用资源，
-     * 不持有窗口引用。窗口重配置时不会重建，进程回收后由窗口从实例状态重新构造。
-     */
-    class Factory(
-        private val application: Application,
-        private val initialWorkspace: TabWorkspace,
-    ) : ViewModelProvider.Factory {
-
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return ShellViewModel(
-                configSource = ApplicationConfigSource(application),
-                initialWorkspace = initialWorkspace,
-                titleFactory = { index -> application.getString(R.string.shell_tab_title, index) },
-                sessionHost = com.termux.shell.ShellApplication.sessions(),
-                sessionEnvironment = com.termux.shell.ShellApplication.sessionEnvironment(),
-                layoutStore = com.termux.shell.ShellApplication.layouts(),
-            ) as T
-        }
-    }
 }

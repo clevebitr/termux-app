@@ -22,6 +22,7 @@ import com.termux.shell.input.ShellInputRouter
 import com.termux.shell.log.ShellLog
 import com.termux.shell.tabs.TabWorkspace
 import com.termux.shell.tabs.TabWorkspaceCodec
+import com.termux.shell.ui.shell.ShellScreen
 
 /**
  * 外壳窗口宿主。
@@ -51,7 +52,7 @@ class ShellActivity : ComponentActivity() {
             ?: TabWorkspace.initial(getString(R.string.shell_tab_title, 1))
         viewModel = ViewModelProvider(
             this,
-            ShellViewModel.Factory(application, initialWorkspace),
+            ShellViewModelFactory(application, initialWorkspace),
         )[ShellViewModel::class.java]
 
         inputRouter.host = ShellInputRouter.Host { action -> viewModel.execute(action) }

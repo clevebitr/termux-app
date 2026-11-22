@@ -8,6 +8,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import com.termux.shell.R
+import com.termux.shell.ui.settings.SettingsScreen
 import com.termux.shell.config.ConfigSource
 import com.termux.shell.config.MemorySettingsRepository
 import com.termux.shell.config.ProfileStore

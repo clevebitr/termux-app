@@ -1,14 +1,11 @@
-package com.termux.shell.ui
+package com.termux.shell.ui.palette
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -55,21 +51,12 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.termux.shell.R
 import com.termux.shell.commands.CommandFilter
 import com.termux.shell.commands.ShellCommand
-
-/** 命令面板中的一行：分组标题或命令。 */
-private sealed interface PaletteRow {
-
-    data class Header(val category: String) : PaletteRow
-
-    data class Command(val command: ShellCommand) : PaletteRow
-}
+import com.termux.shell.ui.ShellViewModel
 
 /**
  * 命令面板覆盖层。
@@ -267,66 +254,6 @@ fun CommandPaletteView(
                     }
                 }
             }
-        }
-    }
-}
-
-/** 命令分组标题。 */
-@Composable
-private fun CategoryHeader(category: String) {
-    Text(
-        text = category,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 4.dp)
-            .semantics { heading() },
-    )
-}
-
-/** 单条命令：标题、快捷键与选中背景。 */
-@Composable
-private fun CommandRow(command: ShellCommand, selected: Boolean, onClick: () -> Unit) {
-    val background by animateColorAsState(
-        targetValue = if (selected) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            Color.Transparent
-        },
-        animationSpec = tween(durationMillis = 120),
-        label = "commandRowBackground",
-    )
-    val contentColor = when {
-        !command.enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-        selected -> MaterialTheme.colorScheme.onSecondaryContainer
-        else -> MaterialTheme.colorScheme.onSurface
-    }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(background)
-            .clickable(enabled = command.enabled, onClick = onClick)
-            .heightIn(min = 44.dp)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = command.title,
-            style = MaterialTheme.typography.bodyMedium,
-            color = contentColor,
-            maxLines = 1,
-            modifier = Modifier.weight(1f),
-        )
-        command.shortcut?.let { shortcut ->
-            Text(
-                text = shortcut,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 12.dp),
-            )
         }
     }
 }
