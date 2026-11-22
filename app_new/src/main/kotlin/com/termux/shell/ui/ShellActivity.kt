@@ -16,6 +16,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import com.termux.shell.R
+import com.termux.shell.ShellApplication
 import com.termux.shell.config.SettingsSpec
 import com.termux.shell.input.ShellInputRouter
 import com.termux.shell.log.ShellLog
@@ -46,6 +47,7 @@ class ShellActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val initialWorkspace = restoreWorkspace(savedInstanceState)
+            ?: ShellApplication.layouts().read()
             ?: TabWorkspace.initial(getString(R.string.shell_tab_title, 1))
         viewModel = ViewModelProvider(
             this,
@@ -86,6 +88,19 @@ class ShellActivity : ComponentActivity() {
             SUB_TAG,
             "窗口已创建，${viewModel.workspace.describeState()}，主题=${viewModel.themeMode}",
         )
+    }
+
+    /**
+     * 退到后台时保存布局。
+     *
+     * 说明：进程被系统回收时不会回调 `onSaveInstanceState` 之后的任何写盘点，因此把保存放在
+     * `onStop`；写入由状态持有者在 IO 协程完成，失败不影响窗口继续运行。
+     */
+    override fun onStop() {
+        super.onStop()
+        if (::viewModel.isInitialized) {
+            viewModel.persistLayout()
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

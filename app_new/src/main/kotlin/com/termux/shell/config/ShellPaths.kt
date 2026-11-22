@@ -28,6 +28,12 @@ class ShellPaths(val appDir: File) {
 
     val profilesFile: File = File(termuxDir, PROFILES_FILE_NAME)
 
+    /** 窗口布局目录。布局属于应用内部状态，与用户可编辑的配置文件分开存放。 */
+    val layoutDir: File = File(appDir, LAYOUT_DIR_NAME)
+
+    /** 上次退出时的工作区结构。多个窗口共享同一文件，采用最后写入者生效。 */
+    val layoutFile: File = File(layoutDir, LAYOUT_FILE_NAME)
+
     /**
      * 创建配置目录。
      *
@@ -47,6 +53,9 @@ class ShellPaths(val appDir: File) {
         const val KEYMAP_FILE_NAME = "keymap.properties"
 
         const val PROFILES_FILE_NAME = "shell-profiles.json"
+
+        const val LAYOUT_DIR_NAME = "layout"
+        const val LAYOUT_FILE_NAME = "window-layout.json"
 
         /** 按应用上下文创建路径解析器。 */
         fun forApplication(context: Context): ShellPaths = ShellPaths(context.filesDir)

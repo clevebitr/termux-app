@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.termux.shell.R
 import com.termux.shell.config.ApplicationConfigSource
 import com.termux.shell.config.ConfigSource
+import com.termux.shell.config.LayoutStore
 import com.termux.shell.config.SettingsSpec
 import com.termux.shell.input.KeymapTable
 import com.termux.shell.input.ShellAction
@@ -54,6 +55,7 @@ class ShellViewModel(
     persister: SettingsPersister? = null,
     private val sessionHost: SessionProvider? = null,
     private val sessionEnvironment: SessionEnvironment = SessionEnvironment("/", "/"),
+    private val layoutStore: LayoutStore? = null,
 ) : ViewModel(), ShellCommandCatalog.Actions, ShellCommandCatalog.State {
 
     private val writeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -529,6 +531,20 @@ class ShellViewModel(
         return true
     }
 
+    /**
+     * 保存当前工作区结构。
+     *
+     * 行为：把标签、窗格树与当前标签写入布局存储，供进程被回收后恢复；写入在 IO 协程完成，
+     * 失败只记录提示事件，不影响界面状态。
+     *
+     * 约束：由窗口在退到后台时调用；多个窗口共享同一布局文件，最后写入者生效。
+     */
+    fun persistLayout() {
+        val store = layoutStore ?: return
+        val snapshot = workspace
+        writeScope.launch { store.write(snapshot) }
+    }
+
     /** 切换标签栏显隐。该开关是会话内的临时状态，不写入配置文件。 */
     override fun toggleTabBar() {
         uiSettings = uiSettings.copy(viewOptions = viewOptions.withTabBarVisible(!viewOptions.tabBarVisible))
@@ -620,6 +636,7 @@ class ShellViewModel(
                 titleFactory = { index -> application.getString(R.string.shell_tab_title, index) },
                 sessionHost = com.termux.shell.ShellApplication.sessions(),
                 sessionEnvironment = com.termux.shell.ShellApplication.sessionEnvironment(),
+                layoutStore = com.termux.shell.ShellApplication.layouts(),
             ) as T
         }
     }

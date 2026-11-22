@@ -1,6 +1,7 @@
 package com.termux.shell.ui
 
 import com.termux.shell.config.ConfigSource
+import com.termux.shell.config.LayoutStore
 import com.termux.shell.config.MemorySettingsRepository
 import com.termux.shell.config.SettingsRepository
 import com.termux.shell.config.ProfileStore
@@ -316,6 +317,53 @@ class ShellViewModelTest {
         sessionHost = host,
         sessionEnvironment = SessionEnvironment(homeDirectory = "/tmp/home", tempDirectory = "/tmp/cache"),
     )
+
+    private class RecordingLayoutStore : LayoutStore {
+
+        private val latch = java.util.concurrent.CountDownLatch(1)
+
+        @Volatile
+        private var saved: TabWorkspace? = null
+
+        override fun read(): TabWorkspace? = null
+
+        override fun write(workspace: TabWorkspace): Boolean {
+            saved = workspace
+            latch.countDown()
+            return true
+        }
+
+        fun awaitSaved(): TabWorkspace? {
+            latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+            return saved
+        }
+    }
+
+    @Test
+    fun persistLayoutWritesCurrentWorkspace() {
+        val store = RecordingLayoutStore()
+        val viewModel = ShellViewModel(
+            configSource = FakeConfigSource(),
+            initialWorkspace = TabWorkspace.initial("one"),
+            titleFactory = { index -> "Shell $index" },
+            persister = FakePersister(),
+            layoutStore = store,
+        )
+        viewModel.newTab()
+
+        viewModel.persistLayout()
+
+        assertEquals(viewModel.workspace, store.awaitSaved())
+    }
+
+    @Test
+    fun persistLayoutWithoutStoreIsNoOp() {
+        val viewModel = newViewModel()
+
+        viewModel.persistLayout()
+
+        assertEquals(1, viewModel.workspace.size)
+    }
 
     @Test
     fun sessionExitBumpsRevisionAndMarksRecordExited() {

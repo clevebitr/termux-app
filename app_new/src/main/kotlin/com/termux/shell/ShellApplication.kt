@@ -2,7 +2,9 @@ package com.termux.shell
 
 import android.annotation.SuppressLint
 import android.app.Application
+import com.termux.shell.config.FileLayoutStore
 import com.termux.shell.config.FileProfileStore
+import com.termux.shell.config.LayoutStore
 import com.termux.shell.config.ProfileStore
 import com.termux.shell.config.PropertiesSettingsRepository
 import com.termux.shell.config.SettingsRepository
@@ -38,6 +40,7 @@ class ShellApplication : Application() {
         logInvalidSettings(settings)
         keymap = KeymapLoader.load(paths.keymapFile)
         profileStore = FileProfileStore(paths.profilesFile)
+        layoutStore = FileLayoutStore(paths.layoutFile)
         sessionEnvironment = SessionEnvironment(
             homeDirectory = paths.homeDir.absolutePath,
             tempDirectory = cacheDir.absolutePath,
@@ -72,6 +75,9 @@ class ShellApplication : Application() {
         private lateinit var sessionHost: LocalSessionHost
 
         @Volatile
+        private lateinit var layoutStore: LayoutStore
+
+        @Volatile
         private lateinit var sessionEnvironment: SessionEnvironment
 
         /** 返回路径解析器。启动完成后可用。 */
@@ -85,6 +91,9 @@ class ShellApplication : Application() {
 
         /** 返回进程级会话配置存储。 */
         fun profiles(): ProfileStore = profileStore
+
+        /** 返回进程级窗口布局存储。窗口启动时读取，退到后台时写入。 */
+        fun layouts(): LayoutStore = layoutStore
 
         /** 返回进程级会话宿主。会话随应用进程存活。 */
         fun sessions(): LocalSessionHost = sessionHost
