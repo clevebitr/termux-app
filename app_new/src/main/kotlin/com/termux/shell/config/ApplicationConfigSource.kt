@@ -19,6 +19,8 @@ class ApplicationConfigSource(
 
     override fun keymap(): KeymapTable = ShellApplication.keymap()
 
+    override fun profiles(): ProfileStore = ShellApplication.profiles()
+
     override fun reload(): Boolean = ShellApplication.reloadConfig()
 
     override val configFilePath: String

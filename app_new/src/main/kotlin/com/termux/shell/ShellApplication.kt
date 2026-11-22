@@ -1,6 +1,8 @@
 package com.termux.shell
 
 import android.app.Application
+import com.termux.shell.config.FileProfileStore
+import com.termux.shell.config.ProfileStore
 import com.termux.shell.config.PropertiesSettingsRepository
 import com.termux.shell.config.SettingsRepository
 import com.termux.shell.config.ShellPaths
@@ -32,9 +34,10 @@ class ShellApplication : Application() {
         settings = PropertiesSettingsRepository.open(paths.settingsFile)
         logInvalidSettings(settings)
         keymap = KeymapLoader.load(paths.keymapFile)
+        profileStore = FileProfileStore(paths.profilesFile)
         ShellLog.info(
             SUB_TAG,
-            "配置就绪：配置项 ${settings.keys().size} 项，键位 ${keymap.size} 条，键位表=${paths.keymapFile.absolutePath}",
+            "配置就绪：配置项 ${settings.keys().size} 项，键位 ${keymap.size} 条，会话配置 ${profileStore.profiles.value.size} 条",
         )
     }
 
@@ -51,6 +54,9 @@ class ShellApplication : Application() {
         @Volatile
         private lateinit var keymap: KeymapTable
 
+        @Volatile
+        private lateinit var profileStore: ProfileStore
+
         /** 返回路径解析器。启动完成后可用。 */
         fun paths(): ShellPaths = paths
 
@@ -59,6 +65,9 @@ class ShellApplication : Application() {
 
         /** 返回当前生效的键位表。 */
         fun keymap(): KeymapTable = keymap
+
+        /** 返回进程级会话配置存储。 */
+        fun profiles(): ProfileStore = profileStore
 
         /**
          * 重新读取配置文件与键位表。
@@ -73,7 +82,14 @@ class ShellApplication : Application() {
             }
             logInvalidSettings(settings)
             keymap = KeymapLoader.load(paths.keymapFile)
-            ShellLog.info(SUB_TAG, "配置已重新加载，键位 ${keymap.size} 条")
+            // 复用同一实例，避免订阅了旧 StateFlow 的界面失去更新。
+            if (!profileStore.reload()) {
+                ShellLog.warn(SUB_TAG, "会话配置重载失败，保留旧列表")
+            }
+            ShellLog.info(
+                SUB_TAG,
+                "配置已重新加载，键位 ${keymap.size} 条，会话配置 ${profileStore.profiles.value.size} 条",
+            )
             return true
         }
 

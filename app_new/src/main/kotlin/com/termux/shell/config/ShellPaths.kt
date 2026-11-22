@@ -26,6 +26,8 @@ class ShellPaths(val appDir: File) {
 
     val keymapFile: File = File(termuxDir, KEYMAP_FILE_NAME)
 
+    val profilesFile: File = File(termuxDir, PROFILES_FILE_NAME)
+
     /**
      * 创建配置目录。
      *
@@ -43,6 +45,8 @@ class ShellPaths(val appDir: File) {
 
         const val SETTINGS_FILE_NAME = "shell.properties"
         const val KEYMAP_FILE_NAME = "keymap.properties"
+
+        const val PROFILES_FILE_NAME = "shell-profiles.json"
 
         /** 按应用上下文创建路径解析器。 */
         fun forApplication(context: Context): ShellPaths = ShellPaths(context.filesDir)

@@ -21,6 +21,9 @@ interface ConfigSource {
 
     fun keymap(): KeymapTable
 
+    /** 会话配置存储。多个窗口共享同一实例，列表变化通过其状态流同步。 */
+    fun profiles(): ProfileStore
+
     fun reload(): Boolean
 
     val configFilePath: String
