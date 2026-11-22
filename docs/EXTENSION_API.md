@@ -229,6 +229,7 @@ public final class ExtensionHost {
 | `TermuxActivity` 接线 | `onCreate` 末尾创建并应用、`onResume` 重新应用、`onDestroy` 释放 |
 | 贡献点（菜单项/命令/设置项/视图装饰器/会话观察者） | 已定义 `Extension.preferenceKeys()`（设置项可见性）；其余贡献点在对应功能迁移时再加，避免空接口 |
 | 第一个扩展 `ext.backup` | 已提取（`app/ext/backup/`，含 `BackupExtension`、`TermuxBackupUtils`、`BackupPreferencesFragment`）；默认启用，禁用后设置项隐藏 |
+| 菜单规则下沉 | 新增 `terminal/menu/TerminalMenuItems`：可见性与可用性改为纯函数（`State` 快照 + `TitleResolver`），`TermuxActivity.showTerminalMenu` 改为调用它；8 项 JVM 测试 |
 
 已知限制：
 
