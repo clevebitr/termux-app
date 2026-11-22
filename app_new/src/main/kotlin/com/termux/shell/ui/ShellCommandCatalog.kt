@@ -1,22 +1,25 @@
-package com.termux.shell.commands
+package com.termux.shell.ui
 
 import android.content.Context
 import com.termux.shell.R
 import com.termux.shell.input.KeymapTable
+import com.termux.shell.commands.ShellCommand
 import com.termux.shell.input.ShellAction
 import com.termux.shell.pane.PaneDirection
 
 /**
- * 命令面板的命令清单构建器。
+ * 命令面板的命令清单构建器（界面层）。
  *
- * 目的：把「有哪些命令、如何展示、何时可执行」集中在一处，使窗口控制器只需提供动作与状态。
+ * 目的：把「有哪些命令、如何展示、何时可执行」集中在一处，使状态持有者只需提供动作与状态。
+ * 本对象属于界面层：标签文案来自 Android 资源，因此与纯命令模型所在的 `commands` 包分开。
  *
  * 行为：命令按「标签页 → 窗格 → 窗口与界面」分组排列；快捷键文本取自键位表，未绑定则留空；
  * 当前状态下不可执行的命令仍然展示，但标记为不可执行。
  *
  * 约束：返回的列表不可变；命令动作闭包引用调用方提供的 [Actions]，其生命周期由调用方保证。
+ * 调用方通常为 [ShellViewModel]，由界面在面板打开时构造一次。
  */
-object CommandCatalog {
+object ShellCommandCatalog {
 
     /** 命令动作宿主。 */
     interface Actions {

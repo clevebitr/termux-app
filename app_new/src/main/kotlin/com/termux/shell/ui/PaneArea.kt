@@ -1,5 +1,8 @@
 package com.termux.shell.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +25,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -52,13 +57,13 @@ private val DividerThickness = 6.dp
  *
  * 行为：
  * - 分割节点用 [Row] 或 [Column] 加权重按比例分配空间；
- * - 分割条拖拽把位移换算为比例并通过 [ShellController.setSplitRatio] 回写，比例被截断在允许区间；
+ * - 分割条拖拽把位移换算为比例并通过 [ShellViewModel.setSplitRatio] 回写，比例被截断在允许区间；
  * - 点击叶子切换焦点，焦点叶子使用强调色边框。
  *
  * 约束：终端视图接入后由叶子内容改为 `AndroidView` 承载，布局与拖拽逻辑保持不变。
  */
 @Composable
-fun PaneArea(tab: WorkspaceTab, controller: ShellController, modifier: Modifier = Modifier) {
+fun PaneArea(tab: WorkspaceTab, controller: ShellViewModel, modifier: Modifier = Modifier) {
     Box(modifier.padding(4.dp)) {
         PaneNodeView(
             node = tab.root,
@@ -69,7 +74,7 @@ fun PaneArea(tab: WorkspaceTab, controller: ShellController, modifier: Modifier 
 }
 
 @Composable
-private fun PaneNodeView(node: PaneNode, focusedLeafId: String, controller: ShellController) {
+private fun PaneNodeView(node: PaneNode, focusedLeafId: String, controller: ShellViewModel) {
     when (node) {
         is PaneLeaf -> PaneLeafView(
             leaf = node,
@@ -86,7 +91,7 @@ private fun PaneNodeView(node: PaneNode, focusedLeafId: String, controller: Shel
 }
 
 @Composable
-private fun PaneSplitView(split: PaneSplit, focusedLeafId: String, controller: ShellController) {
+private fun PaneSplitView(split: PaneSplit, focusedLeafId: String, controller: ShellViewModel) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         when (split.orientation) {
@@ -138,8 +143,17 @@ private fun SplitHandle(
     val currentRatio by rememberUpdatedState(ratio)
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
-    // 分隔条默认不可见，仅保留拖拽热区；指针悬停时显示细线提示可拖动。
-    val lineColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+    var dragging by remember { mutableStateOf(false) }
+    // 分隔条默认不可见，仅保留拖拽热区；指针悬停或拖拽时显示细线提示可拖动。
+    val lineColor by animateColorAsState(
+        targetValue = if (hovered || dragging) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+        } else {
+            Color.Transparent
+        },
+        animationSpec = tween(durationMillis = 120),
+        label = "dividerColor",
+    )
     val context = LocalContext.current
     val resizeIcon = remember(context, vertical) {
         val type = if (vertical) {
@@ -158,14 +172,18 @@ private fun SplitHandle(
                     Modifier.fillMaxWidth().height(DividerThickness)
                 },
             )
-            .background(if (hovered) lineColor else Color.Transparent)
+            .background(lineColor)
             .hoverable(interactionSource)
             .pointerHoverIcon(resizeIcon)
             .pointerInput(totalPx) {
                 if (totalPx <= 0f) {
                     return@pointerInput
                 }
-                detectDragGestures { _, dragAmount ->
+                detectDragGestures(
+                    onDragStart = { dragging = true },
+                    onDragEnd = { dragging = false },
+                    onDragCancel = { dragging = false },
+                ) { _, dragAmount ->
                     val delta = if (vertical) dragAmount.x else dragAmount.y
                     onRatioChange(currentRatio + delta / totalPx)
                 }
@@ -174,20 +192,24 @@ private fun SplitHandle(
 }
 
 @Composable
-private fun PaneLeafView(leaf: PaneLeaf, focused: Boolean, controller: ShellController) {
+private fun PaneLeafView(leaf: PaneLeaf, focused: Boolean, controller: ShellViewModel) {
     val shape = RoundedCornerShape(8.dp)
-    // 取消常驻边框：只有聚焦窗格显示 1dp 强调色描边，未聚焦窗格不加线，避免分割线隐藏后仍有两道细线。
-    val borderColor = if (focused) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        Color.Transparent
-    }
+    // 取消常驻边框：只有聚焦窗格显示强调色描边，未聚焦窗格不加线，避免分割线隐藏后仍有两道细线。
+    val borderColor by animateColorAsState(
+        targetValue = if (focused) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = tween(durationMillis = 140),
+        label = "paneBorderColor",
+    )
+    val borderWidth by animateDpAsState(
+        targetValue = if (focused) 1.5.dp else 0.dp,
+        animationSpec = tween(durationMillis = 140),
+    )
     Box(
         Modifier
             .fillMaxSize()
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceVariant, shape)
-            .border(1.dp, borderColor, shape)
+            .border(borderWidth, borderColor, shape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,

@@ -45,14 +45,14 @@ import com.termux.shell.config.SettingsSpec
  *
  * 行为：
  * - 分四组展示：外观（主题、标签栏宽度与位置）、会话（常驻会话列表）、输入（外壳快捷键、命令面板）、关于；
- * - 开关与选项均直接调用 [ShellController] 的写入方法，写入在后台线程完成；
+ * - 开关与选项均直接调用 [ShellViewModel] 的写入方法，写入在后台线程完成；
  * - 窄屏为整页滚动，宽屏在内容两侧留出边距，避免行过长。
  *
  * 约束：本页不缓存配置值，全部取值来自控制器状态，因此外部重载后界面会同步刷新。
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SettingsScreen(controller: ShellController) {
+fun SettingsScreen(controller: ShellViewModel) {
     Column(
         Modifier
             .fillMaxSize()
@@ -173,7 +173,7 @@ fun SettingsScreen(controller: ShellController) {
 }
 
 @Composable
-private fun SettingsHeader(controller: ShellController) {
+private fun SettingsHeader(controller: ShellViewModel) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -239,6 +239,7 @@ private fun SwitchRow(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChoiceRow(
     title: String,

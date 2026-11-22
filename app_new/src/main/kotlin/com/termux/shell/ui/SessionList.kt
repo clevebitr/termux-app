@@ -44,7 +44,7 @@ import com.termux.shell.session.SessionState
  * - 点击记录聚焦其窗格（切换标签并移动窗格焦点）；
  * - 会话宿主接入前，占位记录显示「未分配」状态并给出说明，不提供结束与脱离操作。
  *
- * 约束：本组件不修改会话集合，全部操作通过回调交由 [ShellController] 发起。
+ * 约束：本组件不修改会话集合，全部操作通过回调交由 [ShellViewModel] 发起。
  *
  * @param compact 紧凑密度用于中等宽度档的常驻侧栏；完整密度用于展开档与手机端抽屉。
  * @param headerActions 会话栏顶部的操作入口（新建标签、设置、窗口菜单），由调用方提供。

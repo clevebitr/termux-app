@@ -1,5 +1,7 @@
 package com.termux.shell.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,6 +45,8 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -62,13 +66,13 @@ private val CompactTabWidth = 160.dp
  * - 点击切换、点击关闭按钮关闭、长按弹出菜单（新建、左移、右移、关闭）；
  * - 末尾固定「新建标签」按钮。
  *
- * 约束：本组件不修改标签集合，全部变更通过 [ShellController] 发起。
+ * 约束：本组件不修改标签集合，全部变更通过 [ShellViewModel] 发起。
  */
 @Composable
 fun TabStripBar(
     workspace: TabWorkspace,
     options: ShellViewOptions,
-    controller: ShellController,
+    controller: ShellViewModel,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier) {
@@ -120,35 +124,44 @@ private fun TabItem(
     workspace: TabWorkspace,
     index: Int,
     showCloseButton: Boolean,
-    controller: ShellController,
+    controller: ShellViewModel,
     modifier: Modifier,
 ) {
     val tab = workspace.tabs[index]
     val active = index == workspace.activeIndex
     var menuExpanded by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
-    val background = when {
-        active -> MaterialTheme.colorScheme.secondaryContainer
-        hovered -> MaterialTheme.colorScheme.surfaceVariant
-        else -> MaterialTheme.colorScheme.surface
-    }
+    val background by animateColorAsState(
+        targetValue = when {
+            active -> MaterialTheme.colorScheme.secondaryContainer
+            hovered -> MaterialTheme.colorScheme.surfaceVariant
+            else -> MaterialTheme.colorScheme.surface
+        },
+        animationSpec = tween(durationMillis = 140),
+        label = "tabBackground",
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (active) {
+            MaterialTheme.colorScheme.onSecondaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        animationSpec = tween(durationMillis = 140),
+        label = "tabContentColor",
+    )
 
     Box(modifier) {
         Surface(
             shape = TabShape,
             color = background,
-            contentColor = if (active) {
-                MaterialTheme.colorScheme.onSecondaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            contentColor = contentColor,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(end = 4.dp)
                 .clip(TabShape)
                 .hoverable(interactionSource)
-                .pointerHoverIcon(PointerIcon.Hand)
                 .pointerInput(Unit) {
                     // 指针右键与长按等价：直接打开标签菜单，避免只能长按才出现菜单。
                     awaitPointerEventScope {
@@ -165,7 +178,11 @@ private fun TabItem(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = { controller.selectTab(index) },
-                    onLongClick = { menuExpanded = true },
+                    onLongClick = {
+                        // 长按与桌面右键等价，给出触觉反馈表明菜单由长按触发。
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        menuExpanded = true
+                    },
                 ),
         ) {
             Column {
@@ -194,13 +211,16 @@ private fun TabItem(
                     }
                 }
                 // 选中指示条固定高度，切换标签时标签高度不跳动。
+                val indicatorColor by animateColorAsState(
+                    targetValue = if (active) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    animationSpec = tween(durationMillis = 160),
+                    label = "tabIndicator",
+                )
                 Box(
                     Modifier
                         .fillMaxWidth()
                         .height(2.dp)
-                        .background(
-                            if (active) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        ),
+                        .background(indicatorColor),
                 )
             }
         }
@@ -248,15 +268,19 @@ private fun CloseButton(active: Boolean, onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     var pressing by remember { mutableStateOf(false) }
-    val background = when {
-        pressing || hovered -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-        else -> Color.Transparent
-    }
+    val background by animateColorAsState(
+        targetValue = when {
+            pressing || hovered -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            else -> Color.Transparent
+        },
+        animationSpec = tween(durationMillis = 120),
+        label = "closeButtonBackground",
+    )
     Box(
         Modifier
             .padding(start = 6.dp)
-            .size(20.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .size(28.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(background)
             .hoverable(interactionSource)
             .clickable(
@@ -284,11 +308,20 @@ private fun CloseButton(active: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun NewTabButton(controller: ShellController) {
+private fun NewTabButton(controller: ShellViewModel) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val background by animateColorAsState(
+        targetValue = if (hovered) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+        animationSpec = tween(durationMillis = 120),
+        label = "newTabBackground",
+    )
     Box(
         Modifier
-            .size(36.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .size(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(background)
+            .hoverable(interactionSource)
             .clickable(onClick = controller::newTab),
         contentAlignment = Alignment.Center,
     ) {

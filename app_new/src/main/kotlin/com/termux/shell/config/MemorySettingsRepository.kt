@@ -9,19 +9,23 @@ class MemorySettingsRepository(initialValues: Map<String, Any> = emptyMap()) : S
 
     private val values: MutableMap<String, Any> = HashMap(initialValues)
 
-    override fun getBoolean(key: String, defaultValue: Boolean): Boolean {
-        val value = values[key]
-        return value as? Boolean ?: defaultValue
+    override fun getBoolean(key: String, defaultValue: Boolean): Boolean = when (val value = values[key]) {
+        is Boolean -> value
+        // [put] 存的是归一化后的文本，[putBoolean] 存的是布尔值，两者都要能读回。
+        is String -> value.equals("true", ignoreCase = true)
+        else -> defaultValue
     }
 
-    override fun getInt(key: String, defaultValue: Int): Int {
-        val value = values[key]
-        return value as? Int ?: defaultValue
+    override fun getInt(key: String, defaultValue: Int): Int = when (val value = values[key]) {
+        is Int -> value
+        is String -> value.trim().toIntOrNull() ?: defaultValue
+        else -> defaultValue
     }
 
-    override fun getString(key: String, defaultValue: String?): String? {
-        val value = values[key]
-        return value as? String ?: defaultValue
+    override fun getString(key: String, defaultValue: String?): String? = when (val value = values[key]) {
+        is String -> value
+        is Boolean, is Int -> value.toString()
+        else -> defaultValue
     }
 
     override fun keys(): Set<String> = values.keys.toSet()

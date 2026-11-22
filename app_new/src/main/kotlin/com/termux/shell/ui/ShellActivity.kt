@@ -5,17 +5,17 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.KeyEvent
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.SideEffect
+import androidx.lifecycle.ViewModelProvider
 import com.termux.shell.R
-import com.termux.shell.ShellApplication
 import com.termux.shell.config.SettingsSpec
 import com.termux.shell.input.ShellInputRouter
 import com.termux.shell.log.ShellLog
@@ -26,10 +26,10 @@ import com.termux.shell.tabs.TabWorkspaceCodec
  * 外壳窗口宿主。
  *
  * 目的：作为单个窗口的唯一入口，负责生命周期、边到边布局、快捷键分发与 Compose 内容装配；
- * 窗口内的全部状态由 [ShellController] 持有。
+ * 窗口内的全部状态由 [ShellViewModel] 持有，并在窗口重配置期间存活。
  *
  * 边界：
- * - 本类型不持有标签与窗格结构，结构在控制器中以不可变状态存在；
+ * - 本类型不持有标签与窗格结构，结构在视图模型中以不可变状态存在；
  * - 本类型不实现终端渲染与键序编码；
  * - 实时渲染的重对象（终端视图）将来由窗格叶子以 `AndroidView` 承载，不进入 Compose 合成。
  *
@@ -38,8 +38,8 @@ import com.termux.shell.tabs.TabWorkspaceCodec
  */
 class ShellActivity : ComponentActivity() {
 
-    private lateinit var controller: ShellController
     private val inputRouter = ShellInputRouter()
+    private lateinit var viewModel: ShellViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,43 +47,52 @@ class ShellActivity : ComponentActivity() {
 
         val initialWorkspace = restoreWorkspace(savedInstanceState)
             ?: TabWorkspace.initial(getString(R.string.shell_tab_title, 1))
-        controller = ShellController(this, initialWorkspace).apply {
-            onNewWindow = { openNewWindow() }
-            // 设置页切换「外壳快捷键」后立即生效，无需重建窗口。
-            onKeymapEnabledChanged = { enabled -> inputRouter.shellShortcutsEnabled = enabled }
-            onMessage = { messageResId ->
-                Toast.makeText(this@ShellActivity, messageResId, Toast.LENGTH_SHORT).show()
-            }
-        }
+        viewModel = ViewModelProvider(
+            this,
+            ShellViewModel.Factory(application, initialWorkspace),
+        )[ShellViewModel::class.java]
 
-        configureInputRouter()
+        inputRouter.host = ShellInputRouter.Host { action -> viewModel.execute(action) }
+        inputRouter.keymap = viewModel.keymap
+        inputRouter.shellShortcutsEnabled = viewModel.keymapEnabled
 
         setContent {
-            val darkTheme = when (controller.themeMode) {
+            val darkTheme = when (viewModel.themeMode) {
                 SettingsSpec.THEME_DARK -> true
                 SettingsSpec.THEME_LIGHT -> false
                 else -> isSystemInDarkTheme()
             }
+            // 键位表与快捷键开关以视图模型状态为准，重载配置后自动同步到输入路由。
+            LaunchedEffect(viewModel.keymap, viewModel.keymapEnabled) {
+                inputRouter.keymap = viewModel.keymap
+                inputRouter.shellShortcutsEnabled = viewModel.keymapEnabled
+            }
+            // 新建窗口是一次性事件，视图模型只递增令牌，实际创建由窗口宿主完成。
+            LaunchedEffect(viewModel.newWindowRequestToken) {
+                if (viewModel.consumeNewWindowRequest()) {
+                    openNewWindow()
+                }
+            }
             // 系统栏图标与系统栏显隐跟随应用内主题，而不是仅跟随系统深色设置。
             SideEffect {
-                applyWindowAppearance(darkTheme, controller.fullscreen)
+                applyWindowAppearance(darkTheme, viewModel.fullscreen)
             }
             ShellTheme(darkTheme = darkTheme) {
-                ShellScreen(controller)
+                ShellScreen(viewModel)
             }
         }
 
         ShellLog.info(
             SUB_TAG,
-            "窗口已创建，${controller.workspace.describeState()}，主题=${controller.themeMode}",
+            "窗口已创建，${viewModel.workspace.describeState()}，主题=${viewModel.themeMode}",
         )
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         // 从系统栏滑出、切换应用或分屏获得的焦点都会重置系统栏显隐，需要重新应用。
-        if (hasFocus && ::controller.isInitialized) {
-            applyWindowAppearance(currentDarkTheme(), controller.fullscreen)
+        if (hasFocus && ::viewModel.isInitialized) {
+            applyWindowAppearance(currentDarkTheme(), viewModel.fullscreen)
         }
     }
 
@@ -108,7 +117,7 @@ class ShellActivity : ComponentActivity() {
     }
 
     /** 按配置项与系统设置计算当前是否为深色主题，供非组合上下文使用。 */
-    private fun currentDarkTheme(): Boolean = when (controller.themeMode) {
+    private fun currentDarkTheme(): Boolean = when (viewModel.themeMode) {
         SettingsSpec.THEME_DARK -> true
         SettingsSpec.THEME_LIGHT -> false
         else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
@@ -117,7 +126,7 @@ class ShellActivity : ComponentActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putString(STATE_WORKSPACE, TabWorkspaceCodec.encode(controller.workspace))
+        outState.putString(STATE_WORKSPACE, TabWorkspaceCodec.encode(viewModel.workspace))
     }
 
     /**
@@ -133,13 +142,6 @@ class ShellActivity : ComponentActivity() {
             return true
         }
         return super.dispatchKeyEvent(event)
-    }
-
-    private fun configureInputRouter() {
-        val settings = ShellApplication.settings()
-        inputRouter.keymap = ShellApplication.keymap()
-        inputRouter.shellShortcutsEnabled = settings.getBoolean(SettingsSpec.KEY_KEYMAP_ENABLED, true)
-        inputRouter.host = ShellInputRouter.Host { action -> controller.execute(action) }
     }
 
     private fun restoreWorkspace(state: Bundle?): TabWorkspace? {
