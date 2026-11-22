@@ -15,6 +15,8 @@ import com.termux.shell.input.ShellAction
 import com.termux.shell.pane.PaneDirection
 import com.termux.shell.pane.SplitOrientation
 import com.termux.shell.session.SessionEnvironment
+import com.termux.shell.session.SessionHost
+import com.termux.shell.session.SessionId
 import com.termux.shell.session.SessionProfile
 import com.termux.shell.session.SessionProvider
 import com.termux.shell.session.SessionRecord
@@ -26,7 +28,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 
 /**
@@ -59,6 +63,30 @@ class ShellViewModel(
     /** 叶子与会话进程的绑定。宿主为空的测试环境不会创建会话。 */
     private val sessionBinder = SessionBinder(sessionHost, ::profileById, sessionEnvironment)
 
+    private val sessionRevisionState = MutableStateFlow(0L)
+
+    /**
+     * 会话状态版本。
+     *
+     * 目的：把「会话标题变化、进程结束或关闭」这类宿主侧事件转换为界面可观察的版本号，
+     * 使会话列表无需复制一份会话状态即可重新派生。
+     *
+     * 约束：只表示「可能已变化」，不携带具体内容；宿主为空时永不递增。
+     */
+    val sessionRevision: StateFlow<Long> = sessionRevisionState
+
+    private val sessionObserver = object : SessionHost.Observer {
+        override fun onOutput(id: SessionId, data: ByteArray, length: Int) = Unit
+
+        override fun onExit(id: SessionId, exitCode: Int) {
+            notifySessionChanged()
+        }
+
+        override fun onTitleChanged(id: SessionId, title: String?) {
+            notifySessionChanged()
+        }
+    }
+
     /** 界面设置快照。设置页与标题行均从此读取，重载配置后整体替换。 */
     var uiSettings: ShellSettings by mutableStateOf(ShellSettings.from(configSource.settings()))
         private set
@@ -68,7 +96,10 @@ class ShellViewModel(
 
     init {
         // 恢复的标签可能引用已随进程结束的会话：为每个叶子补齐会话，失效标识由宿主校验后重建。
-        sessionHost?.let { workspace = sessionBinder.bind(workspace) }
+        sessionHost?.let {
+            workspace = sessionBinder.bind(workspace)
+            it.addObserver(sessionObserver)
+        }
     }
 
     /** 当前键位表。重载配置后更新，窗口据此刷新输入路由。 */
@@ -129,8 +160,14 @@ class ShellViewModel(
     val terminalHost: SessionProvider?
         get() = sessionHost
 
-    /** 按工作区派生的会话注册表。会话宿主接入后，绑定关系由工作区的叶子承载。 */
-    fun sessions(): SessionRegistry = SessionRegistry.fromWorkspace(workspace)
+    /**
+     * 按工作区派生的会话注册表。
+     *
+     * 行为：叶子绑定的会话通过宿主查询真实标题与运行状态；宿主为空时退化为「已绑定即运行中」。
+     */
+    fun sessions(): SessionRegistry = SessionRegistry.fromWorkspace(workspace) { sessionId ->
+        sessionHost?.describe(SessionId.of(sessionId))
+    }
 
     fun openPalette() {
         navigation = navigation.openPalette(commandPaletteEnabled)
@@ -516,6 +553,7 @@ class ShellViewModel(
     override fun canClosePane(): Boolean = workspace.activeTab.leaves.size > 1
 
     override fun onCleared() {
+        sessionHost?.removeObserver(sessionObserver)
         writeScope.cancel()
         super.onCleared()
     }
@@ -537,6 +575,10 @@ class ShellViewModel(
     private fun updateSetting(key: String, value: String, transform: (ShellSettings) -> ShellSettings) {
         uiSettings = transform(uiSettings)
         settingsWriter.persist(key, value) { publishNotice(ShellNotice.SETTINGS_SAVE_FAILED) }
+    }
+
+    private fun notifySessionChanged() {
+        sessionRevisionState.update { revision -> revision + 1 }
     }
 
     private fun publishNotice(notice: ShellNotice) {

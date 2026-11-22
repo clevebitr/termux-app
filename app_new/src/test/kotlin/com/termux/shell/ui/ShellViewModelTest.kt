@@ -340,9 +340,21 @@ class ShellViewModelTest {
 
         override fun describeAll(): List<SessionDescriptor> = sessions.values.toList()
 
-        override fun addObserver(observer: SessionHost.Observer) = Unit
+        private val observers = mutableListOf<SessionHost.Observer>()
 
-        override fun removeObserver(observer: SessionHost.Observer) = Unit
+        override fun addObserver(observer: SessionHost.Observer) {
+            observers += observer
+        }
+
+        override fun removeObserver(observer: SessionHost.Observer) {
+            observers -= observer
+        }
+
+        /** 模拟进程自行结束：移除描述并按契约通知观察者。 */
+        fun finish(id: String) {
+            sessions.remove(id)
+            observers.forEach { observer -> observer.onExit(SessionId.of(id), 0) }
+        }
 
         override fun terminalSession(id: SessionId): TerminalSession? = null
 
@@ -361,6 +373,37 @@ class ShellViewModelTest {
         sessionHost = host,
         sessionEnvironment = SessionEnvironment(homeDirectory = "/tmp/home", tempDirectory = "/tmp/cache"),
     )
+
+    @Test
+    fun sessionExitBumpsRevisionAndMarksRecordExited() {
+        val host = newHost()
+        val viewModel = newViewModelWithHost(host)
+        val sessionId = viewModel.workspace.activeTab.focusedLeaf.sessionId
+        assertNotNull(sessionId)
+
+        val before = viewModel.sessionRevision.value
+        host.finish(sessionId!!)
+
+        assertTrue(viewModel.sessionRevision.value > before)
+        val record = viewModel.sessions().records.single()
+        assertEquals(SessionState.EXITED, record.state)
+    }
+
+    @Test
+    fun sessionsCarryDescriptorMetadataFromHost() {
+        val host = newHost()
+        val viewModel = newViewModelWithHost(host)
+        val sessionId = viewModel.workspace.activeTab.focusedLeaf.sessionId
+        assertNotNull(sessionId)
+        val descriptor = host.describe(SessionId.of(sessionId!!))
+        assertNotNull(descriptor)
+
+        val record = viewModel.sessions().records.single()
+
+        assertEquals(SessionState.RUNNING, record.state)
+        assertEquals(descriptor!!.workingDirectory, record.workingDirectory)
+        assertEquals(descriptor.title, record.title)
+    }
 
     @Test
     fun restoredWorkspaceBindsSessionsForEveryLeaf() {

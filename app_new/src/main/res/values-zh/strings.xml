@@ -43,6 +43,8 @@
     <string name="session_group_attached">已附着</string>
     <string name="session_group_detached">已脱离</string>
     <string name="session_pending_title">窗格 %1$s · 未分配会话</string>
+    <string name="session_exited_title">窗格 %1$s · 已退出</string>
+    <string name="session_untitled">运行中的会话</string>
     <string name="session_state_pending">未分配</string>
     <string name="session_state_running">运行中</string>
     <string name="session_state_exited">已退出</string>

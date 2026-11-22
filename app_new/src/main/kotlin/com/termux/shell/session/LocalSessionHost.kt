@@ -116,6 +116,8 @@ class LocalSessionHost(
             runCatching { entry.session.finishIfRunning() }
                 .onFailure { ShellLog.warn(SUB_TAG, "关闭会话失败：$id", it) }
         }
+        // 主动关闭也是会话结束，需要通知观察者，使会话列表能反映真实状态。
+        notifySessionFinished(id, EXIT_CODE_CLOSED)
         ShellLog.info(SUB_TAG, "会话已关闭：$id")
     }
 
@@ -161,5 +163,8 @@ class LocalSessionHost(
     private companion object {
         const val SUB_TAG = "LocalSessionHost"
         const val TRANSCRIPT_ROWS = 5000
+
+        /** 主动关闭会话时上报的退出码。不是进程真实退出码，仅用于告知观察者会话已结束。 */
+        const val EXIT_CODE_CLOSED = -1
     }
 }

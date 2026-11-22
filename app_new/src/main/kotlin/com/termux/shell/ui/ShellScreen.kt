@@ -201,7 +201,8 @@ private fun Modifier.consumePointerEvents(): Modifier =
 @Composable
 private fun CompactShell(viewModel: ShellViewModel, terminalPool: TerminalViewPool?) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
-    val sessions = remember(viewModel.workspace) { viewModel.sessions() }
+    val sessionRevision by viewModel.sessionRevision.collectAsState()
+    val sessions = remember(viewModel.workspace, sessionRevision) { viewModel.sessions() }
 
     LaunchedEffect(viewModel.sessionDrawerVisible) {
         if (viewModel.sessionDrawerVisible) {
@@ -242,7 +243,8 @@ private fun WideShell(
     widthClass: WindowWidthClass,
     terminalPool: TerminalViewPool?,
 ) {
-    val sessions = remember(viewModel.workspace) { viewModel.sessions() }
+    val sessionRevision by viewModel.sessionRevision.collectAsState()
+    val sessions = remember(viewModel.workspace, sessionRevision) { viewModel.sessions() }
     val railWidth by animateDpAsState(
         targetValue = if (widthClass == WindowWidthClass.EXPANDED) ExpandedRailWidth else CompactRailWidth,
         animationSpec = tween(durationMillis = 180),

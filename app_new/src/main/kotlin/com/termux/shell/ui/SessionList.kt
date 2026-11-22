@@ -180,7 +180,7 @@ private fun SessionRow(
         )
         Column(Modifier.weight(1f)) {
             Text(
-                text = record.title ?: stringResource(R.string.session_pending_title, record.leafId.orEmpty()),
+                text = sessionTitle(record),
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = if (compact) 2 else 1,
                 overflow = TextOverflow.Ellipsis,
@@ -207,6 +207,19 @@ private fun SessionRow(
             )
         }
     }
+}
+
+/**
+ * 会话标题。
+ *
+ * 行为：优先使用宿主上报的前台进程标题；尚未分配会话时说明窗格标识，已结束时说明会话已退出，
+ * 运行中但标题为空的会话使用通用文案，避免出现与真实状态矛盾的「无会话」。
+ */
+@Composable
+private fun sessionTitle(record: SessionRecord): String = record.title ?: when (record.state) {
+    SessionState.PENDING -> stringResource(R.string.session_pending_title, record.leafId.orEmpty())
+    SessionState.EXITED -> stringResource(R.string.session_exited_title, record.leafId.orEmpty())
+    SessionState.RUNNING -> stringResource(R.string.session_untitled)
 }
 
 @Composable

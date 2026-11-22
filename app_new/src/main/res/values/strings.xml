@@ -43,6 +43,8 @@
     <string name="session_group_attached">Attached</string>
     <string name="session_group_detached">Detached</string>
     <string name="session_pending_title">Pane %1$s · no session</string>
+    <string name="session_exited_title">Pane %1$s · exited</string>
+    <string name="session_untitled">Running session</string>
     <string name="session_state_pending">Pending</string>
     <string name="session_state_running">Running</string>
     <string name="session_state_exited">Exited</string>

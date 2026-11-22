@@ -112,26 +112,34 @@ class SessionRegistry private constructor(val records: List<SessionRecord>) {
         /**
          * 从标签工作区派生注册表。
          *
-         * 行为：按标签与窗格的既有顺序逐条生成记录；已绑定会话标识的叶子生成运行中记录，
-         * 未绑定的叶子生成占位记录，其标题为空，由界面按占位文案呈现。
+         * 行为：按标签与窗格的既有顺序逐条生成记录；未绑定会话的叶子生成 [SessionState.PENDING] 记录；
+         * 已绑定的叶子通过 [describe] 查询真实会话状态：查询结果为 null 或已不再运行时标记为
+         * [SessionState.EXITED]，否则为 [SessionState.RUNNING]，并填充标题与工作目录。
          *
-         * 约束：派生结果不包含脱离会话，因为脱离会话不出现在任何窗格中；会话宿主接入后由
-         * 上层用 [upsert] 补充。
+         * @param describe 会话描述查询；不传时仅按「是否绑定会话标识」判断，已绑定即视为运行中，
+         *   用于尚未接入会话宿主的单元测试与骨架阶段。
          */
-        fun fromWorkspace(workspace: TabWorkspace): SessionRegistry {
+        fun fromWorkspace(
+            workspace: TabWorkspace,
+            describe: ((String) -> SessionDescriptor?)? = null,
+        ): SessionRegistry {
             val records = ArrayList<SessionRecord>()
             for (tab in workspace.tabs) {
                 for (leaf in tab.leaves) {
-                    records += recordOf(tab.id, tab.title, leaf)
+                    records += recordOf(tab.id, tab.title, leaf, describe)
                 }
             }
             return SessionRegistry(records)
         }
 
-        private fun recordOf(tabId: String, tabTitle: String, leaf: PaneLeaf): SessionRecord {
+        private fun recordOf(
+            tabId: String,
+            tabTitle: String,
+            leaf: PaneLeaf,
+            describe: ((String) -> SessionDescriptor?)?,
+        ): SessionRecord {
             val sessionId = leaf.sessionId
-            return if (sessionId == null) {
-                SessionRecord(
+                ?: return SessionRecord(
                     id = PENDING_PREFIX + leaf.id,
                     leafId = leaf.id,
                     tabId = tabId,
@@ -140,8 +148,9 @@ class SessionRegistry private constructor(val records: List<SessionRecord>) {
                     workingDirectory = null,
                     state = SessionState.PENDING,
                 )
-            } else {
-                SessionRecord(
+            // 无查询函数时不假设会话已结束，保留骨架阶段「已绑定即运行中」的行为。
+            if (describe == null) {
+                return SessionRecord(
                     id = sessionId,
                     leafId = leaf.id,
                     tabId = tabId,
@@ -151,6 +160,20 @@ class SessionRegistry private constructor(val records: List<SessionRecord>) {
                     state = SessionState.RUNNING,
                 )
             }
+            val descriptor = describe(sessionId)
+            return SessionRecord(
+                id = sessionId,
+                leafId = leaf.id,
+                tabId = tabId,
+                tabTitle = tabTitle,
+                title = descriptor?.title,
+                workingDirectory = descriptor?.workingDirectory,
+                state = if (descriptor != null && descriptor.running) {
+                    SessionState.RUNNING
+                } else {
+                    SessionState.EXITED
+                },
+            )
         }
     }
 }
