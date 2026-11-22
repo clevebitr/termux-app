@@ -24,6 +24,7 @@ import com.termux.shell.session.SessionProfile
 import com.termux.shell.session.SessionRecord
 import com.termux.shell.session.SessionRegistry
 import com.termux.shell.tabs.TabWorkspace
+import com.termux.shell.ui.nav.ShellNavigation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -82,15 +83,21 @@ class ShellViewModel(
     var keymap: KeymapTable by mutableStateOf(configSource.keymap())
         private set
 
-    var paletteVisible: Boolean by mutableStateOf(false)
+    /**
+     * 导航状态。
+     *
+     * 行为：层级梭与覆盖层共同描述当前可见界面，是返回键分派与页面显隐的唯一真源。
+     * 约束：只能通过本类型的导航方法变更，界面不得直接赋值。
+     */
+    var navigation: ShellNavigation by mutableStateOf(ShellNavigation())
         private set
 
-    var settingsVisible: Boolean by mutableStateOf(false)
-        private set
+    val paletteVisible: Boolean get() = navigation.paletteVisible
+
+    val settingsVisible: Boolean get() = navigation.settingsVisible
 
     /** 手机端会话抽屉。宽屏不显示抽屉，会话列表由侧栏常驻。 */
-    var sessionDrawerVisible: Boolean by mutableStateOf(false)
-        private set
+    val sessionDrawerVisible: Boolean get() = navigation.sessionDrawerVisible
 
     /** 一次性提示。界面读取后调用 [consumeNotice] 清除。 */
     var notice: ShellNotice? by mutableStateOf(null)
@@ -134,31 +141,46 @@ class ShellViewModel(
     fun sessions(): SessionRegistry = SessionRegistry.fromWorkspace(workspace)
 
     fun openPalette() {
-        if (!commandPaletteEnabled) {
-            return
-        }
-        paletteVisible = true
+        navigation = navigation.openPalette(commandPaletteEnabled)
     }
 
     fun closePalette() {
-        paletteVisible = false
+        navigation = navigation.closePalette()
     }
 
+    /** 打开设置页。设置页叠加在主界面之上，主界面不销毁。 */
     fun openSettings() {
-        settingsVisible = true
-        paletteVisible = false
+        navigation = navigation.openSettings()
     }
 
     fun closeSettings() {
-        settingsVisible = false
+        navigation = navigation.closeSettings()
     }
 
     fun openSessionDrawer() {
-        sessionDrawerVisible = true
+        navigation = navigation.openSessionDrawer()
     }
 
     fun closeSessionDrawer() {
-        sessionDrawerVisible = false
+        navigation = navigation.closeSessionDrawer()
+    }
+
+    /** 抽屉已由手势或返回键关闭时的回写。 */
+    fun onSessionDrawerClosed() {
+        navigation = navigation.onSessionDrawerClosed()
+    }
+
+    /**
+     * 返回键处置。
+     *
+     * 行为：先关闭覆盖层（命令面板、会话抽屉），再弹出设置页；由窗口统一调用。
+     *
+     * @return 是否消费本次返回键。返回 false 时窗口可结束活动。
+     */
+    fun navigateBack(): Boolean {
+        val next = navigation.back() ?: return false
+        navigation = next
+        return true
     }
 
     /** 消费一次性提示。重复调用安全。 */
@@ -269,7 +291,7 @@ class ShellViewModel(
         next.select(tabIndex)?.let { next = it }
         next.focusLeaf(leafId)?.let { next = it }
         workspace = next
-        sessionDrawerVisible = false
+        navigation = navigation.closeSessionDrawer()
         return true
     }
 
@@ -331,7 +353,7 @@ class ShellViewModel(
             it.copy(commandPaletteEnabled = enabled)
         }
         if (!enabled) {
-            paletteVisible = false
+            navigation = navigation.closePalette()
         }
     }
 
@@ -490,7 +512,7 @@ class ShellViewModel(
         uiSettings = ShellSettings.from(configSource.settings())
         keymap = configSource.keymap()
         if (!commandPaletteEnabled) {
-            paletteVisible = false
+            navigation = navigation.closePalette()
         }
         publishNotice(ShellNotice.CONFIG_RELOADED)
     }

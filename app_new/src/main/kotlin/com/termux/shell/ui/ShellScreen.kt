@@ -46,6 +46,7 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberDrawerState
@@ -57,8 +58,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import com.termux.shell.R
 import com.termux.shell.commands.ShellCommand
 import com.termux.shell.terminal.TerminalViewPool
+import kotlinx.coroutines.flow.filter
 import kotlin.math.roundToInt
 
 /**
@@ -111,23 +115,30 @@ fun ShellScreen(viewModel: ShellViewModel) {
         val notice = viewModel.consumeNotice() ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(context.getString(notice.stringRes))
     }
-    BackHandler(enabled = viewModel.paletteVisible) { viewModel.closePalette() }
-    BackHandler(enabled = viewModel.settingsVisible) { viewModel.closeSettings() }
+    // 单一返回键分派：覆盖层（命令面板、会话抽屉）优先，其次是设置页，最后交给窗口结束活动。
+    BackHandler(enabled = viewModel.navigation.canGoBack) { viewModel.navigateBack() }
 
     Box(
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface),
     ) {
-        AnimatedContent(
-            targetState = viewModel.settingsVisible,
-            transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(120)) },
-            label = "settings",
-        ) { showSettings ->
-            if (showSettings) {
+        // 主界面常驻：设置页以覆盖层叠加，避免销毁终端视图、窗格焦点与滚动位置。
+        ShellContent(viewModel, terminalPool)
+
+        AnimatedVisibility(
+            visible = viewModel.settingsVisible,
+            enter = fadeIn(tween(160)),
+            exit = fadeOut(tween(120)),
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier
+                    .fillMaxSize()
+                    // 遮罩自身消费指针事件，避免点击穿透到下层终端视图。
+                    .consumePointerEvents(),
+            ) {
                 SettingsScreen(viewModel)
-            } else {
-                ShellContent(viewModel, terminalPool)
             }
         }
 
@@ -175,6 +186,17 @@ private fun ShellContent(viewModel: ShellViewModel, terminalPool: TerminalViewPo
     }
 }
 
+/** 遮罩层消费全部指针事件，避免点击与拖动穿透到下层的终端视图。 */
+private fun Modifier.consumePointerEvents(): Modifier =
+    pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent()
+                event.changes.forEach { change -> change.consume() }
+            }
+        }
+    }
+
 /** 紧凑档：单栏 + 会话抽屉。 */
 @Composable
 private fun CompactShell(viewModel: ShellViewModel, terminalPool: TerminalViewPool?) {
@@ -188,13 +210,12 @@ private fun CompactShell(viewModel: ShellViewModel, terminalPool: TerminalViewPo
             drawerState.close()
         }
     }
-    LaunchedEffect(drawerState.currentValue) {
-        if (drawerState.currentValue == DrawerValue.Closed && viewModel.sessionDrawerVisible) {
-            viewModel.closeSessionDrawer()
-        }
+    // 手势或遮罩关闭抽屉时回写导航状态；导航状态本身不变时该回调无副作用。
+    LaunchedEffect(drawerState) {
+        snapshotFlow { drawerState.currentValue }
+            .filter { it == DrawerValue.Closed }
+            .collect { viewModel.onSessionDrawerClosed() }
     }
-    BackHandler(enabled = viewModel.sessionDrawerVisible) { viewModel.closeSessionDrawer() }
-
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
