@@ -43,6 +43,7 @@
 
     <!-- Terminal Sidebar and Shortcuts -->
     <string name="action_new_session">New session</string>
+    <string name="action_command_palette">Command palette</string>
     <string name="command_palette_hint">Type a command</string>
     <string name="command_palette_empty">No matching command</string>
     <string name="command_category_terminal">Terminal</string>

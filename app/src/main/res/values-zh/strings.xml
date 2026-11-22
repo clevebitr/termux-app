@@ -43,6 +43,7 @@
 
     <!-- Terminal Sidebar and Shortcuts -->
     <string name="action_new_session">新建会话</string>
+    <string name="action_command_palette">命令面板</string>
     <string name="command_palette_hint">输入命令</string>
     <string name="command_palette_empty">没有匹配的命令</string>
     <string name="command_category_terminal">终端</string>

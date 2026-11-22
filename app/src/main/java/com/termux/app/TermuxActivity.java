@@ -922,6 +922,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         ImageButton settingsButton = findViewById(R.id.settings_button);
         if (settingsButton != null) settingsButton.setColorFilter(mDrawerForegroundColor);
 
+        ImageButton paletteButton = findViewById(R.id.palette_button);
+        if (paletteButton != null) paletteButton.setColorFilter(mDrawerForegroundColor);
+
         for (int id : new int[]{R.id.toggle_keyboard_button, R.id.new_session_button}) {
             View button = findViewById(id);
             if (!(button instanceof MaterialButton)) continue;
@@ -1612,6 +1615,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             case SESSIONS:
                 openSessionsDrawer();
                 break;
+            case COMMAND_PALETTE:
+                showCommandPalette();
+                break;
             case PREVIOUS_COMMAND:
                 mTerminalView.scrollToPreviousCommand();
                 break;
@@ -1996,6 +2002,14 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         settingsButton.setOnClickListener(v -> {
             ActivityUtils.startActivity(this, new Intent(this, SettingsActivity.class));
         });
+
+        ImageButton paletteButton = findViewById(R.id.palette_button);
+        if (paletteButton != null) {
+            paletteButton.setOnClickListener(v -> {
+                getDrawer().closeDrawers();
+                showCommandPalette();
+            });
+        }
     }
 
     private void setNewSessionButtonView() {

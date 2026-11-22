@@ -30,6 +30,13 @@ public enum TerminalMenuAction {
 
     SEARCH("search", R.string.action_search_terminal, "\u2315"),
     SESSIONS("sessions", R.string.action_sessions_drawer, "\u2630"),
+    /**
+     * Opens the command palette, which is also reachable from the shortcut and the drawer button.
+     *
+     * <p>Not in {@link #DEFAULT_ITEMS}: the default list of the menu is defined by the read-only shared
+     * library, so the action is opt-in through the {@code terminal-menu-items} property.</p>
+     */
+    COMMAND_PALETTE("command-palette", R.string.action_command_palette, "\u2318"),
     PREVIOUS_COMMAND("previous-command", R.string.action_previous_command, "\u2191"),
     NEXT_COMMAND("next-command", R.string.action_next_command, "\u2193"),
     SPLIT_VERTICAL("split-vertical", R.string.action_split_screen_vertical, "\u2b13"),

@@ -312,6 +312,14 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     @SuppressLint("RtlHardcoded")
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent e, TerminalSession currentSession) {
+        // A virtual key in the extra keys row that sends F12 opens the command palette, so that the palette
+        // is reachable without a hardware keyboard. The key is only taken when it was not combined, so that
+        // a program can still bind a modified F12.
+        if (keyCode == KeyEvent.KEYCODE_F12 && !e.isCtrlPressed() && !e.isAltPressed() && !e.isShiftPressed()) {
+            mActivity.showCommandPalette();
+            return true;
+        }
+
         if (handleVirtualKeys(keyCode, e, true)) return true;
 
         if (keyCode == KeyEvent.KEYCODE_ENTER && !currentSession.isRunning()) {
