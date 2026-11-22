@@ -79,11 +79,11 @@ import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.app.terminal.TermuxSessionsListViewController;
 import com.termux.app.terminal.io.TerminalToolbarViewPager;
 import com.termux.app.commands.ShellCommandCatalog;
+import com.termux.app.commands.ShellCommandHost;
 import com.termux.app.commands.ShellCommandPalette;
 import com.termux.app.ext.host.ExtensionManager;
 import com.termux.app.terminal.TermuxTerminalViewClient;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
-import com.termux.shared.termux.interact.TextInputDialogUtils;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxUtils;
 import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
@@ -274,6 +274,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private ExtensionManager mExtensionManager;
 
     /**
+     * Runs the window level actions for every entry point that offers them, like the command palette and the
+     * buttons of the sessions drawer, so that an action has one implementation.
+     */
+    private ShellCommandHost mShellCommandHost;
+
+    /**
      * If between onResume() and onStop(). Note that only one session is in the foreground of the terminal view at the
      * time, so if the session causing a change is not in the foreground it should probably be treated as background.
      */
@@ -410,6 +416,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }
 
         setTermuxTerminalViewAndClients();
+
+        mShellCommandHost = new ShellCommandHost(this);
 
         mTerminalSearchController = new TerminalSearchController(this);
         mTerminalSearchController.setUp();
@@ -1599,12 +1607,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         if (items.isEmpty()) return;
 
-        TerminalMenuDialog.show(this, mTerminalMenuConfig, items, this::onTerminalMenuActionSelected,
+        TerminalMenuDialog.show(this, mTerminalMenuConfig, items, mShellCommandHost::runTerminalMenuAction,
             () -> mTerminalView.unsetStoredSelectedText());
     }
 
-    /** Run the action of an item of the terminal context menu. */
-    private void onTerminalMenuActionSelected(@NonNull TerminalMenuAction action) {
+    /** Run the action of an item of the terminal context menu, or of a command of the palette. */
+    public void runTerminalMenuAction(@NonNull TerminalMenuAction action) {
         TerminalSession session = getCurrentSession();
 
         switch (action) {
@@ -1699,25 +1707,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             session.isRunning());
 
         List<com.termux.app.commands.ShellCommand> commands = ShellCommandCatalog.build(
-            this, state, action -> action.getTitle(this, session),
-            new ShellCommandCatalog.Host() {
-                @Override
-                public void runTerminalMenuAction(@NonNull TerminalMenuAction action) {
-                    onTerminalMenuActionSelected(action);
-                }
-
-                @Override
-                public void addNewSession() {
-                    mTermuxTerminalSessionActivityClient.addNewSession(false, null);
-                }
-
-                @Override
-                public void toggleSoftKeyboard() {
-                    // The request handler follows the configured soft keyboard behaviour, and it is the
-                    // implementation that the drawer button uses; calling this method again would recurse.
-                    mTermuxTerminalViewClient.onToggleSoftKeyboardRequest();
-                }
-            });
+            this, state, action -> action.getTitle(this, session), mShellCommandHost);
         ShellCommandPalette.show(this, commands);
     }
 
@@ -2000,9 +1990,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     private void setSettingsButtonView() {
         ImageButton settingsButton = findViewById(R.id.settings_button);
-        settingsButton.setOnClickListener(v -> {
-            ActivityUtils.startActivity(this, new Intent(this, SettingsActivity.class));
-        });
+        settingsButton.setOnClickListener(v
+            -> mShellCommandHost.runTerminalMenuAction(TerminalMenuAction.SETTINGS));
 
         ImageButton paletteButton = findViewById(R.id.palette_button);
         if (paletteButton != null) {
@@ -2015,19 +2004,19 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     private void setNewSessionButtonView() {
         View newSessionButton = findViewById(R.id.new_session_button);
-        newSessionButton.setOnClickListener(v -> mTermuxTerminalSessionActivityClient.addNewSession(false, null));
+        newSessionButton.setOnClickListener(v -> mShellCommandHost.addNewSession());
         newSessionButton.setOnLongClickListener(v -> {
-            TextInputDialogUtils.textInput(TermuxActivity.this, R.string.title_create_named_session, null,
-                R.string.action_create_named_session_confirm, text -> mTermuxTerminalSessionActivityClient.addNewSession(false, text),
-                R.string.action_new_session_failsafe, text -> mTermuxTerminalSessionActivityClient.addNewSession(true, text),
-                -1, null, null);
+            // The drawer is closed first, like the other buttons of the header, so that the dialog is not shown
+            // over a drawer that stays open after the session was created.
+            getDrawer().closeDrawers();
+            mShellCommandHost.addNamedSession();
             return true;
         });
     }
 
     private void setToggleKeyboardView() {
         findViewById(R.id.toggle_keyboard_button).setOnClickListener(v -> {
-            mTermuxTerminalViewClient.onToggleSoftKeyboardRequest();
+            mShellCommandHost.toggleSoftKeyboard();
             getDrawer().closeDrawers();
         });
 

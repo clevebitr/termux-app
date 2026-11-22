@@ -46,6 +46,7 @@
     <string name="action_command_palette">Command palette</string>
     <string name="command_palette_hint">Type a command</string>
     <string name="command_palette_empty">No matching command</string>
+    <string name="command_new_named_session">New named session…</string>
     <string name="command_category_terminal">Terminal</string>
     <string name="command_category_app">App</string>
     <string name="action_new_session_failsafe">Failsafe</string>

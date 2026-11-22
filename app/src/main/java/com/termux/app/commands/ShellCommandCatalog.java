@@ -24,9 +24,20 @@ public final class ShellCommandCatalog {
     /** The actions that the palette runs, dispatched by the host. */
     public interface Host {
         void runTerminalMenuAction(@NonNull TerminalMenuAction action);
+        /** Create a session without a name. */
         void addNewSession();
+        /** Ask for a name and then create the session. */
+        void addNamedSession();
+        /** Toggle the soft keyboard, following the configured soft keyboard behaviour. */
         void toggleSoftKeyboard();
     }
+
+    /** The id of the command that creates a session without a name. */
+    public static final String ID_NEW_SESSION = "new-session";
+    /** The id of the command that asks for a name and then creates the session. */
+    public static final String ID_NEW_NAMED_SESSION = "new-named-session";
+    /** The id of the command that toggles the soft keyboard. */
+    public static final String ID_TOGGLE_KEYBOARD = "toggle-keyboard";
 
     private ShellCommandCatalog() {
     }
@@ -62,9 +73,12 @@ public final class ShellCommandCatalog {
         addMenuCommand(commands, TerminalMenuAction.RESET_TERMINAL, terminal, null, state, titles, host);
         addMenuCommand(commands, TerminalMenuAction.KILL_PROCESS, terminal, null, state, titles, host);
 
-        commands.add(new ShellCommand("new-session", context.getString(R.string.action_new_session), terminal,
-            null, true, host::addNewSession));
-        commands.add(new ShellCommand("toggle-keyboard",
+        commands.add(new ShellCommand(ID_NEW_SESSION, context.getString(R.string.action_new_session),
+            terminal, null, true, host::addNewSession));
+        commands.add(new ShellCommand(ID_NEW_NAMED_SESSION,
+            context.getString(R.string.command_new_named_session), terminal, null, true,
+            host::addNamedSession));
+        commands.add(new ShellCommand(ID_TOGGLE_KEYBOARD,
             context.getString(R.string.action_toggle_soft_keyboard), terminal, null, true,
             host::toggleSoftKeyboard));
 
