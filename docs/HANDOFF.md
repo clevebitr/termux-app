@@ -23,14 +23,15 @@
 | 原型（冻结） | `app_new/`（Kotlin/Compose 外壳，27 个提交，仅作参考） |
 | 工作分支 | `refactor/app-extensions`（已推送，PR #1：`refactor: app 扩展 API 重构与命令面板`） |
 | PR 状态 | `OPEN` / `MERGEABLE`；Unit tests、Build（apt-android-5/7）、Fork Build（testkey）、Wrapper 校验全部 success |
-| 未提交 | `app_new/PLAN.md`（早于本会话的改动）；`app/PLAN.md`（本会话 `plan init` 生成，工具按当前工作目录解析路径，与根 `PLAN.md` 的约定不一致，待需求方决定删除或调整工具配置） |
+| 未提交 | `app_new/PLAN.md`（早于本会话的改动）；`app/PLAN.md`（`plan init` 按当前工作目录生成的空文件，需求方已明确不需要，未跟踪） |
+| 进度来源 | `app/todo.md`（`app/` 的代码进度与近期计划） |
 
 新会话的第一条命令：
 
 ```bash
 git checkout refactor/app-extensions
-git status --short          # 应只有 app_new/PLAN.md 与 app/PLAN.md
-git log --oneline -12
+git status --short          # 只应有 app_new/PLAN.md 与 app/PLAN.md
+read app/todo.md            # 进度与下一步在这里
 ```
 
 ---
@@ -144,6 +145,7 @@ ext/backup/   BackupExtension、TermuxBackupUtils、BackupPreferencesFragment（
 ## 6. 新会话的操作约定
 
 - **提交**：`type: 一句话中文`（动词开头、无句号），一个提交一件事；`app/` 改动逐项单独提交。
+- **进度**：每完成一项即在 `app/todo.md` 勾选并补提交号，与代码改动分开提交；计划变化时同步本文件第 5 节。
 - **迁移一个功能为扩展**的标准步骤：
   1. 新建 `app/ext/<name>/`，实现 `Extension`（`id`、标题、摘要、`preferenceKeys`、`onEnable`/`onDisable`）；
   2. 迁移实现类到该包，更新 `termux_preferences.xml` 的 `app:fragment` 与 `SettingsSearchIndex`；
@@ -175,7 +177,9 @@ gh run list --branch <branch> --limit 6
 | `docs/APP_ARCHITECTURE_REVIEW.md` | `app/` 架构现状与发现 | 是 |
 | `docs/EXTENSION_API.md` | 扩展化方案与实施记录 | 是 |
 | `app/DECISIONS.md` | `app/` 模块决策（plan 工具维护） | 是 |
+| `app/todo.md` | `app/` 模块的代码进度与近期计划（跨会话续接的入口） | 是 |
 | `FORK.md` §33 | 命令面板与右键转发的用户文档 | 是 |
+| `FORK.md` §34 | 扩展管理与禁用语义的用户文档 | 是 |
 | `docs/DELIVERY_PLAN.md` | 旧里程碑计划（多为 `app_new` 时期） | 部分 |
 | `docs/UI_REVIEW.md`、`docs/ARCHITECTURE_REVIEW.md`、`docs/UPGRADE.md` | 主体面向 `app_new` 原型 | 否（仅参考设计结论） |
 
