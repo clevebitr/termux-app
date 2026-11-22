@@ -135,5 +135,7 @@
     <string name="settings_profile_invalid">Name and the field for the selected type are required.</string>
     <string name="settings_profile_save_failed">Failed to save session profile</string>
     <string name="settings_profile_delete_failed">Failed to delete session profile</string>
+    <string name="settings_profile_deleted">Session profile deleted</string>
+    <string name="settings_profile_undo">Undo</string>
     <string name="command_new_profile_tab">New session: %1$s</string>
 </resources>

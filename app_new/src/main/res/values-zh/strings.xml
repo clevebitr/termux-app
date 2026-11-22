@@ -134,5 +134,7 @@
     <string name="settings_profile_invalid">名称与所选类型对应的字段不能为空。</string>
     <string name="settings_profile_save_failed">会话配置保存失败</string>
     <string name="settings_profile_delete_failed">会话配置删除失败</string>
+    <string name="settings_profile_deleted">会话配置已删除</string>
+    <string name="settings_profile_undo">撤销</string>
     <string name="command_new_profile_tab">新建会话：%1$s</string>
 </resources>

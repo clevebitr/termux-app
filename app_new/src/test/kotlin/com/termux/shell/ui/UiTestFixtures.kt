@@ -84,13 +84,18 @@ internal class FakePersister : SettingsPersister {
     }
 }
 
+/** 同步执行的会话配置写回桩，避免单元测试依赖主线程调度器。 */
+internal val syncProfilePersister = ProfilePersister { operation, onResult -> onResult(operation()) }
+
 /** 构造使用内存配置来源与同步持久化的视图模型。 */
 internal fun newViewModel(
     config: FakeConfigSource = FakeConfigSource(),
     persister: FakePersister = FakePersister(),
+    profilePersister: ProfilePersister? = syncProfilePersister,
 ): ShellViewModel = ShellViewModel(
     configSource = config,
     initialWorkspace = TabWorkspace.initial("one"),
     titleFactory = { index -> "Shell $index" },
     persister = persister,
+    profilePersister = profilePersister,
 )

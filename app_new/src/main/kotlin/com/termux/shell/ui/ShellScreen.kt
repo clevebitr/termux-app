@@ -44,8 +44,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
@@ -113,7 +115,20 @@ fun ShellScreen(viewModel: ShellViewModel) {
 
     LaunchedEffect(viewModel.notice) {
         val notice = viewModel.consumeNotice() ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(context.getString(notice.stringRes))
+        val message = context.getString(notice.stringRes)
+        if (notice != ShellNotice.PROFILE_DELETED) {
+            snackbarHostState.showSnackbar(message)
+            return@LaunchedEffect
+        }
+        // 删除会话配置可通过提示条撤销；撤销动作由状态持有者重新写回该配置。
+        val result = snackbarHostState.showSnackbar(
+            message = message,
+            actionLabel = context.getString(R.string.settings_profile_undo),
+            duration = SnackbarDuration.Short,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.undoProfileDelete()
+        }
     }
     // 单一返回键分派：覆盖层（命令面板、会话抽屉）优先，其次是设置页，最后交给窗口结束活动。
     BackHandler(enabled = viewModel.navigation.canGoBack) { viewModel.navigateBack() }

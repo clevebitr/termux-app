@@ -340,6 +340,56 @@ class ShellViewModelTest {
     }
 
     @Test
+    fun deletingProfileOffersUndo() {
+        val config = FakeConfigSource()
+        val profile = SessionProfile(id = "p1", name = "dev")
+        config.profileStore.save(profile)
+        val viewModel = newViewModel(config = config)
+
+        viewModel.deleteProfile("p1")
+
+        assertEquals(ShellNotice.PROFILE_DELETED, viewModel.notice)
+        assertEquals(profile, viewModel.undoableProfileDelete)
+        assertNull(viewModel.profileById("p1"))
+    }
+
+    @Test
+    fun undoRestoresDeletedProfile() {
+        val config = FakeConfigSource()
+        val profile = SessionProfile(id = "p1", name = "dev")
+        config.profileStore.save(profile)
+        val viewModel = newViewModel(config = config)
+        viewModel.deleteProfile("p1")
+
+        viewModel.undoProfileDelete()
+
+        assertNotNull(viewModel.profileById("p1"))
+        assertNull(viewModel.undoableProfileDelete)
+    }
+
+    @Test
+    fun undoWithoutPendingDeleteIsNoOp() {
+        val viewModel = newViewModel()
+
+        viewModel.undoProfileDelete()
+
+        assertNull(viewModel.undoableProfileDelete)
+        assertTrue(viewModel.profiles.value.isEmpty())
+    }
+
+    @Test
+    fun moveTabToReordersTabs() {
+        val viewModel = newViewModel()
+        viewModel.newTab()
+        viewModel.newTab()
+
+        viewModel.moveTabTo(2, 0)
+
+        assertEquals(listOf("Shell 3", "one", "Shell 2"), viewModel.workspace.tabs.map { it.title })
+        assertEquals(0, viewModel.workspace.activeIndex)
+    }
+
+    @Test
     fun persistLayoutWritesCurrentWorkspace() {
         val store = RecordingLayoutStore()
         val viewModel = ShellViewModel(

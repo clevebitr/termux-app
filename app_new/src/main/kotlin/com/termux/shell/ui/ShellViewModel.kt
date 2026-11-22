@@ -32,7 +32,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.withContext
 
 /**
  * 外壳窗口状态持有者。
@@ -53,6 +52,7 @@ class ShellViewModel(
     initialWorkspace: TabWorkspace,
     private val titleFactory: (Int) -> String,
     persister: SettingsPersister? = null,
+    profilePersister: ProfilePersister? = null,
     private val sessionHost: SessionProvider? = null,
     private val sessionEnvironment: SessionEnvironment = SessionEnvironment("/", "/"),
     private val layoutStore: LayoutStore? = null,
@@ -61,6 +61,8 @@ class ShellViewModel(
     private val writeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val settingsWriter = SettingsWriter(configSource, writeScope, persister)
+
+    private val profileWriter = ProfileWriter(writeScope, profilePersister)
 
     /** 叶子与会话进程的绑定。宿主为空的测试环境不会创建会话。 */
     private val sessionBinder = SessionBinder(sessionHost, ::profileById, sessionEnvironment)
@@ -123,6 +125,10 @@ class ShellViewModel(
 
     /** 手机端会话抽屉。宽屏不显示抽屉，会话列表由侧栏常驻。 */
     val sessionDrawerVisible: Boolean get() = navigation.sessionDrawerVisible
+
+    /** 最近一次被删除的会话配置，供提示条的「撤销」动作恢复；无待撤销项时为 null。 */
+    var undoableProfileDelete: SessionProfile? by mutableStateOf(null)
+        private set
 
     /** 一次性提示。界面读取后调用 [consumeNotice] 清除。 */
     var notice: ShellNotice? by mutableStateOf(null)
@@ -271,7 +277,16 @@ class ShellViewModel(
     }
 
     fun moveTabBy(offset: Int) {
-        workspace.moveTab(workspace.activeIndex, workspace.activeIndex + offset)?.let { workspace = it }
+        moveTabTo(workspace.activeIndex, workspace.activeIndex + offset)
+    }
+
+    /**
+     * 把标签移动到指定位置。
+     *
+     * 说明：供标签栏拖拽排序使用；索引非法或位置未变化时不改变工作区。
+     */
+    fun moveTabTo(from: Int, to: Int) {
+        workspace.moveTab(from, to)?.let { workspace = it }
     }
 
     fun focusLeaf(leafId: String) {
@@ -422,42 +437,53 @@ class ShellViewModel(
      * 说明：写入在 IO 线程完成；成功后同步改名使用该配置的标签，避免列表与标签标题不一致。
      */
     fun saveProfile(profile: SessionProfile) {
-        writeScope.launch {
-            val saved = runCatching { configSource.profiles().save(profile) }.getOrDefault(false)
-            withContext(Dispatchers.Main) {
-                if (!saved) {
-                    publishNotice(ShellNotice.PROFILE_SAVE_FAILED)
-                } else {
-                    workspace = workspace.copy(
-                        tabs = workspace.tabs.map { tab ->
-                            if (tab.profileId == profile.id) tab.copy(title = profile.name) else tab
-                        },
-                    )
-                }
+        profileWriter.persist({ configSource.profiles().save(profile) }) { saved ->
+            if (!saved) {
+                publishNotice(ShellNotice.PROFILE_SAVE_FAILED)
+                return@persist
             }
+            workspace = workspace.copy(
+                tabs = workspace.tabs.map { tab ->
+                    if (tab.profileId == profile.id) tab.copy(title = profile.name) else tab
+                },
+            )
         }
     }
 
     /**
      * 删除会话配置。
      *
-     * 说明：使用该配置的标签保留标题，但清除绑定，避免后续启动时引用不存在的配置。
+     * 行为：使用该配置的标签保留标题，但清除绑定，避免后续启动时引用不存在的配置；
+     * 删除成功后记录被删配置并发布可撤销的提示，界面据此提供「撤销」动作。
      */
     fun deleteProfile(profileId: String) {
-        writeScope.launch {
-            val deleted = runCatching { configSource.profiles().delete(profileId) }.getOrDefault(false)
-            withContext(Dispatchers.Main) {
-                if (!deleted) {
-                    publishNotice(ShellNotice.PROFILE_DELETE_FAILED)
-                } else {
-                    workspace = workspace.copy(
-                        tabs = workspace.tabs.map { tab ->
-                            if (tab.profileId == profileId) tab.copy(profileId = null) else tab
-                        },
-                    )
-                }
+        val removed = profileById(profileId)
+        profileWriter.persist({ configSource.profiles().delete(profileId) }) { deleted ->
+            if (!deleted) {
+                publishNotice(ShellNotice.PROFILE_DELETE_FAILED)
+                return@persist
             }
+            workspace = workspace.copy(
+                tabs = workspace.tabs.map { tab ->
+                    if (tab.profileId == profileId) tab.copy(profileId = null) else tab
+                },
+            )
+            undoableProfileDelete = removed
+            publishNotice(ShellNotice.PROFILE_DELETED)
         }
+    }
+
+    /**
+     * 撤销最近一次会话配置删除。
+     *
+     * 行为：把被删配置重新写入存储，成功后清除撤销状态；重复调用安全。
+     *
+     * 约束：只保留最近一次删除，新的删除会覆盖上一次的撤销机会。
+     */
+    fun undoProfileDelete() {
+        val profile = undoableProfileDelete ?: return
+        undoableProfileDelete = null
+        saveProfile(profile)
     }
 
     override fun closeTab() {
