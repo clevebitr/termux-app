@@ -137,3 +137,19 @@ https://github.com/clevebitr/termux-shell-demo/releases/download/shell-demo/term
 大小 11.8 MB，SHA-256 42610d39d1e25e961a674cdc4fc9f6ba5cb2ceebf168d82d6c123596d8ac3c98。
 
 镜像仓库只承载构建快照，不接收后续开发提交；原始仓库 Actions 恢复后应删除镜像，并把发布页迁回原仓库。探针仓库 clevebitr/actions-probe 因当前 token 缺少 delete_repo 作用域未能删除，需要账号所有者手动删除或授权 gh auth refresh -s delete_repo。
+
+## 2026-11-22 — 确认会话归属模型 B 并落地会话配置（profile，M19）
+
+需求方确认：一个标签 = 一个主会话 + 分屏产生的额外会话（Windows Terminal 式窗格树保留）。标签记录主会话所用的配置标识，分屏沿用同一配置；每个窗格叶子绑定唯一 sessionId；同一会话不得同时挂到两个窗格或两个窗口；关闭标签关闭其全部会话，关闭窗口按 detach（默认）或 kill 策略（M14 实现）；应用进程死亡时会话随之结束，跨进程存活依赖 tmux/dtach，不在应用内实现。
+
+已实现（M19-1…M19-4）：
+- session/SessionProfile：SHELL / DISTRO / SSH 三类，名称与标识非空、DISTRO 必须给发行版名、SSH 必须给主机；不保存凭据。
+- config/ProfileCodec（JSON 版本 1）、ProfileStore 契约、FileProfileStore（原子写：临时文件 + 重命名；StateFlow 共享快照；损坏文件保留旧列表）。文件位于 ~/.termux/shell-profiles.json。
+- ShellApplication 创建单例 FileProfileStore，ConfigSource 暴露 profiles()，这是首个跨窗口共享状态：任一窗口增删改后其他窗口自动刷新。
+- WorkspaceTab 增加可空 profileId；TabWorkspace.newTab(title, profileId)；布局编码新增可选 profile 字段，旧文档缺省视为默认 shell。
+- ShellViewModel：profiles 状态流、profileById、newTab(profile)、newTabWithProfile、saveProfile/deleteProfile；改名同步标签标题，删除清除标签绑定；新建标签标题改用 workspace.nextTabNumber，修复关闭中间标签后重名。
+- 设置页「会话配置」分组与 ProfileEditorDialog（类型切换、启动命令、工作目录、环境变量 KEY=VALUE）；命令面板追加「新建会话：<名称>」。
+
+边界：按配置真正启动进程（proot-distro login、ssh、自定义命令）依赖 M14 会话宿主，当前仅记录绑定；分屏沿用主配置同样待 M14。
+
+验证：本地 kotlinc + Compose 编译器编译通过；JUnitCore 运行 17 个测试类共 112 项通过（新增 SessionProfileTest 6 项、ProfileCodecTest 3 项、FileProfileStoreTest 5 项、标签绑定与标题编号 3 项）。原始仓库 Actions 仍被禁用，CI 走镜像仓库。
