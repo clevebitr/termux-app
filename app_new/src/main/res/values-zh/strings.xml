@@ -14,9 +14,6 @@
     <string name="shell_pane_close_denied">每个窗口至少保留一个窗格</string>
     <string name="shell_config_reloaded">配置与键位表已重新加载</string>
     <string name="shell_config_reload_failed">配置加载失败</string>
-    <string name="size_class_compact">紧凑</string>
-    <string name="size_class_medium">中等</string>
-    <string name="size_class_expanded">展开</string>
 
     <string name="command_category_tab">标签页</string>
     <string name="command_category_pane">窗格</string>
@@ -110,7 +107,9 @@
 
     <string name="session_attached_to">标签 %1$s</string>
     <string name="settings_section_profiles">会话配置</string>
-    <string name="settings_profiles_count">已配置 %1$d 条</string>
+    <plurals name="settings_profiles_count">
+        <item quantity="other">已配置 %1$d 条</item>
+    </plurals>
     <string name="settings_profile_add">新增会话</string>
     <string name="settings_profile_edit">编辑</string>
     <string name="settings_profile_delete">删除</string>

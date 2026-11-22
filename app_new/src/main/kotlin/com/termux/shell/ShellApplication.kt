@@ -1,5 +1,6 @@
 package com.termux.shell
 
+import android.annotation.SuppressLint
 import android.app.Application
 import com.termux.shell.config.FileProfileStore
 import com.termux.shell.config.ProfileStore
@@ -64,6 +65,9 @@ class ShellApplication : Application() {
         @Volatile
         private lateinit var profileStore: ProfileStore
 
+        // 会话宿主持有 Application 上下文，生命周期与进程一致；该引用不是泄漏，
+        // 而是进程级单例的必要组成，因此抑制 Lint 的静态上下文检查。
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         private lateinit var sessionHost: LocalSessionHost
 

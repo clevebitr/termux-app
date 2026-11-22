@@ -14,9 +14,6 @@
     <string name="shell_pane_close_denied">A window keeps at least one pane</string>
     <string name="shell_config_reloaded">Configuration and keymap reloaded</string>
     <string name="shell_config_reload_failed">Failed to reload configuration</string>
-    <string name="size_class_compact">compact</string>
-    <string name="size_class_medium">medium</string>
-    <string name="size_class_expanded">expanded</string>
 
     <string name="command_category_tab">Tab</string>
     <string name="command_category_pane">Pane</string>
@@ -110,7 +107,10 @@
 
     <string name="session_attached_to">Tab %1$s</string>
     <string name="settings_section_profiles">Session profiles</string>
-    <string name="settings_profiles_count">%1$d configured</string>
+    <plurals name="settings_profiles_count">
+        <item quantity="one">%1$d profile configured</item>
+        <item quantity="other">%1$d profiles configured</item>
+    </plurals>
     <string name="settings_profile_add">Add session</string>
     <string name="settings_profile_edit">Edit</string>
     <string name="settings_profile_delete">Delete</string>

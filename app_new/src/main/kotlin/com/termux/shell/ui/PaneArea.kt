@@ -87,8 +87,8 @@ private const val RatioStep = 0.05f
 fun PaneArea(
     tab: WorkspaceTab,
     controller: ShellViewModel,
-    pool: TerminalViewPool? = null,
     modifier: Modifier = Modifier,
+    pool: TerminalViewPool? = null,
 ) {
     Box(modifier.padding(4.dp)) {
         PaneNodeView(

@@ -128,6 +128,7 @@ class ShellViewModel(
 
     /** 新建窗口请求令牌。数值变化表示存在一次待处理请求。 */
     // 使用装箱状态而非 mutableIntStateOf：后者在纯 JVM 单元测试中依赖 Android Parcel 实现。
+    @Suppress("AutoboxingStateCreation")
     var newWindowRequestToken: Int by mutableStateOf(0)
         private set
 
