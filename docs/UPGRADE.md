@@ -798,4 +798,4 @@ Compose PaneArea
 | --- | --- |
 | 本地 `kotlinc` + Compose 编译器编译全部主源（含 `terminal-core` 类路径） | 通过 |
 | 本地 `JUnitCore`：16 个测试类 | 通过，123 项（新增启动参数 6 项、会话绑定/关闭/替换 5 项） |
-| 镜像仓库 CI | 见构建记录；原仓库 Actions 仍被禁用 |
+| 镜像仓库 CI | 通过（run 45031523428，单测 + assembleDebug），APK 11.9 MB；原仓库 Actions 仍被禁用 |
