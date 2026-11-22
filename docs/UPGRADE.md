@@ -492,7 +492,8 @@ terminal-render-cache=true              # 默认 true
 | Kotlin（含 Gradle 插件） | `2.2.20` | Gradle 9.2.x 官方测试范围上限为 KGP 2.2.20（Gradle 兼容矩阵） |
 | Compose 编译器插件 | `org.jetbrains.kotlin.plugin.compose:2.2.20` | 自 Kotlin 2.0 起随语言版本发布，不再单独维护 Compose→Kotlin 兼容表 |
 | Compose BOM | `2025.10.01`（ui/foundation 1.9.4、material3 1.4.0、material-icons-core 1.7.8） | 单一 BOM 统一版本，避免各库版本漂移 |
-| activity-compose | `1.10.1` | 提供 `ComponentActivity.setContent` 与 `enableEdgeToEdge` |
+| activity-compose | `1.12.4` | 提供 `ComponentActivity.setContent` 与 `enableEdgeToEdge`；`1.13.0` 起要求 compileSdk 37，见第 19 节 |
+| lifecycle-viewmodel | `2.10.0` | 窗口状态持有者的基类；`2.11.x` 起要求 compileSdk 37，见第 19 节 |
 | AGP / Gradle / JDK | `8.13.2` / `9.2.1` / `17` | 与根构建一致，不引入工具链升级 |
 | compileSdk / minSdk / targetSdk | `36` / `24` / `28` | 与骨架阶段一致；`targetSdk` 仍受 `exec` 与 W^X 约束 |
 
@@ -889,3 +890,27 @@ java.lang.UnsatisfiedLinkError: no conscrypt_openjdk_jni-linux-aarch_64 in java.
 | --- | --- |
 | `SettingsScreenTest#togglingARowWritesTheSetting` | 点击开关行 → 视图模型 → 配置文件写入 |
 | `SettingsScreenTest#searchFiltersToMatchingSetting` | 搜索输入 → 命中项保留、未命中项移除 |
+
+---
+
+## 19. 依赖版本更新（2026-11-23）
+
+### 19.1 本轮升级
+
+| 依赖 | 旧版本 | 新版本 | 理由 | 替代方案 |
+| --- | --- | --- | --- | --- |
+| `androidx.activity:activity-compose` | `1.10.1` | `1.12.4` | 修复若干边到边与返回键相关的缺陷；`enableEdgeToEdge` 行为与当前实现一致 | 维持旧版本，接口不变，但会持续产生 Lint 版本提示 |
+| `androidx.lifecycle:lifecycle-viewmodel` | `2.9.4` | `2.10.0` | 与 activity-compose 1.12.x 的生命周期版本对齐，避免同一依赖树出现两个 lifecycle 主版本 | 维持在 2.9.x，需要显式约束版本 |
+| `org.json:json`（仅测试） | `20240303` | `20260814` | 单元测试中的 JSON 实现跟进；仅 `testImplementation`，不影响产物 | 维持旧版本 |
+
+### 19.2 版本上限
+
+`activity-compose 1.13.0` 与 `lifecycle 2.11.x` 会引入 `lifecycle-runtime-compose 2.11.x`，其 AAR 元数据要求
+`compileSdk 37`。当前 `app_new` 的 `compileSdk` 取自 `gradle.properties` 的 36，而本地 SDK 只安装了
+`platforms/android-36`，因此本轮停留在兼容 36 的最高稳定版本。升级到 37 需要先提升工具链（见 M15-1），
+属于独立提交。
+
+### 19.3 验证
+
+升级后执行 `:app_new:assembleDebug`、`:app_new:testDebugUnitTest`（164 项）与 `:app_new:lintDebug`，全部通过；
+Lint 的依赖版本提示从 3 条减少到 2 条，剩余提示即上述需要 compileSdk 37 的版本。

@@ -12,7 +12,7 @@ def appNewTargetSdk = (rootProject.findProperty("appNewTargetSdk") ?: "28").toIn
 
 // Compose 与 Kotlin 工具链版本。两者必须与根构建脚本声明的 Kotlin 插件版本一致。
 def composeBomVersion = "2025.10.01"
-def activityComposeVersion = "1.10.1"
+def activityComposeVersion = "1.12.4"
 
 android {
     namespace "com.termux.shell"
@@ -88,7 +88,7 @@ dependencies {
     implementation "androidx.compose.foundation:foundation"
     implementation "androidx.compose.material3:material3"
     implementation "androidx.compose.material:material-icons-core"
-    implementation "androidx.lifecycle:lifecycle-viewmodel:2.9.4"
+    implementation "androidx.lifecycle:lifecycle-viewmodel:2.10.0"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
 
     debugImplementation "androidx.compose.ui:ui-tooling"
