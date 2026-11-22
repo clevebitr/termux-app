@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -40,8 +41,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import android.view.ViewGroup
 import com.termux.shell.R
 import com.termux.shell.pane.PaneLeaf
 import com.termux.shell.pane.PaneNode
@@ -50,8 +56,19 @@ import com.termux.shell.pane.SplitOrientation
 import com.termux.shell.tabs.WorkspaceTab
 import com.termux.shell.terminal.TerminalViewPool
 
-/** 分割条宽度。命中区域与视觉宽度一致，触屏下仍可拖动。 */
-private val DividerThickness = 6.dp
+/**
+ * 分割条的命中区宽度。
+ *
+ * 说明：视觉上只显示 2dp 细线，命中区扩大到 12dp，使触屏可以稳定拖动；
+ * 命中区过大会挤压窗格内容，因此不采用 48dp 的通用最小交互尺寸，改为配合双击重置与无障碍动作。
+ */
+private val DividerThickness = 12.dp
+
+/** 分割条细线的视觉宽度。 */
+private val DividerLineThickness = 2.dp
+
+/** 无障碍动作与双击重置时使用的比例步长。 */
+private const val RatioStep = 0.05f
 
 /**
  * 窗格区。
@@ -185,6 +202,12 @@ private fun SplitHandle(
         }
         PointerIcon(android.view.PointerIcon.getSystemIcon(context, type))
     }
+    val handleDescription = stringResource(
+        if (vertical) R.string.pane_split_handle_vertical else R.string.pane_split_handle_horizontal,
+    )
+    val widerLabel = stringResource(R.string.pane_split_wider)
+    val narrowerLabel = stringResource(R.string.pane_split_narrower)
+    val resetLabel = stringResource(R.string.pane_split_reset)
     Box(
         Modifier
             .then(
@@ -194,9 +217,26 @@ private fun SplitHandle(
                     Modifier.fillMaxWidth().height(DividerThickness)
                 },
             )
-            .background(lineColor)
             .hoverable(interactionSource)
             .pointerHoverIcon(resizeIcon)
+            // 读屏用户无法拖动，提供三个等价动作：扩大、缩小与恢复均分。
+            .semantics {
+                contentDescription = handleDescription
+                customActions = listOf(
+                    CustomAccessibilityAction(widerLabel) {
+                        onRatioChange((currentRatio + RatioStep).coerceAtMost(PaneSplit.MAX_RATIO))
+                        true
+                    },
+                    CustomAccessibilityAction(narrowerLabel) {
+                        onRatioChange((currentRatio - RatioStep).coerceAtLeast(PaneSplit.MIN_RATIO))
+                        true
+                    },
+                    CustomAccessibilityAction(resetLabel) {
+                        onRatioChange(PaneSplit.DEFAULT_RATIO)
+                        true
+                    },
+                )
+            }
             .pointerInput(totalPx) {
                 if (totalPx <= 0f) {
                     return@pointerInput
@@ -209,8 +249,25 @@ private fun SplitHandle(
                     val delta = if (vertical) dragAmount.x else dragAmount.y
                     onRatioChange(currentRatio + delta / totalPx)
                 }
+            }
+            .pointerInput(totalPx) {
+                // 双击恢复均分：触屏下比精确拖动更容易命中。
+                detectTapGestures(onDoubleTap = { onRatioChange(PaneSplit.DEFAULT_RATIO) })
             },
-    )
+    ) {
+        Box(
+            Modifier
+                .align(Alignment.Center)
+                .then(
+                    if (vertical) {
+                        Modifier.fillMaxHeight().width(DividerLineThickness)
+                    } else {
+                        Modifier.fillMaxWidth().height(DividerLineThickness)
+                    },
+                )
+                .background(lineColor),
+        )
+    }
 }
 
 @Composable
@@ -254,8 +311,13 @@ private fun PaneLeafView(
     if (terminalView != null) {
         Box(containerModifier) {
             AndroidView(
-                factory = { terminalView },
+                factory = {
+                    // 视图由池复用，重新挂载前必须先与原父容器解绑，否则会抛「已有父容器」。
+                    (terminalView.parent as? ViewGroup)?.removeView(terminalView)
+                    terminalView
+                },
                 modifier = Modifier.fillMaxSize(),
+                onRelease = { view -> (view.parent as? ViewGroup)?.removeView(view) },
             )
         }
     } else {

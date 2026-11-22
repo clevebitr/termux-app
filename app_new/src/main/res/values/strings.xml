@@ -102,6 +102,11 @@
     <string name="command_focus_pane_up">Focus pane up</string>
     <string name="command_focus_pane_down">Focus pane down</string>
     <string name="shell_pane_hint">The terminal session renders here once wired</string>
+    <string name="pane_split_handle_vertical">Vertical split handle, drag to resize panes</string>
+    <string name="pane_split_handle_horizontal">Horizontal split handle, drag to resize panes</string>
+    <string name="pane_split_wider">Enlarge first pane</string>
+    <string name="pane_split_narrower">Shrink first pane</string>
+    <string name="pane_split_reset">Reset to equal split</string>
 
     <string name="session_attached_to">Tab %1$s</string>
     <string name="settings_section_profiles">Session profiles</string>

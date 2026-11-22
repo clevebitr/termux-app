@@ -5,27 +5,31 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.termux.shell.R
@@ -36,13 +40,14 @@ import com.termux.shell.session.SessionState
 /**
  * 会话列表。
  *
- * 目的：以「会话」为单位展示进程与附着位置，替代原先只显示标签与窗格计数的侧栏，
+ * 目的：以「会话」为单位展示进程与附着位置，替代只显示标签与窗格计数的侧栏，
  * 使标签栏负责布局、会话列表负责进程，两者不再重复（职责划分见 `docs/UPGRADE.md` 第 13.4 节）。
  *
  * 行为：
  * - 先列已附着会话，再列已脱离会话；每条记录显示状态点、标题与附着位置；
  * - 点击记录聚焦其窗格（切换标签并移动窗格焦点）；
- * - 会话宿主接入前，占位记录显示「未分配」状态并给出说明，不提供结束与脱离操作。
+ * - 记录标题与状态来自会话宿主上报的描述，未绑定时显示占位说明，已退出时显示退出状态；
+ * - 列表使用 [LazyColumn] 按需组合，会话数量较多时不构造全部条目。
  *
  * 约束：本组件不修改会话集合，全部操作通过回调交由 [ShellViewModel] 发起。
  *
@@ -96,18 +101,22 @@ fun SessionList(
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-        Column(Modifier.verticalScroll(rememberScrollState())) {
+        LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
             if (registry.size == 0) {
-                Text(
-                    text = stringResource(R.string.session_empty),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(12.dp),
-                )
+                item(key = "empty") {
+                    Text(
+                        text = stringResource(R.string.session_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(12.dp),
+                    )
+                }
             }
             if (attached.isNotEmpty()) {
-                GroupLabel(stringResource(R.string.session_group_attached))
-                for (record in attached) {
+                item(key = "attached-label") {
+                    GroupLabel(stringResource(R.string.session_group_attached))
+                }
+                items(attached, key = { record -> record.id }) { record ->
                     SessionRow(
                         record = record,
                         focused = record.leafId != null && record.leafId == focusedLeafId,
@@ -117,8 +126,10 @@ fun SessionList(
                 }
             }
             if (detached.isNotEmpty()) {
-                GroupLabel(stringResource(R.string.session_group_detached))
-                for (record in detached) {
+                item(key = "detached-label") {
+                    GroupLabel(stringResource(R.string.session_group_detached))
+                }
+                items(detached, key = { record -> record.id }) { record ->
                     SessionRow(
                         record = record,
                         focused = false,
@@ -128,14 +139,16 @@ fun SessionList(
                 }
             }
             if (registry.records.any { it.isPending }) {
-                Text(
-                    text = stringResource(R.string.session_action_unavailable),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
-                )
+                item(key = "pending-note") {
+                    Text(
+                        text = stringResource(R.string.session_action_unavailable),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
+                    )
+                }
             }
-            Spacer(Modifier.height(8.dp))
+            item(key = "footer-space") { Spacer(Modifier.height(8.dp)) }
         }
     }
 }
@@ -150,6 +163,12 @@ private fun GroupLabel(text: String) {
     )
 }
 
+/**
+ * 单条会话记录。
+ *
+ * 无障碍：整行作为按钮朗读，并以状态描述说明会话处于运行、已退出还是尚未分配；
+ * 当前聚焦的窗格对应记录带选中语义。
+ */
 @Composable
 private fun SessionRow(
     record: SessionRecord,
@@ -161,13 +180,18 @@ private fun SessionRow(
         focused -> MaterialTheme.colorScheme.secondaryContainer
         else -> MaterialTheme.colorScheme.surfaceVariant
     }
+    val stateText = stateLabel(record.state)
     Row(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(background)
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics {
+                selected = focused
+                stateDescription = stateText
+            }
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -190,7 +214,7 @@ private fun SessionRow(
                     text = if (record.isAttached) {
                         stringResource(R.string.session_attached_to, record.tabTitle)
                     } else {
-                        stateLabel(record.state)
+                        stateText
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -201,7 +225,7 @@ private fun SessionRow(
         }
         if (!compact) {
             Text(
-                text = stateLabel(record.state),
+                text = stateText,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             )

@@ -102,6 +102,11 @@
     <string name="command_focus_pane_up">聚焦上方窗格</string>
     <string name="command_focus_pane_down">聚焦下方窗格</string>
     <string name="shell_pane_hint">终端会话接入后显示在这里</string>
+    <string name="pane_split_handle_vertical">竖向分割条，拖动可调整左右窗格比例</string>
+    <string name="pane_split_handle_horizontal">横向分割条，拖动可调整上下窗格比例</string>
+    <string name="pane_split_wider">扩大第一个窗格</string>
+    <string name="pane_split_narrower">缩小第一个窗格</string>
+    <string name="pane_split_reset">恢复均分</string>
 
     <string name="session_attached_to">标签 %1$s</string>
     <string name="settings_section_profiles">会话配置</string>

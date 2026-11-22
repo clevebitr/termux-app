@@ -4,7 +4,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -46,6 +48,9 @@ import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +61,15 @@ import com.termux.shell.tabs.TabWorkspace
 private val TabShape = RoundedCornerShape(12.dp)
 private val MinTabWidth = 96.dp
 private val CompactTabWidth = 160.dp
+
+/** 标签内容行高。触摸目标不低于 48dp，满足 Material 的最小交互尺寸。 */
+private val TabHeight = 48.dp
+
+/** 关闭按钮的布局尺寸；实际触摸目标由 IconButton 扩展到 48dp。 */
+private val CloseButtonSize = 32.dp
+
+/** 关闭图标尺寸。 */
+private val CloseIconSize = 16.dp
 
 /**
  * 窗口级标签栏。
@@ -174,9 +188,11 @@ private fun TabItem(
                         }
                     }
                 }
+                .semantics { selected = active }
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = null,
+                    role = Role.Tab,
                     onClick = { controller.selectTab(index) },
                     onLongClick = {
                         // 长按与桌面右键等价，给出触觉反馈表明菜单由长按触发。
@@ -187,12 +203,12 @@ private fun TabItem(
         ) {
             Column {
                 Row(
-                    Modifier.padding(
-                        start = 12.dp,
-                        end = if (showCloseButton) 6.dp else 12.dp,
-                        top = 8.dp,
-                        bottom = 8.dp,
-                    ),
+                    Modifier
+                        .heightIn(min = TabHeight)
+                        .padding(
+                            start = 12.dp,
+                            end = if (showCloseButton) 4.dp else 12.dp,
+                        ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -204,10 +220,24 @@ private fun TabItem(
                         modifier = Modifier.weight(1f),
                     )
                     if (showCloseButton && workspace.size > 1) {
-                        CloseButton(
-                            active = active,
+                        // 关闭按钮使用 IconButton，触摸目标由 Material 的最小交互尺寸保证为 48dp。
+                        IconButton(
                             onClick = { controller.closeTabAt(index) },
-                        )
+                            modifier = Modifier.size(CloseButtonSize),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                contentColor = if (active) {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            ),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.command_close_tab),
+                                modifier = Modifier.size(CloseIconSize),
+                            )
+                        }
                     }
                 }
                 // 选中指示条固定高度，切换标签时标签高度不跳动。
@@ -258,78 +288,18 @@ private fun TabItem(
     }
 }
 
-@Composable
-private fun CloseButton(active: Boolean, onClick: () -> Unit) {
-    val tint = if (active) {
-        MaterialTheme.colorScheme.onSecondaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsHoveredAsState()
-    var pressing by remember { mutableStateOf(false) }
-    val background by animateColorAsState(
-        targetValue = when {
-            pressing || hovered -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-            else -> Color.Transparent
-        },
-        animationSpec = tween(durationMillis = 120),
-        label = "closeButtonBackground",
-    )
-    Box(
-        Modifier
-            .padding(start = 6.dp)
-            .size(28.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(background)
-            .hoverable(interactionSource)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            )
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        pressing = event.changes.any { it.pressed }
-                    }
-                }
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Close,
-            contentDescription = stringResource(R.string.command_close_tab),
-            tint = tint,
-            modifier = Modifier.size(14.dp),
-        )
-    }
-}
-
+/** 末尾的「新建标签」按钮。使用 IconButton 以获得 48dp 触摸目标与标准涟漪反馈。 */
 @Composable
 private fun NewTabButton(controller: ShellViewModel) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsHoveredAsState()
-    val background by animateColorAsState(
-        targetValue = if (hovered) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-        animationSpec = tween(durationMillis = 120),
-        label = "newTabBackground",
-    )
-    Box(
-        Modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(background)
-            .hoverable(interactionSource)
-            .clickable(onClick = controller::newTab),
-        contentAlignment = Alignment.Center,
+    IconButton(
+        onClick = controller::newTab,
+        modifier = Modifier.size(40.dp),
     ) {
         Icon(
             imageVector = Icons.Filled.Add,
             contentDescription = stringResource(R.string.shell_new_tab),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(20.dp),
         )
     }
 }

@@ -369,6 +369,19 @@ private fun ShellHeaderBar(viewModel: ShellViewModel, compactLayout: Boolean) {
                 Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.shell_command_palette))
             }
         }
+        // 标题行固定提供窗口菜单：紧凑档不必先打开会话抽屉即可访问设置与分屏等操作。
+        var menuExpanded by remember { mutableStateOf(false) }
+        Box {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(
+                    imageVector = Icons.Filled.MoreVert,
+                    contentDescription = stringResource(R.string.shell_overflow),
+                )
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                WindowMenu(viewModel) { menuExpanded = false }
+            }
+        }
     }
 }
 
