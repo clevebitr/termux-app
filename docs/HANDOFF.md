@@ -9,8 +9,8 @@
 ## 1. 一句话状态
 
 `app/` 的扩展 API 骨架、第一个扩展（备份）、终端菜单规则下沉、命令面板（含四个入口）与终端右键转发均已完成，
-并在 PR #1 上通过 CI（单元测试 + Lint + 双 ABI 构建 + 签名 APK）；**扩展禁用语义已在 M-E1 改为「入口不可达 +
-运行时闸门」，菜单收敛、控制器拆分与其余扩展迁移尚未开始**。
+并在 PR #1 上通过 CI（单元测试 + Lint + 双 ABI 构建 + 签名 APK）；扩展禁用语义已在 M-E1 改为「入口不可达 +
+运行时闸门」，菜单收敛已完成（抽屉按钮与面板共用 `ShellCommandHost`）；**X1 控制器拆分与其余扩展迁移尚未开始**。
 
 ---
 
@@ -122,17 +122,18 @@ ext/backup/   BackupExtension、TermuxBackupUtils、BackupPreferencesFragment（
 ## 5. 未完成事项（按建议顺序）
 
 扩展闸门层（M-E1）已完成：唯一状态源 `ExtensionHost`、设置页贡献点 `Extension.settingsPages()`、搜索与导航
-过滤、页面运行时闸门、空分类收起与三项守卫测试，记录见 `app/DECISIONS.md` #4–#5。下列顺序不变。
+过滤、页面运行时闸门、空分类收起与三项守卫测试，记录见 `app/DECISIONS.md` #4–#5。
+菜单收敛已完成：抽屉按钮与会话新建按钮改走 `ShellCommandHost`，面板新增 `new-named-session`，并修正了
+「切换键盘」命令的递归调用，记录见 `app/DECISIONS.md` #6。以下顺序相应前移一格。
 
 | 序 | 任务 | 要点 | 验收 |
 | --- | --- | --- | --- |
-| 1 | 菜单收敛 | 抽屉按钮与长按菜单里的窗口级动作指向命令面板；保留终端上下文菜单与标签级菜单 | 同一动作只有一份实现；面板与菜单行为一致 |
-| 2 | X1 控制器 | `TerminalMenuAction` 分发改为「命令目录 + 动作映射」，与面板共用；再抽 `DrawerController` | `TermuxActivity` 方法数下降，动作实现唯一 |
-| 3 | `ext.statusbar` | 6 文件 1961 行；需新增「视图装饰器」贡献点 + 页面闸门 | 可启用/禁用；禁用后无残留视图与定时器 |
-| 4 | `ext.notifications` | 13 文件 2704 行，依赖事件源与状态栏（可选） | 禁用后卡片、后台通知、历史全部停止 |
-| 5 | 其他扩展 | `ext.menu`/`ext.split`/`ext.drawer`/`ext.search`/`ext.volumekeys` | 逐项可禁用 |
-| 6 | `builtin.vt` 开关页 | 仅属性开关（OSC52/133、1004、悬停、滚动保持、内边距） | 设置页明确标注「核心能力，仅可关闭行为」 |
-| 7 | 设备验证 | 无 `adb`，需出包后按 `FORK.md` §33 与验收矩阵逐项确认 | 记录到 PR 或 `FORK.md` |
+| 1 | X1 控制器 | `TerminalMenuAction` 分发改为「命令目录 + 动作映射」，与面板共用；再抽 `DrawerController` | `TermuxActivity` 方法数下降，动作实现唯一 |
+| 2 | `ext.statusbar` | 6 文件 1961 行；需新增「视图装饰器」贡献点 + 页面闸门 | 可启用/禁用；禁用后无残留视图与定时器 |
+| 3 | `ext.notifications` | 13 文件 2704 行，依赖事件源与状态栏（可选） | 禁用后卡片、后台通知、历史全部停止 |
+| 4 | 其他扩展 | `ext.menu`/`ext.split`/`ext.drawer`/`ext.search`/`ext.volumekeys` | 逐项可禁用 |
+| 5 | `builtin.vt` 开关页 | 仅属性开关（OSC52/133、1004、悬停、滚动保持、内边距） | 设置页明确标注「核心能力，仅可关闭行为」 |
+| 6 | 设备验证 | 无 `adb`，需出包后按 `FORK.md` §33 与验收矩阵逐项确认 | 记录到 PR 或 `FORK.md` |
 
 **设备验证重点**（未验证项）：禁用扩展后设置搜索不再出现其条目；禁用后直接进入功能页只显示停用说明；
 命令面板四个入口；虚拟键 `F12` 在 `extra-keys` 中的配置；右键在 `vim`/`tmux` 中的表现与 shell 中的菜单回退；

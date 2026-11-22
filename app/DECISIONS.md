@@ -82,3 +82,17 @@
 约束（写入 Extension 的 KDoc）：扩展的设置项必须声明在根设置页 termux_preferences.xml 上，因为可见性 pass 只在根页运行，由第一条守卫测试兜底。
 
 未验证：仅本机 :app:compileDebugJavaWithJavac 与 :app:testDebugUnitTest 通过（164 项，1 项为既有的 Robolectric + JDK 21 失败），未做设备验证，未跑 :app:assembleDebug（本机 NDK 缺 libc++_shared）。
+
+## 2026-11-22 — 菜单收敛：抽屉按钮与命令面板共用 ShellCommandHost
+
+目标（HANDOFF 第 5 节第 1 项）：同一动作只有一份实现，面板与会话抽屉行为一致。
+
+实施：
+1. 新增 commands/ShellCommandHost（实现 ShellCommandCatalog.Host），作为窗口级动作的唯一执行入口：runTerminalMenuAction 转发到 TermuxActivity.runTerminalMenuAction（原 onTerminalMenuActionSelected，改为 public 并更名），addNewSession、addNamedSession、toggleSoftKeyboard 集中在此。
+2. 抽屉「设置」按钮改为 runTerminalMenuAction(SETTINGS)，不再自己 new Intent；「新建会话」点击与长按、切换键盘分别改为 addNewSession、addNamedSession、toggleSoftKeyboard；长按新建会话前先关闭抽屉，与抽屉其他按钮一致。
+3. 命令目录新增 new-named-session，与抽屉长按共用实现，面板也因此可发现该动作；命令 id 提为常量 ID_NEW_SESSION / ID_NEW_NAMED_SESSION / ID_TOGGLE_KEYBOARD。
+4. 会话列表项长按（重命名）保持不动：属标签级动作，不是窗口级动作；终端上下文菜单与标签级菜单的划分保持不变。
+
+缺陷（重构过程中发现并单独提交 a650b69）：命令面板的「切换键盘」在匿名 Host 内调用 toggleSoftKeyboard()，解析到匿名类自身的方法，形成无限递归，执行该命令会 StackOverflowError；抽屉按钮使用的 onToggleSoftKeyboardRequest() 才是带「启用/禁用软键盘」与「显示/隐藏软键盘」两种配置的实现。修正后两条入口行为一致。该缺陷此前未被测试覆盖，因 ShellCommandCatalog 需要 Context 才能构建，未新增单元测试。
+
+未验证：抽屉三个按钮、面板 new-named-session、切换键盘在设备上的表现未验证；本机仅通过 :app:compileDebugJavaWithJavac 与 :app:testDebugUnitTest（164 项，1 项为既有 Robolectric + JDK 21 失败）。
