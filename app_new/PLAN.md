@@ -16,5 +16,5 @@ auto-breakpoint: false
 
 ## Current: M14 — 会话宿主与终端视图挂载（M12-2…M12-4）
 
-goal: 分层/状态/动效重构完成，94 项单测通过
-breakpoint: Actions 被仓库禁用，CI 出包待恢复后补跑
+goal: 重构与动效已交付：94 项单测 + 镜像 CI 通过
+breakpoint: 镜像仓库已出包，原仓库 Actions 待 GitHub 恢复

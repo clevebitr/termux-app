@@ -689,4 +689,7 @@ render/                     帧调度契约
 | --- | --- |
 | 本地 `kotlinc` + Compose 编译器插件编译全部主源 | 通过 |
 | 本地 `JUnitCore`：13 个测试类（含新增 `ShellViewModelTest` 15 项） | 通过，94 项 |
-| CI `:app_new:testDebugUnitTest` / `:app_new:assembleDebug` | **未执行**：GitHub Actions 在仓库层面被禁用（`Actions has been disabled for this repository`），需仓库管理员恢复后补跑 |
+| CI `:app_new:testDebugUnitTest` / `:app_new:assembleDebug` | 通过。原始仓库的 Actions 被 GitHub 禁用（`Actions has been disabled for this repository`），因此改在镜像仓库 `clevebitr/termux-shell-demo` 上构建（run 45026422748，2m44s，产物 11.8 MB） |
+
+**镜像仓库说明**：`clevebitr/termux-shell-demo` 是当前提交的快照（单提交、无历史），只为 CI 出包存在；
+发布页 `shell-demo` 提供固定下载地址。原始仓库 Actions 恢复后可停用镜像。

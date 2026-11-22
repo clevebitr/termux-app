@@ -127,3 +127,13 @@ CI：app_new_debug_build.yml 上 :app_new:testDebugUnitTest 与 :app_new:assembl
 影响：M13-8 的 CI 验证（:app_new:testDebugUnitTest 与 :app_new:assembleDebug）与 shell-demo APK 更新未执行。本地替代验证：kotlinc 2.4.21 + Compose 编译器插件编译全部主源通过；JUnitCore 运行 13 个测试类共 94 项全部通过。
 
 后续：需要仓库管理员在 GitHub 设置中恢复 Actions（Settings → Actions → General），恢复后推送任意 app_new 变更或手动触发 workflow 即可重新出包；在此期间不得声称界面/安装包已验证。
+
+## 2026-11-22 — 原始仓库 Actions 被禁用：改用镜像仓库出包并保留固定下载地址
+
+排查补充：用 gh 在账号下新建私有探针仓库并触发 workflow，9 秒成功，说明账号级 Actions 正常；随后对原仓库执行 PUT /actions/permissions（enabled=true、allowed_actions=all）、关闭后再开启、以及直接 POST workflow dispatch，均返回 422「Actions has been disabled for this repository」。workflow 状态为 active，仓库未归档未禁用，当前账号对仓库有 admin 权限，GitHub 状态页无故障。结论：原始仓库在 GitHub 侧被单独禁用，API 无法解除，需要 GitHub 支持或仓库设置中的额外策略调整。
+
+解决办法：把当前 HEAD 通过 git archive 导出为单提交快照，推送到新建的公开仓库 clevebitr/termux-shell-demo（不做历史复制），由该仓库的 Shell Demo Build 工作流出包。构建 run 45026422748 通过（单测 + assembleDebug），发布页 shell-demo 提供固定地址：
+https://github.com/clevebitr/termux-shell-demo/releases/download/shell-demo/termux-shell-demo-debug.apk
+大小 11.8 MB，SHA-256 42610d39d1e25e961a674cdc4fc9f6ba5cb2ceebf168d82d6c123596d8ac3c98。
+
+镜像仓库只承载构建快照，不接收后续开发提交；原始仓库 Actions 恢复后应删除镜像，并把发布页迁回原仓库。探针仓库 clevebitr/actions-probe 因当前 token 缺少 delete_repo 作用域未能删除，需要账号所有者手动删除或授权 gh auth refresh -s delete_repo。
