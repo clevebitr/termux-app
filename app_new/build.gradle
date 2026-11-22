@@ -33,7 +33,9 @@ android {
             // 演示包使用工具链默认调试签名，便于与旧模块并装对比。
         }
         release {
-            minifyEnabled false
+            // 性能验证包：开启 R8 代码压缩与资源裁剪，减少 Compose/terminal-core 的体积与加载开销。
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

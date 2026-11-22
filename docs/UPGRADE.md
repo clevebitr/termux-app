@@ -799,3 +799,35 @@ Compose PaneArea
 | 本地 `kotlinc` + Compose 编译器编译全部主源（含 `terminal-core` 类路径） | 通过 |
 | 本地 `JUnitCore`：16 个测试类 | 通过，123 项（新增启动参数 6 项、会话绑定/关闭/替换 5 项） |
 | 镜像仓库 CI | 通过（run 45031523428，单测 + assembleDebug），APK 11.9 MB；原仓库 Actions 仍被禁用 |
+
+## 17. 性能验证：minified release 构建（2026-11-22）
+
+目的：确认“卡顿”中有多少来自 debug 构建开销。Compose 在 debug 下不做 R8 优化、体积大、
+首帧与重组成本明显高于 release，因此在优化渲染管线（脏行、同步输出）之前先做对比基线。
+
+### 17.1 构建配置
+
+| 项 | debug | release（性能验证） |
+| --- | --- | --- |
+| `minifyEnabled` | false | **true** |
+| `shrinkResources` | false | **true** |
+| R8 规则 | 不适用 | `proguard-rules.pro`：保留 `com.termux.shell.terminal.JNI` 的名称绑定；保留终端包与视图包类名便于诊断 |
+| 签名 | 调试签名 | CI 生成的调试签名（与 debug 包同密钥，可直接覆盖安装） |
+| 用途 | 常规查看 | 仅用于性能对比，不作为发布产物 |
+
+工作流：`.github/workflows/app_new_release_build.yml`，手动触发；产物发布到同一 `shell-demo`
+发布页，文件名为 `termux-shell-demo-release.apk`，与 debug 包并存。
+
+### 17.2 对比方法
+
+1. 安装 debug 包，观察：输入回显延迟、`ls -R /system` 之类大输出、滚动历史、弹出/收起键盘；
+2. 覆盖安装 release 包（同一签名，无需卸载），重复同一组操作；
+3. 若 release 明显更顺，说明优化重点在构建与渲染管线；若两者都卡，按 §16.3 的脏行增量、
+   同步输出与 resize 去抖继续处理。
+
+### 17.3 注意事项
+
+* R8 可能暴露运行期反射/JNI 问题：若 release 包启动崩溃或终端无法启动，优先检查
+  `UnsatisfiedLinkError`（native 方法重命名）与 JSON/反射相关裁剪，并在 `proguard-rules.pro` 补充规则；
+* release 包关闭调试日志输出（`ShellLog` 仍会调用 `Log`，但 debug 级日志在 release 下不打印）；
+* 该包不改变 `applicationId` 与 `targetSdk`，不会影响现有 Termux 安装。

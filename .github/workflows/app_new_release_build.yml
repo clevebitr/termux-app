@@ -1,0 +1,102 @@
+name: Shell Demo Release
+
+# 构建新外壳（app_new）的 minified release APK，用于对比 debug 包的运行时性能。
+# 该包使用 CI 生成的调试签名（与 debug 包同密钥），可直接覆盖安装 debug 包；
+# 不作为发布产物，也不进入插件签名体系。
+# 仅在手动触发时运行，避免每次推送都增加一轮构建。
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: shell-demo-release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  JAVA_VERSION: '17'
+  RELEASE_TAG: 'shell-demo'
+
+jobs:
+  build:
+    name: Build minified release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Setup java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Unit tests
+        run: ./gradlew :app_new:testDebugUnitTest --console=plain
+
+      - name: Prepare debug keystore
+        run: |
+          set -euo pipefail
+          KEYSTORE="$HOME/.android/debug.keystore"
+          if [ ! -f "$KEYSTORE" ]; then
+            mkdir -p "$(dirname "$KEYSTORE")"
+            keytool -genkeypair -keystore "$KEYSTORE" \
+              -storepass android -keypass android \
+              -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          echo "KEYSTORE=$KEYSTORE" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        run: |
+          set -euo pipefail
+          ./gradlew :app_new:assembleRelease --console=plain \
+            -Pandroid.injected.signing.store.file="$KEYSTORE" \
+            -Pandroid.injected.signing.store.password=android \
+            -Pandroid.injected.signing.key.alias=androiddebugkey \
+            -Pandroid.injected.signing.key.password=android
+
+      - name: Locate APK
+        id: apk
+        run: |
+          set -euo pipefail
+          APK="$(find app_new/build/outputs/apk/release -name '*.apk' | head -1)"
+          if [ -z "$APK" ]; then
+            echo "::error::未找到 app_new 的 release APK"
+            exit 1
+          fi
+          NAME="termux-shell-demo-release.apk"
+          cp "$APK" "$RUNNER_TEMP/$NAME"
+          echo "path=$RUNNER_TEMP/$NAME" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          ls -l "$RUNNER_TEMP/$NAME"
+          {
+            echo "### 外壳 minified release 构建"
+            echo ""
+            echo "* 提交：\`${GITHUB_SHA:0:7}\`"
+            echo "* APK：\`$NAME\`"
+            echo "* 签名：CI 生成的调试签名（与 debug 包同密钥，可直接覆盖安装）"
+            echo "* 用途：对比 debug 包的运行时性能，不作为发布产物"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: termux-shell-release
+          if-no-files-found: error
+          path: ${{ steps.apk.outputs.path }}
+
+      - name: Publish to demo release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --prerelease --title "外壳骨架演示（自动构建）" \
+              --notes "外壳演示构建。debug 包用于常规查看，release 包用于性能对比。"
+          fi
+          gh release upload "$RELEASE_TAG" "${{ steps.apk.outputs.path }}" --clobber
+          echo "下载地址：https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${{ steps.apk.outputs.name }}"
