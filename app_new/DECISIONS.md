@@ -167,3 +167,13 @@ https://github.com/clevebitr/termux-shell-demo/releases/download/shell-demo/term
 - ShellViewModel/ShellApplication：注入 SessionProvider；启动/新建标签/分屏时为叶子补齐会话；关闭标签/窗格时关闭对应会话；恢复布局时检测失效 sessionId 并重新创建。
 
 边界与未验证：无 $PREFIX/bootstrap，proot-distro 与 ssh 不可用，配置会直接打印工具缺失；会话列表仍由工作区派生，未展示真实标题/PID，接管脱离会话未实现；窗口关闭当前相当于 detach（不结束会话）；设备侧未运行，仅本地编译与 123 项单元测试通过。
+
+## 2026-11-22 — 新增 minified release 包用于定位卡顿来源
+
+背景：真机反馈外壳可用但手感偏卡。当前 debug 包未压缩、Compose debug 运行时开销高，且终端渲染尚未做脏行增量（M12-6）与同步输出（M12-5）；需要先区分「debug 构建开销」与「渲染管线本身」。
+
+做法：app_new 的 release 构建开启 minifyEnabled + shrinkResources，R8 规则保留 com.termux.shell.terminal.JNI（名称绑定原生方法）与终端/视图包类名；新增 .github/workflows/app_new_release_build.yml，手动触发，使用 CI 生成的调试签名（与 debug 包同密钥，可直接覆盖安装），产物发布到 shell-demo 发布页的 termux-shell-demo-release.apk，与 debug 包并存。
+
+验证方法：同一组操作（输入回显、大输出、滚动历史、键盘弹出/收起）对比 debug 与 release 的手感；若 release 明显更顺则优先继续做构建与渲染优化，若两者都卡则推进脏行增量、同步输出与 PTY resize 去抖。
+
+风险：R8 可能暴露 JNI/反射裁剪问题（优先检查 UnsatisfiedLinkError）；release 包仅用于性能对比，不作为发布产物；不改变 applicationId/targetSdk，不影响现有 Termux 安装。
