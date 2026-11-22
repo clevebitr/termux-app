@@ -273,7 +273,8 @@ ShellActivity                    窗口宿主：边到边、系统栏、快捷�
 | 4 会话状态 | `8daf0e4` | `SessionRegistry.fromWorkspace` 接受 `describe` 查询，区分未绑定／运行／已退出并填充标题与工作目录；视图模型订阅 `SessionHost.Observer` 并以 `sessionRevision` 通知界面；`LocalSessionHost.closeSession` 补发退出通知；修正运行中会话显示「无会话」的文案缺陷 | 新增 5 项测试（注册表 3 项、视图模型 2 项）；共 137 项通过 |
 | 5 无障碍 | `c1c7419` | 标签行高 48dp、关闭按钮改用 `IconButton`（触摸目标 48dp）、`Role.Tab` 与 `selected` 语义；分割条命中区 12dp + 2dp 细线，新增双击复位与三个无障碍动作；会话行补 `Role.Button`、`selected`、`stateDescription`；会话列表改 `LazyColumn`；标题行固定提供窗口菜单 | 编译与 Lint 通过 |
 | 6 样式 | `bd1697c`、`1eb0666` | 命令面板按分组呈现（分组标题 + `secondaryContainer` 选中态 + 搜索图标）；主题在 Android 12 及以上跟随系统取色，低版本回退默认配色 | 编译与 Lint 通过 |
-| 8 持久化 | 见本次提交 | 新增 `config/AtomicFileReplace`：临时文件 + `sync()` + 同目录重命名，设置文件与会话配置共用；移除「先删除原文件再改名」的窗口；设置写入失败时回滚到修改前快照（保留期间其它成功修改） | 新增 4 项测试（原子替换 3 项、视图模型回滚 2 项中的 1 项）；共 142 项通过 |
+| 9 测试 | 见本次提交 | 新增 `ui/settings/SettingsSearch`（纯函数，可测）与测试替身 `UiTestFixtures`；补齐设置页搜索、描述层写回接线、原子写入共 15 项 JVM 测试；新增 `androidTest` 源集的设置页交互测试（编译已验证，运行待设备或 CI） | 单元测试 152 项通过；`assembleDebugAndroidTest` 通过 |
+| 8 持久化 | `16bc6c0` | 新增 `config/AtomicFileReplace`：临时文件 + `sync()` + 同目录重命名，设置文件与会话配置共用；移除「先删除原文件再改名」的窗口；设置写入失败时回滚到修改前快照（保留期间其它成功修改） | 新增 4 项测试（原子替换 3 项、视图模型回滚 2 项中的 1 项）；共 142 项通过 |
 | 7 卫生 | `92d2fac` | 按 Lint 收敛：`PaneArea` 的 `modifier` 调为第一个可选参数、会话配置数量改用 plurals、移除 6 条未使用字符串、删除清单中多余的 `targetApi`、为进程级单例与装箱状态补充抑制说明 | `lintDebug` 告警由 11 条降至 4 条（3 条依赖版本提示 + 1 条 `-ktx` 命名提示） |
 
 ### 10.2 复核评分
@@ -296,19 +297,33 @@ ShellActivity                    窗口宿主：边到边、系统栏、快捷�
 | C6 | P2 | 布局落盘与冷启动恢复（M13-3） | 需新增布局存储与损坏回退 |
 | B3 | P2 | 删除会话配置的「撤销」动作（已实现二次确认） | 需要提示事件携带可执行动作 |
 | D7 | P2 | 依赖版本升级（`activity-compose`、`lifecycle`、`org.json`） | 需在 `docs/UPGRADE.md` 记录理由，并按「一次提交一组」拆分 |
-| D2 | P1 | Compose UI 测试与截图基线 | 需新增测试依赖与 `androidTest` 源集 |
 | A4 | P2 | `ShellViewModel` 剩余拆分（工作区动作、profile、导航） | 无设备验证前置，分步进行 |
 | B6 | P1 | 终端分组设置（字号、配色、虚拟按键行） | 依赖 M16-4/M16-5 |
 | B10 | P2 | 标签拖拽排序、滑动切换、自动滚动到选中标签 | 独立交互批次 |
 | A5 | P1 | 视图池与组合期副作用彻底分离 | 已加 `onRelease` 与重新挂载保护，仍建议改为显式视图宿主 |
 
-### 10.4 本机验证
+### 10.4 Robolectric 在本机不可用
+
+界面测试最初采用 Robolectric（JVM 上运行 Compose UI 测试），编译与依赖解析均正常，但执行时失败：
+
+```
+java.lang.UnsatisfiedLinkError: no conscrypt_openjdk_jni-linux-aarch_64 in java.library.path
+  at org.conscrypt.NativeCrypto.<clinit>
+  at org.robolectric.android.internal.AndroidTestEnvironment.setUpApplicationState
+```
+
+Conscrypt 只提供 glibc 桌面平台的 JNI 预编译库，Termux 使用 bionic，无对应产物。因此界面测试
+改为 `androidTest` 源集：本地用 `:app_new:assembleDebugAndroidTest` 验证编译，执行留给设备或 CI。
+依赖与取舍记录见 `docs/UPGRADE.md` 第 18 节。
+
+### 10.5 本机验证
 
 | 项 | 结果 |
 | --- | --- |
 | `:app_new:assembleDebug` | 通过，debug APK 约 11.4 MB |
 | `:app_new:testDebugUnitTest` | 通过，137 项 |
 | `:app_new:lintDebug` | 通过（`abortOnError = true`），剩余 4 条提示：`activity-compose`、`lifecycle-viewmodel`、`org.json` 的版本更新建议，以及 `lifecycle-viewmodel` 的 `-ktx` 命名提示 |
+| `:app_new:assembleDebugAndroidTest` | 通过（仅编译，未执行） |
 | 设备侧 | 未验证：本机无 `adb` |
 
 构建环境补充：本机无法访问 `repo.maven.apache.org`（HTTP 403），已在仓库外的
