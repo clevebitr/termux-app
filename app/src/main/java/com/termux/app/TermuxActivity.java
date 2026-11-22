@@ -46,6 +46,7 @@ import com.termux.app.notifications.RecentNotificationsDialog;
 import com.termux.app.terminal.menu.TerminalMenuAction;
 import com.termux.app.terminal.menu.TerminalMenuConfig;
 import com.termux.app.terminal.menu.TerminalMenuDialog;
+import com.termux.app.terminal.menu.TerminalMenuItems;
 import com.termux.app.notifications.TerminalNotificationManager;
 import com.termux.app.statusbar.StatusBarConfig;
 import com.termux.app.statusbar.StatusBarController;
@@ -1579,38 +1580,17 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         TerminalSession session = getCurrentSession();
         if (session == null || mTerminalView == null) return;
 
-        boolean autoFillEnabled = mTerminalView.isAutoFillEnabled();
-        boolean hasSelectedText = !DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText());
-        boolean notificationsEnabled = mNotificationManager != null && mNotificationManager.isEnabled();
+        TerminalMenuItems.State state = new TerminalMenuItems.State(
+            isSplitScreenEnabled(),
+            !DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText()),
+            mTerminalView.isAutoFillEnabled(),
+            mNotificationManager != null && mNotificationManager.isEnabled(),
+            // The list is only useful when a notification was shown since the app was started.
+            mNotificationManager != null && !mNotificationManager.getRecentNotifications().isEmpty(),
+            session.isRunning());
 
-        List<TerminalMenuDialog.Item> items = new ArrayList<>();
-        for (TerminalMenuAction action : mTerminalMenuConfig.menuItems) {
-            switch (action) {
-                case SPLIT_CLOSE:
-                    if (!isSplitScreenEnabled()) continue;
-                    break;
-                case SHARE_SELECTED_TEXT:
-                    if (!hasSelectedText) continue;
-                    break;
-                case AUTOFILL_USERNAME:
-                case AUTOFILL_PASSWORD:
-                    if (!autoFillEnabled) continue;
-                    break;
-                case TEST_NOTIFICATION:
-                    if (!notificationsEnabled) continue;
-                    break;
-                case RECENT_NOTIFICATIONS:
-                    // The list is only useful when a notification was shown since the app was started.
-                    if (mNotificationManager == null || mNotificationManager.getRecentNotifications().isEmpty())
-                        continue;
-                    break;
-                default:
-                    break;
-            }
-
-            boolean enabled = action != TerminalMenuAction.KILL_PROCESS || session.isRunning();
-            items.add(new TerminalMenuDialog.Item(action, action.getTitle(this, session), enabled));
-        }
+        List<TerminalMenuDialog.Item> items = TerminalMenuItems.build(
+            mTerminalMenuConfig.menuItems, state, action -> action.getTitle(this, session));
 
         if (items.isEmpty()) return;
 
