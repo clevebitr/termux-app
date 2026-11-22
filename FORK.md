@@ -1990,3 +1990,31 @@ terminal-emulator 236 个
 
 > 本机唯一的已知失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（Robolectric 在本机 Android 上
 > 的 `ShadowActivityThread.reset` 问题，CI 的 x86_64 环境不复现）。
+
+## 33. 命令面板与终端右键转发（2026-11-23）
+
+### 33.1 命令面板
+
+新增 `app/commands/`：
+
+- `ShellCommand`：标题、分组、快捷键、可用性与执行闭包；
+- `ShellCommandCatalog`：复用终端菜单的可见性/可用性规则（`TerminalMenuItems`）生成命令，包含搜索、会话列表、上/下一条命令、左右/上下分屏、关闭分屏、重置终端、结束进程、新建会话、切换键盘、设置、帮助、最近通知；
+- `ShellCommandPalette`：可搜索对话框，按标题、分组或快捷键匹配，不区分大小写，回车执行首个可用项。
+
+入口：
+
+| 入口 | 方式 |
+| --- | --- |
+| 快捷键 | `Ctrl+Shift+P`（窗口级拦截，不依赖焦点） |
+| 会话抽屉 | 抽屉头部「命令面板」按钮 |
+| 终端长按/右键菜单 | 把 `command-palette` 加入 `terminal-menu-items`（默认列表由只读的共享库定义，因此需显式加入） |
+| 虚拟按键 | 在 `extra-keys` 中加入 `F12`（未按修饰键时打开面板） |
+
+### 33.2 终端右键转发
+
+当终端程序启用鼠标跟踪（`DECSET 1000/1002/1003`，如 `vim`、`tmux`、`htop`）时，鼠标右键作为
+次键事件转发给程序；未启用时仍然弹出终端上下文菜单。实现位于 `app/terminal/TermuxTerminalFrame`：
+它包装 `TerminalView`（该视图在只读模块中是 `final`，不能继承），在 `dispatchTouchEvent` 中拦截右键，
+用终端的公开 API（`getColumnAndRow`、`sendMouseEvent`）编码并写入会话，因此不需要修改只读模块。
+
+限制：坐标为终端视图内坐标，分屏时按各自视图换算；触屏长按仍走上游文本选择逻辑。
