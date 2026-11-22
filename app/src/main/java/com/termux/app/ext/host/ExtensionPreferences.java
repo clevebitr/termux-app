@@ -4,11 +4,13 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import androidx.preference.Preference;
+import androidx.preference.PreferenceGroup;
 import androidx.preference.PreferenceScreen;
 
 import com.termux.app.ext.api.Extension;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -78,6 +80,8 @@ public final class ExtensionPreferences {
      * of showing a page that does nothing. Hiding is a hint for the user rather than the enforcement of the
      * state: the page of an extension also refuses to work while its extension is disabled, since the entry
      * is not the only path to the page.</p>
+     * <p>A category whose entries are all hidden is hidden as well, because an empty header that names a
+     * feature of a disabled extension would mislead as much as the entry itself.</p>
      */
     public static void applyPreferenceVisibility(@NonNull Context context,
                                                  @NonNull PreferenceScreen screen) {
@@ -87,9 +91,28 @@ public final class ExtensionPreferences {
             if (extension == null) continue;
             for (String key : extension.preferenceKeys()) {
                 Preference preference = screen.findPreference(key);
-                if (preference != null) preference.setVisible(false);
+                if (preference == null || !preference.isVisible()) continue;
+                preference.setVisible(false);
+                hideParentIfEmpty(preference.getParent());
             }
         }
+    }
+
+    /** Hide {@code group} and then its parents while they have no visible entry left. */
+    private static void hideParentIfEmpty(@Nullable PreferenceGroup group) {
+        while (group != null) {
+            if (hasVisibleChild(group)) return;
+            group.setVisible(false);
+            group = group.getParent();
+        }
+    }
+
+    /** @return Whether {@code group} holds at least one entry that is shown. */
+    private static boolean hasVisibleChild(@NonNull PreferenceGroup group) {
+        for (int i = 0; i < group.getPreferenceCount(); i++) {
+            if (group.getPreference(i).isVisible()) return true;
+        }
+        return false;
     }
 
     /**
