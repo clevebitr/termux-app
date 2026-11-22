@@ -21,7 +21,7 @@ import java.util.List;
  */
 public final class ShellCommandCatalog {
 
-    /** The actions that the palette runs, dispatched by the host. */
+    /** The actions that the command palette and the buttons of the sessions drawer run, dispatched by the host. */
     public interface Host {
         void runTerminalMenuAction(@NonNull TerminalMenuAction action);
         /** Create a session without a name. */
