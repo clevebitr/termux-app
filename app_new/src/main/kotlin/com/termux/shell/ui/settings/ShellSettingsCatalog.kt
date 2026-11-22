@@ -30,13 +30,13 @@ sealed interface SettingsItem {
 }
 
 /** 选项及其文案。 */
-data class ChoiceOption(val value: String, @param:StringRes val labelRes: Int)
+data class ChoiceOption(val value: String, @get:StringRes val labelRes: Int)
 
 /** 开关项：整行可点，右侧以开关呈现当前取值。 */
 data class ToggleItem(
     override val id: String,
-    @StringRes override val titleRes: Int,
-    @StringRes override val descriptionRes: Int? = null,
+    @get:StringRes override val titleRes: Int,
+    @get:StringRes override val descriptionRes: Int? = null,
     val checked: Boolean,
     val onCheckedChange: (Boolean) -> Unit,
 ) : SettingsItem
@@ -44,8 +44,8 @@ data class ToggleItem(
 /** 选项项：以筛选项（filter chip）呈现互斥取值。 */
 data class ChoiceItem(
     override val id: String,
-    @StringRes override val titleRes: Int,
-    @StringRes override val descriptionRes: Int? = null,
+    @get:StringRes override val titleRes: Int,
+    @get:StringRes override val descriptionRes: Int? = null,
     val options: List<ChoiceOption>,
     val selected: String,
     val onSelect: (String) -> Unit,
@@ -54,22 +54,22 @@ data class ChoiceItem(
 /** 动作项：点击后执行一次操作，例如重新加载配置文件。 */
 data class ActionItem(
     override val id: String,
-    @StringRes override val titleRes: Int,
-    @StringRes override val descriptionRes: Int? = null,
+    @get:StringRes override val titleRes: Int,
+    @get:StringRes override val descriptionRes: Int? = null,
     val onClick: () -> Unit,
 ) : SettingsItem
 
 /** 信息项：只读展示，例如版本号与配置文件路径。 */
 data class InfoItem(
     override val id: String,
-    @StringRes override val titleRes: Int,
+    @get:StringRes override val titleRes: Int,
     val value: String,
 ) : SettingsItem {
     override val descriptionRes: Int? get() = null
 }
 
 /** 设置分组。 */
-data class SettingsSection(val id: String, @param:StringRes val titleRes: Int, val items: List<SettingsItem>)
+data class SettingsSection(val id: String, @get:StringRes val titleRes: Int, val items: List<SettingsItem>)
 
 /** 设置页的显示块。会话配置不是普通配置项，因此单独作为一种块。 */
 sealed interface SettingsBlock {

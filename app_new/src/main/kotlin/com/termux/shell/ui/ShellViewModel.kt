@@ -13,14 +13,10 @@ import com.termux.shell.config.SettingsSpec
 import com.termux.shell.input.KeymapTable
 import com.termux.shell.input.ShellAction
 import com.termux.shell.pane.PaneDirection
-import com.termux.shell.pane.PaneLayout
-import com.termux.shell.pane.PaneLeaf
 import com.termux.shell.pane.SplitOrientation
-import com.termux.shell.session.SessionProvider
-import com.termux.shell.session.ProfileCommandBuilder
 import com.termux.shell.session.SessionEnvironment
-import com.termux.shell.session.SessionId
 import com.termux.shell.session.SessionProfile
+import com.termux.shell.session.SessionProvider
 import com.termux.shell.session.SessionRecord
 import com.termux.shell.session.SessionRegistry
 import com.termux.shell.tabs.TabWorkspace
@@ -58,14 +54,10 @@ class ShellViewModel(
 
     private val writeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val settingsPersister: SettingsPersister = persister ?: SettingsPersister { key, value, onFailure ->
-        writeScope.launch {
-            val saved = runCatching { configSource.settings().put(key, value) }.getOrDefault(false)
-            if (!saved) {
-                withContext(Dispatchers.Main) { onFailure() }
-            }
-        }
-    }
+    private val settingsWriter = SettingsWriter(configSource, writeScope, persister)
+
+    /** 叶子与会话进程的绑定。宿主为空的测试环境不会创建会话。 */
+    private val sessionBinder = SessionBinder(sessionHost, ::profileById, sessionEnvironment)
 
     /** 界面设置快照。设置页与标题行均从此读取，重载配置后整体替换。 */
     var uiSettings: ShellSettings by mutableStateOf(ShellSettings.from(configSource.settings()))
@@ -76,7 +68,7 @@ class ShellViewModel(
 
     init {
         // 恢复的标签可能引用已随进程结束的会话：为每个叶子补齐会话，失效标识由宿主校验后重建。
-        sessionHost?.let { workspace = bindLeafSessions(workspace) }
+        sessionHost?.let { workspace = sessionBinder.bind(workspace) }
     }
 
     /** 当前键位表。重载配置后更新，窗口据此刷新输入路由。 */
@@ -235,7 +227,7 @@ class ShellViewModel(
             return
         }
         workspace = closed
-        closingSessionIds.forEach { closeSessionById(it) }
+        closingSessionIds.forEach { sessionBinder.close(it) }
     }
 
     fun moveTabBy(offset: Int) {
@@ -375,7 +367,7 @@ class ShellViewModel(
      */
     fun newTab(profile: SessionProfile?) {
         val title = profile?.name ?: titleFactory(workspace.nextTabNumber)
-        workspace.newTab(title, profile?.id)?.let { workspace = bindLeafSessions(it) }
+        workspace.newTab(title, profile?.id)?.let { workspace = sessionBinder.bind(it) }
             ?: publishNotice(ShellNotice.TAB_LIMIT)
     }
 
@@ -464,7 +456,7 @@ class ShellViewModel(
             return
         }
         workspace = closed
-        closingSessionId?.let { closeSessionById(it) }
+        closingSessionId?.let { sessionBinder.close(it) }
     }
 
     override fun focusNextPane() {
@@ -534,36 +526,7 @@ class ShellViewModel(
             publishNotice(ShellNotice.PANE_LIMIT)
             return
         }
-        workspace = bindLeafSessions(newWorkspace)
-    }
-
-    /** 为尚未绑定或绑定已失效的叶子创建会话，其余叶子保持原绑定。 */
-    private fun bindLeafSessions(workspace: TabWorkspace): TabWorkspace {
-        val host = sessionHost ?: return workspace
-        return workspace.copy(
-            tabs = workspace.tabs.map { tab ->
-                tab.copy(
-                    root = PaneLayout.mapLeaves(tab.root) { leaf ->
-                        ensureLeafSession(host, leaf, tab.profileId)
-                    },
-                )
-            },
-        )
-    }
-
-    private fun ensureLeafSession(host: SessionProvider, leaf: PaneLeaf, profileId: String?): PaneLeaf {
-        val existing = leaf.sessionId
-        if (existing != null && host.describe(SessionId.of(existing)) != null) {
-            return leaf
-        }
-        val request = ProfileCommandBuilder.build(profileById(profileId), sessionEnvironment)
-        val sessionId = runCatching { host.createSession(request) }.getOrNull() ?: return leaf
-        return leaf.copy(sessionId = sessionId.value)
-    }
-
-    private fun closeSessionById(sessionId: String) {
-        val host = sessionHost ?: return
-        runCatching { host.closeSession(SessionId.of(sessionId)) }
+        workspace = sessionBinder.bind(newWorkspace)
     }
 
     /**
@@ -573,7 +536,7 @@ class ShellViewModel(
      */
     private fun updateSetting(key: String, value: String, transform: (ShellSettings) -> ShellSettings) {
         uiSettings = transform(uiSettings)
-        settingsPersister.persist(key, value) { publishNotice(ShellNotice.SETTINGS_SAVE_FAILED) }
+        settingsWriter.persist(key, value) { publishNotice(ShellNotice.SETTINGS_SAVE_FAILED) }
     }
 
     private fun publishNotice(notice: ShellNotice) {
@@ -585,10 +548,6 @@ class ShellViewModel(
      *
      * 生产实现把磁盘写入放到 IO 协程，并在失败时回到主线程回调；单元测试可传入同步实现。
      */
-    fun interface SettingsPersister {
-        fun persist(key: String, value: String, onFailure: () -> Unit)
-    }
-
     /**
      * 视图模型工厂。
      *

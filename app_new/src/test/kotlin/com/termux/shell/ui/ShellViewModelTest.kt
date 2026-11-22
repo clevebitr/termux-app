@@ -79,7 +79,7 @@ class ShellViewModelTest {
         override val keymapFilePath: String = "/tmp/keymap.properties"
     }
 
-    private class FakePersister : ShellViewModel.SettingsPersister {
+    private class FakePersister : SettingsPersister {
 
         val writes: MutableList<Pair<String, String>> = mutableListOf()
 
