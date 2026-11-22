@@ -71,6 +71,17 @@
 
     </PreferenceCategory>
 
+    <!-- The extensions of the fork, which the user can enable and disable one by one. -->
+    <PreferenceCategory app:title="@string/termux_preferences_category_extensions">
+
+        <Preference
+            app:icon="@drawable/ic_pref_extensions"
+            app:title="@string/termux_extensions_preferences_title"
+            app:summary="@string/termux_extensions_preferences_summary"
+            app:fragment="com.termux.app.fragments.settings.termux.ExtensionsPreferencesFragment"/>
+
+    </PreferenceCategory>
+
     <!-- The pages that are only needed to diagnose a problem, which used to be the first entries of this
          screen even though they are rarely opened. -->
     <PreferenceCategory app:title="@string/termux_preferences_category_advanced">

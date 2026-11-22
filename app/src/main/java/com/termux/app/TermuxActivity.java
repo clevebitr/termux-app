@@ -76,6 +76,8 @@ import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.app.terminal.TermuxSessionsListViewController;
 import com.termux.app.terminal.io.TerminalToolbarViewPager;
+import com.termux.app.ext.ForkExtensions;
+import com.termux.app.ext.host.ExtensionManager;
 import com.termux.app.terminal.TermuxTerminalViewClient;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
 import com.termux.shared.termux.interact.TextInputDialogUtils;
@@ -261,6 +263,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * The last toast shown, used cancel current toast before showing new in {@link #showToast(String, boolean)}.
      */
     Toast mLastToast;
+
+    /**
+     * Starts and stops the extensions of the fork. Created with the activity, since an extension may own
+     * views, and released in {@link #onDestroy()}.
+     */
+    private ExtensionManager mExtensionManager;
 
     /**
      * If between onResume() and onStop(). Note that only one session is in the foreground of the terminal view at the
@@ -457,7 +465,21 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         // Send the {@link TermuxConstants#BROADCAST_TERMUX_OPENED} broadcast to notify apps that Termux
         // app has been opened.
+        // Start the enabled extensions after the terminal, the drawer and the menu are set up.
+        setupExtensions();
+
         TermuxUtils.sendTermuxOpenedBroadcast(this);
+    }
+
+    /**
+     * Create the extension manager and start the enabled extensions.
+     *
+     * <p>Kept out of {@link #onCreate(Bundle)} so that the terminal views and the settings are set up
+     * first; an extension may contribute views that need the activity to be fully initialized.</p>
+     */
+    private void setupExtensions() {
+        mExtensionManager = new ExtensionManager(this, ForkExtensions.installed());
+        mExtensionManager.apply();
     }
 
     @Override
@@ -516,6 +538,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         TermuxCrashUtils.notifyAppCrashFromCrashLogFile(this, LOG_TAG);
 
         mIsOnResumeAfterOnCreate = false;
+
+        // The extensions page stores the flags; apply them when the user returns to the terminal so that
+        // an extension that owns views is started or stopped on a stable point of the lifecycle.
+        if (mExtensionManager != null) mExtensionManager.apply();
     }
 
     /**
@@ -576,6 +602,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (mIsInvalidState) return;
 
         unregisterTermuxActivityBroadcastReceiver();
+
+        if (mExtensionManager != null) {
+            mExtensionManager.destroy();
+            mExtensionManager = null;
+        }
 
         if (mTermuxService != null) {
             // Do not leave service and session clients with references to activity.
