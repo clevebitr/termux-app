@@ -19,13 +19,16 @@ import java.util.List;
  */
 public final class BackupExtension implements Extension {
 
+    /** The stable id of the extension, which the settings page and the feature gates use. */
+    public static final String ID = "backup";
+
     /** The preference key of the settings entry that this extension owns. */
-    public static final String PREFERENCE_KEY = "backup";
+    public static final String PREFERENCE_KEY = ID;
 
     @NonNull
     @Override
     public String id() {
-        return "backup";
+        return ID;
     }
 
     @Override

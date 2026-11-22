@@ -73,6 +73,18 @@ public final class ExtensionPreferences {
     }
 
     /**
+     * @return Whether the extension is currently allowed to run, that is whether the user enabled it and its
+     *         dependencies are satisfied. Returns {@code false} for an id that is not installed, so that a
+     *         caller which guards an entry point fails closed.
+     */
+    public static boolean isRunning(@NonNull Context context, @NonNull String id) {
+        for (ExtensionStatus status : resolve(context, ForkExtensions.installed())) {
+            if (status.id.equals(id)) return status.state.isRunning();
+        }
+        return false;
+    }
+
+    /**
      * Hide the settings entries that belong to extensions which are not running.
      *
      * <p>Called after a settings page is inflated, so that disabling an extension removes its entry instead

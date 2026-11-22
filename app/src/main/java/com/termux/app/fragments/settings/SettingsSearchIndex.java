@@ -9,6 +9,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.R;
+import com.termux.app.ext.ForkExtensions;
+import com.termux.app.ext.backup.BackupExtension;
+import com.termux.app.ext.host.ExtensionPreferences;
+import com.termux.app.ext.host.ExtensionStatus;
 import com.termux.app.fragments.settings.termux.AppearancePreferencesFragment;
 import com.termux.app.ext.backup.BackupPreferencesFragment;
 import com.termux.app.fragments.settings.termux.DebuggingPreferencesFragment;
@@ -23,8 +27,10 @@ import com.termux.shared.logger.Logger;
 import org.xmlpull.v1.XmlPullParser;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * The index of the entries of the settings of the Termux app, which the search of the settings screen
@@ -46,11 +52,22 @@ public final class SettingsSearchIndex {
         final int titleRes;
         final int xmlRes;
         final String fragmentClassName;
+        /**
+         * The id of the extension that provides the page, or {@code null} for a page of the shell itself.
+         * The entries of a page of an extension are not searchable while the extension is disabled.
+         */
+        @Nullable
+        final String extensionId;
 
         Page(int titleRes, int xmlRes, String fragmentClassName) {
+            this(titleRes, xmlRes, fragmentClassName, null);
+        }
+
+        Page(int titleRes, int xmlRes, String fragmentClassName, @Nullable String extensionId) {
             this.titleRes = titleRes;
             this.xmlRes = xmlRes;
             this.fragmentClassName = fragmentClassName;
+            this.extensionId = extensionId;
         }
     }
 
@@ -70,7 +87,7 @@ public final class SettingsSearchIndex {
         new Page(R.string.termux_notification_preferences_title, R.xml.termux_notification_preferences,
             NotificationPreferencesFragment.class.getName()),
         new Page(R.string.termux_backup_preferences_title, R.xml.termux_backup_preferences,
-            BackupPreferencesFragment.class.getName()),
+            BackupPreferencesFragment.class.getName(), BackupExtension.ID),
         new Page(R.string.termux_debugging_preferences_title, R.xml.termux_debugging_preferences,
             DebuggingPreferencesFragment.class.getName()),
     };
@@ -90,14 +107,26 @@ public final class SettingsSearchIndex {
         public final CharSequence title;
         @Nullable
         public final CharSequence summary;
+        /**
+         * The id of the extension that provides the page of the entry, or {@code null} for a page of the
+         * shell itself. Used to drop the entries of a disabled extension and to refuse opening its page.
+         */
+        @Nullable
+        public final String extensionId;
 
         Entry(@NonNull CharSequence pageTitle, @NonNull String fragmentClassName, @NonNull String key,
               @NonNull CharSequence title, @Nullable CharSequence summary) {
+            this(pageTitle, fragmentClassName, key, title, summary, null);
+        }
+
+        Entry(@NonNull CharSequence pageTitle, @NonNull String fragmentClassName, @NonNull String key,
+              @NonNull CharSequence title, @Nullable CharSequence summary, @Nullable String extensionId) {
             this.pageTitle = pageTitle;
             this.fragmentClassName = fragmentClassName;
             this.key = key;
             this.title = title;
             this.summary = summary;
+            this.extensionId = extensionId;
         }
     }
 
@@ -109,7 +138,36 @@ public final class SettingsSearchIndex {
     public static List<Entry> build(@NonNull Context context) {
         List<Entry> entries = new ArrayList<>();
         for (Page page : PAGES) addPageEntries(context, page, entries);
-        return entries;
+        return withoutDisabledExtensions(entries, disabledExtensionIds(context));
+    }
+
+    /**
+     * @return The ids of the installed extensions that may not run, so that the caller can drop their
+     *         entries and the user does not find a setting of a feature that does nothing.
+     */
+    @NonNull
+    private static Set<String> disabledExtensionIds(@NonNull Context context) {
+        Set<String> disabled = new HashSet<>();
+        for (ExtensionStatus status : ExtensionPreferences.resolve(context, ForkExtensions.installed())) {
+            if (!status.state.isRunning()) disabled.add(status.id);
+        }
+        return disabled;
+    }
+
+    /**
+     * @return The entries that do not belong to an extension in {@code disabledExtensionIds}, in the order of
+     *         {@code entries}. A pure function so that the filtering can be tested without a context.
+     */
+    @NonNull
+    static List<Entry> withoutDisabledExtensions(@NonNull List<Entry> entries,
+                                                 @NonNull Set<String> disabledExtensionIds) {
+        if (disabledExtensionIds.isEmpty()) return entries;
+        List<Entry> available = new ArrayList<>(entries.size());
+        for (Entry entry : entries) {
+            if (entry.extensionId != null && disabledExtensionIds.contains(entry.extensionId)) continue;
+            available.add(entry);
+        }
+        return available;
     }
 
     private static void addPageEntries(@NonNull Context context, @NonNull Page page, @NonNull List<Entry> entries) {
@@ -145,7 +203,7 @@ public final class SettingsSearchIndex {
         if (title == null) return;
 
         entries.add(new Entry(pageTitle, page.fragmentClassName, key, title,
-            resolve(context, getAttribute(parser, "summary"))));
+            resolve(context, getAttribute(parser, "summary")), page.extensionId));
     }
 
     /** @return The value of the attribute {@code name} of the current tag of {@code parser}, or {@code null}. */

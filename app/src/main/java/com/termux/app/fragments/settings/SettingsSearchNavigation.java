@@ -12,7 +12,10 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceGroup;
 import androidx.preference.PreferenceScreen;
 
+import com.termux.app.ext.host.ExtensionPreferences;
 import com.termux.shared.logger.Logger;
+
+import android.content.Context;
 
 /**
  * Opens the page of an entry that the search of the settings found, and remembers which entry the user
@@ -52,14 +55,39 @@ public final class SettingsSearchNavigation {
         Preference pagePreference = screen != null ? findPagePreference(screen, entry.fragmentClassName) : null;
         if (pagePreference == null) {
             Logger.logWarn(LOG_TAG, "The page \"" + entry.fragmentClassName + "\" is not on the settings screen");
-            sPendingFragmentClassName = null;
-            sPendingKey = null;
+            clearPending();
+            return;
+        }
+
+        // The entries of a disabled extension are already dropped from the index, but the user can reach this
+        // method with an entry that was built earlier or kept by the dialog, so the page is checked again.
+        // Both the state of the extension and the visibility of its entry have to allow the page, otherwise a
+        // disabled feature would be opened and appear to work.
+        if (!isPageAvailable(source, entry, pagePreference)) {
+            Logger.logWarn(LOG_TAG, "The page \"" + entry.fragmentClassName
+                + "\" belongs to a disabled extension and is not opened");
+            clearPending();
             return;
         }
 
         // The same hook that androidx.preference calls when the user clicks the entry, which opens the page
         // that the `fragment` attribute of the preference names.
         source.onPreferenceTreeClick(pagePreference);
+    }
+
+    /** @return Whether the page of {@code entry} may be opened, by the state of its extension and by its entry. */
+    private static boolean isPageAvailable(@NonNull PreferenceFragmentCompat source,
+                                           @NonNull SettingsSearchIndex.Entry entry,
+                                           @NonNull Preference pagePreference) {
+        if (!pagePreference.isVisible()) return false;
+        if (entry.extensionId == null) return true;
+        Context context = source.getContext();
+        return context != null && ExtensionPreferences.isRunning(context, entry.extensionId);
+    }
+
+    private static void clearPending() {
+        sPendingFragmentClassName = null;
+        sPendingKey = null;
     }
 
     /** @return The preference of {@code group} that opens the page of {@code fragmentClassName}, or {@code null}. */

@@ -166,6 +166,8 @@
     <string name="termux_extensions_disable_title">Disable extension?</string>
     <string name="termux_extensions_disable_message">%1$s is required by %2$d other extension(s), which will be disabled too.</string>
     <string name="termux_extensions_disable_confirm">Disable</string>
+    <string name="termux_extensions_page_disabled_title">This feature is disabled</string>
+    <string name="termux_extensions_page_disabled_summary">Enable the extension on the Extensions page to use it. Commands that were already installed in $PREFIX/bin stay available until they are removed by hand.</string>
     <string name="termux_preferences_category_advanced">Advanced</string>
     <string name="termux_preferences_summary_debugging">Log level · plugins</string>
     <string name="action_search_settings">Search settings</string>
