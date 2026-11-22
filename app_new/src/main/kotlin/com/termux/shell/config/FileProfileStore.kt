@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 
@@ -78,30 +77,7 @@ class FileProfileStore(private val file: File) : ProfileStore {
         return true
     }
 
-    private fun write(profiles: List<SessionProfile>): Boolean {
-        val parent = file.parentFile
-        if (parent != null && !parent.isDirectory && !parent.mkdirs()) {
-            return false
-        }
-        val temp = File(file.parentFile, file.name + ".tmp")
-        return try {
-            FileOutputStream(temp).use { output ->
-                output.write(ProfileCodec.encode(profiles).toByteArray(StandardCharsets.UTF_8))
-                output.flush()
-                output.fd.sync()
-            }
-            if (file.exists() && !file.delete()) {
-                temp.delete()
-                return false
-            }
-            if (!temp.renameTo(file)) {
-                temp.delete()
-                return false
-            }
-            true
-        } catch (e: IOException) {
-            temp.delete()
-            false
-        }
-    }
+    /** 通过原子替换写入配置列表，失败时保留磁盘上的旧内容。 */
+    private fun write(profiles: List<SessionProfile>): Boolean =
+        AtomicFileReplace.writeText(file, ProfileCodec.encode(profiles))
 }

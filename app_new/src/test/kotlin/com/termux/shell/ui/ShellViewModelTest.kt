@@ -183,13 +183,29 @@ class ShellViewModelTest {
     }
 
     @Test
-    fun settingWriteFailurePublishesNoticeAndKeepsState() {
+    fun settingWriteFailureRollsBackAndPublishesNotice() {
+        val persister = FakePersister().apply { failNext = true }
+        val viewModel = newViewModel(persister = persister)
+        assertTrue(viewModel.fullscreen)
+
+        viewModel.updateFullscreen(false)
+
+        // 写盘失败时回到修改前的取值，避免界面停留在一个磁盘上没有的状态。
+        assertTrue(viewModel.fullscreen)
+        assertEquals(ShellNotice.SETTINGS_SAVE_FAILED, viewModel.notice)
+    }
+
+    @Test
+    fun settingWriteFailureKeepsLaterSuccessfulChange() {
         val persister = FakePersister().apply { failNext = true }
         val viewModel = newViewModel(persister = persister)
 
         viewModel.updateFullscreen(false)
+        viewModel.updateThemeMode(SettingsSpec.THEME_DARK)
 
-        assertFalse(viewModel.fullscreen)
+        // 先失败的写入不得回滚后一次成功修改。
+        assertEquals(SettingsSpec.THEME_DARK, viewModel.themeMode)
+        assertTrue(viewModel.fullscreen)
         assertEquals(ShellNotice.SETTINGS_SAVE_FAILED, viewModel.notice)
     }
 

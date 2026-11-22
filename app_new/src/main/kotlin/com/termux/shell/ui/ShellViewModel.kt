@@ -571,11 +571,21 @@ class ShellViewModel(
     /**
      * 先应用内存状态，再异步写入配置文件。
      *
-     * 约束：写入失败时保留乐观更新的界面状态并提示用户，避免界面与操作结果反复跳动。
+     * 行为：写入失败时回滚到修改前的快照并提示用户，使界面与磁盘保持一致；
+     * 回滚以「当前快照仍等于本次修改结果」为条件，因此期间其它设置的成功修改不会被覆盖。
+     *
+     * 约束：回调可能在主线程之外触发，回滚分支内只做快照替换与提示发布。
      */
     private fun updateSetting(key: String, value: String, transform: (ShellSettings) -> ShellSettings) {
-        uiSettings = transform(uiSettings)
-        settingsWriter.persist(key, value) { publishNotice(ShellNotice.SETTINGS_SAVE_FAILED) }
+        val previous = uiSettings
+        val updated = transform(previous)
+        uiSettings = updated
+        settingsWriter.persist(key, value) {
+            if (uiSettings == updated) {
+                uiSettings = previous
+            }
+            publishNotice(ShellNotice.SETTINGS_SAVE_FAILED)
+        }
     }
 
     private fun notifySessionChanged() {
