@@ -13,7 +13,13 @@ import com.termux.shell.config.SettingsSpec
 import com.termux.shell.input.KeymapTable
 import com.termux.shell.input.ShellAction
 import com.termux.shell.pane.PaneDirection
+import com.termux.shell.pane.PaneLayout
+import com.termux.shell.pane.PaneLeaf
 import com.termux.shell.pane.SplitOrientation
+import com.termux.shell.session.SessionProvider
+import com.termux.shell.session.ProfileCommandBuilder
+import com.termux.shell.session.SessionEnvironment
+import com.termux.shell.session.SessionId
 import com.termux.shell.session.SessionProfile
 import com.termux.shell.session.SessionRecord
 import com.termux.shell.session.SessionRegistry
@@ -45,6 +51,8 @@ class ShellViewModel(
     initialWorkspace: TabWorkspace,
     private val titleFactory: (Int) -> String,
     persister: SettingsPersister? = null,
+    private val sessionHost: SessionProvider? = null,
+    private val sessionEnvironment: SessionEnvironment = SessionEnvironment("/", "/"),
 ) : ViewModel(), ShellCommandCatalog.Actions, ShellCommandCatalog.State {
 
     private val writeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -64,6 +72,11 @@ class ShellViewModel(
 
     var workspace: TabWorkspace by mutableStateOf(initialWorkspace)
         private set
+
+    init {
+        // 恢复的标签可能引用已随进程结束的会话：为每个叶子补齐会话，失效标识由宿主校验后重建。
+        sessionHost?.let { workspace = bindLeafSessions(workspace) }
+    }
 
     /** 当前键位表。重载配置后更新，窗口据此刷新输入路由。 */
     var keymap: KeymapTable by mutableStateOf(configSource.keymap())
@@ -112,6 +125,10 @@ class ShellViewModel(
     /** 按标识查找会话配置；不存在时返回 null。 */
     fun profileById(profileId: String?): SessionProfile? =
         profileId?.let { id -> profiles.value.firstOrNull { it.id == id } }
+
+    /** 进程级会话宿主；终端视图池据此取得会话。单元测试中可能为空。 */
+    val terminalHost: SessionProvider?
+        get() = sessionHost
 
     /** 按工作区派生的会话注册表。会话宿主接入后，绑定关系由工作区的叶子承载。 */
     fun sessions(): SessionRegistry = SessionRegistry.fromWorkspace(workspace)
@@ -187,8 +204,16 @@ class ShellViewModel(
     }
 
     fun closeTabAt(index: Int) {
-        workspace.closeTab(index)?.let { workspace = it }
-            ?: publishNotice(ShellNotice.TAB_CLOSE_DENIED)
+        val closingSessionIds = workspace.tabs.getOrNull(index)?.leaves
+            ?.mapNotNull { it.sessionId }
+            .orEmpty()
+        val closed = workspace.closeTab(index)
+        if (closed == null) {
+            publishNotice(ShellNotice.TAB_CLOSE_DENIED)
+            return
+        }
+        workspace = closed
+        closingSessionIds.forEach { closeSessionById(it) }
     }
 
     fun moveTabBy(offset: Int) {
@@ -197,6 +222,25 @@ class ShellViewModel(
 
     fun focusLeaf(leafId: String) {
         workspace.focusLeaf(leafId)?.let { workspace = it }
+    }
+
+    /**
+     * 按会话标识聚焦所在窗格。
+     *
+     * 说明：终端视图获得焦点时只知道自己挂载的会话，因此需要反查标签与窗格并切换过去。
+     */
+    fun focusLeafBySessionId(sessionId: String) {
+        val tabIndex = workspace.tabs.indexOfFirst { tab ->
+            tab.leaves.any { it.sessionId == sessionId }
+        }
+        if (tabIndex < 0) {
+            return
+        }
+        val leaf = workspace.tabs[tabIndex].leaves.firstOrNull { it.sessionId == sessionId } ?: return
+        var next = workspace
+        next.select(tabIndex)?.let { next = it }
+        next.focusLeaf(leaf.id)?.let { next = it }
+        workspace = next
     }
 
     fun setSplitRatio(splitId: String, ratio: Float) {
@@ -309,7 +353,7 @@ class ShellViewModel(
      */
     fun newTab(profile: SessionProfile?) {
         val title = profile?.name ?: titleFactory(workspace.nextTabNumber)
-        workspace.newTab(title, profile?.id)?.let { workspace = it }
+        workspace.newTab(title, profile?.id)?.let { workspace = bindLeafSessions(it) }
             ?: publishNotice(ShellNotice.TAB_LIMIT)
     }
 
@@ -391,8 +435,14 @@ class ShellViewModel(
     }
 
     override fun closePane() {
-        workspace.closeFocusedPane()?.let { workspace = it }
-            ?: publishNotice(ShellNotice.PANE_CLOSE_DENIED)
+        val closingSessionId = workspace.activeTab.focusedLeaf.sessionId
+        val closed = workspace.closeFocusedPane()
+        if (closed == null) {
+            publishNotice(ShellNotice.PANE_CLOSE_DENIED)
+            return
+        }
+        workspace = closed
+        closingSessionId?.let { closeSessionById(it) }
     }
 
     override fun focusNextPane() {
@@ -462,7 +512,36 @@ class ShellViewModel(
             publishNotice(ShellNotice.PANE_LIMIT)
             return
         }
-        workspace = newWorkspace
+        workspace = bindLeafSessions(newWorkspace)
+    }
+
+    /** 为尚未绑定或绑定已失效的叶子创建会话，其余叶子保持原绑定。 */
+    private fun bindLeafSessions(workspace: TabWorkspace): TabWorkspace {
+        val host = sessionHost ?: return workspace
+        return workspace.copy(
+            tabs = workspace.tabs.map { tab ->
+                tab.copy(
+                    root = PaneLayout.mapLeaves(tab.root) { leaf ->
+                        ensureLeafSession(host, leaf, tab.profileId)
+                    },
+                )
+            },
+        )
+    }
+
+    private fun ensureLeafSession(host: SessionProvider, leaf: PaneLeaf, profileId: String?): PaneLeaf {
+        val existing = leaf.sessionId
+        if (existing != null && host.describe(SessionId.of(existing)) != null) {
+            return leaf
+        }
+        val request = ProfileCommandBuilder.build(profileById(profileId), sessionEnvironment)
+        val sessionId = runCatching { host.createSession(request) }.getOrNull() ?: return leaf
+        return leaf.copy(sessionId = sessionId.value)
+    }
+
+    private fun closeSessionById(sessionId: String) {
+        val host = sessionHost ?: return
+        runCatching { host.closeSession(SessionId.of(sessionId)) }
     }
 
     /**
@@ -505,6 +584,8 @@ class ShellViewModel(
                 configSource = ApplicationConfigSource(application),
                 initialWorkspace = initialWorkspace,
                 titleFactory = { index -> application.getString(R.string.shell_tab_title, index) },
+                sessionHost = com.termux.shell.ShellApplication.sessions(),
+                sessionEnvironment = com.termux.shell.ShellApplication.sessionEnvironment(),
             ) as T
         }
     }

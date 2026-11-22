@@ -50,6 +50,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -64,6 +65,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.termux.shell.R
 import com.termux.shell.commands.ShellCommand
+import com.termux.shell.terminal.TerminalViewPool
 import kotlin.math.roundToInt
 
 /**
@@ -87,6 +89,23 @@ fun ShellScreen(viewModel: ShellViewModel) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val profiles by viewModel.profiles.collectAsState()
+    // 终端视图池随窗口存活：切换标签或窗格只重新挂载视图，不重建会话。
+    val terminalPool = remember(context, viewModel.terminalHost) {
+        viewModel.terminalHost?.let { host ->
+            TerminalViewPool(context, host, viewModel::focusLeafBySessionId)
+        }
+    }
+    LaunchedEffect(viewModel.workspace, terminalPool) {
+        terminalPool?.retain(
+            viewModel.workspace.tabs
+                .flatMap { it.leaves }
+                .mapNotNull { it.sessionId }
+                .toSet(),
+        )
+    }
+    DisposableEffect(terminalPool) {
+        onDispose { terminalPool?.clear() }
+    }
 
     LaunchedEffect(viewModel.notice) {
         val notice = viewModel.consumeNotice() ?: return@LaunchedEffect
@@ -108,7 +127,7 @@ fun ShellScreen(viewModel: ShellViewModel) {
             if (showSettings) {
                 SettingsScreen(viewModel)
             } else {
-                ShellContent(viewModel)
+                ShellContent(viewModel, terminalPool)
             }
         }
 
@@ -145,20 +164,20 @@ fun ShellScreen(viewModel: ShellViewModel) {
 
 /** 主界面内容：按布局档位选择单栏或双栏形态。 */
 @Composable
-private fun ShellContent(viewModel: ShellViewModel) {
+private fun ShellContent(viewModel: ShellViewModel, terminalPool: TerminalViewPool?) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val widthClass = AdaptiveLayout.widthClassFor(viewModel.layoutMode, maxWidth.value.roundToInt())
         if (widthClass == WindowWidthClass.COMPACT) {
-            CompactShell(viewModel)
+            CompactShell(viewModel, terminalPool)
         } else {
-            WideShell(viewModel, widthClass)
+            WideShell(viewModel, widthClass, terminalPool)
         }
     }
 }
 
 /** 紧凑档：单栏 + 会话抽屉。 */
 @Composable
-private fun CompactShell(viewModel: ShellViewModel) {
+private fun CompactShell(viewModel: ShellViewModel, terminalPool: TerminalViewPool?) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val sessions = remember(viewModel.workspace) { viewModel.sessions() }
 
@@ -191,13 +210,17 @@ private fun CompactShell(viewModel: ShellViewModel) {
             }
         },
     ) {
-        ShellBody(viewModel, compactLayout = true)
+        ShellBody(viewModel, compactLayout = true, pool = terminalPool)
     }
 }
 
 /** 中等与展开档：常驻侧栏 + 主栏。侧栏收起与展开带水平动画。 */
 @Composable
-private fun WideShell(viewModel: ShellViewModel, widthClass: WindowWidthClass) {
+private fun WideShell(
+    viewModel: ShellViewModel,
+    widthClass: WindowWidthClass,
+    terminalPool: TerminalViewPool?,
+) {
     val sessions = remember(viewModel.workspace) { viewModel.sessions() }
     val railWidth by animateDpAsState(
         targetValue = if (widthClass == WindowWidthClass.EXPANDED) ExpandedRailWidth else CompactRailWidth,
@@ -224,14 +247,18 @@ private fun WideShell(viewModel: ShellViewModel, widthClass: WindowWidthClass) {
             }
         }
         Box(Modifier.weight(1f).fillMaxHeight()) {
-            ShellBody(viewModel, compactLayout = false)
+            ShellBody(viewModel, compactLayout = false, pool = terminalPool)
         }
     }
 }
 
 /** 主栏：标题行、标签栏与窗格区。 */
 @Composable
-private fun ShellBody(viewModel: ShellViewModel, compactLayout: Boolean) {
+private fun ShellBody(
+    viewModel: ShellViewModel,
+    compactLayout: Boolean,
+    pool: TerminalViewPool?,
+) {
     Column(
         Modifier
             .fillMaxSize()
@@ -244,6 +271,7 @@ private fun ShellBody(viewModel: ShellViewModel, compactLayout: Boolean) {
         PaneArea(
             tab = viewModel.workspace.activeTab,
             controller = viewModel,
+            pool = pool,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
         if (viewModel.viewOptions.tabBarAtBottom) {

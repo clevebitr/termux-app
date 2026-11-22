@@ -8,6 +8,8 @@ import com.termux.shell.config.SettingsRepository
 import com.termux.shell.config.ShellPaths
 import com.termux.shell.input.KeymapLoader
 import com.termux.shell.input.KeymapTable
+import com.termux.shell.session.LocalSessionHost
+import com.termux.shell.session.SessionEnvironment
 import com.termux.shell.log.ShellLog
 
 /**
@@ -35,6 +37,11 @@ class ShellApplication : Application() {
         logInvalidSettings(settings)
         keymap = KeymapLoader.load(paths.keymapFile)
         profileStore = FileProfileStore(paths.profilesFile)
+        sessionEnvironment = SessionEnvironment(
+            homeDirectory = paths.homeDir.absolutePath,
+            tempDirectory = cacheDir.absolutePath,
+        )
+        sessionHost = LocalSessionHost(this, sessionEnvironment)
         ShellLog.info(
             SUB_TAG,
             "配置就绪：配置项 ${settings.keys().size} 项，键位 ${keymap.size} 条，会话配置 ${profileStore.profiles.value.size} 条",
@@ -57,6 +64,12 @@ class ShellApplication : Application() {
         @Volatile
         private lateinit var profileStore: ProfileStore
 
+        @Volatile
+        private lateinit var sessionHost: LocalSessionHost
+
+        @Volatile
+        private lateinit var sessionEnvironment: SessionEnvironment
+
         /** 返回路径解析器。启动完成后可用。 */
         fun paths(): ShellPaths = paths
 
@@ -68,6 +81,12 @@ class ShellApplication : Application() {
 
         /** 返回进程级会话配置存储。 */
         fun profiles(): ProfileStore = profileStore
+
+        /** 返回进程级会话宿主。会话随应用进程存活。 */
+        fun sessions(): LocalSessionHost = sessionHost
+
+        /** 返回会话启动环境（主目录、临时目录等）。 */
+        fun sessionEnvironment(): SessionEnvironment = sessionEnvironment
 
         /**
          * 重新读取配置文件与键位表。

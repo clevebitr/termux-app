@@ -97,6 +97,15 @@ object PaneLayout {
     fun firstLeaf(node: PaneNode): PaneLeaf = firstLeafOrNull(node)
         ?: throw IllegalArgumentException("窗格树必须至少包含一个叶子节点")
 
+    /** 对每个叶子应用变换并返回新树，用于绑定会话标识等结构内更新。 */
+    fun mapLeaves(node: PaneNode, transform: (PaneLeaf) -> PaneLeaf): PaneNode = when (node) {
+        is PaneLeaf -> transform(node)
+        is PaneSplit -> node.copy(
+            first = mapLeaves(node.first, transform),
+            second = mapLeaves(node.second, transform),
+        )
+    }
+
     fun findLeaf(node: PaneNode, leafId: String): PaneLeaf? = when (node) {
         is PaneLeaf -> if (node.id == leafId) node else null
         is PaneSplit -> findLeaf(node.first, leafId) ?: findLeaf(node.second, leafId)

@@ -6,13 +6,22 @@ import com.termux.shell.config.SettingsRepository
 import com.termux.shell.config.ProfileStore
 import com.termux.shell.config.SettingsSpec
 import com.termux.shell.input.KeymapTable
+import com.termux.shell.pane.PaneLeaf
+import com.termux.shell.session.SessionProvider
+import com.termux.shell.session.SessionDescriptor
+import com.termux.shell.session.SessionEnvironment
+import com.termux.shell.session.SessionHost
+import com.termux.shell.session.SessionId
 import com.termux.shell.session.SessionProfile
 import com.termux.shell.session.SessionRecord
+import com.termux.shell.terminal.TerminalSession
+import com.termux.shell.termview.TerminalView
 import com.termux.shell.session.SessionState
 import com.termux.shell.tabs.TabWorkspace
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -298,6 +307,127 @@ class ShellViewModelTest {
         assertEquals(profile, viewModel.profileById("p1"))
         assertNull(viewModel.profileById("missing"))
         assertNull(viewModel.profileById(null))
+    }
+
+    private class FakeSessionProvider : SessionProvider {
+
+        private val sessions = LinkedHashMap<String, SessionDescriptor>()
+
+        private var counter = 0
+
+        override fun createSession(request: SessionHost.SessionRequest): SessionId {
+            counter++
+            val id = SessionId.of("session-$counter")
+            sessions[id.value] = SessionDescriptor(
+                id = id,
+                title = null,
+                workingDirectory = request.workingDirectory,
+                pid = 100 + counter,
+                running = true,
+            )
+            return id
+        }
+
+        override fun write(id: SessionId, data: ByteArray, offset: Int, length: Int) = Unit
+
+        override fun resize(id: SessionId, columns: Int, rows: Int, cellWidthPixels: Int, cellHeightPixels: Int) = Unit
+
+        override fun closeSession(id: SessionId) {
+            sessions.remove(id.value)
+        }
+
+        override fun describe(id: SessionId): SessionDescriptor? = sessions[id.value]
+
+        override fun describeAll(): List<SessionDescriptor> = sessions.values.toList()
+
+        override fun addObserver(observer: SessionHost.Observer) = Unit
+
+        override fun removeObserver(observer: SessionHost.Observer) = Unit
+
+        override fun terminalSession(id: SessionId): TerminalSession? = null
+
+        override fun attachView(id: SessionId, view: TerminalView): Boolean = false
+
+        override fun detachView(id: SessionId, view: TerminalView) = Unit
+    }
+
+    private fun newHost(): FakeSessionProvider = FakeSessionProvider()
+
+    private fun newViewModelWithHost(host: SessionProvider): ShellViewModel = ShellViewModel(
+        configSource = FakeConfigSource(),
+        initialWorkspace = TabWorkspace.initial("one"),
+        titleFactory = { index -> "Shell $index" },
+        persister = FakePersister(),
+        sessionHost = host,
+        sessionEnvironment = SessionEnvironment(homeDirectory = "/tmp/home", tempDirectory = "/tmp/cache"),
+    )
+
+    @Test
+    fun restoredWorkspaceBindsSessionsForEveryLeaf() {
+        val host = newHost()
+        val viewModel = newViewModelWithHost(host)
+
+        val sessionId = viewModel.workspace.activeTab.leaves.first().sessionId
+        assertNotNull(sessionId)
+        assertNotNull(host.describe(SessionId.of(sessionId!!)))
+    }
+
+    @Test
+    fun newTabBindsSessionForNewLeaf() {
+        val host = newHost()
+        val viewModel = newViewModelWithHost(host)
+
+        viewModel.newTab()
+        val sessionId = viewModel.workspace.activeTab.leaves.first().sessionId
+
+        assertNotNull(sessionId)
+        assertEquals(2, host.describeAll().size)
+    }
+
+    @Test
+    fun closingTabClosesItsSessions() {
+        val host = newHost()
+        val viewModel = newViewModelWithHost(host)
+        viewModel.newTab()
+        val sessionId = viewModel.workspace.activeTab.leaves.first().sessionId
+        assertNotNull(sessionId)
+
+        viewModel.closeTabAt(1)
+
+        assertNull(host.describe(SessionId.of(sessionId!!)))
+        assertEquals(1, host.describeAll().size)
+    }
+
+    @Test
+    fun splitBindsAdditionalSession() {
+        val host = newHost()
+        val viewModel = newViewModelWithHost(host)
+
+        viewModel.splitRight()
+
+        assertEquals(2, viewModel.workspace.activeTab.leaves.size)
+        assertEquals(2, viewModel.workspace.activeTab.leaves.mapNotNull { it.sessionId }.toSet().size)
+        assertEquals(2, host.describeAll().size)
+    }
+
+    @Test
+    fun staleSessionIdFromPreviousProcessIsReplaced() {
+        val host = newHost()
+        val staleWorkspace = TabWorkspace.initial("one").updateActiveTab { tab ->
+            tab.copy(root = PaneLeaf(id = "pane-1", sessionId = "dead-session"))
+        }
+        val viewModel = ShellViewModel(
+            configSource = FakeConfigSource(),
+            initialWorkspace = staleWorkspace,
+            titleFactory = { index -> "Shell $index" },
+            persister = FakePersister(),
+            sessionHost = host,
+            sessionEnvironment = SessionEnvironment(homeDirectory = "/tmp/home", tempDirectory = "/tmp/cache"),
+        )
+
+        val sessionId = viewModel.workspace.activeTab.leaves.first().sessionId
+        assertNotEquals("dead-session", sessionId)
+        assertNotNull(host.describe(SessionId.of(sessionId!!)))
     }
 
     @Test
