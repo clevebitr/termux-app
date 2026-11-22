@@ -16,17 +16,22 @@ import java.nio.file.Paths;
  */
 public class PreferenceResetSourceTest {
 
-    /** The pages of the settings of the Termux app, which all edit `termux.properties`. */
-    private static final String[] PAGES = new String[]{
-        "AppearancePreferencesFragment",
-        "BackupPreferencesFragment",
-        "DebuggingPreferencesFragment",
-        "NotificationPreferencesFragment",
-        "StatusBarPreferencesFragment",
-        "TerminalIOPreferencesFragment",
-        "TerminalKeyboardPreferencesFragment",
-        "TerminalMenuPreferencesFragment",
-        "TerminalViewPreferencesFragment",
+    /**
+     * The pages of the settings of the Termux app, which all edit `termux.properties`.
+     *
+     * <p>The path is declared per page so that a page can move into an extension package without the guard
+     * silently stopping to check it.</p>
+     */
+    private static final String[][] PAGES = new String[][]{
+        {"AppearancePreferencesFragment", "src/main/java/com/termux/app/fragments/settings/termux/AppearancePreferencesFragment.java"},
+        {"BackupPreferencesFragment", "src/main/java/com/termux/app/ext/backup/BackupPreferencesFragment.java"},
+        {"DebuggingPreferencesFragment", "src/main/java/com/termux/app/fragments/settings/termux/DebuggingPreferencesFragment.java"},
+        {"NotificationPreferencesFragment", "src/main/java/com/termux/app/fragments/settings/termux/NotificationPreferencesFragment.java"},
+        {"StatusBarPreferencesFragment", "src/main/java/com/termux/app/fragments/settings/termux/StatusBarPreferencesFragment.java"},
+        {"TerminalIOPreferencesFragment", "src/main/java/com/termux/app/fragments/settings/termux/TerminalIOPreferencesFragment.java"},
+        {"TerminalKeyboardPreferencesFragment", "src/main/java/com/termux/app/fragments/settings/termux/TerminalKeyboardPreferencesFragment.java"},
+        {"TerminalMenuPreferencesFragment", "src/main/java/com/termux/app/fragments/settings/termux/TerminalMenuPreferencesFragment.java"},
+        {"TerminalViewPreferencesFragment", "src/main/java/com/termux/app/fragments/settings/termux/TerminalViewPreferencesFragment.java"},
     };
 
     private static String readSource(Path path) throws IOException {
@@ -37,10 +42,10 @@ public class PreferenceResetSourceTest {
 
     @Test
     public void testEverySettingsPageInstallsTheResetListener() throws IOException {
-        for (String page : PAGES) {
-            Path path = Paths.get("src/main/java/com/termux/app/fragments/settings/termux/" + page + ".java");
+        for (String[] page : PAGES) {
+            Path path = Paths.get(page[1]);
             String source = readSource(path);
-            Assert.assertTrue("The page \"" + page + "\" must call the installer of the reset listener",
+            Assert.assertTrue("The page \"" + page[0] + "\" must call the installer of the reset listener",
                 source.contains("setPreferencesFromResource(") &&
                     source.contains("PreferenceResetUtils.installResetOnLongClick(this);"));
         }

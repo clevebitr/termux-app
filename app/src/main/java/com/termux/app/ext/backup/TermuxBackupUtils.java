@@ -1,4 +1,4 @@
-package com.termux.app.backup;
+package com.termux.app.ext.backup;
 
 import android.content.Context;
 import android.content.Intent;

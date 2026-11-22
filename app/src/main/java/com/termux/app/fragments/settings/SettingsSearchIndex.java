@@ -10,7 +10,7 @@ import androidx.annotation.Nullable;
 
 import com.termux.R;
 import com.termux.app.fragments.settings.termux.AppearancePreferencesFragment;
-import com.termux.app.fragments.settings.termux.BackupPreferencesFragment;
+import com.termux.app.ext.backup.BackupPreferencesFragment;
 import com.termux.app.fragments.settings.termux.DebuggingPreferencesFragment;
 import com.termux.app.fragments.settings.termux.NotificationPreferencesFragment;
 import com.termux.app.fragments.settings.termux.StatusBarPreferencesFragment;

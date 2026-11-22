@@ -3,6 +3,11 @@ package com.termux.app.ext.host;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import androidx.preference.Preference;
+import androidx.preference.PreferenceScreen;
+
+import com.termux.app.ext.ForkExtensions;
+
 import androidx.annotation.NonNull;
 
 import com.termux.app.ext.api.Extension;
@@ -65,6 +70,34 @@ public final class ExtensionPreferences {
     @NonNull
     public static List<String> dependentsOf(@NonNull List<Extension> extensions, @NonNull String id) {
         return ExtensionGraph.dependentsOf(specs(extensions), id);
+    }
+
+    /**
+     * Hide the settings entries that belong to extensions which are not running.
+     *
+     * <p>Called after a settings page is inflated, so that disabling an extension removes its entry instead
+     * of showing a page that does nothing.</p>
+     */
+    public static void applyPreferenceVisibility(@NonNull Context context,
+                                                 @NonNull PreferenceScreen screen) {
+        List<Extension> installed = ForkExtensions.installed();
+        for (ExtensionStatus status : resolve(context, installed)) {
+            if (status.state.isRunning()) continue;
+            Extension extension = findById(installed, status.id);
+            if (extension == null) continue;
+            for (String key : extension.preferenceKeys()) {
+                Preference preference = screen.findPreference(key);
+                if (preference != null) preference.setVisible(false);
+            }
+        }
+    }
+
+    @androidx.annotation.Nullable
+    private static Extension findById(@NonNull List<Extension> installed, @NonNull String id) {
+        for (Extension extension : installed) {
+            if (extension.id().equals(id)) return extension;
+        }
+        return null;
     }
 
     /** @return The resolved state of the given extensions, dependencies first. */

@@ -1,4 +1,4 @@
-package com.termux.app.fragments.settings.termux;
+package com.termux.app.ext.backup;
 
 import android.app.AlertDialog;
 import android.content.Context;
@@ -11,8 +11,8 @@ import androidx.preference.PreferenceFragmentCompat;
 
 import com.termux.R;
 import com.termux.app.fragments.settings.PreferenceAccentUtils;
+import com.termux.app.fragments.settings.termux.PreferenceResetUtils;
 import com.termux.app.fragments.settings.SettingsSearchNavigation;
-import com.termux.app.backup.TermuxBackupUtils;
 
 import java.io.File;
 

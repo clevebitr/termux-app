@@ -64,10 +64,11 @@
             app:fragment="com.termux.app.fragments.settings.termux.NotificationPreferencesFragment"/>
 
         <Preference
+            app:key="backup"
             app:icon="@drawable/ic_pref_backup"
             app:title="@string/termux_backup_preferences_title"
             app:summary="@string/termux_backup_preferences_summary"
-            app:fragment="com.termux.app.fragments.settings.termux.BackupPreferencesFragment"/>
+            app:fragment="com.termux.app.ext.backup.BackupPreferencesFragment"/>
 
     </PreferenceCategory>
 

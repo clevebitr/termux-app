@@ -54,6 +54,18 @@ public interface Extension {
         return true;
     }
 
+    /**
+     * The settings preference keys that this extension provides.
+     *
+     * <p>The settings screen hides a key while its extension is disabled, so that disabling a feature
+     * removes its entry instead of leaving a page that does nothing. Keys are the {@code app:key} values
+     * of the preference XML.</p>
+     */
+    @NonNull
+    default List<String> preferenceKeys() {
+        return Collections.emptyList();
+    }
+
     /** Whether the extension is enabled before the user changes anything. */
     default boolean isEnabledByDefault() {
         return false;

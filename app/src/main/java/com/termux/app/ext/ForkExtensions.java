@@ -3,6 +3,7 @@ package com.termux.app.ext;
 import androidx.annotation.NonNull;
 
 import com.termux.app.ext.api.Extension;
+import com.termux.app.ext.backup.BackupExtension;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,8 +17,8 @@ import java.util.List;
  * and a package under {@code com.termux.app.ext}; removing a feature means removing that line, so the app
  * always compiles against the set of extensions that this file lists.</p>
  *
- * <p>The list is intentionally empty until the first feature is extracted; the extension settings page
- * shows an explanation in that state.</p>
+ * <p>The backup feature is the first extracted extension; the extension settings page shows the rest of
+ * the list when they are migrated.</p>
  */
 public final class ForkExtensions {
 
@@ -28,7 +29,7 @@ public final class ForkExtensions {
     @NonNull
     public static List<Extension> installed() {
         List<Extension> extensions = new ArrayList<>();
-        // 迁移一个 fork 功能时在此登记，例如：extensions.add(new StatusBarExtension());
+        extensions.add(new BackupExtension());
         return Collections.unmodifiableList(extensions);
     }
 }
