@@ -12,7 +12,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceScreen;
 
 import com.termux.R;
-import com.termux.app.ext.host.ExtensionPreferences;
+import com.termux.app.ext.host.ExtensionHost;
 import com.termux.app.fragments.settings.PreferenceAccentUtils;
 import com.termux.app.fragments.settings.termux.PreferenceResetUtils;
 import com.termux.app.fragments.settings.SettingsSearchNavigation;
@@ -40,7 +40,7 @@ public class BackupPreferencesFragment extends PreferenceFragmentCompat {
         // built before the extension was disabled or from a restored back stack, and the helper scripts stay
         // installed in $PREFIX/bin after the user disables the extension. The feature is therefore refused
         // here instead of relying on the hidden entry alone.
-        if (!ExtensionPreferences.isRunning(context, BackupExtension.ID)) {
+        if (!ExtensionHost.get(context).isRunning(BackupExtension.ID)) {
             showDisabledNotice(context);
             return;
         }

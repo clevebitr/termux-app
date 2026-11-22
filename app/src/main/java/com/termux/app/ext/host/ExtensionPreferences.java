@@ -6,11 +6,9 @@ import android.content.SharedPreferences;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceScreen;
 
-import com.termux.app.ext.ForkExtensions;
+import com.termux.app.ext.api.Extension;
 
 import androidx.annotation.NonNull;
-
-import com.termux.app.ext.api.Extension;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -20,8 +18,9 @@ import java.util.Map;
 /**
  * The stored enabled flags of the extensions.
  *
- * <p>Kept separate from {@link ExtensionManager} so that the settings page can read and write the flags
- * without starting or stopping anything; the host applies the flags when the activity resumes.</p>
+ * <p>Kept separate from {@link ExtensionHost} so that the settings page can read and write the flags
+ * without starting or stopping anything; the host resolves the flags and applies them when the activity
+ * resumes. This class only describes and stores preferences, it never decides whether a feature runs.</p>
  */
 public final class ExtensionPreferences {
 
@@ -73,29 +72,18 @@ public final class ExtensionPreferences {
     }
 
     /**
-     * @return Whether the extension is currently allowed to run, that is whether the user enabled it and its
-     *         dependencies are satisfied. Returns {@code false} for an id that is not installed, so that a
-     *         caller which guards an entry point fails closed.
-     */
-    public static boolean isRunning(@NonNull Context context, @NonNull String id) {
-        for (ExtensionStatus status : resolve(context, ForkExtensions.installed())) {
-            if (status.id.equals(id)) return status.state.isRunning();
-        }
-        return false;
-    }
-
-    /**
      * Hide the settings entries that belong to extensions which are not running.
      *
      * <p>Called after a settings page is inflated, so that disabling an extension removes its entry instead
-     * of showing a page that does nothing.</p>
+     * of showing a page that does nothing. Hiding is a hint for the user rather than the enforcement of the
+     * state: the page of an extension also refuses to work while its extension is disabled, since the entry
+     * is not the only path to the page.</p>
      */
     public static void applyPreferenceVisibility(@NonNull Context context,
                                                  @NonNull PreferenceScreen screen) {
-        List<Extension> installed = ForkExtensions.installed();
-        for (ExtensionStatus status : resolve(context, installed)) {
-            if (status.state.isRunning()) continue;
-            Extension extension = findById(installed, status.id);
+        ExtensionHost host = ExtensionHost.get(context);
+        for (String id : host.disabledIds()) {
+            Extension extension = host.extension(id);
             if (extension == null) continue;
             for (String key : extension.preferenceKeys()) {
                 Preference preference = screen.findPreference(key);
@@ -104,15 +92,11 @@ public final class ExtensionPreferences {
         }
     }
 
-    @androidx.annotation.Nullable
-    private static Extension findById(@NonNull List<Extension> installed, @NonNull String id) {
-        for (Extension extension : installed) {
-            if (extension.id().equals(id)) return extension;
-        }
-        return null;
-    }
-
-    /** @return The resolved state of the given extensions, dependencies first. */
+    /**
+     * @return The resolved state of the given extensions, dependencies first. Kept for the host and for a
+     *         caller that resolves a list other than the registered one; feature code reads
+     *         {@link ExtensionHost} instead.
+     */
     @NonNull
     public static List<ExtensionStatus> resolve(@NonNull Context context,
                                                 @NonNull List<Extension> extensions) {

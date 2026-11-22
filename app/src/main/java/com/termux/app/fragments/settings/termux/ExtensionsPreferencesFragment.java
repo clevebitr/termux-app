@@ -13,9 +13,8 @@ import androidx.preference.PreferenceScreen;
 import androidx.preference.SwitchPreferenceCompat;
 
 import com.termux.R;
-import com.termux.app.ext.ForkExtensions;
 import com.termux.app.ext.api.Extension;
-import com.termux.app.ext.host.ExtensionPreferences;
+import com.termux.app.ext.host.ExtensionHost;
 import com.termux.app.ext.host.ExtensionState;
 import com.termux.app.ext.host.ExtensionStatus;
 
@@ -45,7 +44,8 @@ public class ExtensionsPreferencesFragment extends PreferenceFragmentCompat {
     private void populate(@NonNull PreferenceScreen screen) {
         Context context = requireContext();
         screen.removeAll();
-        List<Extension> installed = ForkExtensions.installed();
+        ExtensionHost host = ExtensionHost.get(context);
+        List<Extension> installed = host.installed();
         if (installed.isEmpty()) {
             Preference empty = new Preference(context);
             empty.setSelectable(false);
@@ -58,11 +58,10 @@ public class ExtensionsPreferencesFragment extends PreferenceFragmentCompat {
         category.setTitle(R.string.termux_extensions_category_installed);
         screen.addPreference(category);
 
-        List<ExtensionStatus> statuses = ExtensionPreferences.resolve(context, installed);
-        for (ExtensionStatus status : statuses) {
+        for (ExtensionStatus status : host.statuses()) {
             Extension extension = findById(installed, status.id);
             if (extension == null) continue;
-            category.addPreference(createSwitch(context, extension, status, installed));
+            category.addPreference(createSwitch(context, extension, status, host));
         }
     }
 
@@ -70,7 +69,7 @@ public class ExtensionsPreferencesFragment extends PreferenceFragmentCompat {
     private SwitchPreferenceCompat createSwitch(@NonNull Context context,
                                                 @NonNull Extension extension,
                                                 @NonNull ExtensionStatus status,
-                                                @NonNull List<Extension> installed) {
+                                                @NonNull ExtensionHost host) {
         SwitchPreferenceCompat preference = new SwitchPreferenceCompat(context);
         preference.setKey("extension-" + extension.id());
         preference.setTitle(extension.titleRes());
@@ -83,13 +82,13 @@ public class ExtensionsPreferencesFragment extends PreferenceFragmentCompat {
         preference.setOnPreferenceChangeListener((changed, newValue) -> {
             boolean enable = Boolean.TRUE.equals(newValue);
             if (!enable) {
-                List<String> dependents = ExtensionPreferences.dependentsOf(installed, extension.id());
+                List<String> dependents = host.dependentsOf(extension.id());
                 if (!dependents.isEmpty()) {
-                    confirmCascade(context, extension, dependents);
+                    confirmCascade(context, extension, dependents, host);
                     return false;
                 }
             }
-            ExtensionPreferences.setEnabled(context, extension.id(), enable, extension.isUserDisableable());
+            host.setEnabled(extension.id(), enable);
             reload();
             return true;
         });
@@ -97,14 +96,14 @@ public class ExtensionsPreferencesFragment extends PreferenceFragmentCompat {
     }
 
     private void confirmCascade(@NonNull Context context, @NonNull Extension extension,
-                                @NonNull List<String> dependents) {
+                                @NonNull List<String> dependents, @NonNull ExtensionHost host) {
         new AlertDialog.Builder(context)
             .setTitle(R.string.termux_extensions_disable_title)
             .setMessage(getString(R.string.termux_extensions_disable_message,
                 getString(extension.titleRes()), dependents.size()))
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.termux_extensions_disable_confirm, (dialog, which) -> {
-                ExtensionPreferences.setEnabled(context, extension.id(), false, true);
+                host.setEnabled(extension.id(), false);
                 reload();
             })
             .show();

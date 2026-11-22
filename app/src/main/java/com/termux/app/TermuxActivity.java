@@ -80,7 +80,6 @@ import com.termux.app.terminal.TermuxSessionsListViewController;
 import com.termux.app.terminal.io.TerminalToolbarViewPager;
 import com.termux.app.commands.ShellCommandCatalog;
 import com.termux.app.commands.ShellCommandPalette;
-import com.termux.app.ext.ForkExtensions;
 import com.termux.app.ext.host.ExtensionManager;
 import com.termux.app.terminal.TermuxTerminalViewClient;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
@@ -482,7 +481,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * first; an extension may contribute views that need the activity to be fully initialized.</p>
      */
     private void setupExtensions() {
-        mExtensionManager = new ExtensionManager(this, ForkExtensions.installed());
+        mExtensionManager = new ExtensionManager(this);
         mExtensionManager.apply();
     }
 

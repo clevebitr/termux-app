@@ -12,7 +12,6 @@ import com.termux.app.properties.ForkProperties;
 import com.termux.shared.logger.Logger;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,9 +20,9 @@ import java.util.Properties;
 /**
  * Starts and stops the extensions of the fork according to the user's choices.
  *
- * <p>The manager owns the only mapping from an extension id to its instance. It resolves the enabled state
- * with {@link ExtensionGraph}, starts the extensions that may run (dependencies first), and stops the ones
- * that may not. A failure inside one extension is logged and contained, so that a broken extension cannot
+ * <p>The manager owns the only mapping from an extension id to its instance. It reads the enabled state from
+ * {@link ExtensionHost}, starts the extensions that may run (dependencies first), and stops the ones that may
+ * not. A failure inside one extension is logged and contained, so that a broken extension cannot
  * prevent the app from showing a terminal.</p>
  *
  * <p>Instances are created and released with the activity, since an extension may hold views. The enabled
@@ -42,9 +41,9 @@ public final class ExtensionManager {
     @NonNull
     private final Activity activity;
     @NonNull
-    private final List<Extension> installed;
+    private final ExtensionHost host;
     @NonNull
-    private final SharedPreferences preferences;
+    private final List<Extension> installed;
     @NonNull
     private final Map<String, Extension> running = new LinkedHashMap<>();
     @NonNull
@@ -52,10 +51,10 @@ public final class ExtensionManager {
     @Nullable
     private Properties properties;
 
-    public ExtensionManager(@NonNull Activity activity, @NonNull List<Extension> installed) {
+    public ExtensionManager(@NonNull Activity activity) {
         this.activity = activity;
-        this.installed = Collections.unmodifiableList(new ArrayList<>(installed));
-        this.preferences = activity.getSharedPreferences(PREFERENCES_NAME, Activity.MODE_PRIVATE);
+        this.host = ExtensionHost.get(activity);
+        this.installed = host.installed();
     }
 
     /** @return The registered extensions, in registration order. */
@@ -67,21 +66,18 @@ public final class ExtensionManager {
     /** @return The resolved state of every registered extension, dependencies first. */
     @NonNull
     public List<ExtensionStatus> statuses() {
-        return ExtensionGraph.resolve(ExtensionPreferences.specs(installed), ExtensionPreferences.storedFlags(activity, installed));
+        return host.statuses();
     }
 
     /** @return Whether the user may disable the extension. */
     public boolean isUserDisableable(@NonNull String id) {
-        for (Extension extension : installed) {
-            if (extension.id().equals(id)) return extension.isUserDisableable();
-        }
-        return false;
+        return host.isUserDisableable(id);
     }
 
     /** @return The ids of the extensions that would also stop when {@code id} is disabled. */
     @NonNull
     public List<String> dependentsOf(@NonNull String id) {
-        return ExtensionGraph.dependentsOf(ExtensionPreferences.specs(installed), id);
+        return host.dependentsOf(id);
     }
 
     /** @return Whether the extension is currently running. */
@@ -89,7 +85,11 @@ public final class ExtensionManager {
         return running.containsKey(id);
     }
 
-    /** @return The last resolved state of the extension, or {@code null} if it is unknown. */
+    /**
+     * @return The state that the manager last applied, or {@code null} if it has not applied yet. Unlike
+     *         {@link ExtensionHost#stateOf(String)} this includes {@link ExtensionState#FORCED_DISABLED}, which
+     *         the manager sets when an extension throws while starting.
+     */
     @Nullable
     public ExtensionState stateOf(@NonNull String id) {
         return states.get(id);
@@ -101,9 +101,7 @@ public final class ExtensionManager {
      * @return Whether the choice was accepted; extensions that are not user disableable reject it.
      */
     public boolean setEnabled(@NonNull String id, boolean enabled) {
-        if (!ExtensionPreferences.setEnabled(activity, id, enabled, isUserDisableable(id))) {
-            return false;
-        }
+        if (!host.setEnabled(id, enabled)) return false;
         apply();
         return true;
     }
@@ -199,7 +197,7 @@ public final class ExtensionManager {
         @NonNull
         @Override
         public SharedPreferences extensionSettings() {
-            return preferences;
+            return activity.getSharedPreferences(PREFERENCES_NAME, Activity.MODE_PRIVATE);
         }
 
         @Override

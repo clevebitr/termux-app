@@ -9,10 +9,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.R;
-import com.termux.app.ext.ForkExtensions;
 import com.termux.app.ext.backup.BackupExtension;
-import com.termux.app.ext.host.ExtensionPreferences;
-import com.termux.app.ext.host.ExtensionStatus;
+import com.termux.app.ext.host.ExtensionHost;
 import com.termux.app.fragments.settings.termux.AppearancePreferencesFragment;
 import com.termux.app.ext.backup.BackupPreferencesFragment;
 import com.termux.app.fragments.settings.termux.DebuggingPreferencesFragment;
@@ -27,7 +25,6 @@ import com.termux.shared.logger.Logger;
 import org.xmlpull.v1.XmlPullParser;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -138,20 +135,7 @@ public final class SettingsSearchIndex {
     public static List<Entry> build(@NonNull Context context) {
         List<Entry> entries = new ArrayList<>();
         for (Page page : PAGES) addPageEntries(context, page, entries);
-        return withoutDisabledExtensions(entries, disabledExtensionIds(context));
-    }
-
-    /**
-     * @return The ids of the installed extensions that may not run, so that the caller can drop their
-     *         entries and the user does not find a setting of a feature that does nothing.
-     */
-    @NonNull
-    private static Set<String> disabledExtensionIds(@NonNull Context context) {
-        Set<String> disabled = new HashSet<>();
-        for (ExtensionStatus status : ExtensionPreferences.resolve(context, ForkExtensions.installed())) {
-            if (!status.state.isRunning()) disabled.add(status.id);
-        }
-        return disabled;
+        return withoutDisabledExtensions(entries, ExtensionHost.get(context).disabledIds());
     }
 
     /**

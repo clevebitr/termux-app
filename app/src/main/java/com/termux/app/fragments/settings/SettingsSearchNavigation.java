@@ -12,7 +12,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceGroup;
 import androidx.preference.PreferenceScreen;
 
-import com.termux.app.ext.host.ExtensionPreferences;
+import com.termux.app.ext.host.ExtensionHost;
 import com.termux.shared.logger.Logger;
 
 import android.content.Context;
@@ -82,7 +82,7 @@ public final class SettingsSearchNavigation {
         if (!pagePreference.isVisible()) return false;
         if (entry.extensionId == null) return true;
         Context context = source.getContext();
-        return context != null && ExtensionPreferences.isRunning(context, entry.extensionId);
+        return context != null && ExtensionHost.get(context).isRunning(entry.extensionId);
     }
 
     private static void clearPending() {
