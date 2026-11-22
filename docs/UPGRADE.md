@@ -744,5 +744,58 @@ render/                     帧调度契约
 | 检查 | 结果 |
 | --- | --- |
 | 本地 `kotlinc` + Compose 编译器编译全部主源 | 通过 |
-| 本地 `JUnitCore`：17 个测试类 | 通过，112 项（新增配置模型 6 项、编码 3 项、存储 5 项、标签绑定与标题编号 3 项） |
+| 本地 `JUnitCore`：15 个测试类 | 通过，112 项（新增配置模型 6 项、编码 3 项、存储 5 项、标签绑定与标题编号 3 项） |
 | CI | 原始仓库 Actions 仍被禁用；镜像仓库 `clevebitr/termux-shell-demo` 构建通过（run 45030178803，单测 + assembleDebug），APK 11.9 MB |
+
+## 16. 会话宿主与终端视图（M14 首批，2026-11-22）
+
+### 16.1 交付范围
+
+本轮打通「配置 → 会话 → 终端视图」的最小闭环，使用系统 shell（`/system/bin/sh`），不依赖 bootstrap：
+
+```
+Compose PaneArea
+  └─ AndroidView（不进入 Compose 合成）
+       └─ TerminalViewPool（按 sessionId 复用视图）
+            └─ TerminalView（自绘终端）
+                 └─ TerminalSession（PTY + 进程）
+                      └─ LocalSessionHost（进程级持有、标题/退出通知）
+```
+
+| 组件 | 职责 |
+| --- | --- |
+| `session/LocalSessionHost` | 创建/持有 `TerminalSession`，按 `SessionId` 描述状态，转发标题与退出事件；会话随应用进程存活 |
+| `session/SessionProvider` | 在 `SessionHost` 契约上补充「取会话实例 / 挂载视图 / 解绑视图」，便于窗口与视图池依赖抽象 |
+| `session/SessionEnvironment` | 默认环境：`HOME`=应用主目录、`TMPDIR`=缓存目录、`PATH`=`/system/bin:/system/xbin`、`TERM=xterm-256color` |
+| `session/ProfileCommandBuilder` | 配置 → argv/工作目录/环境；`DISTRO` 调 `proot-distro login`、`SSH` 调 `ssh`，缺失工具时由终端显示错误 |
+| `terminal/TerminalSessionClientAdapter` | 文本变化驱动视图重绘、标题/进程号/退出转发、剪贴板写入、日志 |
+| `terminal/TerminalViewClientAdapter` | 单击唤起输入法与焦点、保留回滚位置、按键交回终端键序编码 |
+| `terminal/TerminalViewPool` | 按会话复用视图，保证一个会话只挂一个视图；焦点变化回写外壳焦点窗格 |
+
+### 16.2 生命周期与安全约束
+
+* **懒启动**：`createSession` 只构造 `TerminalSession`；首次挂载视图时由视图按实际尺寸调用
+  `updateSize` 才创建 PTY，因此关闭从未挂载的会话不会触碰进程。
+* **关闭安全**：仅当 `pid > 0` 时才发送 SIGKILL；未启动会话的 pid 为 0，直接 `Os.kill(0, …)`
+  会误伤当前进程组（实现中已显式规避）。
+* **单挂载**：同一会话只允许一个 `TerminalView`；窗口重建时视图重建、会话保留，尺寸由新视图重新上报。
+* **窗口关闭**：当前不结束会话（相当于 `detach`），会话列表中的接管入口留待后续里程碑。
+* **进程死亡**：会话随应用进程结束；布局恢复时检测到失效会话标识会重新创建会话，不会崩溃。
+* **配置恢复**：标签记录 `profileId`，恢复后按配置重新生成会话参数。
+
+### 16.3 已知边界
+
+* 无 bootstrap：`$PREFIX`、`apt`、`proot-distro`、`ssh` 均不可用，发行版/SSH 配置会直接报错；
+  需要 M13.5（包名切换与 `$PREFIX` 复用）。
+* 会话列表仍由工作区派生，未展示真实进程标题与 PID；接管/脱离会话的 UI 未实现。
+* 分屏沿用主会话配置：已记录在模型中，启动参数由 `ProfileCommandBuilder` 统一生成。
+* 输入法行为只覆盖「单击唤起键盘 + 字符输入」，功能键、组合键、拖放留给输入层里程碑。
+* 设备侧未验证：本机无 adb，仅完成编译与单元测试。
+
+### 16.4 验证
+
+| 检查 | 结果 |
+| --- | --- |
+| 本地 `kotlinc` + Compose 编译器编译全部主源（含 `terminal-core` 类路径） | 通过 |
+| 本地 `JUnitCore`：16 个测试类 | 通过，123 项（新增启动参数 6 项、会话绑定/关闭/替换 5 项） |
+| 镜像仓库 CI | 见构建记录；原仓库 Actions 仍被禁用 |

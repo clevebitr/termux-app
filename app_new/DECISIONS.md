@@ -153,3 +153,17 @@ https://github.com/clevebitr/termux-shell-demo/releases/download/shell-demo/term
 边界：按配置真正启动进程（proot-distro login、ssh、自定义命令）依赖 M14 会话宿主，当前仅记录绑定；分屏沿用主配置同样待 M14。
 
 验证：本地 kotlinc + Compose 编译器编译通过；JUnitCore 运行 17 个测试类共 112 项通过（新增 SessionProfileTest 6 项、ProfileCodecTest 3 项、FileProfileStoreTest 5 项、标签绑定与标题编号 3 项）。原始仓库 Actions 仍被禁用，CI 走镜像仓库。
+
+## 2026-11-22 — 会话宿主与终端视图首批交付（系统 shell，M12-2…M12-4）
+
+结论：时机成熟，先以系统 shell 打通「配置 → 会话 → 终端视图」闭环，bootstrap 相关能力仍留给 M13.5。
+
+实现：
+- session/LocalSessionHost（SessionProvider）：进程级持有 TerminalSession，createSession 只构造不启动；首次挂载视图按实际尺寸 updateSize 才创建 PTY。关闭会话仅在 pid>0 时发送 SIGKILL，规避未启动会话 pid=0 导致 Os.kill(0,…) 误伤当前进程组。
+- session/SessionEnvironment：HOME=应用主目录、TMPDIR=缓存目录、PATH=/system/bin:/system/xbin、TERM=xterm-256color、SHELL=/system/bin/sh。
+- session/ProfileCommandBuilder：SHELL 直传命令；DISTRO 生成 proot-distro login '<distro>'；SSH 生成 ssh '<host>'；参数单引号转义；环境变量以默认环境为底、配置覆盖。
+- terminal/TerminalSessionClientAdapter、TerminalViewClientAdapter：文本变化驱动视图重绘、标题/退出/进程号转发、剪贴板写入、单击唤起输入法、保留回滚位置；按键交回终端键序编码。
+- terminal/TerminalViewPool：按 sessionId 复用 TerminalView，保证单挂载；显式设置可聚焦并在获得焦点时回写外壳焦点窗格；创建/附加失败返回 null 回退占位。
+- ShellViewModel/ShellApplication：注入 SessionProvider；启动/新建标签/分屏时为叶子补齐会话；关闭标签/窗格时关闭对应会话；恢复布局时检测失效 sessionId 并重新创建。
+
+边界与未验证：无 $PREFIX/bootstrap，proot-distro 与 ssh 不可用，配置会直接打印工具缺失；会话列表仍由工作区派生，未展示真实标题/PID，接管脱离会话未实现；窗口关闭当前相当于 detach（不结束会话）；设备侧未运行，仅本地编译与 123 项单元测试通过。
