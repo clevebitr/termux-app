@@ -26,6 +26,8 @@ android {
         targetSdkVersion appNewTargetSdk
         versionCode 1
         versionName "0.1.0"
+        // Compose UI 测试位于 androidTest 源集，需要仪器化运行器；本机无设备时只验证编译。
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     // 演示包统一使用旧模块自带的公开测试密钥（testkey），使 debug 与 release 包、
@@ -66,6 +68,7 @@ android {
     lint {
         abortOnError true
     }
+
 }
 
 kotlin {
@@ -93,4 +96,10 @@ dependencies {
     testImplementation "junit:junit:4.13.2"
     // 平台 android.jar 中的 org.json 为抛出异常的存根，单元测试需要可用的实现。
     testImplementation "org.json:json:20240303"
+
+    // Compose UI 测试（androidTest 源集）。Robolectric 在 Termux 不可用，原因见 docs/UI_REVIEW.md 第 10.5 节。
+    androidTestImplementation platform("androidx.compose:compose-bom:$composeBomVersion")
+    androidTestImplementation "androidx.compose.ui:ui-test-junit4"
+    androidTestImplementation "androidx.test.ext:junit:1.3.0"
+    debugImplementation "androidx.compose.ui:ui-test-manifest"
 }

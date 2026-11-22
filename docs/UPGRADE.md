@@ -844,3 +844,48 @@ Compose PaneArea
   `UnsatisfiedLinkError`（native 方法重命名）与 JSON/反射相关裁剪，并在 `proguard-rules.pro` 补充规则；
 * release 包关闭调试日志输出（`ShellLog` 仍会调用 `Log`，但 debug 级日志在 release 下不打印）；
 * 该包不改变 `applicationId` 与 `targetSdk`，不会影响现有 Termux 安装。
+
+---
+
+## 18. 界面回归测试（2026-11-23）
+
+### 18.1 目标
+
+页面架构与设置页经过一轮较大改造后，需要一层自动化回归保护，至少覆盖「界面操作 → 视图模型 →
+配置文件」这条链路，以及页面级筛选、返回键与抽屉等交互。
+
+### 18.2 引入的依赖
+
+| 依赖 | 版本 | 范围 | 用途 | 替代方案 |
+| --- | --- | --- | --- | --- |
+| `androidx.compose.ui:ui-test-junit4` | 由 Compose BOM `2025.10.01` 管理 | `androidTestImplementation` | Compose 语义树查询与交互 | 自绘视图测试，无法覆盖 Compose |
+| `androidx.test.ext:junit` | `1.3.0` | `androidTestImplementation` | AndroidJUnit4 运行器与 `ApplicationProvider` | 直接使用裸 JUnit，缺少 Activity 宿主 |
+| `androidx.compose.ui:ui-test-manifest` | 由 BOM 管理 | `debugImplementation` | 为测试提供 `ComponentActivity` 宿主声明 | 在应用清单中声明测试专用 Activity，会污染发布包 |
+
+`defaultConfig` 增加 `testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"`；
+测试源码位于 `app_new/src/androidTest/kotlin/`。
+
+### 18.3 为什么不用 Robolectric
+
+Robolectric 可以在 JVM 上运行仪器化风格的测试，本方案最初采用该路线并已跑通编译，但在本机
+（Termux，Android arm64）执行时失败：
+
+```
+java.lang.UnsatisfiedLinkError: no conscrypt_openjdk_jni-linux-aarch_64 in java.library.path
+  at org.conscrypt.NativeCrypto.<clinit>
+  at org.robolectric.android.internal.AndroidTestEnvironment.setUpApplicationState
+```
+
+原因是 Robolectric 在初始化应用环境时安装 Conscrypt 提供方，而 Conscrypt 的 JNI 只有 glibc 桌面
+平台的预编译产物，Termux 使用 bionic 且无对应库。该限制属于运行环境，不是配置问题，因此：
+
+- 单元测试层继续在 JVM 上运行纯逻辑测试（当前 152 项），不受影响；
+- 界面测试放入 `androidTest` 源集，本地执行 `:app_new:assembleDebugAndroidTest` 验证编译，
+  运行结果由设备或 CI 补录。
+
+### 18.4 当前覆盖
+
+| 测试 | 覆盖内容 |
+| --- | --- |
+| `SettingsScreenTest#togglingARowWritesTheSetting` | 点击开关行 → 视图模型 → 配置文件写入 |
+| `SettingsScreenTest#searchFiltersToMatchingSetting` | 搜索输入 → 命中项保留、未命中项移除 |
