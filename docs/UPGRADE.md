@@ -827,7 +827,18 @@ Compose PaneArea
 3. 若 release 明显更顺，说明优化重点在构建与渲染管线；若两者都卡，按 §16.3 的脏行增量、
    同步输出与 resize 去抖继续处理。
 
-### 17.3 注意事项
+### 17.3 首次构建结果
+
+| 项 | debug | release（minified） |
+| --- | --- | --- |
+| 大小 | 11.9 MB | **1.65 MB** |
+| 签名证书 SHA-256 | `b6da0148…e5e1` | `b6da0148…e5e1`（仓库 testkey，与 debug 同证书） |
+| SHA-256（APK） | `5175d391…a48225` | `243fc5f5…315169` |
+
+两个包都包含 4 个 ABI 的 `libtermux.so`。由于旧演示包使用 CI 随机调试签名，切换到 testkey 签名后
+需要**卸载旧演示包一次**；此后 debug 与 release 可直接互相覆盖安装。
+
+### 17.4 注意事项
 
 * R8 可能暴露运行期反射/JNI 问题：若 release 包启动崩溃或终端无法启动，优先检查
   `UnsatisfiedLinkError`（native 方法重命名）与 JSON/反射相关裁剪，并在 `proguard-rules.pro` 补充规则；
