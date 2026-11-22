@@ -10,7 +10,6 @@ import com.termux.shell.R
 import com.termux.shell.config.ApplicationConfigSource
 import com.termux.shell.config.ConfigSource
 import com.termux.shell.config.LayoutStore
-import com.termux.shell.config.SettingsSpec
 import com.termux.shell.input.KeymapTable
 import com.termux.shell.input.ShellAction
 import com.termux.shell.pane.PaneDirection
@@ -24,6 +23,10 @@ import com.termux.shell.session.SessionRecord
 import com.termux.shell.session.SessionRegistry
 import com.termux.shell.tabs.TabWorkspace
 import com.termux.shell.ui.nav.ShellNavigation
+import com.termux.shell.ui.nav.ShellNavigator
+import com.termux.shell.ui.profiles.ProfileController
+import com.termux.shell.ui.settings.SettingsController
+import com.termux.shell.ui.workspace.WorkspaceController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,38 +37,36 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * 外壳窗口状态持有者。
+ * 外壳窗口的协调者。
  *
- * 目的：集中窗口内的可变更状态（工作区、界面设置、命令面板与设置页导航、键位表）与动作分发，
- * 使 Compose 界面只读取状态并回调动作。
+ * 目的：作为窗口唯一的注入点与动作入口，把导航、工作区、界面设置与会话配置四块状态组合起来，
+ * 并暴露给 Compose 界面；具体规则分别由 [ShellNavigator]、[WorkspaceController]、
+ * [SettingsController] 与 [ProfileController] 承担。
  *
- * 分层约束：
- * - 本类型不持有 `Context`、Android 资源与进程静态单例：配置通过 [ConfigSource] 注入，
- *   新标签标题通过构造参数注入，提示通过 [ShellNotice] 事件暴露，因此可在 JVM 单元测试中直接构造；
- * - 设置写入通过 [SettingsPersister] 注入，生产实现把磁盘写入放到 IO 协程，测试实现可同步执行；
- * - 界面设置聚合为单个 [ShellSettings] 快照，重载配置时一次性替换，避免多项赋值产生中间态。
+ * 行为：
+ * - 只读属性直接转发到对应控制器，界面读取的仍是 Compose 快照状态，重组语义不变；
+ * - 动作方法做一层转发，跨控制器的联动（聚焦会话后关闭抽屉、配置改名后同步标签）在此完成；
+ * - 一次性提示、键位表、新窗口请求、会话状态版本与布局写入仍由本类型持有，因为它们与窗口生命周期绑定。
  *
- * 生命周期：作为 `ViewModel` 存活于窗口重配置期间；进程被回收后由窗口从实例状态恢复工作区。
+ * 约束：
+ * - 不持有 `Context`、Android 资源与进程静态单例：配置通过 [ConfigSource] 注入，
+ *   标题工厂与持久化实现可替换，因此可在 JVM 单元测试中直接构造；
+ * - 界面不得到控制器上另行取值，统一走本类型的转发属性，避免出现两套入口。
+ *
+ * 生命周期：作为 `ViewModel` 存活于窗口重配置期间；进程被回收后由窗口从实例状态或布局文件恢复工作区。
  */
 class ShellViewModel(
     private val configSource: ConfigSource,
     initialWorkspace: TabWorkspace,
-    private val titleFactory: (Int) -> String,
+    titleFactory: (Int) -> String,
     persister: SettingsPersister? = null,
     profilePersister: ProfilePersister? = null,
     private val sessionHost: SessionProvider? = null,
-    private val sessionEnvironment: SessionEnvironment = SessionEnvironment("/", "/"),
+    sessionEnvironment: SessionEnvironment = SessionEnvironment("/", "/"),
     private val layoutStore: LayoutStore? = null,
 ) : ViewModel(), ShellCommandCatalog.Actions, ShellCommandCatalog.State {
 
     private val writeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    private val settingsWriter = SettingsWriter(configSource, writeScope, persister)
-
-    private val profileWriter = ProfileWriter(writeScope, profilePersister)
-
-    /** 叶子与会话进程的绑定。宿主为空的测试环境不会创建会话。 */
-    private val sessionBinder = SessionBinder(sessionHost, ::profileById, sessionEnvironment)
 
     private val sessionRevisionState = MutableStateFlow(0L)
 
@@ -83,51 +84,57 @@ class ShellViewModel(
         override fun onOutput(id: SessionId, data: ByteArray, length: Int) = Unit
 
         override fun onExit(id: SessionId, exitCode: Int) {
-            notifySessionChanged()
+            sessionRevisionState.update { revision -> revision + 1 }
         }
 
         override fun onTitleChanged(id: SessionId, title: String?) {
-            notifySessionChanged()
+            sessionRevisionState.update { revision -> revision + 1 }
         }
     }
 
-    /** 界面设置快照。设置页与标题行均从此读取，重载配置后整体替换。 */
-    var uiSettings: ShellSettings by mutableStateOf(ShellSettings.from(configSource.settings()))
-        private set
+    private val navigator = ShellNavigator()
 
-    var workspace: TabWorkspace by mutableStateOf(initialWorkspace)
-        private set
+    private val profileController: ProfileController = ProfileController(
+        configSource = configSource,
+        scope = writeScope,
+        persister = profilePersister,
+        onSaved = { profile -> workspaceController.renameTabsForProfile(profile) },
+        onUnbound = { profileId -> workspaceController.clearProfileBinding(profileId) },
+        onNotice = ::publishNotice,
+    )
+
+    private val settingsController: SettingsController = SettingsController(
+        configSource = configSource,
+        scope = writeScope,
+        persister = persister,
+        onWriteFailed = { publishNotice(ShellNotice.SETTINGS_SAVE_FAILED) },
+        onCommandPaletteDisabled = { navigator.closePalette() },
+    )
+
+    private val sessionBinder: SessionBinder = SessionBinder(
+        host = sessionHost,
+        profileLookup = { profileId -> profileController.profileById(profileId) },
+        environment = sessionEnvironment,
+    )
+
+    private val workspaceController: WorkspaceController = WorkspaceController(
+        initial = initialWorkspace,
+        titleFactory = titleFactory,
+        binder = sessionBinder,
+        describeSession = { sessionId -> sessionHost?.describe(SessionId.of(sessionId)) },
+        onNotice = ::publishNotice,
+    )
 
     init {
         // 恢复的标签可能引用已随进程结束的会话：为每个叶子补齐会话，失效标识由宿主校验后重建。
-        sessionHost?.let {
-            workspace = sessionBinder.bind(workspace)
-            it.addObserver(sessionObserver)
+        sessionHost?.let { host ->
+            workspaceController.bindInitialSessions()
+            host.addObserver(sessionObserver)
         }
     }
 
     /** 当前键位表。重载配置后更新，窗口据此刷新输入路由。 */
     var keymap: KeymapTable by mutableStateOf(configSource.keymap())
-        private set
-
-    /**
-     * 导航状态。
-     *
-     * 行为：层级梭与覆盖层共同描述当前可见界面，是返回键分派与页面显隐的唯一真源。
-     * 约束：只能通过本类型的导航方法变更，界面不得直接赋值。
-     */
-    var navigation: ShellNavigation by mutableStateOf(ShellNavigation())
-        private set
-
-    val paletteVisible: Boolean get() = navigation.paletteVisible
-
-    val settingsVisible: Boolean get() = navigation.settingsVisible
-
-    /** 手机端会话抽屉。宽屏不显示抽屉，会话列表由侧栏常驻。 */
-    val sessionDrawerVisible: Boolean get() = navigation.sessionDrawerVisible
-
-    /** 最近一次被删除的会话配置，供提示条的「撤销」动作恢复；无待撤销项时为 null。 */
-    var undoableProfileDelete: SessionProfile? by mutableStateOf(null)
         private set
 
     /** 一次性提示。界面读取后调用 [consumeNotice] 清除。 */
@@ -139,6 +146,28 @@ class ShellViewModel(
     @Suppress("AutoboxingStateCreation")
     var newWindowRequestToken: Int by mutableStateOf(0)
         private set
+
+    /** 工作区快照，转发自 [WorkspaceController]。 */
+    val workspace: TabWorkspace
+        get() = workspaceController.workspace
+
+    /** 界面设置快照，转发自 [SettingsController]。 */
+    val uiSettings: ShellSettings
+        get() = settingsController.settings
+
+    /** 导航状态，转发自 [ShellNavigator]。 */
+    val navigation: ShellNavigation
+        get() = navigator.state
+
+    val paletteVisible: Boolean get() = navigation.paletteVisible
+
+    val settingsVisible: Boolean get() = navigation.settingsVisible
+
+    /** 手机端会话抽屉。宽屏不显示抽屉，会话列表由侧栏常驻。 */
+    val sessionDrawerVisible: Boolean get() = navigation.sessionDrawerVisible
+
+    /** 最近一次被删除的会话配置，供提示条的「撤销」动作恢复。 */
+    val undoableProfileDelete: SessionProfile? get() = profileController.undoableDelete
 
     val themeMode: String get() = uiSettings.themeMode
 
@@ -159,53 +188,48 @@ class ShellViewModel(
     val keymapFilePath: String get() = configSource.keymapFilePath
 
     /** 会话配置列表。所有窗口共享同一状态流，任一窗口修改后其他窗口自动刷新。 */
-    val profiles: StateFlow<List<SessionProfile>> = configSource.profiles().profiles
+    val profiles: StateFlow<List<SessionProfile>> get() = profileController.profiles
 
     /** 按标识查找会话配置；不存在时返回 null。 */
-    fun profileById(profileId: String?): SessionProfile? =
-        profileId?.let { id -> profiles.value.firstOrNull { it.id == id } }
+    fun profileById(profileId: String?): SessionProfile? = profileController.profileById(profileId)
 
     /** 进程级会话宿主；终端视图池据此取得会话。单元测试中可能为空。 */
     val terminalHost: SessionProvider?
         get() = sessionHost
 
-    /**
-     * 按工作区派生的会话注册表。
-     *
-     * 行为：叶子绑定的会话通过宿主查询真实标题与运行状态；宿主为空时退化为「已绑定即运行中」。
-     */
-    fun sessions(): SessionRegistry = SessionRegistry.fromWorkspace(workspace) { sessionId ->
-        sessionHost?.describe(SessionId.of(sessionId))
-    }
+    /** 按工作区派生的会话注册表，叶子绑定的会话通过宿主查询真实状态。 */
+    fun sessions(): SessionRegistry = workspaceController.sessions()
+
+    // 导航
 
     fun openPalette() {
-        navigation = navigation.openPalette(commandPaletteEnabled)
+        navigator.openPalette(commandPaletteEnabled)
     }
 
     fun closePalette() {
-        navigation = navigation.closePalette()
+        navigator.closePalette()
     }
 
     /** 打开设置页。设置页叠加在主界面之上，主界面不销毁。 */
     fun openSettings() {
-        navigation = navigation.openSettings()
+        navigator.openSettings()
     }
 
     fun closeSettings() {
-        navigation = navigation.closeSettings()
+        navigator.closeSettings()
     }
 
     fun openSessionDrawer() {
-        navigation = navigation.openSessionDrawer()
+        navigator.openSessionDrawer()
     }
 
     fun closeSessionDrawer() {
-        navigation = navigation.closeSessionDrawer()
+        navigator.closeSessionDrawer()
     }
 
     /** 抽屉已由手势或返回键关闭时的回写。 */
     fun onSessionDrawerClosed() {
-        navigation = navigation.onSessionDrawerClosed()
+        navigator.onSessionDrawerClosed()
     }
 
     /**
@@ -215,11 +239,7 @@ class ShellViewModel(
      *
      * @return 是否消费本次返回键。返回 false 时窗口可结束活动。
      */
-    fun navigateBack(): Boolean {
-        val next = navigation.back() ?: return false
-        navigation = next
-        return true
-    }
+    fun navigateBack(): Boolean = navigator.back()
 
     /** 消费一次性提示。重复调用安全。 */
     fun consumeNotice(): ShellNotice? {
@@ -259,231 +279,51 @@ class ShellViewModel(
         return true
     }
 
+    // 工作区
+
     fun selectTab(index: Int) {
-        workspace.select(index)?.let { workspace = it }
+        workspaceController.select(index)
     }
 
     fun closeTabAt(index: Int) {
-        val closingSessionIds = workspace.tabs.getOrNull(index)?.leaves
-            ?.mapNotNull { it.sessionId }
-            .orEmpty()
-        val closed = workspace.closeTab(index)
-        if (closed == null) {
-            publishNotice(ShellNotice.TAB_CLOSE_DENIED)
-            return
-        }
-        workspace = closed
-        closingSessionIds.forEach { sessionBinder.close(it) }
+        workspaceController.closeTabAt(index)
     }
 
     fun moveTabBy(offset: Int) {
-        moveTabTo(workspace.activeIndex, workspace.activeIndex + offset)
+        workspaceController.moveTabBy(offset)
     }
 
-    /**
-     * 把标签移动到指定位置。
-     *
-     * 说明：供标签栏拖拽排序使用；索引非法或位置未变化时不改变工作区。
-     */
+    /** 把标签移动到指定位置，供标签栏拖拽排序使用。 */
     fun moveTabTo(from: Int, to: Int) {
-        workspace.moveTab(from, to)?.let { workspace = it }
+        workspaceController.moveTabTo(from, to)
     }
 
     fun focusLeaf(leafId: String) {
-        workspace.focusLeaf(leafId)?.let { workspace = it }
+        workspaceController.focusLeaf(leafId)
     }
 
-    /**
-     * 按会话标识聚焦所在窗格。
-     *
-     * 说明：终端视图获得焦点时只知道自己挂载的会话，因此需要反查标签与窗格并切换过去。
-     */
+    /** 按会话标识聚焦所在窗格；终端视图获得焦点时据此同步外壳焦点。 */
     fun focusLeafBySessionId(sessionId: String) {
-        val tabIndex = workspace.tabs.indexOfFirst { tab ->
-            tab.leaves.any { it.sessionId == sessionId }
-        }
-        if (tabIndex < 0) {
-            return
-        }
-        val leaf = workspace.tabs[tabIndex].leaves.firstOrNull { it.sessionId == sessionId } ?: return
-        var next = workspace
-        next.select(tabIndex)?.let { next = it }
-        next.focusLeaf(leaf.id)?.let { next = it }
-        workspace = next
+        workspaceController.focusLeafBySessionId(sessionId)
     }
 
     fun setSplitRatio(splitId: String, ratio: Float) {
-        workspace.setRatio(splitId, ratio)?.let { workspace = it }
+        workspaceController.setSplitRatio(splitId, ratio)
     }
 
     /**
      * 聚焦会话所在的窗格。
      *
-     * 行为：先切换到会话附着的标签，再把焦点移到对应窗格；脱离会话没有视口，仅关闭抽屉并提示。
+     * 行为：先切换到会话附着的标签，再把焦点移到对应窗格，成功后收起会话抽屉。
      *
      * @return 是否成功切换。
      */
     fun focusSession(record: SessionRecord): Boolean {
-        val tabId = record.tabId
-        val leafId = record.leafId
-        if (tabId == null || leafId == null) {
-            publishNotice(ShellNotice.SESSION_ACTION_UNAVAILABLE)
-            return false
+        val focused = workspaceController.focusSession(record)
+        if (focused) {
+            navigator.closeSessionDrawer()
         }
-        val tabIndex = workspace.tabs.indexOfFirst { it.id == tabId }
-        if (tabIndex < 0) {
-            return false
-        }
-        var next = workspace
-        next.select(tabIndex)?.let { next = it }
-        next.focusLeaf(leafId)?.let { next = it }
-        workspace = next
-        navigation = navigation.closeSessionDrawer()
-        return true
-    }
-
-    // 设置写入：界面先得到新状态，落盘由 SettingsPersister 在后台完成。
-
-    fun updateThemeMode(value: String) {
-        updateSetting(SettingsSpec.KEY_APP_THEME, value) { it.copy(themeMode = value) }
-    }
-
-    fun updateLayoutMode(value: String) {
-        updateSetting(SettingsSpec.KEY_LAYOUT_MODE, value) { it.copy(layoutMode = value) }
-    }
-
-    fun updateSessionRailVisible(visible: Boolean) {
-        updateSetting(SettingsSpec.KEY_SESSION_RAIL_VISIBLE, visible.toString()) {
-            it.copy(sessionRailVisible = visible)
-        }
-    }
-
-    /** 切换会话列表显隐；宽屏下侧栏与标题栏按钮共用本方法。 */
-    fun toggleSessionRail() {
-        updateSessionRailVisible(!sessionRailVisible)
-    }
-
-    fun updateFullscreen(enabled: Boolean) {
-        updateSetting(SettingsSpec.KEY_FULLSCREEN, enabled.toString()) { it.copy(fullscreen = enabled) }
-    }
-
-    fun setTabBarVisible(visible: Boolean) {
-        updateSetting(SettingsSpec.KEY_TAB_BAR_VISIBLE, visible.toString()) {
-            it.copy(viewOptions = it.viewOptions.withTabBarVisible(visible))
-        }
-    }
-
-    fun setTabBarPosition(position: String) {
-        updateSetting(SettingsSpec.KEY_TAB_BAR_POSITION, position) {
-            it.copy(
-                viewOptions = it.viewOptions.copy(
-                    tabBarAtBottom = position == SettingsSpec.TAB_POSITION_BOTTOM,
-                ),
-            )
-        }
-    }
-
-    fun setTabCloseButtonVisible(visible: Boolean) {
-        updateSetting(SettingsSpec.KEY_TAB_CLOSE_BUTTON, visible.toString()) {
-            it.copy(viewOptions = it.viewOptions.copy(showTabCloseButton = visible))
-        }
-    }
-
-    fun setTabWidthMode(mode: String) {
-        updateSetting(SettingsSpec.KEY_TAB_WIDTH_MODE, mode) {
-            it.copy(viewOptions = it.viewOptions.copy(equalTabWidth = mode != SettingsSpec.TAB_WIDTH_COMPACT))
-        }
-    }
-
-    fun updateCommandPaletteEnabled(enabled: Boolean) {
-        updateSetting(SettingsSpec.KEY_COMMAND_PALETTE_ENABLED, enabled.toString()) {
-            it.copy(commandPaletteEnabled = enabled)
-        }
-        if (!enabled) {
-            navigation = navigation.closePalette()
-        }
-    }
-
-    fun updateKeymapEnabled(enabled: Boolean) {
-        updateSetting(SettingsSpec.KEY_KEYMAP_ENABLED, enabled.toString()) {
-            it.copy(keymapEnabled = enabled)
-        }
-    }
-
-    override fun newTab() {
-        newTab(null)
-    }
-
-    /**
-     * 新建标签。
-     *
-     * @param profile 启动主会话所用的会话配置；为空表示使用默认 shell。
-     * 分屏产生的附加会话沿用同一配置，启动逻辑由会话宿主在 M14 之后实现。
-     */
-    fun newTab(profile: SessionProfile?) {
-        val title = profile?.name ?: titleFactory(workspace.nextTabNumber)
-        workspace.newTab(title, profile?.id)?.let { workspace = sessionBinder.bind(it) }
-            ?: publishNotice(ShellNotice.TAB_LIMIT)
-    }
-
-    /** 按配置标识新建标签；标识不存在时回退为默认 shell。 */
-    fun newTabWithProfile(profileId: String) {
-        newTab(profileById(profileId))
-    }
-
-    /**
-     * 保存会话配置。
-     *
-     * 说明：写入在 IO 线程完成；成功后同步改名使用该配置的标签，避免列表与标签标题不一致。
-     */
-    fun saveProfile(profile: SessionProfile) {
-        profileWriter.persist({ configSource.profiles().save(profile) }) { saved ->
-            if (!saved) {
-                publishNotice(ShellNotice.PROFILE_SAVE_FAILED)
-                return@persist
-            }
-            workspace = workspace.copy(
-                tabs = workspace.tabs.map { tab ->
-                    if (tab.profileId == profile.id) tab.copy(title = profile.name) else tab
-                },
-            )
-        }
-    }
-
-    /**
-     * 删除会话配置。
-     *
-     * 行为：使用该配置的标签保留标题，但清除绑定，避免后续启动时引用不存在的配置；
-     * 删除成功后记录被删配置并发布可撤销的提示，界面据此提供「撤销」动作。
-     */
-    fun deleteProfile(profileId: String) {
-        val removed = profileById(profileId)
-        profileWriter.persist({ configSource.profiles().delete(profileId) }) { deleted ->
-            if (!deleted) {
-                publishNotice(ShellNotice.PROFILE_DELETE_FAILED)
-                return@persist
-            }
-            workspace = workspace.copy(
-                tabs = workspace.tabs.map { tab ->
-                    if (tab.profileId == profileId) tab.copy(profileId = null) else tab
-                },
-            )
-            undoableProfileDelete = removed
-            publishNotice(ShellNotice.PROFILE_DELETED)
-        }
-    }
-
-    /**
-     * 撤销最近一次会话配置删除。
-     *
-     * 行为：把被删配置重新写入存储，成功后清除撤销状态；重复调用安全。
-     *
-     * 约束：只保留最近一次删除，新的删除会覆盖上一次的撤销机会。
-     */
-    fun undoProfileDelete() {
-        val profile = undoableProfileDelete ?: return
-        undoableProfileDelete = null
-        saveProfile(profile)
+        return focused
     }
 
     override fun closeTab() {
@@ -491,11 +331,11 @@ class ShellViewModel(
     }
 
     override fun nextTab() {
-        workspace.selectRelative(1)?.let { workspace = it }
+        workspaceController.selectRelative(1)
     }
 
     override fun previousTab() {
-        workspace.selectRelative(-1)?.let { workspace = it }
+        workspaceController.selectRelative(-1)
     }
 
     override fun moveTabLeft() {
@@ -507,36 +347,136 @@ class ShellViewModel(
     }
 
     override fun splitRight() {
-        split(SplitOrientation.HORIZONTAL)
+        workspaceController.split(SplitOrientation.HORIZONTAL)
     }
 
     override fun splitDown() {
-        split(SplitOrientation.VERTICAL)
+        workspaceController.split(SplitOrientation.VERTICAL)
     }
 
     override fun closePane() {
-        val closingSessionId = workspace.activeTab.focusedLeaf.sessionId
-        val closed = workspace.closeFocusedPane()
-        if (closed == null) {
-            publishNotice(ShellNotice.PANE_CLOSE_DENIED)
-            return
-        }
-        workspace = closed
-        closingSessionId?.let { sessionBinder.close(it) }
+        workspaceController.closePane()
     }
 
     override fun focusNextPane() {
-        workspace.focusRelative(1)?.let { workspace = it }
+        workspaceController.focusRelative(1)
     }
 
     override fun focusPreviousPane() {
-        workspace.focusRelative(-1)?.let { workspace = it }
+        workspaceController.focusRelative(-1)
     }
 
-    /** 按方向聚焦相邻窗格；该方向没有相邻窗格时保持焦点不变。 */
     override fun focusPane(direction: PaneDirection) {
-        workspace.focusDirection(direction)?.let { workspace = it }
+        workspaceController.focusDirection(direction)
     }
+
+    override fun newTab() {
+        newTab(null)
+    }
+
+    /**
+     * 新建标签。
+     *
+     * @param profile 启动主会话所用的会话配置；为空表示使用默认 shell。
+     */
+    fun newTab(profile: SessionProfile?) {
+        workspaceController.newTab(profile)
+    }
+
+    /** 按配置标识新建标签；标识不存在时回退为默认 shell。 */
+    fun newTabWithProfile(profileId: String) {
+        newTab(profileById(profileId))
+    }
+
+    override fun canCloseTab(): Boolean = workspaceController.canCloseTab()
+
+    override fun canSplitPane(): Boolean = workspaceController.canSplitPane()
+
+    override fun canClosePane(): Boolean = workspaceController.canClosePane()
+
+    // 设置
+
+    fun updateThemeMode(value: String) {
+        settingsController.updateThemeMode(value)
+    }
+
+    fun updateLayoutMode(value: String) {
+        settingsController.updateLayoutMode(value)
+    }
+
+    fun updateSessionRailVisible(visible: Boolean) {
+        settingsController.updateSessionRailVisible(visible)
+    }
+
+    /** 切换会话列表显隐；宽屏下侧栏与标题栏按钮共用本方法。 */
+    fun toggleSessionRail() {
+        settingsController.toggleSessionRail()
+    }
+
+    fun updateFullscreen(enabled: Boolean) {
+        settingsController.updateFullscreen(enabled)
+    }
+
+    fun setTabBarVisible(visible: Boolean) {
+        settingsController.setTabBarVisible(visible)
+    }
+
+    fun setTabBarPosition(position: String) {
+        settingsController.setTabBarPosition(position)
+    }
+
+    fun setTabCloseButtonVisible(visible: Boolean) {
+        settingsController.setTabCloseButtonVisible(visible)
+    }
+
+    fun setTabWidthMode(mode: String) {
+        settingsController.setTabWidthMode(mode)
+    }
+
+    fun updateCommandPaletteEnabled(enabled: Boolean) {
+        settingsController.updateCommandPaletteEnabled(enabled)
+    }
+
+    fun updateKeymapEnabled(enabled: Boolean) {
+        settingsController.updateKeymapEnabled(enabled)
+    }
+
+    /** 切换标签栏显隐。该开关是会话内的临时状态，不写入配置文件。 */
+    override fun toggleTabBar() {
+        settingsController.toggleTabBarInSession()
+    }
+
+    override fun reloadConfig() {
+        if (!configSource.reload()) {
+            publishNotice(ShellNotice.CONFIG_RELOAD_FAILED)
+            return
+        }
+        settingsController.reloadFromSource()
+        keymap = configSource.keymap()
+        if (!commandPaletteEnabled) {
+            navigator.closePalette()
+        }
+        publishNotice(ShellNotice.CONFIG_RELOADED)
+    }
+
+    // 会话配置
+
+    /** 保存会话配置；成功后同步使用该配置的标签标题。 */
+    fun saveProfile(profile: SessionProfile) {
+        profileController.save(profile)
+    }
+
+    /** 删除会话配置；成功后清除标签绑定并提供撤销。 */
+    fun deleteProfile(profileId: String) {
+        profileController.delete(profileId)
+    }
+
+    /** 撤销最近一次会话配置删除。 */
+    fun undoProfileDelete() {
+        profileController.undoDelete()
+    }
+
+    // 窗口
 
     override fun newWindow() {
         newWindowRequestToken++
@@ -560,8 +500,7 @@ class ShellViewModel(
     /**
      * 保存当前工作区结构。
      *
-     * 行为：把标签、窗格树与当前标签写入布局存储，供进程被回收后恢复；写入在 IO 协程完成，
-     * 失败只记录提示事件，不影响界面状态。
+     * 行为：把标签、窗格树与当前标签写入布局存储，供进程被回收后恢复；写入在 IO 协程完成。
      *
      * 约束：由窗口在退到后台时调用；多个窗口共享同一布局文件，最后写入者生效。
      */
@@ -571,78 +510,16 @@ class ShellViewModel(
         writeScope.launch { store.write(snapshot) }
     }
 
-    /** 切换标签栏显隐。该开关是会话内的临时状态，不写入配置文件。 */
-    override fun toggleTabBar() {
-        uiSettings = uiSettings.copy(viewOptions = viewOptions.withTabBarVisible(!viewOptions.tabBarVisible))
-    }
-
-    override fun reloadConfig() {
-        if (!configSource.reload()) {
-            publishNotice(ShellNotice.CONFIG_RELOAD_FAILED)
-            return
-        }
-        uiSettings = ShellSettings.from(configSource.settings())
-        keymap = configSource.keymap()
-        if (!commandPaletteEnabled) {
-            navigation = navigation.closePalette()
-        }
-        publishNotice(ShellNotice.CONFIG_RELOADED)
-    }
-
-    override fun canCloseTab(): Boolean = workspace.size > 1
-
-    override fun canSplitPane(): Boolean = workspace.activeTab.leaves.size < TabWorkspace.MAX_LEAF_COUNT
-
-    override fun canClosePane(): Boolean = workspace.activeTab.leaves.size > 1
-
     override fun onCleared() {
         sessionHost?.removeObserver(sessionObserver)
         writeScope.cancel()
         super.onCleared()
     }
 
-    private fun split(orientation: SplitOrientation) {
-        val (newWorkspace, newLeaf) = workspace.splitFocused(orientation)
-        if (newLeaf == null) {
-            publishNotice(ShellNotice.PANE_LIMIT)
-            return
-        }
-        workspace = sessionBinder.bind(newWorkspace)
-    }
-
-    /**
-     * 先应用内存状态，再异步写入配置文件。
-     *
-     * 行为：写入失败时回滚到修改前的快照并提示用户，使界面与磁盘保持一致；
-     * 回滚以「当前快照仍等于本次修改结果」为条件，因此期间其它设置的成功修改不会被覆盖。
-     *
-     * 约束：回调可能在主线程之外触发，回滚分支内只做快照替换与提示发布。
-     */
-    private fun updateSetting(key: String, value: String, transform: (ShellSettings) -> ShellSettings) {
-        val previous = uiSettings
-        val updated = transform(previous)
-        uiSettings = updated
-        settingsWriter.persist(key, value) {
-            if (uiSettings == updated) {
-                uiSettings = previous
-            }
-            publishNotice(ShellNotice.SETTINGS_SAVE_FAILED)
-        }
-    }
-
-    private fun notifySessionChanged() {
-        sessionRevisionState.update { revision -> revision + 1 }
-    }
-
     private fun publishNotice(notice: ShellNotice) {
         this.notice = notice
     }
 
-    /**
-     * 设置落盘抽象。
-     *
-     * 生产实现把磁盘写入放到 IO 协程，并在失败时回到主线程回调；单元测试可传入同步实现。
-     */
     /**
      * 视图模型工厂。
      *
