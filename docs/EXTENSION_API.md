@@ -229,6 +229,8 @@ public final class ExtensionHost {
 | `TermuxActivity` 接线 | `onCreate` 末尾创建并应用、`onResume` 重新应用、`onDestroy` 释放 |
 | 贡献点（菜单项/命令/设置项/视图装饰器/会话观察者） | 已定义 `Extension.preferenceKeys()`（设置项可见性）；其余贡献点在对应功能迁移时再加，避免空接口 |
 | 第一个扩展 `ext.backup` | 已提取（`app/ext/backup/`，含 `BackupExtension`、`TermuxBackupUtils`、`BackupPreferencesFragment`）；默认启用，禁用后设置项隐藏 |
+| 命令面板入口 | 快捷键 `Ctrl+Shift+P`；抽屉头部按钮（`palette_button`）；终端菜单项 `command-palette`（因默认菜单列表定义在只读模块，需在 `terminal-menu-items` 中显式加入）；虚拟按键 `F12`（`TermuxTerminalViewClient.onKeyDown` 拦截无修饰的 F12） |
+| 终端右键转发 | 新增 `app/terminal/TermuxTerminalFrame`：包装 `TerminalView`（该视图在只读模块中是 final，无法继承），在 `dispatchTouchEvent` 中检测 `SOURCE_MOUSE + BUTTON_SECONDARY`，若 `mEmulator.isMouseTrackingActive()` 则用 `getColumnAndRow()` + `sendMouseEvent(2, …)` 转发并消费，否则交回视图弹现有终端菜单；布局改为 Frame 包裹 TerminalView |
 | 命令面板（第一切片） | 新增 `app/commands/`：`ShellCommand`（标题、分组、快捷键、可用性、执行闭包）、`ShellCommandCatalog`（复用 `TerminalMenuItems` 规则生成命令）、`ShellCommandPalette`（可搜索对话框，过滤规则为纯函数并有 4 项测试）；入口为 `Ctrl+Shift+P`（`TermuxActivity.dispatchKeyEvent`） |
 | 菜单规则下沉 | 新增 `terminal/menu/TerminalMenuItems`：可见性与可用性改为纯函数（`State` 快照 + `TitleResolver`），`TermuxActivity.showTerminalMenu` 改为调用它；8 项 JVM 测试 |
 
