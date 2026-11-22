@@ -240,6 +240,24 @@ public final class ExtensionHost {
   `:app:compileDebugJavaWithJavac`、`:app:testDebugUnitTest` 可执行，测试 143 项中 1 项为既有的 Robolectric 4.10 + JDK 21 失败。
 - 扩展设置页为程序化构建，暂不进入设置搜索索引（索引只读 XML 页面）。
 
+## 9.1 实施记录（M-E1 扩展闸门层）
+
+问题：X0 的禁用语义只有「把根设置页上的一个 key 设为不可见」。设置搜索索引有独立的静态页面表（硬编码备份页），导航只按 `getFragment()` 匹配、不检查 `isVisible()`，页面本身也不检查扩展状态，因此禁用后仍可从搜索进入并完整使用功能。
+
+实施：
+
+| 项 | 内容 |
+| --- | --- |
+| 唯一状态源 | `ext.host.ExtensionHost`：进程级单例，`statuses()`/`stateOf()`/`isRunning()`/`disabledIds()`/`dependentsOf()`/`setEnabled()`；`ExtensionManager`、`ExtensionsPreferencesFragment`、`SettingsSearchIndex`、`SettingsSearchNavigation`、备份页闸门全部改为读它 |
+| 设置页贡献点 | `ext.api.ExtensionSettingsPage`（`titleRes`、`xmlRes`、`fragmentClassName`）与 `Extension.settingsPages()`；`SettingsSearchIndex` 的页面表 = 核心页 + 扩展声明的页，条目携带 `extensionId` |
+| 搜索过滤 | `build()` 末尾用纯函数 `withoutDisabledExtensions(entries, host.disabledIds())` 丢弃禁用扩展的条目（2 项测试） |
+| 导航二次校验 | `SettingsSearchNavigation.open` 打开前要求条目可见且所属扩展处于运行态，防止用旧快照或直接构造的条目绕过 |
+| 页面闸门 | `BackupPreferencesFragment.onCreatePreferences` 先查 `ExtensionHost.isRunning(BackupExtension.ID)`，未启用则只显示占位说明，不提供备份、恢复与命令安装 |
+| 空分类收起 | `applyPreferenceVisibility` 在隐藏条目后逐级隐藏没有可见子项的分类，避免留下空标题 |
+| 守卫测试 | `ExtensionRegistrySourceTest` 3 项：声明的 key 必须存在于 `termux_preferences.xml`；声明的页面源码必须调用 `isRunning(`；页面类名与 XML 资源不得重复 |
+
+约束：扩展的设置项必须声明在根设置页上，因为可见性 pass 只在根页运行；新增扩展页时，页面必须自行做闸门，隐藏入口不构成禁用。
+
 ## 10. 未验证声明
 
 - 本文件为可行性研究与设计草案，**未编写任何扩展 API 或迁移代码**；

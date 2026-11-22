@@ -67,3 +67,18 @@
 - BackupExtension 增加 ID 常量，PREFERENCE_KEY 复用该常量。
 
 未验证：真机交互与「禁用后搜索无结果」的实际表现未在设备上确认，本机仅通过 :app:compileDebugJavaWithJavac 与 :app:testDebugUnitTest 的相关包测试。
+
+## 2026-11-22 — M-E1：扩展闸门层（唯一状态源 + 页面声明 + 守卫测试）
+
+目标：把「扩展状态」收为一个来源，把「贡献点」从「隐藏一个 key」升级为可声明的资源，并让设置搜索与页面闸门共用同一判断。
+
+1. ExtensionHost（ext/host/ExtensionHost.java）：进程级单例，持有 ForkExtensions.installed() 快照，statuses()/stateOf()/isRunning()/disabledIds()/dependentsOf()/setEnabled() 全部经由 ExtensionGraph + ExtensionPreferences.storedFlags 解析。不缓存解析结果：扩展为个位数，主线程同步解析，避免用户改标志后读到旧快照。
+2. ExtensionManager 不再自行 resolve，也不再接收 installed 列表（构造签名改为 ExtensionManager(Activity)），改为读 host；其 stateOf 仅保留运行时结果（含 FORCED_DISABLED），与 host 的配置态区分。
+3. ExtensionPreferences 退回纯偏好层：storedFlags / setEnabled / specs / resolve / applyPreferenceVisibility，不再决定功能是否运行。
+4. 新贡献点 ExtensionSettingsPage（titleRes、xmlRes、fragmentClassName）与 Extension.settingsPages()；SettingsSearchIndex 的页面表 = 核心页 + 各扩展声明的页，禁用扩展的条目在 build() 末尾由纯函数 withoutDisabledExtensions 丢弃。搜索索引不再硬编码备份页与扩展 id。
+5. applyPreferenceVisibility 增加空分类收起：某分类下的条目全部隐藏时，该分类与其父分类一并隐藏，避免留下指向已禁用功能的孤立标题。
+6. 守卫测试 ExtensionRegistrySourceTest（3 项）：preferenceKeys() 的 key 必须存在于 termux_preferences.xml（否则隐藏静默失效）；settingsPages() 指向的 Fragment 源码必须调用 isRunning(（页面必须自行拒绝）；页面类名与 XML 资源不得重复。
+
+约束（写入 Extension 的 KDoc）：扩展的设置项必须声明在根设置页 termux_preferences.xml 上，因为可见性 pass 只在根页运行，由第一条守卫测试兜底。
+
+未验证：仅本机 :app:compileDebugJavaWithJavac 与 :app:testDebugUnitTest 通过（164 项，1 项为既有的 Robolectric + JDK 21 失败），未做设备验证，未跑 :app:assembleDebug（本机 NDK 缺 libc++_shared）。
