@@ -218,7 +218,24 @@ public final class ExtensionHost {
 
 ---
 
-## 9. 未验证声明
+## 9. 实施记录（2026-11-23，X0）
+
+| 项 | 状态 |
+| --- | --- |
+| `ext.api`：`Extension`、`ExtensionContext` | 已实现 |
+| `ext.host`：`ExtensionSpec`、`ExtensionState`、`ExtensionStatus`、`ExtensionGraph`、`ExtensionPreferences`、`ExtensionManager` | 已实现；`ExtensionGraph` 为纯 Java，7 项 JVM 测试通过 |
+| 扩展登记表 `ForkExtensions` | 已建立，当前为空 |
+| 设置页「扩展」 | 已实现（程序化构建），开关写 `SharedPreferences("termux-extensions")`，禁用被依赖项时弹确认 |
+| `TermuxActivity` 接线 | `onCreate` 末尾创建并应用、`onResume` 重新应用、`onDestroy` 释放 |
+| 贡献点（菜单项/命令/设置项/视图装饰器/会话观察者） | **尚未定义**，等第一个真实扩展（`ext.statusbar`）确定需求后再加，避免空接口 |
+
+已知限制：
+
+- `:app:assembleDebug` 在本机失败于 NDK 链接（`unable to find library -lc++_shared`），属构建环境问题，与本次改动无关；
+  `:app:compileDebugJavaWithJavac`、`:app:testDebugUnitTest` 可执行，测试 143 项中 1 项为既有的 Robolectric 4.10 + JDK 21 失败。
+- 扩展设置页为程序化构建，暂不进入设置搜索索引（索引只读 XML 页面）。
+
+## 10. 未验证声明
 
 - 本文件为可行性研究与设计草案，**未编写任何扩展 API 或迁移代码**；
 - `app/` 的现状结论来自静态阅读与 `:app:compileDebugJavaWithJavac`、`:app:testDebugUnitTest`（135/136）结果；
