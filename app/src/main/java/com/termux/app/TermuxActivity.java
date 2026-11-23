@@ -1649,12 +1649,15 @@ public final class TermuxActivity extends AppCompatActivity
      * Restart the input connections when the decision about which of the terminal and the IME owns the physical
      * keys changed.
      *
-     * <p>The decision is {@link TermuxTerminalViewClient#resolveInputType(int, boolean, boolean)}: the physical keys
-     * belong to the terminal while a hardware keyboard is attached and the soft keyboard is hidden. Only a change
-     * of that decision needs a new input connection, since the IME reads the editor information only when it
-     * creates the connection, so a hardware keyboard that is attached while the soft keyboard is visible is a
-     * no-op. Android 5.0 and 6.0 do not report the soft keyboard visibility, so the terminal keeps the type that the
-     * view computed there, which is what {@code TermuxTerminalViewClient.getInputType()} does.</p>
+     * <p>The decision is {@link TermuxTerminalViewClient#resolveInputType(int, boolean, boolean, boolean)}: the
+     * physical keys belong to the terminal while a hardware keyboard is attached and the soft keyboard is hidden.
+     * Only a change of that decision needs a new input connection, since the IME reads the editor information only
+     * when it creates the connection, so a hardware keyboard that is attached while the soft keyboard is visible is
+     * a no-op. Without a hardware keyboard the type does not depend on the soft keyboard visibility, so the
+     * compatibility mode of the {@code gboard-cjk-workaround} property never restarts the connection here; toggling
+     * the property restarts it through {@code TermuxTerminalViewClient.onReloadProperties()}. Android 5.0 and 6.0 do
+     * not report the soft keyboard visibility, so the terminal keeps the type that the view computed there, which
+     * is what {@code TermuxTerminalViewClient.getInputType()} does.</p>
      */
     private void updateImePassthroughState() {
         boolean passthrough = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M

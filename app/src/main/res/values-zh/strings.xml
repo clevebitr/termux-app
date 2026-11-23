@@ -287,11 +287,12 @@
             <string name="termux_keyboard_input_method_header">输入法</string>
 
                 <!-- Gboard CJK Workaround -->
-                <string name="termux_gboard_cjk_workaround_title">Gboard 中日韩键盘</string>
-                <string name="termux_gboard_cjk_workaround_off">Gboard 等输入法在终端视图中可能只显示 ASCII QWERTY 键盘，
-                    导致无法直接使用中文拼音等中日韩键盘。</string>
-                <string name="termux_gboard_cjk_workaround_on">Gboard 等输入法可以在终端视图中使用中文拼音等中日韩键盘。
-                    其他语言的联想会被停用，切换输入语言时键盘可能会重启一次。</string>
+                <string name="termux_gboard_cjk_workaround_title">输入法兼容模式</string>
+                <string name="termux_gboard_cjk_workaround_off">终端默认不上报文本框类型，Gboard 等输入法在终端视图中可能只显示
+                    ASCII QWERTY 键盘并隐藏语言切换键，无法输入中文、日文或韩文。</string>
+                <string name="termux_gboard_cjk_workaround_on">所有输入法（Gboard、搜狗、百度等）都按普通文本框处理，
+                    语言切换键与候选词保持可用，提交的文本逐字写入会话。部分输入法在英文下可能保留组合文本，
+                    字符在提交后才出现在终端。</string>
 
                 <!-- Enforce Char Based Input -->
                 <string name="termux_enforce_char_based_input_title">强制逐字符输入</string>

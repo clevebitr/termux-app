@@ -312,12 +312,14 @@
             <string name="termux_keyboard_input_method_header">Input Method</string>
 
                 <!-- Gboard CJK Workaround -->
-                <string name="termux_gboard_cjk_workaround_title">Gboard CJK Keyboards</string>
-                <string name="termux_gboard_cjk_workaround_off">IMEs like Gboard may only show an ASCII QWERTY keyboard in
-                    the terminal view, so CJK keyboards like Chinese Pinyin cannot be used directly.</string>
-                <string name="termux_gboard_cjk_workaround_on">IMEs like Gboard can use CJK keyboards like Chinese Pinyin
-                    in the terminal view. Suggestions are disabled for other languages and the keyboard may
-                    restart when the input language is changed.</string>
+                <string name="termux_gboard_cjk_workaround_title">IME Compatibility Mode</string>
+                <string name="termux_gboard_cjk_workaround_off">The terminal does not report a text editor type by
+                    default, so IMEs like Gboard may show only an ASCII QWERTY keyboard, hide the language switch and
+                    make Chinese, Japanese or Korean unavailable.</string>
+                <string name="termux_gboard_cjk_workaround_on">Every IME, including Gboard, Sogou and Baidu, is
+                    presented with a plain text editor, so the language switch and the candidate view stay available
+                    and committed text is written to the session as it arrives. Some IMEs keep a composing region for
+                    English, so characters appear after they are committed.</string>
 
                 <!-- Enforce Char Based Input -->
                 <string name="termux_enforce_char_based_input_title">Enforce Character Based Input</string>
