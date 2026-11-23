@@ -267,6 +267,11 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     }
 
     @Override
+    public void onImeEvent(@NonNull String message) {
+        if (mActivity.isKeyboardCompatLogEnabled()) KeyboardCompatLog.log("ime", message);
+    }
+
+    @Override
     public int getInputType(int defaultInputType) {
         int inputType = mActivity.getImeInputType().inputType(defaultInputType);
         if (mActivity.isKeyboardCompatLogEnabled()) {

@@ -49,6 +49,7 @@ import com.termux.app.properties.ForkProperties;
 import com.termux.app.properties.ForkPropertyKeys;
 import com.termux.app.terminal.ImeInputType;
 import com.termux.app.terminal.KeyboardCompatLog;
+import com.termux.terminal.KeyHandler;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalFrame;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
@@ -1467,8 +1468,37 @@ public final class TermuxActivity extends AppCompatActivity
      */
     @Override
     public boolean dispatchKeyEvent(@NonNull KeyEvent event) {
+        if (handleTerminalTab(event)) return true;
         if (handleCommandShortcut(event)) return true;
         return super.dispatchKeyEvent(event);
+    }
+
+    /**
+     * Send Tab to the terminal before the window performs its focus navigation.
+     *
+     * <p>An unhandled Tab moves the focus to the next view, which in the terminal would mean that the key
+     * never reaches the shell or a TUI like Neovim. The terminal view handles Tab itself, but a keyboard or
+     * the framework may take it before the view sees it, especially while the terminal is presented to the
+     * IME as a text field for the floating toolbar. Handling it here keeps Tab working in every mode, while
+     * a terminal view that does not have the focus, like while the search bar or the extra keys are used, is
+     * left alone.</p>
+     *
+     * <p>Shift+Tab is sent as the back-tab escape sequence by the key handler, like the hardware keyboard.</p>
+     */
+    private boolean handleTerminalTab(@NonNull KeyEvent event) {
+        if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+        if (event.getKeyCode() != KeyEvent.KEYCODE_TAB) return false;
+        if (event.isCtrlPressed() || event.isAltPressed()) return false;
+
+        TerminalView terminalView = mTerminalView;
+        if (terminalView == null || !terminalView.hasFocus()) return false;
+
+        int keyMod = event.isShiftPressed() ? KeyHandler.KEYMOD_SHIFT : 0;
+        if (terminalView.handleKeyCode(KeyEvent.KEYCODE_TAB, keyMod)) {
+            if (mKeyboardCompatLog) KeyboardCompatLog.log("activity", "sent Tab to the terminal");
+            return true;
+        }
+        return false;
     }
 
     /** @return Whether key events are logged, as the `keyboard-compat-log` property configures it. */
