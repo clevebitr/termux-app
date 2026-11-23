@@ -290,7 +290,10 @@
 
 
         <!-- Terminal Keyboard Preferences -->
-        <string name="termux_keyboard_preferences_title">Terminal Keyboard</string>
+        <string name="termux_volume_keys_preferences_title">Volume Keys</string>
+    <string name="termux_volume_keys_preferences_summary">Virtual keys · single press and long press actions</string>
+    <string name="termux_volume_key_actions_header">Actions</string>
+    <string name="termux_keyboard_preferences_title">Terminal Keyboard</string>
         <string name="termux_keyboard_preferences_summary">Input method · key behaviour</string>
 
             <!-- Input Method Category -->

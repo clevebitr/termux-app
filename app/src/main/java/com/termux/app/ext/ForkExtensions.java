@@ -6,6 +6,7 @@ import com.termux.app.ext.api.Extension;
 import com.termux.app.ext.backup.BackupExtension;
 import com.termux.app.ext.menu.TerminalMenuExtension;
 import com.termux.app.ext.statusbar.StatusBarExtension;
+import com.termux.app.ext.volumekeys.VolumeKeysExtension;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,6 +36,7 @@ public final class ForkExtensions {
         // know whether it takes space from it.
         extensions.add(new StatusBarExtension());
         extensions.add(new TerminalMenuExtension());
+        extensions.add(new VolumeKeysExtension());
         extensions.add(new BackupExtension());
         return Collections.unmodifiableList(extensions);
     }
