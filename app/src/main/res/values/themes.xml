@@ -4,15 +4,75 @@
      https://material.io/develop/android/theming/dark
     -->
 
+    <!--
+      The themes of the fork are Material 3 themes. The base themes of the shared library are Material 2 and
+      cannot be changed, since the module is read only, so the app defines its own parents here and keeps the
+      names that the manifest and the activities use.
+    -->
+
     <!-- TermuxApp Light DarkActionBar theme. -->
-    <style name="Theme.TermuxApp.Light.DarkActionBar" parent="Theme.BaseActivity.Light.DarkActionBar"/>
+    <style name="Theme.TermuxApp.Light.DarkActionBar" parent="Theme.Material3.Light">
+        <!-- The worktree keeps the red of the upstream theme as the primary color, so that the Material 3
+             components match the terminal colors of the fork. -->
+        <item name="colorPrimary">@color/red_400</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/red_400</item>
+        <item name="colorOnPrimaryContainer">@color/grey_900</item>
+
+        <item name="colorSecondary">@color/grey_800</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorSecondaryContainer">@color/grey_200</item>
+        <item name="colorOnSecondaryContainer">@color/grey_900</item>
+
+        <item name="colorOutline">@color/grey_500</item>
+
+        <item name="android:textColorLink">@color/blue_link_light</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.Termux.Dialog</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Termux.Dialog</item>
+    </style>
     <!-- TermuxApp Light NoActionBar theme. -->
-    <style name="Theme.TermuxApp.Light.NoActionBar" parent="Theme.BaseActivity.Light.NoActionBar"/>
+    <style name="Theme.TermuxApp.Light.NoActionBar" parent="Theme.TermuxApp.Light.DarkActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
 
     <!-- TermuxApp DayNight DarkActionBar theme. -->
-    <style name="Theme.TermuxApp.DayNight.DarkActionBar" parent="Theme.BaseActivity.DayNight.DarkActionBar"/>
+    <style name="Theme.TermuxApp.DayNight.DarkActionBar" parent="Theme.Material3.DayNight">
+        <item name="colorPrimary">@color/red_400</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/red_800</item>
+        <item name="colorOnPrimaryContainer">@color/white</item>
+
+        <item name="colorSecondary">@color/grey_400</item>
+        <item name="colorOnSecondary">@color/black</item>
+        <item name="colorSecondaryContainer">@color/grey_800</item>
+        <item name="colorOnSecondaryContainer">@color/white</item>
+
+        <item name="colorOutline">@color/grey_500</item>
+
+        <item name="android:textColorLink">@color/blue_link_dark</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.Termux.Dialog</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Termux.Dialog</item>
+    </style>
     <!-- TermuxApp DayNight NoActionBar theme. -->
-    <style name="Theme.TermuxApp.DayNight.NoActionBar" parent="Theme.BaseActivity.DayNight.NoActionBar"/>
+    <style name="Theme.TermuxApp.DayNight.NoActionBar" parent="Theme.TermuxApp.DayNight.DarkActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <!--
+      The dialogs of the fork are square tui windows instead of the Material 3 pill shaped sheets, so the
+      overlay only provides the color roles that the platform and the shared library dialogs need, and the
+      shape is applied by the dialogs that the fork draws itself.
+    -->
+    <style name="ThemeOverlay.Termux.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Termux.Dialog</item>
+    </style>
+
+    <style name="ShapeAppearance.Termux.Dialog" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">0dp</item>
+    </style>
 
 
     <!-- TermuxActivity DayNight NoActionBar theme. -->
