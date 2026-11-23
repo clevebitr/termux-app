@@ -11,8 +11,8 @@
 `app/` 的扩展 API 骨架、第一个扩展（备份）、终端菜单规则下沉、命令面板（含四个入口）与终端右键转发均已完成，
 并在 PR #1 上通过 CI（单元测试 + Lint + 双 ABI 构建 + 签名 APK）；扩展禁用语义已在 M-E1 改为「入口不可达 +
 运行时闸门」，菜单收敛已完成（抽屉按钮与面板共用 `ShellCommandHost`），X1 控制器拆分已完成第一轮（动作映射表 +
-抽屉控制器），`ext.statusbar` 已迁移（第一个带视图与定时器的可禁用扩展，`TermuxActivity` 2209 行）；
-**通知体系、分屏、搜索、菜单、抽屉、音量键的迁移尚未开始**。
+抽屉控制器），`ext.statusbar` 与 `ext.menu` 已迁移（`TermuxActivity` 2194 行）；
+**通知体系、分屏、搜索、抽屉、音量键的迁移尚未开始**。
 
 ---
 
@@ -131,11 +131,12 @@ ext/backup/   BackupExtension、TermuxBackupUtils、BackupPreferencesFragment（
 X1 控制器拆分已完成第一轮：动作分发改为 `TerminalActionRunner` 映射表（有 3 项 JVM 测试），抽屉逻辑迁入
 `TerminalDrawerController`，记录见 `app/DECISIONS.md` #7。
 `ext.statusbar` 已迁移（生命周期回调 + 包迁移 + 页面闸门 + 宿主单向查询），并新增 `docs/API_INDEX.md`，
-记录见 `app/DECISIONS.md` #8；迁移评估与后续顺序见 `docs/EXTENSION_API.md` §10。
+记录见 `app/DECISIONS.md` #8；`ext.menu` 已迁移（动作/规则/配置/对话框/设置页整体迁入，宿主转发），
+记录见 `app/DECISIONS.md` #9；迁移评估与后续顺序见 `docs/EXTENSION_API.md` §10。
 
 | 序 | 任务 | 要点 | 验收 |
 | --- | --- | --- | --- |
-| 1 | `ext.menu` 或 `ext.volumekeys` | 无依赖的小步迁移，验证迁移流程 | 可启用/禁用；禁用后无残留菜单项与按键处理 |
+| 1 | `ext.volumekeys` | 小步迁移：音量键动作 ~150 行 + 拆出独立设置页 | 可启用/禁用；禁用后音量键回到字面音量行为 |
 | 2 | `ext.notifications` | 13 文件 2704 行；需先定义「事件源/卡片槽位」贡献点，依赖 `StatusBarExtension.getConfig()` | 禁用后卡片、后台通知、历史全部停止 |
 | 3 | 视图槽位贡献点 | 先汇总分屏容器、搜索条、通知叠层三处用途，再设计 | 一个接口服务三处，不是为单特性造接口 |
 | 4 | `ext.split` / `ext.search` / `ext.drawer` | 依赖上一项 | 逐项可禁用 |

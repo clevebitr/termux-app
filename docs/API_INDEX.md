@@ -31,7 +31,7 @@
 
 ---
 
-## 2. 命令、动作与菜单（`com.termux.app.commands`、`terminal/menu`）
+## 2. 命令与动作（`com.termux.app.commands`）
 
 | 类 | 路径 | 职责 | 不要重复实现 |
 | --- | --- | --- | --- |
@@ -41,9 +41,9 @@
 | `ShellCommandCatalog` | `commands/ShellCommandCatalog.java` | 由 `TerminalMenuItems` 规则生成命令；含 `new-session`/`new-named-session`/`toggle-keyboard` | 不要在面板里手写动作列表 |
 | `ShellCommandHost` | `commands/ShellCommandHost.java` | 窗口级动作唯一入口：面板、抽屉按钮、会话新建共用 | 不要在抽屉按钮里另写 `Intent`/`addNewSession` |
 | `ShellCommandPalette` | `commands/ShellCommandPalette.java` | 可搜索命令面板；过滤为纯函数 | 不要再写一个「命令列表对话框」 |
-| `TerminalMenuAction` | `terminal/menu/TerminalMenuAction.java` | 终端菜单动作枚举与默认列表（只读模块定义默认值） | 不要修改既有 id，只允许新增 |
-| `TerminalMenuItems` | `terminal/menu/TerminalMenuItems.java` | 动作可见性/可用性的纯函数 + `State` 快照 | 不要在 UI 代码里判断「没有选中文本就隐藏」 |
-| `TerminalMenuConfig` / `TerminalMenuDialog` | `terminal/menu/` | `terminal-menu-items` 等属性解析与菜单对话框 | 不要另写菜单对话框 |
+| `TerminalMenuAction` | `ext/menu/TerminalMenuAction.java` | 终端菜单动作枚举与默认列表（只读模块定义默认值） | 不要修改既有 id，只允许新增 |
+| `TerminalMenuItems` | `ext/menu/TerminalMenuItems.java` | 动作可见性/可用性的纯函数 + `State` 快照 | 不要在 UI 代码里判断「没有选中文本就隐藏」 |
+| `TerminalMenuConfig` / `TerminalMenuDialog` | `ext/menu/` | `terminal-menu-items` 等属性解析与菜单对话框 | 不要另写菜单对话框；由 `ext.menu` 扩展拥有 |
 | `TerminalMenuItems.State` | 同 `TerminalMenuItems` | 构造一次快照后复用（面板与菜单共用） | 不要各入口各自拼装状态 |
 
 ---
@@ -106,6 +106,7 @@
 | 扩展 | 路径 | 提供的能力 | 宿主接口 |
 | --- | --- | --- | --- |
 | `statusbar` | `ext/statusbar/` | `StatusBarConfig`/`StatusBarView`/`StatusBarController`/`StatusBarMetrics`/`SparklineView`/`StatusBarPreferencesFragment`，`StatusBarExtension.getConfig()` 供宿主查询 | `TermuxActivity.onStatusBarLayoutChanged()` |
+| `menu` | `ext/menu/` | `TerminalMenuAction`/`TerminalMenuItems`/`TerminalMenuConfig`/`TerminalMenuDialog`/`TerminalMenuExtension`/`TerminalMenuPreferencesFragment` 与两个有序列表偏好项；`getConfig()` 供宿主查询选择工具条动作 | `TermuxActivity.showTerminalMenu()`、`getTerminalMenuConfig()` |
 | `backup` | `ext/backup/` | `TermuxBackupUtils`（脚本解压与执行）、`BackupPreferencesFragment` | 无 |
 
 ---
@@ -118,7 +119,7 @@
 | `ForkExtensionsTest` | 同上 | 扩展 id 唯一、依赖存在、`preferenceKeys` 唯一非空 |
 | `ExtensionGraphTest` / `ExtensionHost` 相关 | `ext/host/` | 依赖拓扑、级联、缺依赖、依赖环 |
 | `TerminalActionRunnerTest` | `commands/` | 22 个动作全部有映射且映射到唯一宿主方法 |
-| `TerminalMenuItemsTest` | `terminal/menu/` | 菜单可见性/可用性规则 |
+| `TerminalMenuItemsTest` / `TerminalMenuConfigTest` / `TerminalMenuActionTest` | `ext/menu/`（测试） | 菜单可见性、可用性与属性解析 |
 | `SettingsSearchIndexTest` | `fragments/settings/` | 搜索排序与禁用扩展过滤 |
 | `PreferenceResetSourceTest` | `fragments/settings/termux/` | 每个设置页都安装长按复位监听（页面清单是「类名 → 路径」映射，移动页面必须同步） |
 | `TerminalActionRunnerTest` / `ShellCommandPaletteTest` | `commands/` | 注意 `ShellCommandCatalog` 需要 `Context`，当前无单测 |
@@ -134,6 +135,7 @@
 | 搜索里过滤禁用扩展 | `SettingsSearchIndex.build` | 已按扩展状态过滤 |
 | 打开命令面板 | `TermuxActivity.showCommandPalette()` | 四个入口共用 |
 | 执行终端菜单动作 | `TerminalActionRunner.run(action)` | 不要新增 switch |
+| 显示终端上下文菜单 | `TermuxActivity.showTerminalMenu()`（转交 `ext.menu`） | 不要在别处再建菜单对话框 |
 | 切换软键盘 | `ShellCommandHost.toggleSoftKeyboard()` → `onToggleSoftKeyboardRequest()` | 直接调 Activity 的私有同名方法会递归 |
 | 解析颜色 / 主题引用 | `ColorSchemeColors.resolve` | dialogs、通知、设置页共用 |
 | 打开设置页 | `SettingsActivity` + `SettingsSearchNavigation` | 不要 `startActivity` 绕过校验 |

@@ -12,8 +12,8 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `5e7ebbb refactor: 将状态栏提取为 statusbar 扩展` |
-| 规模 | `TermuxActivity` 2209 行；`commands/` 5 文件 491 行；`ext/` 22 文件 3780 行（含 `ext/statusbar` 7 文件 2413 行） |
+| 最近提交 | `2a623ce refactor: 将终端菜单提取为 menu 扩展` |
+| 规模 | `TermuxActivity` 2194 行；`commands/` 5 文件 491 行；`ext/` 30 文件 4208 行（`statusbar` 7 文件、`menu` 7 文件、`backup` 3 文件） |
 | 验证 | 本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 164 项、1 项既有失败 |
 
 ---
@@ -47,6 +47,7 @@
 - [x] 前置：`StatusBarColors` 下沉为 `widget/ColorSchemeColors`（`d45ef42`）；`StatusBarController` 去 Activity 化（`ce694b6`）
 - [x] `ext.statusbar` 迁移：6 文件 + 设置页迁入扩展包，新增 `StatusBarExtension`（默认启用、页面闸门、点击动作、定时刷新），宿主经 `StatusBarExtension.getConfig()` 查询配置（`5e7ebbb`、`#8`）
 - [x] `docs/API_INDEX.md`：已有 API 索引与重复实现清单，`AGENTS.md` 增加「新增前先查」约束
+- [x] `ext.menu` 迁移：动作枚举、规则、配置、对话框与设置页迁入扩展包；新增 `TerminalMenuExtension`（默认启用、页面闸门、属性重载、`showMenu()`/`getConfig()`）；宿主 `showTerminalMenu()` 与 `getTerminalMenuConfig()` 改为转发（`2a623ce`、`#9`）
 
 ### 2.5 文档与治理
 
@@ -87,7 +88,7 @@
 
 ### 4.4 其他扩展
 
-- [ ] `ext.menu`（终端菜单项与选择工具栏配置）
+- [x] `ext.menu`（终端菜单项与选择工具栏配置）
 - [ ] `ext.split`（分屏控制与状态持久化）
 - [ ] `ext.drawer`（会话抽屉与配色）
 - [ ] `ext.search`（终端内搜索）
