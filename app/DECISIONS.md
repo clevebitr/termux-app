@@ -528,3 +528,17 @@
 - 可选后续方案（未实施）：为组合文本增加一个应用内浮层显示，或在 `text` 模式下提供一个「不组合」的变体；两者都需要真机确认输入法行为后再定。
 
 未验证：本机无 `adb`，Tab 在 lazyvim 中是否恢复、pi 是否收到提交文本、日志是否覆盖三条路径，均未真机确认。本机 `:terminal-view:compileDebugJavaWithJavac`、`:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest --rerun-tasks` 186 项、1 项既有失败（`FileReceiverActivityTest`）。
+
+## 2026-11-23 — 硬件键盘直通模式：物理按键不再经输入法转发
+
+真机日志（`~/.termux/keyboard-compat.log`，2026-11-23 18:26–18:37）定位到键盘兼容层的根因：输入类型为文本类（日志 `getInputType mode=auto, default=0x80001, reported=0x80001`，即 `TYPE_CLASS_TEXT|NO_SUGGESTIONS|NORMAL`，`gboard-cjk-workaround=true` 且输入法语言为中文）时，输入法会把物理按键收进自己，再以 `commitText` 逐字符提交。同一时段字母只出现在 `[activity]`，从不进入 `[terminal-view]`，随后是 `[ime] commitText("e")` 这类提交；而 Tab 由 `handleTerminalTab()` 直接写入 PTY（日志有 9 次 `sent Tab to the terminal`）。因此 Tab 本身并未丢失，是字符与按键分属两条通道、顺序无法保证，`vim` 插入模式与 node 写的 TUI 对顺序敏感，表现成「Tab 没有反应」。
+
+修法：新增 `ime-input-type=hardware`。接有物理键盘期间上报 `TYPE_NULL`，输入法不再接管物理按键，字符、Tab、Ctrl/Alt 组合键与方向键回到与桌面终端一致的单通道；未接键盘时回退到 `auto`。判断逻辑放在 `terminal/HardwareKeyboard.java`：先看 `Configuration.keyboard`（非 `KEYBOARD_NOKEYS` 即视为已连接），配置未报告时再枚举 `InputManager` 的输入设备，存在 `KEYBOARD_TYPE_ALPHABETIC` 也算已连接，避免蓝牙键盘刚连上、配置尚未更新的窗口。
+
+`TermuxActivity` 在 `onCreate` 记录状态并注册 `InputManager.InputDeviceListener`，`onConfigurationChanged` 与设备增删回调里比较状态，变化时对两个窗格调用 `TermuxTerminalViewClient.restartInputConnection()`；输入法只在创建输入连接时读取编辑器信息，不重启则新类型不生效。清单已声明 `keyboard|keyboardHidden` 为 `configChanges`，活动不会被重建，因此必须自行处理。
+
+Tab 直通顺带补齐：虚拟 SHIFT 锁定态（额外键栏）与事件自身的 Shift 合并，Shift+Tab 仍发送反向制表符；日志补充 `imeInputType` 与 `hardwareKeyboard` 两个字段，便于下次用日志判断当时的输入类型。
+
+代价与边界：`hardware` 模式下输入法不显示悬浮栏，物理键盘上的拼音候选不可用，中文需改用软键盘（仍经 `commitText` 送达）；需要悬浮栏或硬件键盘直接输入中文时仍用 `text`/`auto`。不改只读模块。
+
+测试：`ImeInputTypeTest` 扩至 8 项（新增 `hardware` 解析、按键接入与否的映射、其他模式忽略键盘状态），新增 `HardwareKeyboardTest` 2 项。本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 190 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。未验证：真机 Tab 在 lazyvim 插入模式的表现、`hardware` 模式下软键盘中文提交、键盘接入/拔出的自动切换，本机无 `adb`。

@@ -2130,7 +2130,7 @@ mouse-right-click = auto     # auto（默认）| forward | palette
 `TYPE_NULL` 或 `VISIBLE_PASSWORD`，输入法因此不显示悬浮栏；把取值设为 `text` 后终端按普通文本框上报：
 
 ```properties
-ime-input-type = auto     # auto（默认）| text | password | none
+ime-input-type = auto     # auto（默认）| text | password | none | hardware
 ```
 
 | 取值 | 上报的输入类型 | 用途 |
@@ -2139,6 +2139,15 @@ ime-input-type = auto     # auto（默认）| text | password | none
 | `text` | `TYPE_CLASS_TEXT \| NO_SUGGESTIONS \| NORMAL` | 让输入法显示悬浮栏与编辑能力，但不接收联想文本 |
 | `password` | `TYPE_CLASS_TEXT \| NO_SUGGESTIONS \| VISIBLE_PASSWORD` | 旧输入法兼容 |
 | `none` | `TYPE_NULL` | 最纯的终端语义 |
+| `hardware` | 接有硬件键盘时为 `TYPE_NULL`，否则同 `auto` | 物理按键直通终端，不被输入法接管 |
+
+`auto`、`text` 与 `password` 属于文本类输入类型，输入法会把物理按键先收进自己，再以 `commitText` 提交文本。
+字符因此与 Tab、方向键、Enter 走两条通道：按键立即写入终端，字符要等输入法提交，顺序可能错乱，`vim` 插入
+模式与 node 写的 TUI 对顺序敏感，表现为 Tab「没有反应」或文字跑到光标之后。
+
+`hardware` 让输入法不接管物理按键：接有硬件键盘期间上报 `TYPE_NULL`，Tab、Ctrl/Alt 组合键、方向键与字符
+全部由终端视图处理，行为与桌面终端一致。代价是物理键盘上的 CJK 组合输入（拼音候选）不可用，中文需改用
+软键盘输入，软键盘提交的文本仍经输入连接送达终端。键盘接入或拔出时应用会自动重启输入连接，无需重启应用。
 
 设置路径：终端键盘页 →「硬件键盘与输入法」。切换后输入法会重新读取类型（`restartInputConnection`）。
 完整设计见 `docs/KEYBOARD_COMPAT.md`。
@@ -2159,8 +2168,10 @@ keyboard-compat-log = true   # 默认 false
 | `[terminal-view]` | 终端视图收到的按键 |
 | `[ime]` | 上报的输入类型与输入法提交的文本 |
 
-Tab 直通：未修饰的 Tab 与 Shift+Tab 由活动直接交给终端（Shift+Tab 发送反向制表符），避免被窗口的焦点切换
-吞掉。只有当搜索栏或工具栏文本框获得焦点时，Tab 才留给文本框自己处理。
+Tab 直通：未修饰的 Tab 与 Shift+Tab 由活动直接交给终端（Shift+Tab 发送反向制表符），额外键栏锁定的虚拟
+SHIFT 同样计入；避免被窗口的焦点切换吞掉。只有当搜索栏或工具栏文本框获得焦点时，Tab 才留给文本框自己处理。
+日志中的 `sent Tab` / `sent Shift+Tab` 行同时记录 `imeInputType` 与 `hardwareKeyboard`，用来判断当时的输入类型
+是否让输入法接管了物理按键。
 日志除了 logcat 之外还写入 `~/.termux/keyboard-compat.log`（超过 128KB 自动重建），可直接在 Termux 里查看：
 
 ```sh

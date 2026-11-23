@@ -109,7 +109,7 @@ outAttrs.imeOptions = mClient.getImeOptions(outAttrs.imeOptions);
 app 侧新增属性（`ForkPropertyKeys`）：
 
 ```properties
-ime-input-type = auto     # auto | text | password | none
+ime-input-type = auto     # auto | text | password | none | hardware
 ```
 
 | 取值 | 输入类型 | 适用 |
@@ -118,6 +118,17 @@ ime-input-type = auto     # auto | text | password | none
 | `text` | `TYPE_CLASS_TEXT | TYPE_TEXT_FLAG_NO_SUGGESTIONS | TYPE_TEXT_VARIATION_NORMAL` | 让 Gboard 视为普通文本框，显示悬浮栏；仍不发组合文本给终端 |
 | `password` | `TYPE_CLASS_TEXT | TYPE_TEXT_FLAG_NO_SUGGESTIONS | TYPE_TEXT_VARIATION_VISIBLE_PASSWORD` | 旧输入法兼容 |
 | `none` | `TYPE_NULL` | 最纯的终端语义 |
+| `hardware` | 接有物理键盘时 `TYPE_NULL`，否则同 `auto` | 物理按键直通终端，不被输入法接管（TUI、`vim` 插入模式） |
+
+`auto`/`text`/`password` 都是文本类类型，输入法会把物理按键收进自己再以 `commitText` 提交文本，于是字符与
+Tab、方向键、Enter 走两条通道。2026-11-23 的真机日志（`~/.termux/keyboard-compat.log`）即为此形态：字母只
+出现在 `[activity]`，随后是逐个字符的 `[ime] commitText(...)`；`Tab` 由活动直接写入 PTY，字符却要等输入法
+提交，顺序被打乱，`vim` 插入模式与 node 写的 TUI 因此表现为「Tab 没有反应」。
+
+`hardware` 通过 `TYPE_NULL` 让输入法不接管物理按键，字符、Tab、Ctrl/Alt 组合键与方向键回到与桌面终端一致的
+单通道。判断依据是 `Configuration.keyboard` 与 `InputDevice.KEYBOARD_TYPE_ALPHABETIC`（`HardwareKeyboard`）；
+键盘接入或拔出时活动重启输入连接，使新的输入类型立即生效。代价是物理键盘上的 CJK 组合输入不可用，中文需
+改用软键盘。
 
 实现要点：
 
@@ -185,6 +196,8 @@ keyboard-compat-log = false
 | --- | --- | --- |
 | `TerminalViewClient.getInputType/getImeOptions` 钩子（只读模块，需求方已书面豁免） | `terminal-view/` | `8a1fc86` |
 | `ime-input-type` 属性（`auto` 默认 / `text` / `password` / `none`）与 `ImeInputType` | `app/terminal/` | `a5cba39` |
+| `ime-input-type=hardware`（接有物理键盘时 `TYPE_NULL`）、`HardwareKeyboard` 与键盘接入/拔出时重启输入连接 | `app/terminal/`、`TermuxActivity` | 本次 |
+| Tab / Shift+Tab 直通并入额外键栏锁定的虚拟 SHIFT，日志补充 `imeInputType`、`hardwareKeyboard` | `TermuxActivity.handleTerminalTab` | 本次 |
 | 设置页「硬件键盘与输入法」分类（`ime-input-type`、`keyboard-compat-log`） | `res/xml/termux_keyboard_preferences.xml` | `a5cba39` |
 | 快捷键匹配回退物理键码 + `keyboard-compat-log` 日志 | `commands/`、`terminal/` | `a1b589e` |
 | 诊断日志写入 `~/.termux/keyboard-compat.log`（128KB 重建） | `terminal/KeyboardCompatLog.java` | `0a16a59` |
@@ -198,9 +211,10 @@ keyboard-compat-log = false
 2. `auto` 模式下行为与上游完全一致。
 3. 其他输入法（Samsung、Hacker's Keyboard）在 `text` 模式下的表现。
 4. `keyboard-compat-log=true` 时日志能否覆盖按键、视图与输入法三条路径。
-5. TUI（Neovim / pi）中的 Tab 与 IME 文本：Tab 应出现在 `[activity] sent Tab to the terminal`；
-   IME 文本应出现 `[ime] commitText(...)`。若只有 `setComposingText(...)` 而没有 `commitText`，
-   说明输入法把文本留在组合状态，TUI 只能等候选词提交后才收到字符。
+5. TUI（Neovim / pi）中的 Tab 与 IME 文本：Tab 应出现在 `[activity] sent Tab`；该行同时给出
+   `imeInputType` 与 `hardwareKeyboard`。若为文本类类型，字符会以 `[ime] commitText(...)` 出现，此时 Tab 与
+   字符分属两条通道，顺序无法保证；改用 `ime-input-type=hardware` 后应改为每个按键一条
+   `[terminal-view]` 日志，且不再出现 `commitText`。
 
 ---
 
@@ -211,3 +225,7 @@ keyboard-compat-log = false
 2. `restartInput` 会短暂关闭输入法窗口，切换属性时可见闪烁；仅在属性变化时调用。
 3. 硬件键盘的 `Ctrl+Alt+*` 与命令快捷键可能重叠，路由顺序固定为「命令快捷键优先」，
    用户若把某个动作绑到 `Ctrl+Alt+F`，搜索命令将不再执行——这是预期行为，需在设置摘要中说明。
+4. `hardware` 模式下输入法不接管物理按键，Gboard 等不再显示悬浮栏，物理键盘上的拼音候选也不可用；
+   需要悬浮栏或硬件键盘直接输入中文时，仍应使用 `text`/`auto`。
+5. `HardwareKeyboard` 以系统配置与输入设备类型为依据，个别 ROM 在蓝牙键盘刚连接时两者都尚未更新，
+   此时输入类型要等下一次配置变更或设备回调才会切换；应用会在回调到达时自动重启输入连接。

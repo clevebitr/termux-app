@@ -122,8 +122,12 @@
 - [x] 需求方书面豁免 `terminal-view`，新增 `getInputType`/`getImeOptions` 客户端钩子（`8a1fc86`）
 - [x] `ime-input-type`（`auto`/`text`/`password`/`none`）与 `ImeInputType`、键盘页设置项、`ImeInputTypeTest` 6 项（`a5cba39`）
 - [x] 输入法事件日志钩子（`onImeEvent`）与 Tab / Shift+Tab 直通（只读模块 + `app/`）
-- [ ] 待真机验收：`text` 模式下 Gboard 悬浮栏、组合文本残留、其他输入法兼容
-- [ ] 待真机验收：TUI（Neovim / pi）中 Tab 与 IME 提交文本的日志（`[activity]`/`[ime]` 前缀）
+- [x] 真机日志定位：字母只出现在 `[activity]`、随后逐字符 `[ime] commitText(...)`，Tab 由 `handleTerminalTab` 直接写入 PTY，字符与按键分属两条通道导致顺序错乱
+- [x] `ime-input-type=hardware`：接有物理键盘时上报 `TYPE_NULL`，物理按键直通终端；`HardwareKeyboard` 依据 `Configuration.keyboard` 与 `InputDevice.KEYBOARD_TYPE_ALPHABETIC`，键盘接入/拔出时重启输入连接
+- [x] Tab 直通并入额外键栏锁定的虚拟 SHIFT，日志补 `imeInputType`、`hardwareKeyboard`
+- [x] `ImeInputTypeTest` 扩至 8 项、新增 `HardwareKeyboardTest` 2 项
+- [ ] 待真机验收：`hardware` 模式下 lazyvim 插入模式 Tab、Ctrl/Alt 组合键、node TUI 输入顺序
+- [ ] 待真机验收：`hardware` 模式下软键盘 CJK 提交仍可用；`text` 模式下 Gboard 悬浮栏、组合文本残留
 - [ ] 待验证：`keyboard-compat-log` 日志能否区分三条按键路径；改绑快捷键在硬件键盘下的表现
 
 ---
@@ -196,7 +200,7 @@
 | 项 | 状态 |
 | --- | --- |
 | `:app:compileDebugJavaWithJavac` | 通过（本机） |
-| `:app:testDebugUnitTest` | 179 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现） |
+| `:app:testDebugUnitTest` | 190 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现）；`terminal/*` 21 项全部通过 |
 | `:app:assembleDebug` | 未执行，本机 NDK 缺 `libc++_shared` |
 | 设备验证 | 2026-11-23 首次真机试机：启动即崩溃（资源文件中的旧类名，见 `app/DECISIONS.md` #16），已修复并补 `ResourceClassNameTest`；其余行为仍未验证 |
 | CI | 推送后由 PR 触发；本机无 `gh`，状态待确认 |

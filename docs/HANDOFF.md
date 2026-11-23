@@ -155,8 +155,9 @@ ext/ForkExtensions  本构建的扩展登记表
 - 命令面板在深色/浅色与彩色强调色配色下的可读性、chip 与行按下态、抽屉首末行间隙；
 - 面板接管：浮条「更多」、菜单键、右键三种模式（`auto`/`forward`/`palette`）是否都符合预期；
 - 快捷键：`command-shortcuts` 改绑后面板标签与按键是否一致、额外键宏按键是否被识别、取消快捷键是否真的不再拦截；
-- 输入法兼容：`ime-input-type=text` 时英文 Gboard + 硬件键盘是否出现悬浮栏、是否有组合文本残留；
-  `keyboard-compat-log=true` 的日志能否区分 Activity / 视图 / pre-IME 三条路径；
+- 输入法兼容：`ime-input-type=hardware` 时物理按键是否全部直达终端（lazyvim 插入模式 Tab、Ctrl/Alt 组合键、
+  node TUI 输入顺序），软键盘中文提交是否仍可用；`text` 时英文 Gboard + 硬件键盘是否出现悬浮栏；
+  `keyboard-compat-log=true` 的日志能否区分 Activity / 视图 / IME 三条路径；
 - 扩展禁用门禁：分屏/搜索/抽屉动作从终端菜单与命令面板消失；
 - 命令面板内快捷键（`Ctrl+Alt+F/K/C`）在真机上的触发；
 - 分屏排列/拖拽/活动窗格边框/状态恢复；搜索条；右键转发在 `vim`/`tmux` 与分屏下的坐标；
