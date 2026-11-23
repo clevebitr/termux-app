@@ -191,3 +191,18 @@
 克制点（写入文档）：不引入「扩展自行 inflate 布局」与「宿主预留空容器」两种更重机制。三处候选视图都由宿主布局提供，扩展只接管行为与显示，因此槽位只需「声明归属 + 取视图 + 请求重排」。
 
 未验证：真机上状态栏布局与内边距在改回通用钩子后是否与之前一致未验证；本机 :app:compileDebugJavaWithJavac 通过，:app:testDebugUnitTest 169 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。
+
+## 2026-11-23 — 迁移通知体系：notifications 扩展与事件转发
+
+按既定顺序迁移通知体系（`ext.notifications`），并修正此前的评估结论。
+
+评估修正：原先设想新增「事件源贡献点」，实际检查后发现事件只有唯一的消费者（通知扩展），因此沿用「宿主向扩展的单向查询」模式即可，不为单消费者造事件总线。宿主侧只在产生事件的调用点通过 `ExtensionHost.extension(ID)` 取实例并调用其转发方法。
+
+实施：
+1. 包迁移：`app/notifications/*`（13 文件）→ `ext/notifications/`，`NotificationPreferencesFragment` 一并迁入并加闸门；7 个测试迁到 `app/src/test/java/com/termux/app/ext/notifications/`；布局中的自定义控件全限定名、`SettingsSearchIndex` 的手写页面条目、`PreferenceResetSourceTest` 路径同步更新。
+2. 新增 `NotificationsExtension`：id=notifications，默认启用，slot=`notification_overlay`，preferenceKeys=["notifications"]，settingsPages 声明通知页；onEnable 接管叠层并创建 `TerminalNotificationManager` 与 `ExitCodeNotifier`/`OscNotificationHandler`/`AppEventNotifier`，onReload 重读属性并重算内距，onDisable 停止管理、清空并隐藏叠层。
+3. 宿主改为转发：`TermuxTerminalSessionActivityClient` 删除三个适配器字段，改为在事件点查询扩展并调用 `onCommandFinished`/`onTitleChanged`/`onSessionFinished`/`onOscNotification`/`onOsc99Close`/`onOsc99AliveQuery`/`onBell`/`isOscIconsEnabled`；禁用时事件被丢弃。
+4. Activity 删除 `mNotificationOverlay`、`mNotificationManager`、`mTestNotificationCount`、`setUpNotificationOverlay()`、`onTerminalNotificationClicked()`；`showRecentNotifications()`/`sendTestNotification()` 变为转发；`getTerminalNotificationManager()` 返回扩展的管理器，供终端菜单状态与 `getNotificationManager()` 使用；叠层内距计算移入扩展，经 `ExtensionHost` 查询 `StatusBarExtension.getConfig()`。
+5. 效果：`TermuxActivity` 2194 → 2084 行；`ext/` 现有 5 个扩展（statusbar/menu/notifications/volumekeys/backup）。
+
+未验证：卡片位置与内距、四种测试通知、OSC 图标开关、后台通知与历史在禁用后的停止行为，均未在真机验证；本机 `:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest --rerun-tasks` 169 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。注意：增量执行该测试任务时会漏跑部分迁移后的测试类，需加 `--rerun-tasks` 才能得到真实数量，已记录在此避免误判。
