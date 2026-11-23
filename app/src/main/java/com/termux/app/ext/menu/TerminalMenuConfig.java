@@ -6,6 +6,7 @@ import androidx.annotation.Nullable;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.logger.Logger;
 import com.termux.app.properties.ForkProperties;
+import com.termux.app.widget.TerminalDialogStyles;
 import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 import com.termux.view.textselection.TextSelectionCursorController;
 
@@ -56,8 +57,8 @@ public final class TerminalMenuConfig {
     public static final int MIN_FONT_SIZE_SP = 8;
     public static final int MAX_FONT_SIZE_SP = 24;
 
-    /** The radius of the corners in dp, 0 for the square corners of a tui window. */
-    public static final int DEFAULT_CORNER_RADIUS_DP = 0;
+    /** The radius of the corners in dp, by default the large corner radius of Material 3. */
+    public static final int DEFAULT_CORNER_RADIUS_DP = TerminalDialogStyles.DIALOG_CORNER_DP;
     public static final int MIN_CORNER_RADIUS_DP = 0;
     public static final int MAX_CORNER_RADIUS_DP = 32;
 

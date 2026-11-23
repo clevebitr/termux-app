@@ -2,34 +2,25 @@ package com.termux.app.ext.menu;
 
 import android.app.Activity;
 import android.app.Dialog;
-import android.graphics.Color;
 import android.graphics.Typeface;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.StateListDrawable;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 
 import com.termux.app.widget.ColorSchemeColors;
+import com.termux.app.widget.TerminalDialogBuilder;
 import com.termux.app.widget.TerminalDialogStyles;
-import com.termux.shared.data.DataUtils;
-import com.termux.shared.view.ViewUtils;
-import com.termux.terminal.TerminalColorScheme;
 
 import java.util.List;
 
 /**
  * A dialog that shows the actions of the terminal context menu, instead of the system context menu,
- * so that it can be styled like a tui window: square corners, a 1dp accent border, the monospace font
+ * so that it can be styled with the rounded corners of Material 3, the 1dp accent border, the monospace font
  * of the terminal and the colors of the termux color scheme.
  *
  * The dialog is shown by {@link com.termux.app.TermuxActivity#showTerminalMenu()} when the user clicks
@@ -60,18 +51,10 @@ public final class TerminalMenuDialog {
         }
     }
 
-    private static final float MARGIN_DP = 16;
     private static final float ROW_PADDING_HORIZONTAL_DP = 12;
     private static final float ROW_PADDING_VERTICAL_DP = 10;
-    private static final float MAX_WIDTH_DP = 360;
-    /** The fraction of the screen height that the dialog may use before it scrolls. */
-    private static final float MAX_HEIGHT_FRACTION = 0.7f;
-    /**
-     * The number of items from which the dialog gets a fixed height and scrolls, instead of fitting its
-     * content. The default menu has 11 items, which still fits on a normal screen, so the dialog only
-     * scrolls for longer menus that the user configured.
-     */
-    private static final int SCROLL_ITEM_COUNT = 12;
+    /** The margin between the rows and the rounded corners of the window, so that no row is clipped by them. */
+    private static final float LIST_PADDING_DP = 8;
 
     private TerminalMenuDialog() {
     }
@@ -95,49 +78,31 @@ public final class TerminalMenuDialog {
         int accent = TerminalDialogStyles.getAccentColor(config.accentColor, foreground);
         int background = TerminalDialogStyles.getBackgroundColor(config.backgroundColor, foreground);
 
-        Dialog dialog = new Dialog(activity);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-
-        ScrollView scrollView = new ScrollView(activity);
-        scrollView.setFillViewport(true);
-
         LinearLayout list = new LinearLayout(activity);
         list.setOrientation(LinearLayout.VERTICAL);
-        list.setPadding(dp(activity, 0), dp(activity, 4), dp(activity, 0), dp(activity, 4));
-        scrollView.addView(list, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        int listPadding = dp(activity, LIST_PADDING_DP);
+        list.setPadding(listPadding, listPadding, listPadding, listPadding);
+
+        // The dialog does not exist before it is shown, so the click of a row reaches it through this holder.
+        final Dialog[] dialogHolder = new Dialog[1];
 
         for (Item item : items) {
             View row = createRow(activity, config, item, foreground, accent);
             row.setOnClickListener(v -> {
-                dialog.dismiss();
+                if (dialogHolder[0] != null) dialogHolder[0].dismiss();
                 listener.onTerminalMenuItemSelected(item.action);
             });
-            list.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            list.addView(row, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
 
-        scrollView.setBackground(TerminalDialogStyles.createDialogBackground(activity, background, accent,
-            config.cornerRadiusDp, config.borderWidthDp));
+        TerminalDialogBuilder.Style style = new TerminalDialogBuilder.Style(foreground, background, accent,
+            config.cornerRadiusDp, config.borderWidthDp, config.fontSizeSp, config.monospace);
 
-        dialog.setContentView(scrollView);
-        dialog.setOnDismissListener(d -> onDismissed.run());
-        dialog.show();
-
-        Window window = dialog.getWindow();
-        if (window != null) {
-            // The dialog draws its own background, so that the border and the square corners of the tui
-            // style are not covered by the default dialog background.
-            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-
-            int screenWidth = activity.getResources().getDisplayMetrics().widthPixels;
-            int screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
-            int width = Math.min(screenWidth - dp(activity, MARGIN_DP * 2), dp(activity, MAX_WIDTH_DP));
-
-            int height = WindowManager.LayoutParams.WRAP_CONTENT;
-            if (items.size() > SCROLL_ITEM_COUNT)
-                height = Math.round(screenHeight * MAX_HEIGHT_FRACTION);
-
-            window.setLayout(width, height);
-        }
+        dialogHolder[0] = TerminalDialogBuilder.create(activity, style)
+            .setContent(list)
+            .setOnDismissed(onDismissed)
+            .show();
     }
 
     /** @return The {@code dp} value in pixels. */
@@ -156,7 +121,7 @@ public final class TerminalMenuDialog {
             dp(activity, ROW_PADDING_HORIZONTAL_DP), dp(activity, ROW_PADDING_VERTICAL_DP));
         row.setEnabled(item.enabled);
         row.setClickable(item.enabled);
-        row.setBackground(TerminalDialogStyles.createRowBackground(activity, accent, config.cornerRadiusDp));
+        row.setBackground(TerminalDialogStyles.createRowBackground(activity, accent));
 
         int textColor = item.enabled ? foreground : TerminalDialogStyles.withAlpha(foreground, 0.38f);
 

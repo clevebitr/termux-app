@@ -130,7 +130,7 @@ public class TerminalMenuConfigTest {
     public void testDefaultStyle() {
         TerminalMenuConfig config = parse();
 
-        Assert.assertEquals(0, config.cornerRadiusDp);
+        Assert.assertEquals(TerminalMenuConfig.DEFAULT_CORNER_RADIUS_DP, config.cornerRadiusDp);
         Assert.assertEquals(1, config.borderWidthDp);
         Assert.assertEquals(TerminalMenuConfig.DEFAULT_FONT_SIZE_SP, config.fontSizeSp);
         Assert.assertTrue(config.monospace);
