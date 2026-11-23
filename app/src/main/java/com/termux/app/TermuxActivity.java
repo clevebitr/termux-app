@@ -40,7 +40,7 @@ import com.termux.app.ext.menu.TerminalMenuExtension;
 import com.termux.app.ext.statusbar.StatusBarConfig;
 import com.termux.app.ext.drawer.DrawerExtension;
 import com.termux.app.ext.search.SearchExtension;
-import com.termux.app.terminal.TerminalSplitScreenController;
+import com.termux.app.ext.split.SplitScreenExtension;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
@@ -159,7 +159,6 @@ public final class TermuxActivity extends AppCompatActivity
     /** The search bar of the terminal, which is overlayed on top of the terminal view. */
 
     /** The layout of the split screen, which owns the sizes and the orientation of the panes. */
-    private TerminalSplitScreenController mTerminalSplitScreenController;
 
     /**
      * The containers of the terminal panes. Index 0 is the primary pane, which is always shown, and
@@ -587,11 +586,12 @@ public final class TermuxActivity extends AppCompatActivity
      * handle does not resolve and the split screen is not restored.
      */
     private void saveSplitScreenState(@NonNull Bundle savedInstanceState) {
-        if (mTerminalSplitScreenController == null || !mTerminalSplitScreenController.isEnabled()) return;
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen == null || !splitScreen.isEnabled()) return;
 
         savedInstanceState.putBoolean(ARG_SPLIT_SCREEN_ENABLED, true);
-        savedInstanceState.putInt(ARG_SPLIT_SCREEN_ORIENTATION, mTerminalSplitScreenController.getOrientation());
-        savedInstanceState.putFloat(ARG_SPLIT_SCREEN_PANE_RATIO, mTerminalSplitScreenController.getPaneRatio());
+        savedInstanceState.putInt(ARG_SPLIT_SCREEN_ORIENTATION, splitScreen.getOrientation());
+        savedInstanceState.putFloat(ARG_SPLIT_SCREEN_PANE_RATIO, splitScreen.getPaneRatio());
         savedInstanceState.putInt(ARG_SPLIT_SCREEN_ACTIVE_PANE, mActiveTerminalViewIndex);
 
         TerminalSession primarySession = mTerminalViews[0] != null ? mTerminalViews[0].getCurrentSession() : null;
@@ -638,9 +638,10 @@ public final class TermuxActivity extends AppCompatActivity
         mTermuxTerminalSessionActivityClient.setCurrentSession(primarySession);
         mTerminalViews[1].attachSession(secondarySession);
 
-        mTerminalSplitScreenController.setOrientation(mSavedSplitScreenOrientation);
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen != null) splitScreen.setOrientation(mSavedSplitScreenOrientation);
         if (mSavedSplitScreenPaneRatio > 0)
-            mTerminalSplitScreenController.setPaneRatio(mSavedSplitScreenPaneRatio);
+            if (splitScreen != null) splitScreen.setPaneRatio(mSavedSplitScreenPaneRatio);
         setSplitScreen(true, mSavedSplitScreenOrientation);
         setActiveTerminalPane(mSavedSplitScreenActivePane);
 
@@ -824,7 +825,8 @@ public final class TermuxActivity extends AppCompatActivity
 
     /** @return Whether split screen is enabled, i.e. whether the secondary pane is visible. */
     public boolean isSplitScreenEnabled() {
-        return mTerminalSplitScreenController.isEnabled();
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        return splitScreen != null && splitScreen.isEnabled();
     }
 
     /**
@@ -841,26 +843,31 @@ public final class TermuxActivity extends AppCompatActivity
      */
     /** @return The orientation of the split screen panes, either {@link LinearLayout#VERTICAL} or {@link LinearLayout#HORIZONTAL}. */
     public int getSplitScreenOrientation() {
-        return mTerminalSplitScreenController.getOrientation();
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        return splitScreen != null ? splitScreen.getOrientation() : LinearLayout.VERTICAL;
     }
 
     public void setSplitScreen(boolean enabled, int orientation) {
         if (orientation != LinearLayout.VERTICAL && orientation != LinearLayout.HORIZONTAL) return;
-        mTerminalSplitScreenController.setOrientation(orientation);
+
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen == null) return;
+
+        splitScreen.setOrientation(orientation);
 
         if (!enabled) {
-            if (mTerminalSplitScreenController.isEnabled()) {
-                mTerminalSplitScreenController.setEnabled(false);
-                mTerminalSplitScreenController.updateLayout();
+            if (splitScreen.isEnabled()) {
+                splitScreen.setEnabled(false);
+                splitScreen.updateLayout();
                 setActiveTerminalPane(0);
-                mTerminalSplitScreenController.updatePaneActiveStates(mActiveTerminalViewIndex);
+                splitScreen.updatePaneActiveStates(mActiveTerminalViewIndex);
             }
             return;
         }
 
-        if (mTerminalSplitScreenController.isEnabled()) {
+        if (splitScreen.isEnabled()) {
             // Already split, so just change the orientation of the panes.
-            mTerminalSplitScreenController.updateLayout();
+            splitScreen.updateLayout();
             return;
         }
 
@@ -884,9 +891,9 @@ public final class TermuxActivity extends AppCompatActivity
             mTerminalViews[1].attachSession(secondarySession);
         }
 
-        mTerminalSplitScreenController.setEnabled(true);
-        mTerminalSplitScreenController.updateLayout();
-        mTerminalSplitScreenController.updatePaneActiveStates(mActiveTerminalViewIndex);
+        splitScreen.setEnabled(true);
+        splitScreen.updateLayout();
+        splitScreen.updatePaneActiveStates(mActiveTerminalViewIndex);
         // The secondary pane may have been running for a long time while it was hidden, so show its
         // current output right away instead of waiting for the next output of its session.
         mTerminalViews[1].onScreenOutput();
@@ -898,7 +905,8 @@ public final class TermuxActivity extends AppCompatActivity
      */
     public void setActiveTerminalPane(int index) {
         if (index < 0 || index >= mTerminalViews.length) return;
-        if (!mTerminalSplitScreenController.isEnabled()) index = 0;
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen == null || !splitScreen.isEnabled()) index = 0;
         if (index == mActiveTerminalViewIndex) return;
 
         TerminalSession previousSession = getCurrentSession();
@@ -910,7 +918,7 @@ public final class TermuxActivity extends AppCompatActivity
         mTerminalView = mTerminalViews[index];
         mTermuxTerminalViewClient = mTermuxTerminalViewClients[index];
 
-        mTerminalSplitScreenController.updatePaneActiveStates(mActiveTerminalViewIndex);
+        if (splitScreen != null) splitScreen.updatePaneActiveStates(mActiveTerminalViewIndex);
 
         // Only the session of the active pane may report having window focus.
         if (previousSession != null && previousSession.getEmulator() != null)
@@ -942,7 +950,8 @@ public final class TermuxActivity extends AppCompatActivity
     /** @return The {@link TerminalView} of the pane that is not active, or {@code null} if split screen is disabled. */
     @Nullable
     public TerminalView getInactiveTerminalPaneView() {
-        if (!mTerminalSplitScreenController.isEnabled()) return null;
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen == null || !splitScreen.isEnabled()) return null;
         return mTerminalViews[1 - mActiveTerminalViewIndex];
     }
 
@@ -957,7 +966,7 @@ public final class TermuxActivity extends AppCompatActivity
 
         for (int i = 0; i < mTerminalViews.length; i++) {
             // The secondary pane is hidden when split screen is disabled, so it must not be redrawn.
-            if (i != 0 && !mTerminalSplitScreenController.isEnabled()) continue;
+            if (i != 0 && (splitScreenExtension() == null || !splitScreenExtension().isEnabled())) continue;
             TerminalView terminalView = mTerminalViews[i];
             if (terminalView != null && terminalView.getCurrentSession() == session) return terminalView;
         }
@@ -968,7 +977,8 @@ public final class TermuxActivity extends AppCompatActivity
     /** @return The session shown in the pane that is not active, or {@code null} if split screen is disabled. */
     @Nullable
     public TerminalSession getInactiveTerminalPaneSession() {
-        if (!mTerminalSplitScreenController.isEnabled()) return null;
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen == null || !splitScreen.isEnabled()) return null;
         return mTerminalViews[1 - mActiveTerminalViewIndex].getCurrentSession();
     }
 
@@ -979,7 +989,8 @@ public final class TermuxActivity extends AppCompatActivity
      * because the views would resize it differently.
      */
     public void swapTerminalPaneSessions() {
-        if (!mTerminalSplitScreenController.isEnabled()) return;
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen == null || !splitScreen.isEnabled()) return;
 
         TerminalView activeView = mTerminalViews[mActiveTerminalViewIndex];
         TerminalView inactiveView = mTerminalViews[1 - mActiveTerminalViewIndex];
@@ -1250,7 +1261,7 @@ public final class TermuxActivity extends AppCompatActivity
 
     @Override
     public void closeSplitScreen() {
-        setSplitScreen(false, mTerminalSplitScreenController.getOrientation());
+        setSplitScreen(false, getSplitScreenOrientation());
     }
 
     @Override
@@ -1395,8 +1406,10 @@ public final class TermuxActivity extends AppCompatActivity
             // Make the pane of the tapped view the active pane before the view handles the touch, so
             // that all the gesture callbacks, the keyboard and the menus act on that pane.
             terminalView.setOnTouchListener((view, event) -> {
-                if (event.getActionMasked() == MotionEvent.ACTION_DOWN && mTerminalSplitScreenController.isEnabled() &&
-                    paneIndex != mActiveTerminalViewIndex)
+                SplitScreenExtension splitScreen = splitScreenExtension();
+                if (event.getActionMasked() == MotionEvent.ACTION_DOWN
+                    && splitScreen != null && splitScreen.isEnabled()
+                    && paneIndex != mActiveTerminalViewIndex)
                     setActiveTerminalPane(paneIndex);
                 return false;
             });
@@ -1413,9 +1426,12 @@ public final class TermuxActivity extends AppCompatActivity
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onCreate();
 
-        mTerminalSplitScreenController = new TerminalSplitScreenController(this, mTerminalPaneContainers,
-            findViewById(R.id.terminal_panes_container), findViewById(R.id.terminal_split_divider));
-        mTerminalSplitScreenController.setUpDividerTouchListener();
+    }
+
+    /** @return The extension that owns the split screen, or {@code null} while it is disabled. */
+    @Nullable
+    private SplitScreenExtension splitScreenExtension() {
+        return ExtensionHost.get(this).findRunning(SplitScreenExtension.class);
     }
 
     /** @return The extension that owns the sessions drawer, or {@code null} while it is disabled. */

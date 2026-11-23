@@ -8,6 +8,7 @@ import com.termux.app.ext.drawer.DrawerExtension;
 import com.termux.app.ext.menu.TerminalMenuExtension;
 import com.termux.app.ext.notifications.NotificationsExtension;
 import com.termux.app.ext.search.SearchExtension;
+import com.termux.app.ext.split.SplitScreenExtension;
 import com.termux.app.ext.statusbar.StatusBarExtension;
 import com.termux.app.ext.volumekeys.VolumeKeysExtension;
 
@@ -42,6 +43,7 @@ public final class ForkExtensions {
         extensions.add(new TerminalMenuExtension());
         extensions.add(new NotificationsExtension());
         extensions.add(new SearchExtension());
+        extensions.add(new SplitScreenExtension());
         extensions.add(new VolumeKeysExtension());
         extensions.add(new BackupExtension());
         return Collections.unmodifiableList(extensions);

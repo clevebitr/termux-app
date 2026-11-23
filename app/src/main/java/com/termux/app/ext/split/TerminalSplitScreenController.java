@@ -1,5 +1,6 @@
-package com.termux.app.terminal;
+package com.termux.app.ext.split;
 
+import android.content.Context;
 import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.View;
@@ -11,7 +12,6 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
 import com.termux.R;
-import com.termux.app.TermuxActivity;
 import com.termux.shared.view.ViewUtils;
 
 /**
@@ -32,7 +32,7 @@ public final class TerminalSplitScreenController {
     private static final long DIVIDER_DRAG_INTERVAL_MS = 40;
 
     @NonNull
-    private final TermuxActivity mActivity;
+    private final Context mContext;
     @NonNull
     private final FrameLayout[] mPaneContainers;
     @Nullable
@@ -52,9 +52,9 @@ public final class TerminalSplitScreenController {
     private int mDividerContainerSize;
     private long mDividerLastUpdateTime;
 
-    public TerminalSplitScreenController(@NonNull TermuxActivity activity, @NonNull FrameLayout[] paneContainers,
+    public TerminalSplitScreenController(@NonNull Context context, @NonNull FrameLayout[] paneContainers,
                                          @Nullable LinearLayout panesContainer, @Nullable View divider) {
-        mActivity = activity;
+        mContext = context;
         mPaneContainers = paneContainers;
         mPanesContainer = panesContainer;
         mDivider = divider;
@@ -144,7 +144,7 @@ public final class TerminalSplitScreenController {
             if (container == null) continue;
 
             container.setForeground(mEnabled && i == activeIndex
-                ? ContextCompat.getDrawable(mActivity, R.drawable.terminal_pane_active_border) : null);
+                ? ContextCompat.getDrawable(mContext, R.drawable.terminal_pane_active_border) : null);
         }
     }
 
@@ -209,6 +209,6 @@ public final class TerminalSplitScreenController {
     }
 
     private int dp(float dp) {
-        return Math.round(ViewUtils.dpToPx(mActivity, dp));
+        return Math.round(ViewUtils.dpToPx(mContext, dp));
     }
 }
