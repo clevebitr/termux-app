@@ -290,7 +290,9 @@
 
 
         <!-- Terminal Keyboard Preferences -->
-        <string name="termux_search_extension_title">Terminal search</string>
+        <string name="termux_drawer_extension_title">Sessions drawer</string>
+    <string name="termux_drawer_extension_summary">The drawer that lists the sessions and the header summary</string>
+    <string name="termux_search_extension_title">Terminal search</string>
     <string name="termux_search_extension_summary">Find text in the screen and in the scrollback</string>
     <string name="termux_volume_keys_preferences_title">Volume Keys</string>
     <string name="termux_volume_keys_preferences_summary">Virtual keys · single press and long press actions</string>

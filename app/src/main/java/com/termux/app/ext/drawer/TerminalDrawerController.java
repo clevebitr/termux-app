@@ -1,4 +1,4 @@
-package com.termux.app.terminal;
+package com.termux.app.ext.drawer;
 
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -90,6 +90,30 @@ public final class TerminalDrawerController {
     public void reloadConfig() {
         mConfig = DrawerConfig.parse(ForkProperties.readTermuxProperties());
         applyConfig();
+    }
+
+    /** @return The list view that shows the sessions, or {@code null} before the content view exists. */
+    @Nullable
+    public ListView getSessionsListView() {
+        return mActivity.findViewById(R.id.terminal_sessions_list);
+    }
+
+    /** Close the drawer if it is open. */
+    public void closeDrawer() {
+        DrawerLayout drawer = mActivity.getDrawer();
+        if (drawer != null) drawer.closeDrawers();
+    }
+
+    /** @return Whether the drawer is open. */
+    public boolean isOpen() {
+        DrawerLayout drawer = mActivity.getDrawer();
+        return drawer != null && drawer.isDrawerOpen(GravityCompat.START);
+    }
+
+    /** Lock or unlock the edge swipe of the drawer, like while the terminal is in copy mode. */
+    public void setLockMode(int lockMode) {
+        DrawerLayout drawer = mActivity.getDrawer();
+        if (drawer != null) drawer.setDrawerLockMode(lockMode, GravityCompat.START);
     }
 
     /** Open the drawer, like from the edge handle, the terminal menu or a virtual key. */

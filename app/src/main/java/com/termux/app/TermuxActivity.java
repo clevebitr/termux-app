@@ -25,7 +25,6 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
@@ -39,7 +38,7 @@ import com.termux.app.ext.notifications.TerminalNotificationManager;
 import com.termux.app.ext.menu.TerminalMenuConfig;
 import com.termux.app.ext.menu.TerminalMenuExtension;
 import com.termux.app.ext.statusbar.StatusBarConfig;
-import com.termux.app.terminal.TerminalDrawerController;
+import com.termux.app.ext.drawer.DrawerExtension;
 import com.termux.app.ext.search.SearchExtension;
 import com.termux.app.terminal.TerminalSplitScreenController;
 import com.termux.app.terminal.TermuxActivityRootView;
@@ -58,7 +57,6 @@ import com.termux.app.activities.SettingsActivity;
 import com.termux.shared.termux.crash.TermuxCrashUtils;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
-import com.termux.app.terminal.TermuxSessionsListViewController;
 import com.termux.app.terminal.io.TerminalToolbarViewPager;
 import com.termux.app.commands.ShellCommandCatalog;
 import com.termux.app.commands.ShellCommandHost;
@@ -193,7 +191,6 @@ public final class TermuxActivity extends AppCompatActivity
      * views exist; every method of the controller tolerates missing views.
      */
     @NonNull
-    private final TerminalDrawerController mDrawerController = new TerminalDrawerController(this);
 
 
 
@@ -215,7 +212,6 @@ public final class TermuxActivity extends AppCompatActivity
     /**
      * The termux sessions list controller.
      */
-    TermuxSessionsListViewController mTermuxSessionListViewController;
 
     /**
      * The {@link TermuxActivity} broadcast receiver for various things like terminal style configuration changes.
@@ -391,7 +387,6 @@ public final class TermuxActivity extends AppCompatActivity
 
         setToggleKeyboardView();
 
-        mDrawerController.setUp();
 
         // The receiver must be registered for the whole lifetime of the activity and not only while it
         // is started, since the settings activities change termux properties while this activity is
@@ -686,7 +681,10 @@ public final class TermuxActivity extends AppCompatActivity
 
         mTermuxService = ((TermuxService.LocalBinder) service).service;
 
-        setTermuxSessionsListView();
+        // The sessions drawer extension fills its list when it is started, which happens after the service is
+        // connected, so the list has to be told that the sessions are available now.
+        DrawerExtension drawer = drawerExtension();
+        if (drawer != null) drawer.onSessionsAvailable();
 
         final Intent intent = getIntent();
         setIntent(null);
@@ -752,7 +750,6 @@ public final class TermuxActivity extends AppCompatActivity
 
         // The `drawer-open-mode` property is not part of the properties that the shared library parses,
         // so it is read from the file, like the `status-bar-*` and `notification-*` ones.
-        mDrawerController.reloadConfig();
 
         for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
             if (viewClient != null) viewClient.onReloadProperties();
@@ -810,13 +807,15 @@ public final class TermuxActivity extends AppCompatActivity
 
     /** Apply the color scheme of {@code session} to the sessions drawer, see {@link TerminalDrawerController}. */
     public void updateDrawerColors(@Nullable TerminalSession session) {
-        mDrawerController.updateColors(session);
+        DrawerExtension extension = drawerExtension();
+        if (extension != null) extension.updateColors(session);
     }
 
     /** Open the sessions drawer, like from the edge handle, the terminal menu or a virtual key. */
     @Override
     public void openSessionsDrawer() {
-        mDrawerController.openDrawer();
+        DrawerExtension extension = drawerExtension();
+        if (extension != null) extension.openDrawer();
     }
 
     /** @return The {@link TerminalView} of every pane, including the hidden secondary pane. */
@@ -1423,13 +1422,11 @@ public final class TermuxActivity extends AppCompatActivity
         mTerminalSplitScreenController.setUpDividerTouchListener();
     }
 
-    private void setTermuxSessionsListView() {
-        ListView termuxSessionsListView = findViewById(R.id.terminal_sessions_list);
-        mTermuxSessionListViewController = new TermuxSessionsListViewController(this, mTermuxService.getTermuxSessions(), mDrawerController);
-        mDrawerController.setSessionsListAdapter(mTermuxSessionListViewController);
-        termuxSessionsListView.setAdapter(mTermuxSessionListViewController);
-        termuxSessionsListView.setOnItemClickListener(mTermuxSessionListViewController);
-        termuxSessionsListView.setOnItemLongClickListener(mTermuxSessionListViewController);
+    /** @return The extension that owns the sessions drawer, or {@code null} while it is disabled. */
+    @Nullable
+    private DrawerExtension drawerExtension() {
+        Extension extension = ExtensionHost.get(this).extension(DrawerExtension.ID);
+        return extension instanceof DrawerExtension ? (DrawerExtension) extension : null;
     }
 
 
@@ -1891,7 +1888,8 @@ public final class TermuxActivity extends AppCompatActivity
 
 
     public void termuxSessionListNotifyUpdated() {
-        mTermuxSessionListViewController.notifyDataSetChanged();
+        DrawerExtension extension = drawerExtension();
+        if (extension != null) extension.notifySessionsChanged();
     }
 
     public boolean isVisible() {

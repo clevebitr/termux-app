@@ -1,4 +1,4 @@
-package com.termux.app.terminal;
+package com.termux.app.ext.drawer;
 
 import androidx.annotation.NonNull;
 
