@@ -12,8 +12,8 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `601cc22 docs: 新建 app/todo.md 记录代码进度与计划` |
-| 规模 | `TermuxActivity` 2523 行；`commands/` 4 文件 362 行；`terminal/menu/` 4 文件 590 行 |
+| 最近提交 | `d5ca8ba refactor: 抽出会话抽屉控制器 TerminalDrawerController` |
+| 规模 | `TermuxActivity` 2275 行（本轮由 2544 行降至）；`commands/` 5 文件 491 行；`terminal/menu/` 4 文件 590 行；`TerminalDrawerController` 342 行 |
 | 验证 | 本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 164 项、1 项既有失败 |
 
 ---
@@ -35,7 +35,12 @@
 - [x] 菜单收敛：抽屉按钮与会话新建按钮改走 `ShellCommandHost`，面板新增 `new-named-session`（`1c39234`、`#6`）
 - [x] 修正命令面板「切换键盘」的递归调用（`a650b69`）
 
-### 2.3 文档与治理
+### 2.3 X1 控制器拆分
+
+- [x] `TerminalActionRunner`：`runTerminalMenuAction` 的 93 行 `switch` 改为「动作 → 宿主方法」映射表，Activity 只保留委托；`TerminalActionRunnerTest` 3 项覆盖全部 22 个动作（`cc35d8f`、`#7`）
+- [x] `TerminalDrawerController`：抽屉配色、把手、开合配置与头部概要从 Activity 迁出，Activity 由 2544 行降至 2275 行；会话列表适配器改为依赖控制器而非 Activity（`d5ca8ba`、`#8`）
+
+### 2.4 文档与治理
 
 - [x] `FORK.md` §34 扩展管理与禁用语义；§33.1 补充 `ShellCommandHost` 与命名会话命令
 - [x] `docs/EXTENSION_API.md` §9.1 M-E1 实施记录
@@ -46,7 +51,7 @@
 
 ## 3. 进行中
 
-无。下一项为第 4.1 节第一刀。
+无。下一项为第 4.1 节剩余的检查项，之后进入 `ext.statusbar`。
 
 ---
 
@@ -54,10 +59,11 @@
 
 ### 4.1 X1 控制器拆分
 
-- [ ] `TerminalActionRunner`：把 `TermuxActivity.runTerminalMenuAction` 的 93 行 `switch` 迁入 `app/commands/`，改为「动作 → 执行器」映射，Activity 只保留委托
-- [ ] 为映射表补纯 JVM 测试（动作全覆盖、无重复注册、未知动作不抛异常）
-- [ ] `DrawerController`：把抽屉配色（`applyDrawerColors`）、头部按钮接线、会话列表接线与抽屉开关逻辑从 `TermuxActivity` 收拢到一处
-- [ ] 验收：`TermuxActivity` 行数与方法数下降；同一动作只有一份实现
+- [x] `TerminalActionRunner`：把 `TermuxActivity.runTerminalMenuAction` 的 `switch` 迁入 `app/commands/`，改为「动作 → 执行器」映射
+- [x] 为映射表补纯 JVM 测试（动作全覆盖、映射唯一、期望表完整）
+- [x] `TerminalDrawerController`：抽屉配色、把手、开合配置与概要收拢到一处
+- [x] 验收：`TermuxActivity` 行数下降（2544 → 2275）；同一动作只有一份实现
+- [ ] 待观察：`TermuxActivity` 仍持有约 30 个与终端会话/样式相关的方法，下一轮优先评估 `TerminalStylingController`（窗口背景、状态栏配色、终端内边距与边距的重算）
 
 ### 4.2 `ext.statusbar`（6 文件 1961 行）
 
@@ -104,7 +110,7 @@
 | 项 | 状态 |
 | --- | --- |
 | `:app:compileDebugJavaWithJavac` | 通过（本机） |
-| `:app:testDebugUnitTest` | 164 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现） |
+| `:app:testDebugUnitTest` | 167 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现） |
 | `:app:assembleDebug` | 未执行，本机 NDK 缺 `libc++_shared` |
 | 设备验证 | 未执行，无 `adb` |
 | CI | 推送后由 PR 触发；本机无 `gh`，状态待确认 |

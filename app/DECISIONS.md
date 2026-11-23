@@ -96,3 +96,16 @@
 缺陷（重构过程中发现并单独提交 a650b69）：命令面板的「切换键盘」在匿名 Host 内调用 toggleSoftKeyboard()，解析到匿名类自身的方法，形成无限递归，执行该命令会 StackOverflowError；抽屉按钮使用的 onToggleSoftKeyboardRequest() 才是带「启用/禁用软键盘」与「显示/隐藏软键盘」两种配置的实现。修正后两条入口行为一致。该缺陷此前未被测试覆盖，因 ShellCommandCatalog 需要 Context 才能构建，未新增单元测试。
 
 未验证：抽屉三个按钮、面板 new-named-session、切换键盘在设备上的表现未验证；本机仅通过 :app:compileDebugJavaWithJavac 与 :app:testDebugUnitTest（164 项，1 项为既有 Robolectric + JDK 21 失败）。
+
+## 2026-11-23 — X1 控制器拆分第一轮：动作映射表与抽屉控制器
+
+目标（todo.md 4.1，HANDOFF 第 5 节第 1 项）：把动作分发与抽屉逻辑从 TermuxActivity 移出，且分发可测。
+
+1. TerminalActionRunner（commands/）：Host 接口 22 个无参方法 + EnumMap<TerminalMenuAction, Runnable>，run(action) 查表执行，未登记的动作记日志而不是抛异常；has 判空。Activity 的 93 行 switch 删除，runTerminalMenuAction 只做委托；TermuxActivity 实现 Host（多数方法原本已有，新增 scrollToPrevious/NextCommand、splitScreenVertically/Horizontally、closeSplitScreen、selectUrl、shareTranscript、shareSelectedText、autofillUsername/Password、resetTerminal、killSession、openHelp、openSettings、reportIssue，并把 showStylingDialog、toggleKeepScreenOn 改为 public）。
+2. TerminalActionRunnerTest（3 项，纯 JVM）：记录型假 Host 驱动全部 22 个动作，断言每个动作恰好触发一个宿主方法且方法名符合期望表；断言 handles 覆盖全部动作；断言期望表数量等于枚举数量。新增动作而漏登记会直接失败。
+3. TerminalDrawerController（terminal/）：迁移 updateDrawerColors/applyDrawerColors、setUpDrawerHandle、applyDrawerHandleConfig、positionDrawerHandle、applyDrawerConfig、openSessionsDrawer、updateDrawerSummary 与五个颜色 getter，字段 mDrawerConfig 与四个颜色/一个 Drawable 一并移入；公开 API 为 setUp/reloadConfig/openDrawer/updateColors/updateSummary/setSessionsListAdapter 与五个 getter。
+4. TermuxActivity：字段改为 final 并在初始化器中创建（reloadProperties 在 setContentView 之前调用 reloadConfig，控制器全部方法容忍视图未创建）；reloadProperties 改为 mDrawerController.reloadConfig()；onCreate 的三段抽屉初始化（配色、把手、开合模式）与抽屉打开监听收进 setUp()；openSessionsDrawer 与 updateDrawerColors 保留为一行委托（前者是 Host 与外部入口，后者由 TermuxTerminalSessionActivityClient 调用）。
+5. TermuxSessionsListViewController：构造参数改为 (activity, sessions, TerminalDrawerController)，行背景与文字色从控制器读取，不再从 Activity 取四个 getter；控制器通过 setSessionsListAdapter 回调 notifyDataSetChanged。
+6. 效果：TermuxActivity 2544 → 2275 行；删除 getDrawerBackgroundColor 等四个仅供抽屉使用的公开 getter；会话列表适配器对 Activity 的依赖收窄为「当前会话与关闭抽屉」。
+
+未验证：抽屉配色、把手位置、打开刷新、开关配置在真机上未验证；本机仅 :app:compileDebugJavaWithJavac 通过、:app:testDebugUnitTest 167 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。抽屉控制器无单元测试，因它直接依赖 Activity 视图。
