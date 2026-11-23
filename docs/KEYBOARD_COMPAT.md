@@ -187,6 +187,7 @@ keyboard-compat-log = false
 | `ime-input-type` 属性（`auto` 默认 / `text` / `password` / `none`）与 `ImeInputType` | `app/terminal/` | `a5cba39` |
 | 设置页「硬件键盘与输入法」分类（`ime-input-type`、`keyboard-compat-log`） | `res/xml/termux_keyboard_preferences.xml` | `a5cba39` |
 | 快捷键匹配回退物理键码 + `keyboard-compat-log` 日志 | `commands/`、`terminal/` | `a1b589e` |
+| 诊断日志写入 `~/.termux/keyboard-compat.log`（128KB 重建） | `terminal/KeyboardCompatLog.java` | 本次 |
 | `command-shortcuts` 属性与设置项、右键行为、面板标签同源 | 见 `FORK.md` §37 | `7c0ed84` |
 
 仍待真机验收（`text` 模式与日志）：
