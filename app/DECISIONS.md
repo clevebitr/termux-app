@@ -506,3 +506,25 @@
 - 完整分层设计（事件采集 / 统一路由 / IME 兼容 / 软硬件键盘共存 / 验收 / 风险）见 `docs/KEYBOARD_COMPAT.md`。
 
 未验证：本机无 `adb`。`ime-input-type=text` 时 Gboard 悬浮栏是否出现、组合文本是否残留、其他输入法（Samsung、Hacker's Keyboard）是否正常，以及 `keyboard-compat-log` 日志能否覆盖三条按键路径，均未真机确认。本机 `:terminal-view:compileDebugJavaWithJavac`、`:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 186 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。
+
+## 2026-11-23 — Tab 直通与输入法事件日志，TUI 的 IME 组合文本待定位
+
+真机反馈两项：lazyvim 中 Tab 不能插入空格（英文模式也一样）；pi 这类 TUI 仍没有 IME 支持。本轮先做可确定的修复与定位手段（提交 4a746db、f628c65）。
+
+一、Tab 直通
+- 现象推测：未修饰的 Tab 若未被终端视图消费，会落到窗口的焦点切换上；`ime-input-type=text` 把终端当作普通文本框后，输入法或框架更容易先取走 Tab。
+- 修法：`TermuxActivity.dispatchKeyEvent()` 先调用 `handleTerminalTab()`：仅当按下、无 Ctrl/Alt、且终端视图持有焦点时，直接把 Tab 交给 `TerminalView.handleKeyCode(KEYCODE_TAB, keyMod)`（Shift 用 `KEYMOD_SHIFT`，由 `KeyHandler` 转成反向制表符 `ESC [ Z`），并消费事件。搜索栏、额外键获得焦点时不拦截。
+- 日志：`keyboard-compat-log=true` 时会记录 `[activity] sent Tab to the terminal`，用于确认是否走到这一层。
+
+二、输入法事件日志
+- 新增只读模块钩子 `TerminalViewClient.onImeEvent(String)`（默认空实现），`TerminalView` 的输入连接在 `commitText`/`setComposingText`/`finishComposingText`/`deleteSurroundingText` 时回调。
+- app 侧把事件写入 `KeyboardCompatLog`，前缀 `[ime]`；配合 `[activity]`/`[terminal-view]` 即可区分按键与输入法文本各自走到哪一层。
+
+三、TUI 的 IME 支持（待定位）
+- `ime-input-type=text` 让输入法把终端当文本框，代价是输入法可能使用**组合文本**：英文在 `NO_SUGGESTIONS` 下多数直接提交，CJK 则会在候选词被选择前停留在 `setComposingText` 状态，TUI 收不到字符。这是输入法行为，不是终端丢输入。
+- 判断方法：在 pi 中输入一段中文后查看 `~/.termux/keyboard-compat.log`：
+  - 若只有 `[ime] setComposingText(...)` 而没有 `commitText(...)`，说明文本仍在组合状态；
+  - 若有 `commitText(...)` 但 `[terminal-view]` 没有对应按键，说明文本经输入连接进入，程序应已收到。
+- 可选后续方案（未实施）：为组合文本增加一个应用内浮层显示，或在 `text` 模式下提供一个「不组合」的变体；两者都需要真机确认输入法行为后再定。
+
+未验证：本机无 `adb`，Tab 在 lazyvim 中是否恢复、pi 是否收到提交文本、日志是否覆盖三条路径，均未真机确认。本机 `:terminal-view:compileDebugJavaWithJavac`、`:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest --rerun-tasks` 186 项、1 项既有失败（`FileReceiverActivityTest`）。
