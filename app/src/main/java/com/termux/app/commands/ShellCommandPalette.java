@@ -205,8 +205,11 @@ public final class ShellCommandPalette {
         input.setHintTextColor(TerminalDialogStyles.withAlpha(foregroundColor, 0.55f));
         input.setHighlightColor(TerminalDialogStyles.withAlpha(foregroundColor, 0.20f));
         input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        input.setPadding(TerminalDialogStyles.dp(activity, 16), TerminalDialogStyles.dp(activity, 12),
-            TerminalDialogStyles.dp(activity, 16), TerminalDialogStyles.dp(activity, 8));
+        // The field is the header of the window instead of a Material 3 text field, so it needs enough padding to
+        // be comfortable to type in: the previous 8dp bottom padding made it look like a thin strip.
+        input.setMinHeight(TerminalDialogStyles.dp(activity, 56));
+        input.setPadding(TerminalDialogStyles.dp(activity, 16), TerminalDialogStyles.dp(activity, 16),
+            TerminalDialogStyles.dp(activity, 16), TerminalDialogStyles.dp(activity, 16));
         return input;
     }
 
