@@ -156,12 +156,20 @@ keyboard-compat-log = true   # 默认 false
 
 ## 7. 验收条件
 
-1. 接有硬件键盘、软键盘收起：`cat -v` 下按 `Tab` 输出 `^I`；`lazyvim` 插入模式按 `Tab` 有反应（注意
-   LazyVim 默认把 `<Tab>` 映射给补全，是否插入空格取决于该映射，判据是 `^I` 是否到达程序）。
+1. 接有硬件键盘、软键盘收起：终端里运行 `od -c`，按 `Tab`、回车、`Ctrl-D`，输出应含 `\t`。
+   `lazyvim` 插入模式按 `Tab` 是否能缩进取决于 `:verbose imap <Tab>` 的结果，见 §7.1。
 2. 同状态下 `Ctrl`/`Alt` 组合键、方向键、`Enter` 顺序正确，node 写的 TUI 输入不再错位。
 3. 弹出软键盘后中文（拼音）可输入，候选与悬浮栏正常；收起后恢复直通。
 4. 键盘接入或拔出后无需重启应用即生效。
 5. `keyboard-compat-log=true` 时日志符合 §6 的判据。
+
+### 7.1 常见误判
+
+| 现象 | 实际原因 |
+| --- | --- |
+| `cat -v` 里按 `Tab` 只看到一片空白，没有 `^I` | 看到的是行规程的**回显**，终端把 `0x09` 渲染成到下一个制表位的空白；`cat` 的输出是行缓冲，要按回车后才会出现 `^I`。改用 `od -c` 或 `stty -echo` 后再测 |
+| 日志里有 `[terminal-view] action=down, code=KEYCODE_TAB`，但 nvim 插入模式不缩进 | `Tab` 已到达程序。LazyVim 默认给 blink.cmp 使用 `super-tab` 预设，`<Tab>` 用于展开或选择补全，**不会插入缩进**。用 `nvim --clean` 对照，并在 LazyVim 里执行 `:verbose imap <Tab>` 确认 |
+| 软键盘可见时 `Tab` 没有反应 | 按 §2 的规则此时由输入法接管，`Tab` 归输入法；收起软键盘即恢复 |
 
 ---
 
