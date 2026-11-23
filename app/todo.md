@@ -121,7 +121,9 @@
 - [x] 设计方案 `docs/KEYBOARD_COMPAT.md`：三层（采集/路由/IME）与只读模块钩子（`docs` 提交）
 - [x] 需求方书面豁免 `terminal-view`，新增 `getInputType`/`getImeOptions` 客户端钩子（`8a1fc86`）
 - [x] `ime-input-type`（`auto`/`text`/`password`/`none`）与 `ImeInputType`、键盘页设置项、`ImeInputTypeTest` 6 项（`a5cba39`）
+- [x] 输入法事件日志钩子（`onImeEvent`）与 Tab / Shift+Tab 直通（只读模块 + `app/`）
 - [ ] 待真机验收：`text` 模式下 Gboard 悬浮栏、组合文本残留、其他输入法兼容
+- [ ] 待真机验收：TUI（Neovim / pi）中 Tab 与 IME 提交文本的日志（`[activity]`/`[ime]` 前缀）
 - [ ] 待验证：`keyboard-compat-log` 日志能否区分三条按键路径；改绑快捷键在硬件键盘下的表现
 
 ---

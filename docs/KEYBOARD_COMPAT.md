@@ -187,7 +187,9 @@ keyboard-compat-log = false
 | `ime-input-type` 属性（`auto` 默认 / `text` / `password` / `none`）与 `ImeInputType` | `app/terminal/` | `a5cba39` |
 | 设置页「硬件键盘与输入法」分类（`ime-input-type`、`keyboard-compat-log`） | `res/xml/termux_keyboard_preferences.xml` | `a5cba39` |
 | 快捷键匹配回退物理键码 + `keyboard-compat-log` 日志 | `commands/`、`terminal/` | `a1b589e` |
-| 诊断日志写入 `~/.termux/keyboard-compat.log`（128KB 重建） | `terminal/KeyboardCompatLog.java` | 本次 |
+| 诊断日志写入 `~/.termux/keyboard-compat.log`（128KB 重建） | `terminal/KeyboardCompatLog.java` | `0a16a59` |
+| 输入法事件日志钩子（`onImeEvent`，只读模块） | `terminal-view/` | 本次 |
+| Tab / Shift+Tab 直通（避免被窗口焦点切换吞掉） | `TermuxActivity.handleTerminalTab` | 本次 |
 | `command-shortcuts` 属性与设置项、右键行为、面板标签同源 | 见 `FORK.md` §37 | `7c0ed84` |
 
 仍待真机验收（`text` 模式与日志）：
@@ -195,7 +197,10 @@ keyboard-compat-log = false
 1. 英文 Gboard + 硬件键盘：`ime-input-type=text` 是否出现悬浮栏，输入是否无组合文本残留。
 2. `auto` 模式下行为与上游完全一致。
 3. 其他输入法（Samsung、Hacker's Keyboard）在 `text` 模式下的表现。
-4. `keyboard-compat-log=true` 时日志能否覆盖三条按键路径。
+4. `keyboard-compat-log=true` 时日志能否覆盖按键、视图与输入法三条路径。
+5. TUI（Neovim / pi）中的 Tab 与 IME 文本：Tab 应出现在 `[activity] sent Tab to the terminal`；
+   IME 文本应出现 `[ime] commitText(...)`。若只有 `setComposingText(...)` 而没有 `commitText`，
+   说明输入法把文本留在组合状态，TUI 只能等候选词提交后才收到字符。
 
 ---
 

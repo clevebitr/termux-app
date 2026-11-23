@@ -2149,8 +2149,18 @@ ime-input-type = auto     # auto（默认）| text | password | none
 keyboard-compat-log = true   # 默认 false
 ```
 
-打开后，`TermuxActivity.dispatchKeyEvent`、命令快捷键分发、`TerminalViewClient.onKeyDown` 与 `getInputType`
-会把按键的 `action/code/unicode/ctrl/alt/shift/source/device` 字段写入日志，用于判断硬件键盘的事件走的是哪条路径。
+打开后，`TermuxActivity.dispatchKeyEvent`、命令快捷键分发、`TerminalViewClient.onKeyDown`、`getInputType`
+以及输入法事件（`commitText`/`setComposingText`/`finishComposingText`/`deleteSurroundingText`）都会写入日志，
+用于判断按键与输入法文本走的是哪条路径：
+
+| 日志前缀 | 来源 |
+| --- | --- |
+| `[activity]` | 窗口级按键分发、Tab 直通、命令快捷键命中 |
+| `[terminal-view]` | 终端视图收到的按键 |
+| `[ime]` | 上报的输入类型与输入法提交的文本 |
+
+Tab 直通：未修饰的 Tab 与 Shift+Tab 在终端视图获得焦点时由活动直接交给终端（Shift+Tab 发送反向制表符），
+避免被窗口的焦点切换吞掉。
 日志除了 logcat 之外还写入 `~/.termux/keyboard-compat.log`（超过 128KB 自动重建），可直接在 Termux 里查看：
 
 ```sh
