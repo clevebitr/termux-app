@@ -11,7 +11,8 @@
 `app/` 的扩展 API 骨架、第一个扩展（备份）、终端菜单规则下沉、命令面板（含四个入口）与终端右键转发均已完成，
 并在 PR #1 上通过 CI（单元测试 + Lint + 双 ABI 构建 + 签名 APK）；扩展禁用语义已在 M-E1 改为「入口不可达 +
 运行时闸门」，菜单收敛已完成（抽屉按钮与面板共用 `ShellCommandHost`），X1 控制器拆分已完成第一轮（动作映射表 +
-抽屉控制器，`TermuxActivity` 2275 行）；**其余扩展迁移尚未开始**。
+抽屉控制器），`ext.statusbar` 已迁移（第一个带视图与定时器的可禁用扩展，`TermuxActivity` 2209 行）；
+**通知体系、分屏、搜索、菜单、抽屉、音量键的迁移尚未开始**。
 
 ---
 
@@ -128,14 +129,16 @@ ext/backup/   BackupExtension、TermuxBackupUtils、BackupPreferencesFragment（
 菜单收敛已完成：抽屉按钮与会话新建按钮改走 `ShellCommandHost`，面板新增 `new-named-session`，并修正了
 「切换键盘」命令的递归调用，记录见 `app/DECISIONS.md` #6。
 X1 控制器拆分已完成第一轮：动作分发改为 `TerminalActionRunner` 映射表（有 3 项 JVM 测试），抽屉逻辑迁入
-`TerminalDrawerController`，`TermuxActivity` 由 2544 行降至 2275 行，记录见 `app/DECISIONS.md` #7。
+`TerminalDrawerController`，记录见 `app/DECISIONS.md` #7。
+`ext.statusbar` 已迁移（生命周期回调 + 包迁移 + 页面闸门 + 宿主单向查询），并新增 `docs/API_INDEX.md`，
+记录见 `app/DECISIONS.md` #8；迁移评估与后续顺序见 `docs/EXTENSION_API.md` §10。
 
 | 序 | 任务 | 要点 | 验收 |
 | --- | --- | --- | --- |
-| 1 | X1 余项 | 评估 `TerminalStylingController`：窗口背景、状态栏配色、边距与内边距的重算 | `TermuxActivity` 行数继续下降；无行为变化 |
-| 2 | `ext.statusbar` | 6 文件 1961 行；需新增「视图装饰器」贡献点 + 页面闸门 | 可启用/禁用；禁用后无残留视图与定时器 |
-| 3 | `ext.notifications` | 13 文件 2704 行，依赖事件源与状态栏（可选） | 禁用后卡片、后台通知、历史全部停止 |
-| 4 | 其他扩展 | `ext.menu`/`ext.split`/`ext.drawer`/`ext.search`/`ext.volumekeys` | 逐项可禁用 |
+| 1 | `ext.menu` 或 `ext.volumekeys` | 无依赖的小步迁移，验证迁移流程 | 可启用/禁用；禁用后无残留菜单项与按键处理 |
+| 2 | `ext.notifications` | 13 文件 2704 行；需先定义「事件源/卡片槽位」贡献点，依赖 `StatusBarExtension.getConfig()` | 禁用后卡片、后台通知、历史全部停止 |
+| 3 | 视图槽位贡献点 | 先汇总分屏容器、搜索条、通知叠层三处用途，再设计 | 一个接口服务三处，不是为单特性造接口 |
+| 4 | `ext.split` / `ext.search` / `ext.drawer` | 依赖上一项 | 逐项可禁用 |
 | 5 | `builtin.vt` 开关页 | 仅属性开关（OSC52/133、1004、悬停、滚动保持、内边距） | 设置页明确标注「核心能力，仅可关闭行为」 |
 | 6 | 设备验证 | 无 `adb`，需出包后按 `FORK.md` §33 与验收矩阵逐项确认 | 记录到 PR 或 `FORK.md` |
 
@@ -181,6 +184,7 @@ gh run list --branch <branch> --limit 6
 | `docs/EXTENSION_API.md` | 扩展化方案与实施记录 | 是 |
 | `app/DECISIONS.md` | `app/` 模块决策（plan 工具维护） | 是 |
 | `app/todo.md` | `app/` 模块的代码进度与近期计划（跨会话续接的入口） | 是 |
+| `docs/API_INDEX.md` | 已有 API 与工具类索引，新增前必须查阅 | 是 |
 | `FORK.md` §33 | 命令面板与右键转发的用户文档 | 是 |
 | `FORK.md` §34 | 扩展管理与禁用语义的用户文档 | 是 |
 | `docs/DELIVERY_PLAN.md` | 旧里程碑计划（多为 `app_new` 时期） | 部分 |

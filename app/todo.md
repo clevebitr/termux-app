@@ -12,8 +12,8 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `d5ca8ba refactor: 抽出会话抽屉控制器 TerminalDrawerController` |
-| 规模 | `TermuxActivity` 2275 行（本轮由 2544 行降至）；`commands/` 5 文件 491 行；`terminal/menu/` 4 文件 590 行；`TerminalDrawerController` 342 行 |
+| 最近提交 | `5e7ebbb refactor: 将状态栏提取为 statusbar 扩展` |
+| 规模 | `TermuxActivity` 2209 行；`commands/` 5 文件 491 行；`ext/` 22 文件 3780 行（含 `ext/statusbar` 7 文件 2413 行） |
 | 验证 | 本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 164 项、1 项既有失败 |
 
 ---
@@ -40,7 +40,15 @@
 - [x] `TerminalActionRunner`：`runTerminalMenuAction` 的 93 行 `switch` 改为「动作 → 宿主方法」映射表，Activity 只保留委托；`TerminalActionRunnerTest` 3 项覆盖全部 22 个动作（`cc35d8f`、`#7`）
 - [x] `TerminalDrawerController`：抽屉配色、把手、开合配置与头部概要从 Activity 迁出，Activity 由 2544 行降至 2275 行；会话列表适配器改为依赖控制器而非 Activity（`d5ca8ba`、`#8`）
 
-### 2.4 文档与治理
+### 2.4 扩展迁移
+
+- [x] 迁移评估：逐特性列出规模、前置条件与顺序，见 `docs/EXTENSION_API.md` §10（`#8`）
+- [x] 新增扩展生命周期贡献点 `onStart`/`onStop`/`onReload`（`98e63e2`）
+- [x] 前置：`StatusBarColors` 下沉为 `widget/ColorSchemeColors`（`d45ef42`）；`StatusBarController` 去 Activity 化（`ce694b6`）
+- [x] `ext.statusbar` 迁移：6 文件 + 设置页迁入扩展包，新增 `StatusBarExtension`（默认启用、页面闸门、点击动作、定时刷新），宿主经 `StatusBarExtension.getConfig()` 查询配置（`5e7ebbb`、`#8`）
+- [x] `docs/API_INDEX.md`：已有 API 索引与重复实现清单，`AGENTS.md` 增加「新增前先查」约束
+
+### 2.5 文档与治理
 
 - [x] `FORK.md` §34 扩展管理与禁用语义；§33.1 补充 `ShellCommandHost` 与命名会话命令
 - [x] `docs/EXTENSION_API.md` §9.1 M-E1 实施记录
@@ -65,12 +73,11 @@
 - [x] 验收：`TermuxActivity` 行数下降（2544 → 2275）；同一动作只有一份实现
 - [ ] 待观察：`TermuxActivity` 仍持有约 30 个与终端会话/样式相关的方法，下一轮优先评估 `TerminalStylingController`（窗口背景、状态栏配色、终端内边距与边距的重算）
 
-### 4.2 `ext.statusbar`（6 文件 1961 行）
+### 4.2 `ext.statusbar`（已迁移，待真机验证）
 
-- [ ] 新增「视图装饰器」贡献点：扩展声明自己在根视图上挂载与卸载的装饰器
-- [ ] 迁移状态栏实现与设置页，`ForkExtensions` 登记
-- [ ] 页面闸门：禁用后无残留视图与定时器
-- [ ] 验收：设置页开关与扩展开关均立即生效；禁用后根视图无对应子视图
+- [x] 迁移状态栏实现与设置页，`ForkExtensions` 登记
+- [x] 页面闸门：禁用后停止刷新并清空视图
+- [ ] 待验证：位置（上/下）、overlay、内边距、分段点击、禁用后留白消失
 
 ### 4.3 `ext.notifications`（13 文件 2704 行）
 

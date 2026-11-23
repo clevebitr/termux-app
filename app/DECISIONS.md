@@ -109,3 +109,34 @@
 6. 效果：TermuxActivity 2544 → 2275 行；删除 getDrawerBackgroundColor 等四个仅供抽屉使用的公开 getter；会话列表适配器对 Activity 的依赖收窄为「当前会话与关闭抽屉」。
 
 未验证：抽屉配色、把手位置、打开刷新、开关配置在真机上未验证；本机仅 :app:compileDebugJavaWithJavac 通过、:app:testDebugUnitTest 167 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。抽屉控制器无单元测试，因它直接依赖 Activity 视图。
+
+## 2026-11-23 — 评估结论与第一批 fork 特性迁移（状态栏）
+
+本轮完成「评估 + fork 特性提取第一批（状态栏）+ API 索引文档」。
+
+一、评估结论（详见 docs/EXTENSION_API.md §10）：
+- 状态栏可迁：依赖面小，控制器只依赖 Activity 的一个回调。
+- 通知体系需要「事件源/卡片槽位」贡献点，且依赖状态栏配置，下一批。
+- 分屏、终端搜索需要「视图装饰器/槽位」贡献点（布局中的一段视图由扩展接管），设计前先汇总三处用途，避免为单特性造接口。
+- 终端菜单（纯规则 + 对话框）与音量键（Activity 内独立代码）可小步先迁。
+- VT 级行为（OSC 52/133、1004、悬停、滚动保持）无法拆包，只能 builtin.vt 属性开关。
+
+二、新增贡献点（98e63e2）：Extension.onStart()/onStop()/onReload() 默认空实现；ExtensionManager.onStart/onStop/onReload 逐扩展转发并做异常隔离，onReload 先重读 ForkProperties。用途：定时刷新类扩展只在活动可见时工作，属性或配色变化后重新读配置。
+
+三、迁移前置：
+1. StatusBarColors 下沉并改名 widget/ColorSchemeColors（d45ef42）：该解析器被对话框、通知卡片、设置页颜色项共用，不属状态栏私有；同步更新 6 处引用与 KDoc。
+2. StatusBarController 去 Activity 化（ce694b6）：改为 (Context, StatusBarView, SegmentListener)，分段点击改由监听器接收。
+
+四、状态栏迁移（5e7ebbb）：
+- app/statusbar/ 6 文件 + StatusBarPreferencesFragment 迁入 ext/statusbar/，测试同步迁移；包声明与全部引用更新。
+- 新增 StatusBarExtension：id=statusbar，默认启用，preferenceKeys=["status-bar"]（XML 补该 key），settingsPages 声明状态栏页；onEnable 接管布局预留的 R.id.status_bar_view 并创建控制器，onStart/onStop 控制定时刷新，onReload 重读配置，onDisable 停止并清空视图；分段点击动作（Wi-Fi/电池/流量/应用设置/新会话）随功能迁入扩展。
+- 宿主查询：TermuxActivity.getStatusBarConfig() 经 ExtensionHost.extension(ID) 取实例读 getConfig()，禁用时返回 null，终端不再为状态栏留白；扩展改变可见性后调用新的公开方法 TermuxActivity.onStatusBarLayoutChanged() 让宿主重算窗格内边距与通知卡片内距。
+- 设置页闸门：StatusBarPreferencesFragment 首行检查 isRunning，未启用显示停用说明。
+- TermuxPropertyPreferenceDataStore 由包内可见改为 public abstract，供跨包扩展页继承。
+- SettingsSearchIndex 移除手写的状态栏页（改由扩展声明）。
+
+五、API 索引（docs/API_INDEX.md）：登记扩展框架、命令与动作、终端控制器、颜色与属性、设置页基础设施、通知、已迁移扩展、测试守卫、常见重复实现清单；配套在 AGENTS.md 增加「新增 API 前先查索引」的约束。目的：防止后续会话重复实现同一能力。
+
+效果：TermuxActivity 2275 → 2209 行；状态栏成为第一个带视图、定时器与设置页的可禁用扩展。
+
+未验证：状态栏在真机上的显示、位置（上/下）、overlay 与内边距、分段点击、禁用后停止刷新与留白消失均未验证；本机 :app:compileDebugJavaWithJavac 通过，:app:testDebugUnitTest 167 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。

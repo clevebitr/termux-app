@@ -258,7 +258,52 @@ public final class ExtensionHost {
 
 约束：扩展的设置项必须声明在根设置页上，因为可见性 pass 只在根页运行；新增扩展页时，页面必须自行做闸门，隐藏入口不构成禁用。
 
-## 10. 未验证声明
+## 10. 迁移评估与执行顺序（2026-11-24）
+
+### 10.1 逐特性评估
+
+| 特性 | 现状 | 规模 | 迁移所需前置 | 状态 |
+| --- | --- | --- | --- | --- |
+| 状态栏 | `ext/statusbar/`（原 `app/statusbar/`） | 7 文件 2413 行 | 生命周期回调、控制器去 Activity 化、共享颜色解析下沉 | **已迁移** |
+| 备份恢复 | `ext/backup/` | 3 文件 380 行 | 无 | 已迁移 |
+| 通知体系 | `notifications/` 13 文件 2704 行 | 大 | 事件源贡献点；依赖状态栏配置（卡片需避开状态栏）；`TerminalNotificationManager` 需拆分「卡片/后台通知/历史」 | 待迁移 |
+| 分屏 | `terminal/TerminalSplitScreenController` + Activity 布局代码 | 中 | 视图装饰器贡献点（窗格容器由扩展接管或宿主提供槽位） | 待迁移 |
+| 终端内搜索 | `terminal/TerminalSearchController` + 布局中的搜索条 | 中 | 同上（布局条目需可隐藏） | 待迁移 |
+| 终端菜单 | `terminal/menu/` 4 文件 590 行 | 小 | 无（纯规则 + 对话框），但默认列表在只读模块内，只能以属性开关表达 | 待迁移 |
+| 会话抽屉 | `terminal/TerminalDrawerController` 等 | 中 | 会话列表视图与抽屉布局在 Activity 中 | 待迁移 |
+| 音量键动作 | Activity 中约 80 行 | 小 | 无 | 待迁移 |
+| VT 级行为（OSC 52/133、1004、悬停、滚动保持） | 只读模块内 | — | 无法拆包，只能 `builtin.vt` 属性开关 | 不迁移 |
+
+### 10.2 本轮新增的贡献点
+
+| 贡献点 | 位置 | 用途 |
+| --- | --- | --- |
+| `Extension.onStart()` / `onStop()` | `ext/api/Extension.java` | 定时刷新类扩展在活动可见时才工作（状态栏的 tick） |
+| `Extension.onReload()` | 同上 | 属性或配色变化后重新读取配置 |
+| `ExtensionManager.onStart/onStop/onReload` | `ext/host/ExtensionManager.java` | 宿主转发上述回调，逐个扩展做异常隔离 |
+
+### 10.3 状态栏迁移要点
+
+1. 包整体迁移：`app/statusbar/*` → `ext/statusbar/*`，设置页 `StatusBarPreferencesFragment` 一并迁入；测试同步迁到
+   `app/src/test/java/com/termux/app/ext/statusbar/`。
+2. `StatusBarColors` 不属于状态栏：它被对话框、通知卡片与设置页颜色项共用，改名为 `widget/ColorSchemeColors` 下沉。
+3. `StatusBarController` 去掉 `TermuxActivity` 依赖，改为 `(Context, StatusBarView, SegmentListener)`；分段的点击动作
+   （Wi-Fi/电池/流量/应用设置、新会话）随功能一起迁入扩展。
+4. 宿主与扩展的单向查询：`TermuxActivity.getStatusBarConfig()` 通过 `ExtensionHost.get(this).extension(ID)` 取实例再读
+   `getConfig()`；扩展禁用时返回 `null`，终端不再为状态栏留白，行为自然正确。宿主只允许调用扩展的**配置查询**方法，
+   不得调用其界面方法。
+5. 扩展每次改变视图可见性或高度后调用 `TermuxActivity.onStatusBarLayoutChanged()`，由宿主重算窗格内边距与通知卡片内距。
+
+### 10.4 下一批的进入条件
+
+- **通知体系**：需要先定义「事件源」贡献点（命令结束、应用事件）与「卡片容器槽位」，否则迁移后仍要从 Activity 取视图；
+  状态栏已提供 `StatusBarExtension.getConfig()`，卡片内距可直接查询。
+- **分屏与搜索**：需要「视图装饰器/槽位」贡献点，让扩展接管 `activity_termux.xml` 中的一段布局，禁用时该段回到宿主默认
+  （隐藏或不占空间）。设计前先确认三处用途（分屏容器、搜索条、通知叠层），避免为单个特性造接口。
+- **终端菜单与会话抽屉**：菜单规则已是纯函数，可先做 `ext.menu`（属性开关 + 设置页），抽屉随后。
+- **音量键**：Activity 中独立，无依赖，可作为「小步验证迁移流程」的候选。
+
+## 11. 未验证声明
 
 - 本文件为可行性研究与设计草案，**未编写任何扩展 API 或迁移代码**；
 - `app/` 的现状结论来自静态阅读与 `:app:compileDebugJavaWithJavac`、`:app:testDebugUnitTest`（135/136）结果；
