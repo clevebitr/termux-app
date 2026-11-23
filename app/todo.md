@@ -12,7 +12,7 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `91f9f0b refactor: 收敛全屏与挖孔窗口属性并加对话框宽度下限` |
+| 最近提交 | `3877f33 feat: 抽屉会话列表上下留出间隙` |
 | 规模 | `TermuxActivity` 2100 行；`commands/` 5 文件 491 行；`ext/` 8 个扩展 + api/host；`terminal/` 仅剩 6 文件 |
 | 验证 | 本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 179 项、1 项既有失败 |
 
@@ -86,12 +86,21 @@
 
 - [x] 扩展可用性：`TerminalMenuItems.State` 增加 `splitScreenAvailable`/`searchAvailable`/`sessionsDrawerAvailable`，扩展禁用后分屏、搜索、抽屉动作从菜单与命令面板隐藏；测试 10 项（`c917360`）
 - [x] 抽屉强调条改为 3dp 内缩胶囊（距左 6dp、上下各 8dp、圆角 1.5dp），行最小高度 56dp，详情 12sp；列表去掉平台选择高亮与分隔线（`32d7c52`）
-- [x] 系统栏：根布局移除 `fitsSystemWindows`，由 `WindowInsetsListener` 显式设置内边距；底部始终保留手势条 inset（`5b85fb5`）
-- [x] 刘海：`applyWindowFlags()` 在 `setContentView()` 前设置 `FLAG_FULLSCREEN` 与 `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`（仅全屏），并加 200dp 对话框宽度下限（`91f9f0b`）
+- [x] 系统栏：底部手势条留白（`5b85fb5`，实现已在真机反馈后回退，见 2.8）
+- [x] 刘海：`setDisplayCutoutMode()` 在 `setContentView()` 前按 `fullscreen` 设置 `SHORT_EDGES`/`DEFAULT`；对话框宽度加 200dp 下限（`91f9f0b`、`55b3012`）
 - [x] 命令面板与设置搜索按结果数收缩列表高度（`8db2e1b`）
 - [x] 终端搜索条改为底部 16dp 圆角（`0a45190`）
 - [ ] 待决策：额外键中的 `SEARCH`/`DRAWER`/`SPLIT_*` 在扩展禁用后仍显示但无动作，是否随扩展可用性过滤
 - [ ] 待决策：设置/帮助/报告页顶栏仍取 `colorPrimary`（Material 2 观感），是否改为 `colorSurface`
+
+### 2.8 真机反馈修复（2026-11-23）
+
+- [x] 额外键闪烁：回退 inset 监听器里的 `setPadding`，恢复 `fitsSystemWindows` 与 `FLAG_FULLSCREEN` 原时机；保留 `setDisplayCutoutMode()` 的刘海适配（`DECISIONS.md` #22）
+- [x] 命令面板改为跟随终端配色方案（`TerminalDialogBuilder` + 自绘视图），删除 4 个失效布局/背景资源；`TerminalDialogBuilder.setScrollable(false)` 支持自带列表
+- [x] 抽屉会话列表上下各留 6dp 内距，会话卡片与头部、底部按钮不再贴边
+- [ ] 待验证：闪烁是否消失（键盘弹起/收起、切换输入法、全屏开关各一次）
+- [ ] 待验证：命令面板在深色/浅色与彩色强调色配色下的可读性、chip 与行按下态
+- [ ] 待验证：抽屉首末行间隙与胶囊强调条的配合
 
 ---
 
