@@ -323,6 +323,10 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
             return true;
         }
 
+        // The extra keys send their events directly to the view, which bypasses the activity, so the configured
+        // command shortcuts are taken here as well as in `TermuxActivity.dispatchKeyEvent()`.
+        if (mActivity.handleCommandShortcut(e)) return true;
+
         if (handleVirtualKeys(keyCode, e, true)) return true;
 
         if (keyCode == KeyEvent.KEYCODE_ENTER && !currentSession.isRunning()) {
@@ -341,16 +345,10 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
                 mActivity.getDrawer().openDrawer(Gravity.LEFT);
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 mActivity.getDrawer().closeDrawers();
-            } else if (unicodeChar == 'k'/* keyboard */) {
-                onToggleSoftKeyboardRequest();
-            } else if (unicodeChar == 'f' /* find */) {
-                mActivity.showTerminalSearch();
-            } else if (unicodeChar == 'm'/* menu */) {
-                mActivity.showTerminalMenu();
+            } else if (unicodeChar == 'm'/* palette */) {
+                mActivity.showCommandPalette();
             } else if (unicodeChar == 'r'/* rename */) {
                 mTermuxTerminalSessionActivityClient.renameSession(currentSession);
-            } else if (unicodeChar == 'c'/* create */) {
-                mTermuxTerminalSessionActivityClient.addNewSession(false, null);
             } else if (unicodeChar == 'u' /* urls */) {
                 showUrlSelection();
             } else if (unicodeChar == 'v') {
@@ -595,13 +593,15 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     }
 
     /**
-     * Show the styled terminal context menu of the app instead of the system context menu, so that its
-     * items and their order can be configured with the `terminal-menu-items` property and it can be
-     * drawn with the colors of the termux color scheme.
+     * Show the command palette instead of the system context menu.
+     *
+     * <p>The palette carries the actions of the old context menu, in the order of the `terminal-menu-items`
+     * property, and follows the color scheme of the terminal, so the right click of a mouse and the "more"
+     * button of the text selection toolbar open the same list as the shortcut and the drawer button.</p>
      */
     @Override
     public boolean onShowContextMenu(@NonNull TerminalView view) {
-        mActivity.showTerminalMenu();
+        mActivity.showCommandPalette();
         return true;
     }
 

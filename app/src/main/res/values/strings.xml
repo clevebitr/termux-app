@@ -803,32 +803,21 @@
     <string name="termux_notification_exit_code_ignore_commands_dialog_message">Enter the command names separated by commas, like grep,test,diff. An empty value shows a card for every command.</string>
 
     <!-- Terminal Menu Preferences -->
-    <string name="termux_terminal_menu_preferences_title">Long press menu</string>
-    <string name="termux_terminal_menu_preferences_summary">Menu items · selection toolbar</string>
+    <string name="termux_command_shortcuts_header">Command shortcuts</string>
+    <string name="termux_command_shortcuts_title">Palette command shortcuts</string>
+    <string name="termux_command_shortcuts_summary">Entries like search=Ctrl+Alt+F,palette=Ctrl+Shift+P; an empty shortcut removes it.</string>
+    <string name="termux_mouse_right_click_title">Right click of a mouse</string>
+    <string name="termux_mouse_right_click_summary">Automatic opens the palette when the program does not track the mouse.</string>
+    <string name="termux_terminal_menu_preferences_title">Command palette</string>
+    <string name="termux_terminal_menu_preferences_summary">Terminal actions · selection toolbar · right click</string>
 
     <string name="termux_terminal_menu_items_header">Actions</string>
-    <string name="termux_terminal_menu_items_title">Context menu actions</string>
-    <string name="termux_terminal_menu_items_summary">The actions that are shown with a long press, in the order they are shown.</string>
+    <string name="termux_terminal_menu_items_title">Terminal actions in the palette</string>
+    <string name="termux_terminal_menu_items_summary">The terminal actions that the palette shows, in the order they are shown.</string>
     <string name="termux_terminal_menu_selection_items_title">Text selection toolbar actions</string>
     <string name="termux_terminal_menu_selection_items_summary">The buttons that are shown above the selection handles. At least one is kept.</string>
     <string name="termux_terminal_menu_kill_process_label">Kill process</string>
 
-    <string name="termux_terminal_menu_appearance_header">Appearance</string>
-    <string name="termux_terminal_menu_font_size_title">Font size in sp</string>
-    <string name="termux_terminal_menu_font_size_summary">The size of the items of the menu dialog.</string>
-    <string name="termux_terminal_menu_corner_radius_title">Corner radius in dp (0 = square)</string>
-    <string name="termux_terminal_menu_corner_radius_summary">0 gives the square corners of a tui window, 8 gives a material design dialog.</string>
-    <string name="termux_terminal_menu_border_width_title">Border width in dp (0 = no border)</string>
-    <string name="termux_terminal_menu_border_width_summary">The border is drawn in the accent color of the menu.</string>
-    <string name="termux_terminal_menu_monospace_title">Monospace font</string>
-    <string name="termux_terminal_menu_monospace_off">The menu uses the default font of the system.</string>
-    <string name="termux_terminal_menu_monospace_on">The menu uses the monospace font of the terminal.</string>
-    <string name="termux_terminal_menu_show_icons_title">Show icons</string>
-    <string name="termux_terminal_menu_show_icons_off">The items only show their label.</string>
-    <string name="termux_terminal_menu_show_icons_on">The items show a small symbol on their right edge.</string>
-    <string name="termux_terminal_menu_background_color_title">Background color</string>
-    <string name="termux_terminal_menu_foreground_color_title">Text color</string>
-    <string name="termux_terminal_menu_accent_color_title">Accent color</string>
 
     <!-- Ordered items preference (shared by the menu and the selection toolbar) -->
     <string name="termux_ordered_items_none">None</string>

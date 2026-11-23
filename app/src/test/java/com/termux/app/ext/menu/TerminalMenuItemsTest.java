@@ -3,8 +3,6 @@ package com.termux.app.ext.menu;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -103,27 +101,4 @@ public class TerminalMenuItemsTest {
         assertTrue(TerminalMenuItems.isEnabled(TerminalMenuAction.SEARCH, exited));
     }
 
-    @Test
-    public void buildKeepsTheConfiguredOrderAndSkipsHiddenActions() {
-        List<TerminalMenuAction> configured = Arrays.asList(
-            TerminalMenuAction.SEARCH,
-            TerminalMenuAction.SPLIT_CLOSE,
-            TerminalMenuAction.SETTINGS);
-
-        List<TerminalMenuDialog.Item> items = TerminalMenuItems.build(
-            configured, IDLE, action -> action.name());
-
-        assertEquals(2, items.size());
-        assertEquals(TerminalMenuAction.SEARCH, items.get(0).action);
-        assertEquals(TerminalMenuAction.SETTINGS, items.get(1).action);
-        assertEquals("SEARCH", items.get(0).title.toString());
-    }
-
-    @Test
-    public void buildReturnsAnEmptyListWhenEverythingIsHidden() {
-        List<TerminalMenuDialog.Item> items = TerminalMenuItems.build(
-            Collections.singletonList(TerminalMenuAction.SPLIT_CLOSE), IDLE, action -> action.name());
-
-        assertTrue(items.isEmpty());
-    }
 }

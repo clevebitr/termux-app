@@ -6,7 +6,6 @@ import androidx.annotation.Nullable;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.logger.Logger;
 import com.termux.app.properties.ForkProperties;
-import com.termux.app.widget.TerminalDialogStyles;
 import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 import com.termux.view.textselection.TextSelectionCursorController;
 
@@ -18,13 +17,18 @@ import java.util.Locale;
 import java.util.Properties;
 
 /**
- * The configuration of the terminal context menu and of the floating text selection toolbar, parsed
- * from the `terminal-menu-*` and `selection-toolbar-items` properties of the `termux.properties` file.
+ * The configuration of the terminal actions of the command palette and of the floating text selection
+ * toolbar, parsed from the `terminal-menu-items` and `selection-toolbar-items` properties of the
+ * `termux.properties` file.
  *
- * Like the `status-bar-*` and `notification-*` keys, these keys are not part of
+ * <p>The actions and their order decide which terminal actions the command palette shows; the appearance of
+ * the old context menu dialog is not configurable anymore, since the palette follows the color scheme of the
+ * terminal and the shape tokens of the app.</p>
+ *
+ * <p>Like the `status-bar-*` and `notification-*` keys, these keys are not part of
  * {@link TermuxPropertyConstants#TERMUX_APP_PROPERTIES_LIST}, so the properties must be read with
  * {@code TermuxAppSharedProperties.getProperties(false)}, which reads the file instead of returning the
- * memory cache that is filtered by that list.
+ * memory cache that is filtered by that list.</p>
  */
 public final class TerminalMenuConfig {
 
@@ -53,20 +57,6 @@ public final class TerminalMenuConfig {
     public static final List<String> SELECTION_TOOLBAR_IDS = Collections.unmodifiableList(Arrays.asList(
         SELECTION_TOOLBAR_COPY, SELECTION_TOOLBAR_PASTE, SELECTION_TOOLBAR_MORE));
 
-    public static final int DEFAULT_FONT_SIZE_SP = 13;
-    public static final int MIN_FONT_SIZE_SP = 8;
-    public static final int MAX_FONT_SIZE_SP = 24;
-
-    /** The radius of the corners in dp, by default the large corner radius of Material 3. */
-    public static final int DEFAULT_CORNER_RADIUS_DP = TerminalDialogStyles.DIALOG_CORNER_DP;
-    public static final int MIN_CORNER_RADIUS_DP = 0;
-    public static final int MAX_CORNER_RADIUS_DP = 32;
-
-    /** The width of the border around the dialog in dp, 0 for no border. */
-    public static final int DEFAULT_BORDER_WIDTH_DP = 1;
-    public static final int MIN_BORDER_WIDTH_DP = 0;
-    public static final int MAX_BORDER_WIDTH_DP = 8;
-
     /** The actions that are shown in the terminal context menu, in the order they are shown. */
     @NonNull
     public final List<TerminalMenuAction> menuItems = new ArrayList<>();
@@ -78,22 +68,15 @@ public final class TerminalMenuConfig {
     @NonNull
     public final List<Integer> selectionToolbarActions = new ArrayList<>();
 
-    public int fontSizeSp = DEFAULT_FONT_SIZE_SP;
-    public int cornerRadiusDp = DEFAULT_CORNER_RADIUS_DP;
-    public int borderWidthDp = DEFAULT_BORDER_WIDTH_DP;
-    /** Whether the text is drawn with the monospace font of the terminal. */
-    public boolean monospace = true;
-    /** Whether the items show an icon on their right edge. */
-    public boolean showIcons = true;
-    /** The background color, empty to derive it from the color scheme. */
+    /**
+     * @return The configuration with the default actions and the default selection toolbar, which is used while
+     *         the extension is disabled, so that the palette and the text selection toolbar keep working instead
+     *         of showing no action at all.
+     */
     @NonNull
-    public String backgroundColor = "";
-    /** The text color, empty to use the foreground color of the color scheme. */
-    @NonNull
-    public String foregroundColor = "";
-    /** The accent color, empty to use the `color4` of the color scheme. */
-    @NonNull
-    public String accentColor = "";
+    public static TerminalMenuConfig defaults() {
+        return parse(null);
+    }
 
     /**
      * Parse the configuration from the {@code properties} of the `termux.properties` file. Invalid or
@@ -134,18 +117,6 @@ public final class TerminalMenuConfig {
         // text anymore, so the default actions are used if all of them were removed.
         if (config.selectionToolbarActions.isEmpty())
             config.selectionToolbarActions.addAll(getDefaultSelectionToolbarActions());
-
-        config.fontSizeSp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_FONT_SIZE,
-            DEFAULT_FONT_SIZE_SP, MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP);
-        config.cornerRadiusDp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_CORNER_RADIUS,
-            DEFAULT_CORNER_RADIUS_DP, MIN_CORNER_RADIUS_DP, MAX_CORNER_RADIUS_DP);
-        config.borderWidthDp = ForkProperties.getInt(LOG_TAG, properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_BORDER_WIDTH,
-            DEFAULT_BORDER_WIDTH_DP, MIN_BORDER_WIDTH_DP, MAX_BORDER_WIDTH_DP);
-        config.monospace = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_MONOSPACE, true);
-        config.showIcons = ForkProperties.getBoolean(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_SHOW_ICONS, true);
-        config.backgroundColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_BACKGROUND_COLOR, "").trim();
-        config.foregroundColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_FOREGROUND_COLOR, "").trim();
-        config.accentColor = ForkProperties.getString(properties, TermuxPropertyConstants.KEY_TERMINAL_MENU_ACCENT_COLOR, "").trim();
 
         return config;
     }

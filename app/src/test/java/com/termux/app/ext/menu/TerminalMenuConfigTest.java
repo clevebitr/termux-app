@@ -127,43 +127,14 @@ public class TerminalMenuConfigTest {
     }
 
     @Test
-    public void testDefaultStyle() {
-        TerminalMenuConfig config = parse();
-
-        Assert.assertEquals(TerminalMenuConfig.DEFAULT_CORNER_RADIUS_DP, config.cornerRadiusDp);
-        Assert.assertEquals(1, config.borderWidthDp);
-        Assert.assertEquals(TerminalMenuConfig.DEFAULT_FONT_SIZE_SP, config.fontSizeSp);
-        Assert.assertTrue(config.monospace);
-        Assert.assertTrue(config.showIcons);
-        Assert.assertEquals("", config.backgroundColor);
-        Assert.assertEquals("", config.foregroundColor);
-        Assert.assertEquals("", config.accentColor);
-    }
-
-    @Test
-    public void testStyleProperties() {
+    public void testMenuItemsOrderIsKeptAndDuplicatesDropped() {
         TerminalMenuConfig config = parse(
-            "terminal-menu-font-size", "16",
-            "terminal-menu-corner-radius", "8",
-            "terminal-menu-border-width", "0",
-            "terminal-menu-monospace", "false",
-            "terminal-menu-show-icons", "false",
-            "terminal-menu-background-color", "#ff000000",
-            "terminal-menu-accent-color", "theme:color2");
+            "terminal-menu-items", "settings, search, settings, unknown, split-vertical");
 
-        Assert.assertEquals(16, config.fontSizeSp);
-        Assert.assertEquals(8, config.cornerRadiusDp);
-        Assert.assertEquals(0, config.borderWidthDp);
-        Assert.assertFalse(config.monospace);
-        Assert.assertFalse(config.showIcons);
-        Assert.assertEquals("#ff000000", config.backgroundColor);
-        Assert.assertEquals("theme:color2", config.accentColor);
-    }
-
-    @Test
-    public void testOutOfRangeFontSizeFallsBackToDefault() {
-        Assert.assertEquals(TerminalMenuConfig.DEFAULT_FONT_SIZE_SP, parse("terminal-menu-font-size", "99").fontSizeSp);
-        Assert.assertEquals(TerminalMenuConfig.DEFAULT_FONT_SIZE_SP, parse("terminal-menu-font-size", "0").fontSizeSp);
+        Assert.assertEquals(3, config.menuItems.size());
+        Assert.assertEquals(TerminalMenuAction.SETTINGS, config.menuItems.get(0));
+        Assert.assertEquals(TerminalMenuAction.SEARCH, config.menuItems.get(1));
+        Assert.assertEquals(TerminalMenuAction.SPLIT_VERTICAL, config.menuItems.get(2));
     }
 
     @Test

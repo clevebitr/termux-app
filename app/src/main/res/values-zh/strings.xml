@@ -745,32 +745,21 @@
     <string name="termux_notification_exit_code_ignore_commands_dialog_message">输入命令名，逗号分隔，例如 grep,test,diff。留空则所有命令都提示。</string>
 
     <!-- Terminal Menu Preferences -->
-    <string name="termux_terminal_menu_preferences_title">长按菜单</string>
-    <string name="termux_terminal_menu_preferences_summary">菜单项 · 选择浮条</string>
+    <string name="termux_command_shortcuts_header">命令快捷键</string>
+    <string name="termux_command_shortcuts_title">命令面板快捷键</string>
+    <string name="termux_command_shortcuts_summary">形如 search=Ctrl+Alt+F,palette=Ctrl+Shift+P；留空则取消该命令的快捷键。</string>
+    <string name="termux_mouse_right_click_title">鼠标右键</string>
+    <string name="termux_mouse_right_click_summary">自动：程序未开启鼠标跟踪时打开命令面板。</string>
+    <string name="termux_terminal_menu_preferences_title">命令面板</string>
+    <string name="termux_terminal_menu_preferences_summary">终端动作 · 选择浮条 · 鼠标右键</string>
 
     <string name="termux_terminal_menu_items_header">动作</string>
-    <string name="termux_terminal_menu_items_title">长按菜单项</string>
-    <string name="termux_terminal_menu_items_summary">长按终端时显示的项，顺序即显示顺序。</string>
+    <string name="termux_terminal_menu_items_title">命令面板中的终端动作</string>
+    <string name="termux_terminal_menu_items_summary">命令面板中显示的终端动作，顺序即显示顺序。</string>
     <string name="termux_terminal_menu_selection_items_title">文本选择浮条项</string>
     <string name="termux_terminal_menu_selection_items_summary">选字后显示在手柄上方的按钮，至少保留一项。</string>
     <string name="termux_terminal_menu_kill_process_label">杀掉进程</string>
 
-    <string name="termux_terminal_menu_appearance_header">外观</string>
-    <string name="termux_terminal_menu_font_size_title">字号（sp）</string>
-    <string name="termux_terminal_menu_font_size_summary">菜单对话框中各项的字号。</string>
-    <string name="termux_terminal_menu_corner_radius_title">圆角（dp，0 = 直角）</string>
-    <string name="termux_terminal_menu_corner_radius_summary">0 = TUI 窗口的直角，8 = Material 对话框风格。</string>
-    <string name="termux_terminal_menu_border_width_title">描边宽度（dp，0 = 无描边）</string>
-    <string name="termux_terminal_menu_border_width_summary">描边使用菜单的强调色。</string>
-    <string name="termux_terminal_menu_monospace_title">等宽字体</string>
-    <string name="termux_terminal_menu_monospace_off">菜单使用系统默认字体。</string>
-    <string name="termux_terminal_menu_monospace_on">菜单使用终端的等宽字体。</string>
-    <string name="termux_terminal_menu_show_icons_title">显示图标</string>
-    <string name="termux_terminal_menu_show_icons_off">各项只显示文字。</string>
-    <string name="termux_terminal_menu_show_icons_on">各项右侧显示一个小符号。</string>
-    <string name="termux_terminal_menu_background_color_title">背景颜色</string>
-    <string name="termux_terminal_menu_foreground_color_title">文字颜色</string>
-    <string name="termux_terminal_menu_accent_color_title">强调色</string>
 
     <!-- Ordered items preference (shared by the menu and the selection toolbar) -->
     <string name="termux_ordered_items_none">无</string>

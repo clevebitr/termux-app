@@ -31,6 +31,9 @@ import android.widget.Toast;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.R;
 import com.termux.app.api.file.FileReceiverActivity;
+import com.termux.app.commands.CommandShortcuts;
+import com.termux.app.commands.ShellCommand;
+import com.termux.app.commands.ShellCommandCatalog;
 import com.termux.app.ext.notifications.NotificationsExtension;
 import com.termux.app.ext.menu.TerminalMenuAction;
 import com.termux.app.ext.menu.TerminalMenuConfig;
@@ -42,7 +45,10 @@ import com.termux.app.ext.statusbar.StatusBarConfig;
 import com.termux.app.ext.drawer.DrawerExtension;
 import com.termux.app.ext.search.SearchExtension;
 import com.termux.app.ext.split.SplitScreenExtension;
+import com.termux.app.properties.ForkProperties;
+import com.termux.app.properties.ForkPropertyKeys;
 import com.termux.app.terminal.TermuxActivityRootView;
+import com.termux.app.terminal.TermuxTerminalFrame;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
 import com.termux.shared.activities.ReportActivity;
@@ -98,6 +104,8 @@ import androidx.viewpager.widget.ViewPager;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.Properties;
 import java.util.Objects;
 
 /**
@@ -239,6 +247,15 @@ public final class TermuxActivity extends AppCompatActivity
      * activity. Replaces the switch that used to run the actions, so that the mapping is complete and testable.
      */
     private TerminalActionRunner mTerminalActionRunner;
+
+    /** The shortcuts of the palette commands, read from the `command-shortcuts` property. */
+    @NonNull
+    private CommandShortcuts mCommandShortcuts = CommandShortcuts.defaults();
+
+    /** What the secondary mouse button does, read from the `mouse-right-click` property. */
+    @NonNull
+    private TermuxTerminalFrame.SecondaryButtonBehaviour mSecondaryButtonBehaviour =
+        TermuxTerminalFrame.SecondaryButtonBehaviour.AUTO;
 
     /**
      * If between onResume() and onStop(). Note that only one session is in the foreground of the terminal view at the
@@ -758,6 +775,13 @@ public final class TermuxActivity extends AppCompatActivity
         // goes through.
         if (mExtensionManager != null) mExtensionManager.onReload();
 
+        // The shortcuts of the palette and the behaviour of the secondary mouse button belong to the host
+        // rather than to an extension, so they are read here, which is the single place every reload goes through.
+        Properties forkProperties = ForkProperties.readTermuxProperties();
+        mCommandShortcuts = CommandShortcuts.parse(forkProperties);
+        mSecondaryButtonBehaviour = parseSecondaryButtonBehaviour(forkProperties);
+        applySecondaryButtonBehaviour();
+
         for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
             if (viewClient != null) viewClient.onReloadProperties();
         }
@@ -768,6 +792,51 @@ public final class TermuxActivity extends AppCompatActivity
     }
 
 
+
+    /** @return The shortcuts of the palette commands, which the palette labels and the key handling share. */
+    @NonNull
+    public CommandShortcuts getCommandShortcuts() {
+        return mCommandShortcuts;
+    }
+
+    /** @return What the secondary mouse button does, read from the `mouse-right-click` property. */
+    @NonNull
+    public TermuxTerminalFrame.SecondaryButtonBehaviour getSecondaryButtonBehaviour() {
+        return mSecondaryButtonBehaviour;
+    }
+
+    /**
+     * Apply the configured secondary button behaviour to the terminal panes.
+     *
+     * <p>The panes do not exist yet when the properties are loaded before the content view is created, so the
+     * method tolerates a missing view; it is called again after the views are created.</p>
+     */
+    private void applySecondaryButtonBehaviour() {
+        for (int id : new int[]{R.id.terminal_frame, R.id.terminal_frame_2}) {
+            View view = findViewById(id);
+            if (view instanceof TermuxTerminalFrame)
+                ((TermuxTerminalFrame) view).setSecondaryButtonBehaviour(mSecondaryButtonBehaviour);
+        }
+    }
+
+    /** @return The behaviour of the secondary mouse button of the `mouse-right-click` property. */
+    @NonNull
+    private static TermuxTerminalFrame.SecondaryButtonBehaviour parseSecondaryButtonBehaviour(
+        @Nullable Properties properties) {
+        if (properties == null) return TermuxTerminalFrame.SecondaryButtonBehaviour.AUTO;
+
+        String value = ForkProperties.getString(properties, ForkPropertyKeys.MOUSE_RIGHT_CLICK, "auto");
+        if (value == null) return TermuxTerminalFrame.SecondaryButtonBehaviour.AUTO;
+
+        switch (value.trim().toLowerCase(Locale.ROOT)) {
+            case "forward":
+                return TermuxTerminalFrame.SecondaryButtonBehaviour.FORWARD;
+            case "palette":
+                return TermuxTerminalFrame.SecondaryButtonBehaviour.PALETTE;
+            default:
+                return TermuxTerminalFrame.SecondaryButtonBehaviour.AUTO;
+        }
+    }
 
     /**
      * 目的 — 让窗口在配置允许时使用刘海（display cutout）区域，避免全屏时顶部留下一条黑带。
@@ -1241,12 +1310,12 @@ public final class TermuxActivity extends AppCompatActivity
     }
 
     /**
-     * Hook the system menu of the activity to show the terminal context menu instead, so that the
-     * hardware menu key opens it.
+     * Hook the system menu of the activity to show the command palette instead, so that the hardware menu key
+     * opens the palette, which now carries the actions of the old context menu.
      */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        showTerminalMenu();
+        showCommandPalette();
         return false;
     }
 
@@ -1257,18 +1326,7 @@ public final class TermuxActivity extends AppCompatActivity
     @NonNull
     public TerminalMenuConfig getTerminalMenuConfig() {
         TerminalMenuExtension extension = ExtensionHost.get(this).findRunning(TerminalMenuExtension.class);
-        return extension != null ? extension.getConfig() : new TerminalMenuConfig();
-    }
-
-    /**
-     * Show the terminal context menu, which is implemented by the terminal menu extension.
-     *
-     * <p>A disabled extension shows nothing, since the menu belongs to it; the long press, the right click and the
-     * hardware menu key then fall back to the default behaviour of the terminal view.</p>
-     */
-    public void showTerminalMenu() {
-        TerminalMenuExtension extension = ExtensionHost.get(this).findRunning(TerminalMenuExtension.class);
-        if (extension != null) extension.showMenu();
+        return extension != null ? extension.getConfig() : TerminalMenuConfig.defaults();
     }
 
     /** @return The manager of the notification cards and of the recent notifications, or {@code null}. */
@@ -1358,11 +1416,12 @@ public final class TermuxActivity extends AppCompatActivity
     }
 
     /**
-     * Open the command palette.
+     * Open the command palette, which is the single entry point of the terminal actions.
      *
-     * <p>The palette reuses the rules of the terminal context menu through {@link ShellCommandCatalog}, so
-     * that an action that is hidden or disabled in the menu is shown the same way here. The commands run
-     * through the existing action dispatcher, which keeps a single implementation per action.</p>
+     * <p>The terminal actions and their order come from the `terminal-menu-items` property, the visibility and
+     * enabled rules from {@link TerminalMenuItems}, and the shortcuts from {@link CommandShortcuts}, so that the
+     * palette, the text selection toolbar and the terminal keys cannot drift apart. The commands run through the
+     * existing action dispatcher, which keeps a single implementation per action.</p>
      */
     @Override
     public void showCommandPalette() {
@@ -1382,27 +1441,59 @@ public final class TermuxActivity extends AppCompatActivity
                 && !getTerminalNotificationManager().getRecentNotifications().isEmpty(),
             session.isRunning());
 
-        List<com.termux.app.commands.ShellCommand> commands = ShellCommandCatalog.build(
-            this, state, action -> action.getTitle(this, session), mShellCommandHost);
+        List<ShellCommand> commands = ShellCommandCatalog.build(
+            this, getTerminalMenuConfig().menuItems, state, mCommandShortcuts, session, mShellCommandHost);
         ShellCommandPalette.show(this, commands, session);
     }
 
     /**
-     * Open the command palette with Ctrl+Shift+P.
+     * Take the configured command shortcuts before the key reaches the terminal.
      *
-     * <p>Intercepted at the activity level so that the shortcut works whether the terminal view or another
-     * child has the focus; the combination is not used by common terminal programs, and the handler returns
-     * the event as handled only when the palette was actually shown.</p>
+     * <p>The activity sees the keys first, whether the terminal view or another child has the focus, so the
+     * shortcuts that the palette shows work from every entry point and can be changed with the
+     * `command-shortcuts` property without touching the key handling of the terminal view.</p>
      */
     @Override
     public boolean dispatchKeyEvent(@NonNull KeyEvent event) {
-        if (event.getAction() == KeyEvent.ACTION_DOWN
-            && event.isCtrlPressed() && event.isShiftPressed()
-            && event.getKeyCode() == KeyEvent.KEYCODE_P) {
+        if (handleCommandShortcut(event)) return true;
+        return super.dispatchKeyEvent(event);
+    }
+
+    /**
+     * Run the command whose shortcut is {@code event}, if any.
+     *
+     * <p>Public because the extra keys send their key events directly to the terminal view, which bypasses the
+     * activity, so the view client asks the host to take the configured shortcut as well.</p>
+     *
+     * @return Whether the event was taken by a command, so that it is not sent to the terminal.
+     */
+    public boolean handleCommandShortcut(@NonNull KeyEvent event) {
+        if (event.getAction() != KeyEvent.ACTION_DOWN || mShellCommandHost == null) return false;
+
+        if (mCommandShortcuts.matches(CommandShortcuts.ID_PALETTE, event)) {
             showCommandPalette();
             return true;
         }
-        return super.dispatchKeyEvent(event);
+        if (mCommandShortcuts.matches(ShellCommandCatalog.ID_TOGGLE_KEYBOARD, event)) {
+            mShellCommandHost.toggleSoftKeyboard();
+            return true;
+        }
+        if (mCommandShortcuts.matches(ShellCommandCatalog.ID_NEW_SESSION, event)) {
+            mShellCommandHost.addNewSession();
+            return true;
+        }
+        if (mCommandShortcuts.matches(ShellCommandCatalog.ID_NEW_NAMED_SESSION, event)) {
+            mShellCommandHost.addNamedSession();
+            return true;
+        }
+
+        for (TerminalMenuAction action : TerminalMenuAction.values()) {
+            if (!mCommandShortcuts.matches(action.getId(), event)) continue;
+            runTerminalMenuAction(action);
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -1460,6 +1551,8 @@ public final class TermuxActivity extends AppCompatActivity
                 return false;
             });
         }
+
+        applySecondaryButtonBehaviour();
 
         mActiveTerminalViewIndex = 0;
         mTerminalView = mTerminalViews[0];
