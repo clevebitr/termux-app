@@ -16,7 +16,6 @@ import com.termux.app.fragments.settings.termux.AppearancePreferencesFragment;
 import com.termux.app.ext.backup.BackupPreferencesFragment;
 import com.termux.app.fragments.settings.termux.DebuggingPreferencesFragment;
 import com.termux.app.fragments.settings.termux.NotificationPreferencesFragment;
-import com.termux.app.fragments.settings.termux.StatusBarPreferencesFragment;
 import com.termux.app.fragments.settings.termux.TerminalIOPreferencesFragment;
 import com.termux.app.fragments.settings.termux.TerminalKeyboardPreferencesFragment;
 import com.termux.app.fragments.settings.termux.TerminalMenuPreferencesFragment;
@@ -79,8 +78,6 @@ public final class SettingsSearchIndex {
             TerminalViewPreferencesFragment.class.getName()),
         new Page(R.string.termux_terminal_io_preferences_title, R.xml.termux_terminal_io_preferences,
             TerminalIOPreferencesFragment.class.getName()),
-        new Page(R.string.termux_status_bar_preferences_title, R.xml.termux_status_bar_preferences,
-            StatusBarPreferencesFragment.class.getName()),
         new Page(R.string.termux_terminal_menu_preferences_title, R.xml.termux_terminal_menu_preferences,
             TerminalMenuPreferencesFragment.class.getName()),
         new Page(R.string.termux_notification_preferences_title, R.xml.termux_notification_preferences,

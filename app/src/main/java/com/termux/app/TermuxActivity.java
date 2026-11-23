@@ -42,9 +42,9 @@ import com.termux.app.terminal.menu.TerminalMenuConfig;
 import com.termux.app.terminal.menu.TerminalMenuDialog;
 import com.termux.app.terminal.menu.TerminalMenuItems;
 import com.termux.app.notifications.TerminalNotificationManager;
-import com.termux.app.statusbar.StatusBarConfig;
-import com.termux.app.statusbar.StatusBarController;
-import com.termux.app.statusbar.StatusBarView;
+import com.termux.app.ext.statusbar.StatusBarConfig;
+import com.termux.app.ext.statusbar.StatusBarController;
+import com.termux.app.ext.statusbar.StatusBarView;
 import com.termux.app.terminal.TerminalDrawerController;
 import com.termux.app.terminal.TerminalSearchController;
 import com.termux.app.terminal.TerminalSplitScreenController;
@@ -71,7 +71,10 @@ import com.termux.app.commands.ShellCommandCatalog;
 import com.termux.app.commands.ShellCommandHost;
 import com.termux.app.commands.ShellCommandPalette;
 import com.termux.app.commands.TerminalActionRunner;
+import com.termux.app.ext.api.Extension;
+import com.termux.app.ext.host.ExtensionHost;
 import com.termux.app.ext.host.ExtensionManager;
+import com.termux.app.ext.statusbar.StatusBarExtension;
 import com.termux.app.terminal.TermuxTerminalViewClient;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
 import com.termux.shared.logger.Logger;
@@ -200,9 +203,6 @@ public final class TermuxActivity extends AppCompatActivity
     private final TerminalDrawerController mDrawerController = new TerminalDrawerController(this);
 
     /** The status bar that shows the time, battery, memory, cpu, network, ip and proxy segments. */
-    private StatusBarView mStatusBarView;
-    /** The controller that refreshes the segments of the {@link #mStatusBarView}. */
-    private StatusBarController mStatusBarController;
 
     /**
      * The overlay that shows the notification cards, like for a command that exited with a non-zero
@@ -382,7 +382,6 @@ public final class TermuxActivity extends AppCompatActivity
 
         setMargins();
         setTerminalPadding();
-        setUpStatusBar();
         setUpNotificationOverlay();
         reloadTerminalMenuConfig();
 
@@ -474,11 +473,6 @@ public final class TermuxActivity extends AppCompatActivity
 
         mIsVisible = true;
 
-        if (mStatusBarController != null) {
-            mStatusBarController.start();
-            updateStatusBarLayout();
-        }
-
         if (mExtensionManager != null) mExtensionManager.onStart();
 
         if (mTermuxTerminalSessionActivityClient != null)
@@ -562,8 +556,6 @@ public final class TermuxActivity extends AppCompatActivity
         if (mIsInvalidState) return;
 
         mIsVisible = false;
-
-        if (mStatusBarController != null) mStatusBarController.stop();
 
         if (mExtensionManager != null) mExtensionManager.onStop();
 
@@ -1133,29 +1125,20 @@ public final class TermuxActivity extends AppCompatActivity
             dpToPx(paddingBottom));
     }
 
-    /** @return The configuration of the status bar, or {@code null} if it was not loaded yet. */
+    /**
+     * @return The configuration of the status bar, or {@code null} while the status bar extension is disabled.
+     *
+     * <p>The host reads the configuration of an extension through the instance that the extension registry
+     * holds, which is the only way the layout of the host may depend on a feature that can be turned off.</p>
+     */
     @Nullable
     private StatusBarConfig getStatusBarConfig() {
-        return mStatusBarController != null ? mStatusBarController.getConfig() : null;
+        Extension extension = ExtensionHost.get(this).extension(StatusBarExtension.ID);
+        return extension instanceof StatusBarExtension ? ((StatusBarExtension) extension).getConfig() : null;
     }
 
     private int dpToPx(int dp) {
         return Math.round(ViewUtils.dpToPx(this, dp));
-    }
-
-    /**
-     * Set up the status bar that shows the time, battery, memory, cpu, network, ip and proxy
-     * segments, which are configured with the `status-bar-*` properties from `termux.properties` or
-     * the status bar section of the termux settings.
-     */
-    private void setUpStatusBar() {
-        mStatusBarView = findViewById(R.id.status_bar_view);
-        if (mStatusBarView == null) return;
-
-        mStatusBarController = new StatusBarController(this, mStatusBarView,
-            this::onStatusBarSegmentClicked);
-        mStatusBarController.reload();
-        updateStatusBarLayout();
     }
 
     /**
@@ -1483,68 +1466,16 @@ public final class TermuxActivity extends AppCompatActivity
     }
 
     /**
-     * Show or hide the status bar and apply its position and overlay from the `status-bar-position`
-     * and `status-bar-overlay` properties.
+     * Recompute the space that the status bar takes from the terminal, and move the notification cards below
+     * it when it overlays the terminal.
      *
-     * The status bar is hosted in the content container of the sessions drawer, at the top or bottom
-     * edge, so that the drawer is drawn over it and it never covers the drawer. When it does not
-     * overlay the terminal, the terminal is inset by its height instead, which resizes the terminal
-     * views (fewer rows, `SIGWINCH` to the terminal programs) without covering any content.
+     * <p>Called by the status bar extension when it changed the visibility of its view, since only the host
+     * knows how the panes and the overlay are laid out.</p>
      */
-    public void updateStatusBarLayout() {
-        if (mStatusBarView == null || mStatusBarController == null) return;
-
-        StatusBarConfig config = getStatusBarConfig();
-        if (config == null) return;
-
-        boolean visible = config.enabled && !config.segments.isEmpty();
-        mStatusBarView.setVisibility(visible ? View.VISIBLE : View.GONE);
-
-        // Only an overlay needs an elevation, since the terminal is otherwise inset by the height of
-        // the status bar by setTerminalPadding() and nothing is drawn below it.
-        mStatusBarView.setElevation(visible && config.overlay ? dpToPx(4) : 0);
-
-        // Inset the terminal by the height of the status bar, or restore the space it took before.
+    public void onStatusBarLayoutChanged() {
         setTerminalPadding();
-
-        // Move the notification cards below the status bar when both are shown in the top corner.
         updateNotificationOverlayLayout();
     }
-
-    /**
-     * Run the action of a status bar segment that was clicked, as set with the
-     * `status-bar-segment-<id>-action` property.
-     */
-    public void onStatusBarSegmentClicked(@NonNull StatusBarConfig.Segment segment) {
-        try {
-            switch (segment.action) {
-                case StatusBarConfig.ACTION_WIFI_SETTINGS:
-                    startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
-                    break;
-                case StatusBarConfig.ACTION_BATTERY_SETTINGS:
-                    startActivity(new Intent(Intent.ACTION_POWER_USAGE_SUMMARY));
-                    break;
-                case StatusBarConfig.ACTION_DATA_SETTINGS:
-                    startActivity(new Intent(Settings.ACTION_DATA_ROAMING_SETTINGS));
-                    break;
-                case StatusBarConfig.ACTION_APP_SETTINGS:
-                    startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.parse("package:" + getPackageName())));
-                    break;
-                case StatusBarConfig.ACTION_NEW_SESSION:
-                    if (mTermuxTerminalSessionActivityClient != null)
-                        mTermuxTerminalSessionActivityClient.addNewSession(false, null);
-                    break;
-                default:
-                    break;
-            }
-        } catch (Exception e) {
-            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to run the action \"" + segment.action + "\" of the status bar segment \"" + segment.id + "\"", e);
-            Logger.showToast(this, getString(R.string.msg_status_bar_action_failed, segment.action), true);
-        }
-    }
-
-
 
     public void addTermuxActivityRootViewGlobalLayoutListener() {
         getTermuxActivityRootView().getViewTreeObserver().addOnGlobalLayoutListener(getTermuxActivityRootView());

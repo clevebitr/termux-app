@@ -1,4 +1,4 @@
-package com.termux.app.statusbar;
+package com.termux.app.ext.statusbar;
 
 import android.content.Context;
 import android.graphics.Canvas;

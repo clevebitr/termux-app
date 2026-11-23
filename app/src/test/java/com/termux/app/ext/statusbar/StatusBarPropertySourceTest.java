@@ -1,4 +1,4 @@
-package com.termux.app.statusbar;
+package com.termux.app.ext.statusbar;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -30,7 +30,7 @@ public class StatusBarPropertySourceTest {
 
     /** The classes that reload a configuration of the fork, which must read it with the helper. */
     private static final Path[] CONFIGURATION_SOURCES = new Path[]{
-        Paths.get("src/main/java/com/termux/app/statusbar/StatusBarController.java"),
+        Paths.get("src/main/java/com/termux/app/ext/statusbar/StatusBarController.java"),
         Paths.get("src/main/java/com/termux/app/notifications/TerminalNotificationManager.java"),
     };
 
