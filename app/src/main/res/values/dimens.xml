@@ -22,4 +22,11 @@
     <dimen name="termux_dialog_padding">24dp</dimen>
     <!-- The min height and the padding of the text buttons in the footer of a dialog. -->
     <dimen name="termux_dialog_button_height">48dp</dimen>
+
+    <!-- The tab bar of the terminal: the height of a tab, the padding of its content, the maximum width of its title
+         and the text size, which are shared with the new tab button. -->
+    <dimen name="termux_tab_height">36dp</dimen>
+    <dimen name="termux_tab_padding">12dp</dimen>
+    <dimen name="termux_tab_title_max_width">160dp</dimen>
+    <dimen name="termux_tab_text_size">13sp</dimen>
 </resources>

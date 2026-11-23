@@ -7,6 +7,15 @@
     android:fitsSystemWindows="true"
     android:orientation="vertical">
 
+    <!-- The tab bar of the sessions, above the status bar and the terminal and outside the drawer, so that it stays
+         reachable while the sessions drawer is open. It is hidden until the activity creates the first tab, since it
+         only renders the state that the tab model holds. -->
+    <com.termux.app.terminal.tabs.TerminalTabBar
+        android:id="@+id/terminal_tab_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
     <RelativeLayout
         android:id="@+id/activity_termux_root_relative_layout"
         android:layout_width="match_parent"

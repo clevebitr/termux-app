@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One tab of the terminal tab bar: the title of the tab and its close button. The bar sets the colors and the
+  background of the whole row, since they depend on whether the tab is the active one.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/terminal_tab"
+    android:layout_width="wrap_content"
+    android:layout_height="@dimen/termux_tab_height"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/termux_tab_padding"
+    android:paddingEnd="@dimen/termux_tab_padding">
+
+    <TextView
+        android:id="@+id/terminal_tab_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ellipsize="middle"
+        android:maxWidth="@dimen/termux_tab_title_max_width"
+        android:singleLine="true"
+        android:textSize="@dimen/termux_tab_text_size" />
+
+    <TextView
+        android:id="@+id/terminal_tab_close"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/termux_tab_close_description"
+        android:padding="4dp"
+        android:text="@string/termux_tab_close_label"
+        android:textSize="@dimen/termux_tab_text_size" />
+
+</LinearLayout>

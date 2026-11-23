@@ -744,6 +744,12 @@
     <string name="termux_notification_exit_code_ignore_commands_summary">按设计会返回非 0 的命令，逗号分隔。</string>
     <string name="termux_notification_exit_code_ignore_commands_dialog_message">输入命令名，逗号分隔，例如 grep,test,diff。留空则所有命令都提示。</string>
 
+    <!-- Terminal tabs -->
+    <string name="termux_tab_close_label">&#215;</string>
+    <string name="termux_tab_close_description">关闭标签页</string>
+    <string name="termux_tab_new_description">新建标签页</string>
+    <string name="termux_tab_rename_title">重命名标签页</string>
+
     <!-- Terminal Menu Preferences -->
     <string name="termux_ime_compatibility_header">硬件键盘与输入法</string>
     <string name="termux_keyboard_compat_log_title">按键事件日志</string>

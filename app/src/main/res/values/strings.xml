@@ -802,6 +802,12 @@
     <string name="termux_notification_exit_code_ignore_commands_summary">Commands that return a non-zero exit code by design, separated by commas.</string>
     <string name="termux_notification_exit_code_ignore_commands_dialog_message">Enter the command names separated by commas, like grep,test,diff. An empty value shows a card for every command.</string>
 
+    <!-- Terminal tabs -->
+    <string name="termux_tab_close_label">&#215;</string>
+    <string name="termux_tab_close_description">Close tab</string>
+    <string name="termux_tab_new_description">New tab</string>
+    <string name="termux_tab_rename_title">Rename tab</string>
+
     <!-- Terminal Menu Preferences -->
     <string name="termux_ime_compatibility_header">Hardware keyboard and IME</string>
     <string name="termux_keyboard_compat_log_title">Key event log</string>
