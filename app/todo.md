@@ -12,9 +12,9 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `6d1ee61 fix: 修正共用对话框未绘制窗口背景` |
+| 最近提交 | `91f9f0b refactor: 收敛全屏与挖孔窗口属性并加对话框宽度下限` |
 | 规模 | `TermuxActivity` 2100 行；`commands/` 5 文件 491 行；`ext/` 8 个扩展 + api/host；`terminal/` 仅剩 6 文件 |
-| 验证 | 本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 177 项、1 项既有失败 |
+| 验证 | 本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 179 项、1 项既有失败 |
 
 ---
 
@@ -82,6 +82,19 @@
 
 ---
 
+### 2.7 交互与系统界面打磨（2026-11-23）
+
+- [x] 扩展可用性：`TerminalMenuItems.State` 增加 `splitScreenAvailable`/`searchAvailable`/`sessionsDrawerAvailable`，扩展禁用后分屏、搜索、抽屉动作从菜单与命令面板隐藏；测试 10 项（`c917360`）
+- [x] 抽屉强调条改为 3dp 内缩胶囊（距左 6dp、上下各 8dp、圆角 1.5dp），行最小高度 56dp，详情 12sp；列表去掉平台选择高亮与分隔线（`32d7c52`）
+- [x] 系统栏：根布局移除 `fitsSystemWindows`，由 `WindowInsetsListener` 显式设置内边距；底部始终保留手势条 inset（`5b85fb5`）
+- [x] 刘海：`applyWindowFlags()` 在 `setContentView()` 前设置 `FLAG_FULLSCREEN` 与 `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`（仅全屏），并加 200dp 对话框宽度下限（`91f9f0b`）
+- [x] 命令面板与设置搜索按结果数收缩列表高度（`8db2e1b`）
+- [x] 终端搜索条改为底部 16dp 圆角（`0a45190`）
+- [ ] 待决策：额外键中的 `SEARCH`/`DRAWER`/`SPLIT_*` 在扩展禁用后仍显示但无动作，是否随扩展可用性过滤
+- [ ] 待决策：设置/帮助/报告页顶栏仍取 `colorPrimary`（Material 2 观感），是否改为 `colorSurface`
+
+---
+
 ## 3. 进行中
 
 无。UI 层优化第一批已提交，下一步是出包做真机观感验证（第 4.6 节新增项），之后回到 4.1 的 `TerminalStylingController` 评估。
@@ -132,6 +145,9 @@
 - [ ] UI 层：抽屉会话行圆角涟漪与选中底色、强调条圆头、头部与底部按钮
 - [ ] UI 层：状态栏分段间距与按下态；命令面板在键盘弹出后的列表高度
 - [ ] UI 层：设置搜索的输入框、空状态与行布局；色板圆角；有序列表对话框行按下态
+- [ ] 系统界面：手势小横条留白（终端底行与额外键是否被覆盖）、`fullscreen=false` 时状态栏与挖孔避让、全屏刘海是否真正填满、键盘弹起时额外键与小横条的关系
+- [ ] 抽屉：胶囊强调条的位置、高度与选中行底色配合，切换会话后是否即时跟随
+- [ ] 扩展禁用：分屏、搜索、抽屉动作不再出现在终端菜单与命令面板
 - [ ] 禁用扩展后设置搜索不再出现其条目
 - [ ] 禁用后经其他路径进入功能页只显示停用说明
 - [ ] 命令面板四个入口（`Ctrl+Shift+P`、抽屉按钮、`command-palette` 菜单项、虚拟键 `F12`）
@@ -147,7 +163,7 @@
 | 项 | 状态 |
 | --- | --- |
 | `:app:compileDebugJavaWithJavac` | 通过（本机） |
-| `:app:testDebugUnitTest` | 177 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现） |
+| `:app:testDebugUnitTest` | 179 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现） |
 | `:app:assembleDebug` | 未执行，本机 NDK 缺 `libc++_shared` |
 | 设备验证 | 2026-11-23 首次真机试机：启动即崩溃（资源文件中的旧类名，见 `app/DECISIONS.md` #16），已修复并补 `ResourceClassNameTest`；其余行为仍未验证 |
 | CI | 推送后由 PR 触发；本机无 `gh`，状态待确认 |
