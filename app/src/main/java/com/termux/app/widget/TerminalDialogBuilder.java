@@ -1,9 +1,6 @@
 package com.termux.app.widget;
 
 import android.content.Context;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
-import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,10 +20,10 @@ import java.util.List;
  * 目的 — 为终端内的自绘对话框（终端菜单、命名输入、最近通知历史）提供统一的窗口、标题、正文与按钮栏，
  * 使这些对话框共用同一套 Material 3 圆角、边距、文字层级与按下态，而不是各自拼装窗口。
  *
- * <p>行为 — 窗口背景由 {@link TerminalDialogStyles#createDialogWindowBackground} 绘制，因此圆角来自主题令牌
- * {@code termux_dialog_corner_radius}，描边来自配色方案的强调色；正文自动包进滚动容器，并在超过屏幕高度的
- * 七成时滚动；按钮栏为右对齐的强调色文字按钮，按下态与行一致。颜色仍取自终端配色方案，不随 Material 3
- * 表面色变化。</p>
+ * <p>行为 — 窗口背景由 {@link TerminalDialogStyles#createDialogBackgroundPx} 按样式绘制，因此圆角来自主题令牌
+ * {@code termux_dialog_corner_radius} 或调用方给定的半径，描边来自配色方案的强调色；正文自动包进滚动容器，并在
+ * 超过屏幕高度的七成时滚动；按钮栏为右对齐的强调色文字按钮，按下态与行一致。颜色仍取自终端配色方案，
+ * 不随 Material 3 表面色变化。</p>
  *
  * <p>约束 — 只在主线程创建与显示；一个构建器只能显示一次。调用方负责设置标题之前准备好配色，标题与按钮
  * 的可读性依赖 {@link Style#foregroundColor} 与 {@link Style#accentColor} 的对比度。</p>
@@ -158,9 +155,12 @@ public final class TerminalDialogBuilder {
 
         Window window = dialog.getWindow();
         if (window != null) {
-            // The dialog draws its own background, so that the rounded corners and the accent border are not
-            // covered by the default window background of the platform.
-            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            // The dialog draws its own background, so that the corners and the accent border of the style are not
+            // covered by the default window background of the platform, whose corners are not the token of the app.
+            window.setBackgroundDrawable(TerminalDialogStyles.createDialogBackgroundPx(mContext,
+                mStyle.backgroundColor, mStyle.accentColor,
+                TerminalDialogStyles.dp(mContext, mStyle.cornerRadiusDp),
+                TerminalDialogStyles.dp(mContext, mStyle.borderWidthDp)));
             window.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT);
         }
 

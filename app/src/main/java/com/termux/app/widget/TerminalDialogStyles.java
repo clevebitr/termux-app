@@ -1,6 +1,5 @@
 package com.termux.app.widget;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Color;
@@ -102,14 +101,6 @@ public final class TerminalDialogStyles {
         return fallback;
     }
 
-    /** @return The background of a dialog, with the rounded corners and the accent border of a dialog window. */
-    @NonNull
-    public static GradientDrawable createDialogWindowBackground(@NonNull Context context, int backgroundColor,
-                                                                int accentColor) {
-        return createDialogBackgroundPx(context, backgroundColor, accentColor, dialogCornerRadiusPx(context),
-            dp(context, 1));
-    }
-
     /** @return The background of a dialog, with the given corner radius and border width in pixels. */
     @NonNull
     public static GradientDrawable createDialogBackgroundPx(@NonNull Context context, int backgroundColor,
@@ -120,19 +111,6 @@ public final class TerminalDialogStyles {
         background.setColor(backgroundColor);
         if (borderWidthPx > 0)
             background.setStroke(borderWidthPx, accentColor);
-        return background;
-    }
-
-    /** @return The background of a dialog, with square corners and a 1dp accent border by default. */
-    @NonNull
-    public static GradientDrawable createDialogBackground(@NonNull Context context, int backgroundColor,
-                                                         int accentColor, int cornerRadiusDp, int borderWidthDp) {
-        GradientDrawable background = new GradientDrawable();
-        background.setShape(GradientDrawable.RECTANGLE);
-        background.setCornerRadius(dp(context, cornerRadiusDp));
-        background.setColor(backgroundColor);
-        if (borderWidthDp > 0)
-            background.setStroke(dp(context, borderWidthDp), accentColor);
         return background;
     }
 
