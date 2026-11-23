@@ -41,6 +41,9 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
     final StyleSpan boldSpan = new StyleSpan(Typeface.BOLD);
     final StyleSpan italicSpan = new StyleSpan(Typeface.ITALIC);
 
+    /** The radius of the accent strip in dp, which is half of its 3dp width, so that it is a capsule. */
+    private static final float ACCENT_STRIP_RADIUS_DP = 1.5f;
+
     public TermuxSessionsListViewController(TermuxActivity activity, List<TermuxSession> sessionList,
                                             TerminalDrawerController drawerController) {
         super(activity.getApplicationContext(), R.layout.item_terminal_sessions_list, sessionList);
@@ -80,11 +83,11 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
         // activated; without this the tint of the current session would never be drawn.
         sessionRowView.setActivated(isCurrentSession);
         // The accent strip marks the session that is shown in the active pane, like the border of the active
-        // pane of the split screen. It is rounded, so that it follows the rounded corner of the row instead of
-        // ending in a square tip inside the tint of the activated row.
+        // pane of the split screen. It is a capsule: the radius is half of its width, so that both ends are round
+        // and the strip reads as a marker inside the rounded row instead of as the edge of the row.
         GradientDrawable accentBackground = new GradientDrawable();
         accentBackground.setShape(GradientDrawable.RECTANGLE);
-        accentBackground.setCornerRadius(ViewUtils.dpToPx(mActivity, 2));
+        accentBackground.setCornerRadius(ViewUtils.dpToPx(mActivity, ACCENT_STRIP_RADIUS_DP));
         accentBackground.setColor(isCurrentSession ? mDrawerController.getAccentColor() : Color.TRANSPARENT);
         accentView.setBackground(accentBackground);
 

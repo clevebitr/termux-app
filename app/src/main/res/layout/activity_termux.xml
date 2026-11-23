@@ -4,8 +4,7 @@
     android:id="@+id/activity_termux_root_view"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:fitsSystemWindows="true">
+    android:orientation="vertical">
 
     <RelativeLayout
         android:id="@+id/activity_termux_root_relative_layout"
@@ -233,6 +232,9 @@
                     android:layout_weight="1"
                     android:choiceMode="singleChoice"
                     android:clipToPadding="false"
+                    android:divider="@null"
+                    android:dividerHeight="0dp"
+                    android:listSelector="@android:color/transparent"
                     android:longClickable="true"
                     android:paddingStart="8dp"
                     android:paddingEnd="8dp" />
