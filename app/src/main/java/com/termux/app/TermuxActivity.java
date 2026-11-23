@@ -281,6 +281,21 @@ public final class TermuxActivity extends AppCompatActivity
     private InputManager.InputDeviceListener mInputDeviceListener;
 
     /**
+     * How long to wait after the soft keyboard becomes visible before the input connections are restarted a
+     * second time. An IME may ignore the restart while its window is still animating in, and then keeps the input
+     * type it read before, which leaves the terminal without the IME toolbar and candidate view.
+     */
+    private static final long IME_RESTART_AFTER_SOFT_KEYBOARD_SHOWN_DELAY_MS = 200;
+
+    /** Restarts the input connections again after the soft keyboard was shown, see the delay constant. */
+    private final Runnable mDelayedImeRestart = () -> {
+        if (mKeyboardCompatLog) {
+            KeyboardCompatLog.log("ime", "restarting the input connections after the soft keyboard was shown");
+        }
+        restartTerminalInputConnections();
+    };
+
+    /**
      * If between onResume() and onStop(). Note that only one session is in the foreground of the terminal view at the
      * time, so if the session causing a change is not in the foreground it should probably be treated as background.
      */
@@ -592,6 +607,9 @@ public final class TermuxActivity extends AppCompatActivity
         Logger.logDebug(LOG_TAG, "onDestroy");
 
         unregisterHardwareKeyboardWatcher();
+
+        View rootView = getTermuxActivityRootView();
+        if (rootView != null) rootView.removeCallbacks(mDelayedImeRestart);
 
         if (mIsInvalidState) return;
 
@@ -1555,9 +1573,7 @@ public final class TermuxActivity extends AppCompatActivity
                 + ", restarting the input connections");
         }
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
-            if (viewClient != null) viewClient.restartInputConnection();
-        }
+        restartTerminalInputConnections();
     }
 
     /**
@@ -1580,6 +1596,20 @@ public final class TermuxActivity extends AppCompatActivity
                 + ", restarting the input connections");
         }
 
+        restartTerminalInputConnections();
+
+        View rootView = getTermuxActivityRootView();
+        if (rootView == null) return;
+        rootView.removeCallbacks(mDelayedImeRestart);
+        if (softKeyboardVisible)
+            rootView.postDelayed(mDelayedImeRestart, IME_RESTART_AFTER_SOFT_KEYBOARD_SHOWN_DELAY_MS);
+    }
+
+    /**
+     * Restart the input connections of both panes, so that the IME reads the input type that
+     * {@link TermuxTerminalViewClient#getInputType(int)} resolves for the current keyboard state.
+     */
+    private void restartTerminalInputConnections() {
         for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
             if (viewClient != null) viewClient.restartInputConnection();
         }
