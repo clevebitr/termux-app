@@ -358,9 +358,20 @@ public final class TerminalDrawerController {
         return mAccentColor;
     }
 
-    /** @return The background of a session row, which tints the row of the current session when activated. */
+    /**
+     * @return A fresh copy of the background of a session row, which tints the row of the current session when it
+     *         is activated.
+     *
+     * <p>Every row needs its own instance: a drawable keeps the state of the view that last applied it, so a
+     * single instance shared by the rows would draw the activated tint and the ripple of one row on all of them.
+     * </p>
+     */
     @Nullable
-    public Drawable getSessionRowBackground() {
-        return mSessionRowBackground;
+    public Drawable newSessionRowBackground() {
+        Drawable template = mSessionRowBackground;
+        if (template == null) return null;
+
+        Drawable.ConstantState state = template.getConstantState();
+        return state != null ? state.newDrawable().mutate() : null;
     }
 }

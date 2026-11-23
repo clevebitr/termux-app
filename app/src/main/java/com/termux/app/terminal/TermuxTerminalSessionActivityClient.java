@@ -23,7 +23,7 @@ import com.termux.app.ext.notifications.NotificationsExtension;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.interact.ShareUtils;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
-import com.termux.shared.termux.interact.TextInputDialogUtils;
+import com.termux.app.widget.TerminalTextInputDialog;
 import com.termux.app.TermuxActivity;
 import com.termux.shared.termux.terminal.TermuxTerminalSessionClientBase;
 import com.termux.shared.termux.TermuxConstants;
@@ -565,10 +565,11 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     public void renameSession(final TerminalSession sessionToRename) {
         if (sessionToRename == null) return;
 
-        TextInputDialogUtils.textInput(mActivity, R.string.title_rename_session, sessionToRename.mSessionName, R.string.action_rename_session_confirm, text -> {
-            renameSession(sessionToRename, text);
-            termuxSessionListNotifyUpdated();
-        }, -1, null, -1, null, null);
+        TerminalTextInputDialog.show(mActivity, sessionToRename, R.string.title_rename_session,
+            sessionToRename.mSessionName, R.string.action_rename_session_confirm, text -> {
+                renameSession(sessionToRename, text);
+                termuxSessionListNotifyUpdated();
+            });
     }
 
     private void renameSession(TerminalSession sessionToRename, String text) {

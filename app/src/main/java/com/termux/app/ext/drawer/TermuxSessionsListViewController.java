@@ -70,7 +70,7 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
         // The drawer follows the colors of the terminal color scheme, so the row background and the text
         // colors come from the activity instead of from the app theme. The accent strip marks the session
         // that is shown in the active pane, like the border of the active pane of the split screen.
-        sessionRowView.setBackground(mDrawerController.getSessionRowBackground());
+        sessionRowView.setBackground(mDrawerController.newSessionRowBackground());
 
         View accentView = sessionRowView.findViewById(R.id.session_accent);
         boolean isCurrentSession = sessionAtRow == mActivity.getCurrentSession();

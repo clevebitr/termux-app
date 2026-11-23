@@ -5,7 +5,7 @@ import androidx.annotation.NonNull;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.app.ext.menu.TerminalMenuAction;
-import com.termux.shared.termux.interact.TextInputDialogUtils;
+import com.termux.app.widget.TerminalTextInputDialog;
 
 /**
  * 目的 — 作为窗口级动作的唯一执行入口。
@@ -43,12 +43,10 @@ public final class ShellCommandHost implements ShellCommandCatalog.Host {
      */
     @Override
     public void addNamedSession() {
-        TextInputDialogUtils.textInput(activity, R.string.title_create_named_session, null,
+        TerminalTextInputDialog.show(activity, activity.getCurrentSession(),
+            R.string.title_create_named_session, null,
             R.string.action_create_named_session_confirm,
-            text -> activity.getTermuxTerminalSessionClient().addNewSession(false, text),
-            R.string.action_new_session_failsafe,
-            text -> activity.getTermuxTerminalSessionClient().addNewSession(true, text),
-            -1, null, null);
+            text -> activity.getTermuxTerminalSessionClient().addNewSession(false, text));
     }
 
     @Override
