@@ -12,9 +12,9 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `3877f33 feat: 抽屉会话列表上下留出间隙` |
-| 规模 | `TermuxActivity` 2100 行；`commands/` 5 文件 491 行；`ext/` 8 个扩展 + api/host；`terminal/` 仅剩 6 文件 |
-| 验证 | 本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 179 项、1 项既有失败 |
+| 最近提交 | `272248d refactor: 移除对话框对抽屉扩展的颜色依赖` |
+| 规模 | `TermuxActivity` 2235 行；`commands/` 7 文件 1062 行；`ext/` 9 个扩展 + api/host；`terminal/` 6 文件 |
+| 验证 | 本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 180 项、1 项既有失败 |
 
 ---
 
@@ -101,6 +101,18 @@
 - [ ] 待验证：闪烁是否消失（键盘弹起/收起、切换输入法、全屏开关各一次）
 - [ ] 待验证：命令面板在深色/浅色与彩色强调色配色下的可读性、chip 与行按下态
 - [ ] 待验证：抽屉首末行间隙与胶囊强调条的配合
+
+### 2.9 面板接管与可配置入口（2026-11-23）
+
+- [x] 面板搜索框加高（四边 16dp 内距、最小高度 56dp）（`71708e0`）
+- [x] 通知卡片强调条改为 3dp 内缩胶囊，与抽屉会话行一致（`4d39d05`）
+- [x] 命令面板接管终端动作：删除 `TerminalMenuDialog` 与 8 个外观属性，`terminal-menu-items` 决定面板动作集合与顺序，设置/帮助保证可达；扩展禁用时用 `TerminalMenuConfig.defaults()` 回退（`7c0ed84`）
+- [x] 右键/菜单键/多选「更多」统一打开面板；`mouse-right-click` 支持 `auto`/`forward`/`palette`（`7c0ed84`）
+- [x] `command-shortcuts` 属性：面板标签与按键处理同源，键盘页新增设置项，新增 `CommandShortcutsTest` 5 项（`7c0ed84`）
+- [x] 选择浮条背景改 12dp 圆角；移除 `TerminalTextInputDialog` 对抽屉扩展的颜色依赖（`272248d`）
+- [x] 架构复盘：`docs/APP_ARCHITECTURE_REVIEW.md` §9（分层、度量、剩余问题与优先级）
+- [ ] 待验证：右键三种模式、快捷键改绑、额外键宏按键、面板接管「更多」、通知胶囊观感
+- [ ] 待决策：`TerminalHost` 窄接口与源码导入守卫（架构复盘 P0/P1）
 
 ---
 
