@@ -63,10 +63,16 @@
     <!--
       The platform and the shared library dialogs are drawn by the fork on a Material 3 surface and rounded by
       the same corner token that the dialogs of the fork use for their own windows, so that a dialog looks the
-      same whichever layer creates it.
+      same whichever layer creates it. The dialog style is replaced instead of the shape attribute, since the
+      shape of a Material 3 dialog comes from the shape appearance of its alert dialog style.
     -->
     <style name="ThemeOverlay.Termux.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="alertDialogStyle">@style/TermuxAlertDialogStyle</item>
         <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Termux.Dialog</item>
+    </style>
+
+    <style name="TermuxAlertDialogStyle" parent="MaterialAlertDialog.Material3">
+        <item name="shapeAppearance">@style/ShapeAppearance.Termux.Dialog</item>
     </style>
 
     <style name="ShapeAppearance.Termux.Dialog" parent="">

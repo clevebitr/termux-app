@@ -1,22 +1,23 @@
 package com.termux.app.fragments.settings;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.LayoutInflater;
 import android.view.View;
-import android.view.WindowManager;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.ArrayAdapter;
-import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.preference.PreferenceFragmentCompat;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
 import com.termux.R;
 
 import java.util.ArrayList;
@@ -25,6 +26,10 @@ import java.util.List;
 /**
  * The dialog of the search of the settings, which filters the entries of all pages by their title, their
  * summary and the title of their page, and opens the page of the entry that the user picks.
+ *
+ * <p>The dialog is a Material 3 surface like the command palette: the search field is the header, the rows show
+ * the title of the entry and the page and summary that tell two entries with the same title apart, and an empty
+ * query lists every entry so that the settings can also be browsed from here.</p>
  */
 public final class SettingsSearchDialog {
 
@@ -38,50 +43,38 @@ public final class SettingsSearchDialog {
 
         final List<SettingsSearchIndex.Entry> entries = SettingsSearchIndex.build(context);
 
-        final LinearLayout container = new LinearLayout(context);
-        container.setOrientation(LinearLayout.VERTICAL);
-        int padding = Math.round(16 * context.getResources().getDisplayMetrics().density);
-        container.setPadding(padding, padding, padding, 0);
+        View content = LayoutInflater.from(context).inflate(R.layout.dialog_settings_search, null, false);
+        final TextInputEditText input = content.findViewById(R.id.settings_search_input);
+        final ListView listView = content.findViewById(R.id.settings_search_list);
+        final TextView empty = content.findViewById(R.id.settings_search_empty);
+        if (input == null || listView == null || empty == null) return;
 
-        final EditText input = new EditText(context);
-        input.setSingleLine(true);
-        input.setHint(R.string.settings_search_hint);
-        container.addView(input, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        final ArrayAdapter<SettingsSearchIndex.Entry> adapter = new ArrayAdapter<SettingsSearchIndex.Entry>(
+            context, R.layout.item_settings_search, R.id.settings_search_title, new ArrayList<>()) {
+            @NonNull
+            @Override
+            public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                SettingsSearchIndex.Entry entry = getItem(position);
+                if (entry == null) return view;
 
-        final ListView listView = new ListView(context);
-        container.addView(listView, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                TextView titleView = view.findViewById(R.id.settings_search_title);
+                titleView.setText(entry.title);
 
-        final ArrayAdapter<SettingsSearchIndex.Entry> adapter =
-            new ArrayAdapter<SettingsSearchIndex.Entry>(context, android.R.layout.simple_list_item_2,
-                android.R.id.text1, new ArrayList<>()) {
-                @NonNull
-                @Override
-                public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-                    View view = super.getView(position, convertView, parent);
-                    SettingsSearchIndex.Entry entry = getItem(position);
-                    if (entry == null) return view;
-
-                    TextView titleView = view.findViewById(android.R.id.text1);
-                    titleView.setText(entry.title);
-
-                    // The second line shows which page the entry is on, so that two entries with the same
-                    // title, like the header of a page and a setting, can be told apart.
-                    TextView summaryView = view.findViewById(android.R.id.text2);
-                    StringBuilder detail = new StringBuilder(entry.pageTitle);
-                    if (entry.summary != null && entry.summary.length() > 0)
-                        detail.append(" · ").append(entry.summary);
-                    summaryView.setText(detail);
-                    return view;
-                }
-            };
+                // The second line shows which page the entry is on, so that two entries with the same
+                // title, like the header of a page and a setting, can be told apart.
+                TextView summaryView = view.findViewById(R.id.settings_search_summary);
+                StringBuilder detail = new StringBuilder(entry.pageTitle);
+                if (entry.summary != null && entry.summary.length() > 0)
+                    detail.append(" · ").append(entry.summary);
+                summaryView.setText(detail);
+                return view;
+            }
+        };
         listView.setAdapter(adapter);
 
-        final AlertDialog dialog = new AlertDialog.Builder(context)
-            .setTitle(R.string.action_search_settings)
-            .setView(container)
-            .setNegativeButton(android.R.string.cancel, null)
+        final AlertDialog dialog = new MaterialAlertDialogBuilder(context)
+            .setView(content)
             .create();
 
         input.addTextChangedListener(new TextWatcher() {
@@ -99,6 +92,7 @@ public final class SettingsSearchDialog {
                 adapter.clear();
                 adapter.addAll(matches);
                 adapter.notifyDataSetChanged();
+                empty.setVisibility(matches.isEmpty() ? View.VISIBLE : View.GONE);
             }
         });
 
@@ -117,7 +111,9 @@ public final class SettingsSearchDialog {
         if (dialog.getWindow() != null)
             dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
 
-        adapter.addAll(SettingsSearchIndex.search(entries, null));
+        List<SettingsSearchIndex.Entry> all = SettingsSearchIndex.search(entries, null);
+        adapter.addAll(all);
+        empty.setVisibility(all.isEmpty() ? View.VISIBLE : View.GONE);
         input.requestFocus();
     }
 }
