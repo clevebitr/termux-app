@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   The background of the floating text selection toolbar (the system ActionMode), which is shown above
-  the selection handles. It uses the same square corners and 1dp border as the notification cards and the
-  terminal context menu, so that the selection toolbar looks like part of the terminal instead of like a
-  material design pill.
+  the selection handles. It uses the row corner token and a 1dp border, so that the toolbar is rounded like the
+  dialogs and rows of the app instead of having the square corners of the old tui style.
 
   NOTE: The colors are the ones of the app theme and not of the `colors.properties` file, since a
   drawable cannot be built from the colors of the termux color scheme at runtime.
@@ -14,5 +13,5 @@
     <stroke
         android:width="1dp"
         android:color="?attr/termuxActivityDrawerImageTint" />
-    <corners android:radius="0dp" />
+    <corners android:radius="@dimen/termux_row_corner_radius" />
 </shape>
