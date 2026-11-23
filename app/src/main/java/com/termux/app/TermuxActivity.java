@@ -69,6 +69,8 @@ import com.termux.app.commands.ShellCommandHost;
 import com.termux.app.commands.ShellCommandPalette;
 import com.termux.app.commands.TerminalActionRunner;
 import com.termux.app.ext.api.Extension;
+import com.termux.app.ext.api.ExtensionContext;
+import com.termux.app.ext.api.ExtensionLayoutHost;
 import com.termux.app.ext.host.ExtensionHost;
 import com.termux.app.ext.host.ExtensionManager;
 import com.termux.app.ext.statusbar.StatusBarExtension;
@@ -116,7 +118,7 @@ import java.util.Objects;
  * about memory leaks.
  */
 public final class TermuxActivity extends AppCompatActivity
-    implements ServiceConnection, TerminalActionRunner.Host {
+    implements ServiceConnection, TerminalActionRunner.Host, ExtensionLayoutHost {
 
     /**
      * The connection to the {@link TermuxService}. Requested in {@link #onCreate(Bundle)} with a call to
@@ -1450,13 +1452,15 @@ public final class TermuxActivity extends AppCompatActivity
     }
 
     /**
-     * Recompute the space that the status bar takes from the terminal, and move the notification cards below
-     * it when it overlays the terminal.
+     * Recompute the space that the decorated regions take from the terminal, and move the notification cards
+     * below the status bar when it overlays the terminal.
      *
-     * <p>Called by the status bar extension when it changed the visibility of its view, since only the host
-     * knows how the panes and the overlay are laid out.</p>
+     * <p>Called by an extension through {@link ExtensionContext#requestExtensionLayout()} after it changed the
+     * visibility or the height of its slot, since only the host knows how the panes and the overlay are laid
+     * out.</p>
      */
-    public void onStatusBarLayoutChanged() {
+    @Override
+    public void requestExtensionLayout() {
         setTerminalPadding();
         updateNotificationOverlayLayout();
     }

@@ -2,6 +2,7 @@ package com.termux.app.ext;
 
 import com.termux.app.ext.api.Extension;
 import com.termux.app.ext.api.ExtensionSettingsPage;
+import com.termux.app.ext.api.ExtensionViewSlot;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -26,6 +27,9 @@ public class ExtensionRegistrySourceTest {
 
     /** The preference XML of the root settings page, where the entries of the extensions are declared. */
     private static final String TERMUX_PREFERENCES_XML = "src/main/res/xml/termux_preferences.xml";
+
+    /** The layout of the activity, which has to declare every view that an extension claims as a slot. */
+    private static final String ACTIVITY_LAYOUT_XML = "src/main/res/layout/activity_termux.xml";
 
     /** The root of the Java sources, which the tests resolve relative to the module directory. */
     private static final String JAVA_SOURCE_ROOT = "src/main/java/";
@@ -69,6 +73,39 @@ public class ExtensionRegistrySourceTest {
 
                 Assert.assertTrue("The page \"" + page.fragmentClassName + "\" of the extension \""
                     + extension.id() + "\" must check whether its extension runs", text.contains("isRunning("));
+            }
+        }
+    }
+
+    /**
+     * A slot must name a view that the layout really declares, since a renamed view would leave the extension with
+     * a null view and the feature silently gone.
+     */
+    @Test
+    public void testDeclaredSlotsExistInTheActivityLayout() throws IOException {
+        String layout = read(Paths.get(ACTIVITY_LAYOUT_XML));
+        for (Extension extension : ForkExtensions.installed()) {
+            for (ExtensionViewSlot slot : extension.slots()) {
+                Assert.assertTrue("The slot \"" + slot.viewName + "\" of the extension \"" + extension.id()
+                        + "\" is not declared as an id in " + ACTIVITY_LAYOUT_XML,
+                    layout.contains("@+id/" + slot.viewName));
+            }
+        }
+    }
+
+    /** A view belongs to at most one extension, otherwise the last one would take the region from the first. */
+    @Test
+    public void testDeclaredSlotsAreUnique() {
+        Set<Integer> viewIds = new HashSet<>();
+        Set<String> viewNames = new HashSet<>();
+        for (Extension extension : ForkExtensions.installed()) {
+            for (ExtensionViewSlot slot : extension.slots()) {
+                Assert.assertTrue("Duplicate slot id \"" + slot.viewName + "\" of the extension \""
+                    + extension.id() + "\"", viewIds.add(slot.viewId));
+                Assert.assertTrue("Duplicate slot name \"" + slot.viewName + "\"",
+                    viewNames.add(slot.viewName));
+                Assert.assertFalse("The slot \"" + slot.viewName + "\" has no description",
+                    slot.description.isEmpty());
             }
         }
     }

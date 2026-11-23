@@ -68,6 +68,18 @@ public interface Extension {
     }
 
     /**
+     * The regions of the activity layout that this extension takes over while it runs.
+     *
+     * <p>A declared slot is owned by the extension: while it is disabled the host leaves the region to its
+     * default, and no other extension may claim the same view. The declaration also documents which layout
+     * region belongs to a feature, so the host does not wire it a second time.</p>
+     */
+    @NonNull
+    default List<ExtensionViewSlot> slots() {
+        return Collections.emptyList();
+    }
+
+    /**
      * The settings pages that this extension provides.
      *
      * <p>The settings search reads the pages from this list, so that the entries of a disabled extension

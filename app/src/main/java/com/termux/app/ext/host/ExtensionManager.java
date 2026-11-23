@@ -2,12 +2,14 @@ package com.termux.app.ext.host;
 
 import android.app.Activity;
 import android.content.SharedPreferences;
+import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.app.ext.api.Extension;
 import com.termux.app.ext.api.ExtensionContext;
+import com.termux.app.ext.api.ExtensionLayoutHost;
 import com.termux.app.properties.ForkProperties;
 import com.termux.shared.logger.Logger;
 
@@ -236,6 +238,19 @@ public final class ExtensionManager {
         @Override
         public SharedPreferences extensionSettings() {
             return activity.getSharedPreferences(PREFERENCES_NAME, Activity.MODE_PRIVATE);
+        }
+
+        @Nullable
+        @Override
+        @SuppressWarnings("unchecked")
+        public <T extends View> T view(int viewId) {
+            return (T) activity.findViewById(viewId);
+        }
+
+        @Override
+        public void requestExtensionLayout() {
+            if (activity instanceof ExtensionLayoutHost)
+                ((ExtensionLayoutHost) activity).requestExtensionLayout();
         }
 
         @Override

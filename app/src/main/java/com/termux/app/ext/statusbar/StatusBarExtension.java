@@ -13,6 +13,7 @@ import com.termux.app.TermuxActivity;
 import com.termux.app.ext.api.Extension;
 import com.termux.app.ext.api.ExtensionContext;
 import com.termux.app.ext.api.ExtensionSettingsPage;
+import com.termux.app.ext.api.ExtensionViewSlot;
 import com.termux.shared.logger.Logger;
 
 import java.util.Collections;
@@ -25,7 +26,7 @@ import java.util.List;
  * <p>行为 — 启用时接管布局中预留的状态栏视图（{@code R.id.status_bar_view}），创建
  * {@link StatusBarController} 并立即按 `status-bar-*` 属性重建；活动可见时开始定时刷新，不可见时停止；
  * 属性或配色变化时重新读取；禁用时停止刷新并清空视图内容。状态栏是否占位由宿主按其配置决定，所以每次
- * 布局变化后通过 {@link TermuxActivity#onStatusBarLayoutChanged()} 通知宿主重算内边距。</p>
+ * 布局变化后通过 {@link ExtensionContext#requestExtensionLayout()} 通知宿主重算内边距。</p>
  *
  * <p>约束 — 只能通过 {@link ExtensionContext#activity()} 暴露的公开方法访问宿主，不得读取
  * {@link TermuxActivity} 的字段；禁止在 {@link #onEnable} 之外假设视图存在，布局可能在活动重建时更换。</p>
@@ -46,6 +47,8 @@ public final class StatusBarExtension implements Extension {
     private StatusBarView mView;
     @Nullable
     private TermuxActivity mActivity;
+    @Nullable
+    private ExtensionContext mContext;
 
     @NonNull
     @Override
@@ -71,6 +74,13 @@ public final class StatusBarExtension implements Extension {
 
     @NonNull
     @Override
+    public List<ExtensionViewSlot> slots() {
+        return Collections.singletonList(new ExtensionViewSlot(R.id.status_bar_view, "status_bar_view",
+            "The bar above or below the terminal that shows the time, the battery and the other segments"));
+    }
+
+    @NonNull
+    @Override
     public List<ExtensionSettingsPage> settingsPages() {
         return Collections.singletonList(new ExtensionSettingsPage(
             R.string.termux_status_bar_preferences_title, R.xml.termux_status_bar_preferences,
@@ -89,8 +99,9 @@ public final class StatusBarExtension implements Extension {
             return;
         }
         mActivity = (TermuxActivity) context.activity();
+        mContext = context;
 
-        mView = mActivity.findViewById(R.id.status_bar_view);
+        mView = context.view(R.id.status_bar_view);
         if (mView == null) {
             context.logWarn("The layout has no status bar view, the status bar is not shown");
             return;
@@ -136,8 +147,9 @@ public final class StatusBarExtension implements Extension {
         }
         mView = null;
 
-        if (mActivity != null) mActivity.onStatusBarLayoutChanged();
+        if (mContext != null) mContext.requestExtensionLayout();
         mActivity = null;
+        mContext = null;
     }
 
     /** @return The configuration that the controller last read, or {@code null} while the extension is off. */
@@ -162,7 +174,7 @@ public final class StatusBarExtension implements Extension {
         // bar by the host and nothing is drawn below it.
         mView.setElevation(visible && config.overlay ? dpToPx(4) : 0);
 
-        mActivity.onStatusBarLayoutChanged();
+        if (mContext != null) mContext.requestExtensionLayout();
     }
 
     /**

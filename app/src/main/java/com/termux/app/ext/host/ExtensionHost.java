@@ -2,11 +2,13 @@ package com.termux.app.ext.host;
 
 import android.content.Context;
 
+import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.app.ext.ForkExtensions;
 import com.termux.app.ext.api.Extension;
+import com.termux.app.ext.api.ExtensionViewSlot;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -90,6 +92,20 @@ public final class ExtensionHost {
     public Extension extension(@NonNull String id) {
         for (Extension extension : installed) {
             if (extension.id().equals(id)) return extension;
+        }
+        return null;
+    }
+
+    /**
+     * @return The extension that declared {@code viewId} as one of its slots, or {@code null} if the view belongs
+     *         to the shell. Used to tell a host view from a view that a feature owns.
+     */
+    @Nullable
+    public Extension slotOwner(@IdRes int viewId) {
+        for (Extension extension : installed) {
+            for (ExtensionViewSlot slot : extension.slots()) {
+                if (slot.viewId == viewId) return extension;
+            }
         }
         return null;
     }
