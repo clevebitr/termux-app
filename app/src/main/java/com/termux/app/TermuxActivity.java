@@ -48,6 +48,7 @@ import com.termux.app.ext.split.SplitScreenExtension;
 import com.termux.app.properties.ForkProperties;
 import com.termux.app.properties.ForkPropertyKeys;
 import com.termux.app.terminal.ImeInputType;
+import com.termux.app.terminal.KeyboardCompatLog;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalFrame;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
@@ -1504,7 +1505,7 @@ public final class TermuxActivity extends AppCompatActivity
      */
     public boolean handleCommandShortcut(@NonNull KeyEvent event) {
         if (mKeyboardCompatLog)
-            Logger.logInfo(LOG_TAG, "handleCommandShortcut: " + describeKeyEvent(event));
+            KeyboardCompatLog.log("activity", describeKeyEvent(event));
 
         if (event.getAction() != KeyEvent.ACTION_DOWN || mShellCommandHost == null) return false;
 
@@ -1527,6 +1528,7 @@ public final class TermuxActivity extends AppCompatActivity
 
         for (TerminalMenuAction action : TerminalMenuAction.values()) {
             if (!mCommandShortcuts.matches(action.getId(), event)) continue;
+            if (mKeyboardCompatLog) KeyboardCompatLog.log("activity", "matched action " + action.getId());
             runTerminalMenuAction(action);
             return true;
         }

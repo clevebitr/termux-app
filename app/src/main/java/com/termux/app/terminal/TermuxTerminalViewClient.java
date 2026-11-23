@@ -270,7 +270,7 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     public int getInputType(int defaultInputType) {
         int inputType = mActivity.getImeInputType().inputType(defaultInputType);
         if (mActivity.isKeyboardCompatLogEnabled()) {
-            Logger.logInfo(LOG_TAG, "getInputType: mode=" + mActivity.getImeInputType().getValue()
+            KeyboardCompatLog.log("ime", "getInputType mode=" + mActivity.getImeInputType().getValue()
                 + ", default=0x" + Integer.toHexString(defaultInputType)
                 + ", reported=0x" + Integer.toHexString(inputType));
         }
@@ -327,7 +327,7 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent e, TerminalSession currentSession) {
         if (mActivity.isKeyboardCompatLogEnabled())
-            Logger.logInfo(LOG_TAG, "TerminalView.onKeyDown: " + TermuxActivity.describeKeyEvent(e));
+            KeyboardCompatLog.log("terminal-view", TermuxActivity.describeKeyEvent(e));
 
         // A virtual key in the extra keys row that sends F12 opens the command palette, so that the palette
         // is reachable without a hardware keyboard. The key is only taken when it was not combined, so that
