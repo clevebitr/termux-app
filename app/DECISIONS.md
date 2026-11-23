@@ -288,3 +288,19 @@
 代价与教训：此类错误编译与 169 项单测全绿也发现不了，只有真机 inflate 时才暴露，因此必须有资源级守卫。
 
 未验证：修复后的布局 inflate、通知设置页打开均未在真机上确认；本机 `:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest --rerun-tasks` 170 项（新增 1 项）中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。
+
+## 2026-11-23 — 修正抽屉选中状态与配置即时生效
+
+真机反馈两项体验问题：抽屉会话选中状态不正确；部分配置改动需要重启 App 才生效。均已修复（3411203）。
+
+一、抽屉选中状态
+1. 行背景是 `StateListDrawable`，只在 `state_activated` 时叠加强调色，但适配器从未调用 `setActivated`，因此「当前会话行的底色」这条设计一直是死代码，只有 3dp 强调条在起作用。现在 `getView` 里按 `sessionAtRow == getCurrentSession()` 设置 `setActivated`。
+2. 切换会话后列表不刷新：`setCurrentSession` 只做 `attachSession`，没有通知适配器，强调条要等抽屉重新打开才更新。现在 `attachSession` 成功后调用 `termuxSessionListNotifyUpdated()`（转发到 `DrawerExtension.notifySessionsChanged()`）。
+
+二、配置改动即时生效
+1. 根因：`reloadProperties()` 里原本有抽屉/状态栏的重载调用，迁移时被清空，扩展的状态重载只剩 `reloadActivityStyling()` 与 `updateExtraKeysViewColors()` 两处；任何不经过这两处的配置重载都不会通知扩展。
+2. 现在把 `mExtensionManager.onReload()` 放进 `reloadProperties()`（所有配置重载的唯一入口），并删除 `reloadActivityStyling()` 里的重复调用，避免一次改动重载两遍。
+3. `ExtensionManager.start()` 改为先把扩展放进 running 集合再调用 `onEnable`。此前扩展在 `onEnable` 期间查询宿主时（状态栏 `applyLayout()` → 宿主重算内边距 → 查询状态栏配置）会被判为「未运行」，导致首次布局按「没有状态栏」计算，要等下一次重载才正确。失败时从 running 中移除，不会留下半启动状态。
+4. `DrawerExtension.onDisable()` 现在还清空会话列表的适配器，避免禁用后列表仍持有指向已释放控制器的适配器。
+
+未验证：抽屉选中行的底色、切换会话后强调条跟随、以及各扩展设置改动后的即时生效，均未在真机确认；本机 `:app:compileDebugJavaWithJavac` 通过、`:app:testDebugUnitTest --rerun-tasks` 170 项中 1 项既有失败；CI（PR #2）lint/单测/双 ABI 构建全部通过，Fork Build 已产出 `termux-app_fork-20261123-0426-testkey_arm64-v8a.apk`。
