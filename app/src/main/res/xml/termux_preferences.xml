@@ -67,6 +67,7 @@
     <PreferenceCategory app:title="@string/termux_preferences_category_behavior">
 
         <Preference
+            app:key="notifications"
             app:icon="@drawable/ic_pref_notifications"
             app:title="@string/termux_notification_preferences_title"
             app:summary="@string/termux_notification_preferences_summary"

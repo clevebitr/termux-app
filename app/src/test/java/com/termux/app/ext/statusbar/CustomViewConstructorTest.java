@@ -3,7 +3,7 @@ package com.termux.app.ext.statusbar;
 import android.content.Context;
 import android.util.AttributeSet;
 
-import com.termux.app.notifications.NotificationOverlayView;
+import com.termux.app.ext.notifications.NotificationOverlayView;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.view.TerminalView;
 

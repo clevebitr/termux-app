@@ -1,4 +1,4 @@
-package com.termux.app.notifications;
+package com.termux.app.ext.notifications;
 
 import org.junit.Assert;
 import org.junit.Test;

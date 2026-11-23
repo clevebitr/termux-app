@@ -1,15 +1,20 @@
-package com.termux.app.fragments.settings.termux;
+package com.termux.app.ext.notifications;
 
 import android.content.Context;
 import android.os.Bundle;
 
 import androidx.annotation.Keep;
+import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.PreferenceScreen;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.ext.host.ExtensionHost;
 import com.termux.app.fragments.settings.PreferenceAccentUtils;
 import com.termux.app.fragments.settings.SettingsSearchNavigation;
+import com.termux.app.fragments.settings.termux.PreferenceResetUtils;
+import com.termux.app.fragments.settings.termux.TermuxPropertyPreferenceDataStore;
 
 /**
  * The settings of the notification cards, which are shown in a corner of the terminal when a command
@@ -26,6 +31,20 @@ public class NotificationPreferencesFragment extends PreferenceFragmentCompat {
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         Context context = getContext();
         if (context == null) return;
+
+        // The page is reachable from a search result or a restored back stack even while the extension is
+        // disabled, so it refuses to edit the properties instead of relying on the hidden entry alone.
+        if (!ExtensionHost.get(context).isRunning(NotificationsExtension.ID)) {
+            PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(context);
+            Preference notice = new Preference(context);
+            notice.setTitle(R.string.termux_extensions_page_disabled_title);
+            notice.setSummary(R.string.termux_extensions_page_disabled_summary);
+            notice.setSelectable(false);
+            screen.addPreference(notice);
+            setPreferenceScreen(screen);
+            PreferenceAccentUtils.applyAccent(this);
+            return;
+        }
 
         PreferenceManager preferenceManager = getPreferenceManager();
         preferenceManager.setPreferenceDataStore(NotificationPreferencesDataStore.getInstance(context));

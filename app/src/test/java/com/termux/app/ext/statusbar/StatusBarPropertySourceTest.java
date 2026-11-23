@@ -31,7 +31,7 @@ public class StatusBarPropertySourceTest {
     /** The classes that reload a configuration of the fork, which must read it with the helper. */
     private static final Path[] CONFIGURATION_SOURCES = new Path[]{
         Paths.get("src/main/java/com/termux/app/ext/statusbar/StatusBarController.java"),
-        Paths.get("src/main/java/com/termux/app/notifications/TerminalNotificationManager.java"),
+        Paths.get("src/main/java/com/termux/app/ext/notifications/TerminalNotificationManager.java"),
     };
 
     private static String readSource(Path path) throws IOException {

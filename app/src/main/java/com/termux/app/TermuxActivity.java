@@ -31,14 +31,11 @@ import android.widget.Toast;
 
 import com.termux.R;
 import com.termux.app.api.file.FileReceiverActivity;
-import com.termux.app.notifications.NotificationConfig;
-import com.termux.app.notifications.NotificationOverlayView;
-import com.termux.app.notifications.RecentNotifications;
-import com.termux.app.notifications.RecentNotificationsDialog;
+import com.termux.app.ext.notifications.NotificationsExtension;
 import com.termux.app.ext.menu.TerminalMenuAction;
 import com.termux.app.ext.menu.TerminalMenuConfig;
 import com.termux.app.ext.menu.TerminalMenuItems;
-import com.termux.app.notifications.TerminalNotificationManager;
+import com.termux.app.ext.notifications.TerminalNotificationManager;
 import com.termux.app.ext.menu.TerminalMenuConfig;
 import com.termux.app.ext.menu.TerminalMenuExtension;
 import com.termux.app.ext.statusbar.StatusBarConfig;
@@ -49,7 +46,6 @@ import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
 import com.termux.shared.activities.ReportActivity;
-import com.termux.shared.interact.ShareUtils;
 import com.termux.shared.activity.ActivityUtils;
 import com.termux.shared.activity.media.AppCompatActivityUtils;
 import com.termux.shared.data.IntentUtils;
@@ -87,7 +83,6 @@ import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalColors;
 import com.termux.terminal.TerminalColorScheme;
 import com.termux.terminal.TerminalEmulator;
-import com.termux.terminal.TerminalNotification;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.view.TerminalView;
@@ -201,19 +196,6 @@ public final class TermuxActivity extends AppCompatActivity
     @NonNull
     private final TerminalDrawerController mDrawerController = new TerminalDrawerController(this);
 
-    /** The status bar that shows the time, battery, memory, cpu, network, ip and proxy segments. */
-
-    /**
-     * The overlay that shows the notification cards, like for a command that exited with a non-zero
-     * exit code, in a corner of the terminal.
-     */
-    private NotificationOverlayView mNotificationOverlay;
-    /** The manager that reads the `notification-*` properties and decides which cards are shown. */
-    private TerminalNotificationManager mNotificationManager;
-    /** The number of test notifications that were sent, so that each one shows a different kind. */
-    private int mTestNotificationCount;
-
-    /** The configuration of the terminal context menu and of the text selection toolbar. */
 
 
     /**
@@ -381,7 +363,6 @@ public final class TermuxActivity extends AppCompatActivity
 
         setMargins();
         setTerminalPadding();
-        setUpNotificationOverlay();
 
         mTermuxActivityRootView = findViewById(R.id.activity_termux_root_view);
         mTermuxActivityRootView.setActivity(this);
@@ -1139,60 +1120,29 @@ public final class TermuxActivity extends AppCompatActivity
         return Math.round(ViewUtils.dpToPx(this, dp));
     }
 
-    /**
-     * Set up the overlay that shows the notification cards in a corner of the terminal, like for a
-     * command that exited with a non-zero exit code, which are configured with the `notification-*`
-     * properties from `termux.properties` or the notification section of the termux settings.
-     */
-    private void setUpNotificationOverlay() {
-        mNotificationOverlay = findViewById(R.id.notification_overlay);
-        if (mNotificationOverlay == null) return;
-
-        mNotificationManager = new TerminalNotificationManager(this, mNotificationOverlay);
-        mNotificationManager.setListener(new TerminalNotificationManager.Listener() {
-            @Override
-            public void onTerminalNotificationClicked(@NonNull TerminalNotification notification) {
-                TermuxActivity.this.onTerminalNotificationClicked(notification);
-            }
-
-            @Override
-            public void onTerminalNotificationClosed(@NonNull TerminalNotification notification, boolean expired) {
-                // Nothing to do yet, the list of recent notifications is filled by a later milestone.
-            }
-        });
-        mNotificationManager.reload();
-        updateNotificationOverlayLayout();
+    /** @return The extension that owns the notification cards, or {@code null} while it is disabled. */
+    @Nullable
+    private NotificationsExtension notificationsExtension() {
+        Extension extension = ExtensionHost.get(this).extension(NotificationsExtension.ID);
+        return extension instanceof NotificationsExtension ? (NotificationsExtension) extension : null;
     }
 
-    /**
-     * Apply the height of the status bar to the notification cards, so that they are moved below it
-     * when they are shown in the top corner and the status bar overlays the terminal, since both are
-     * drawn in the same content container.
-     */
-    public void updateNotificationOverlayLayout() {
-        if (mNotificationOverlay == null || mNotificationManager == null) return;
-
-        int statusBarInsetPx = 0;
-        StatusBarConfig statusBarConfig = getStatusBarConfig();
-        if (statusBarConfig != null && statusBarConfig.enabled && !statusBarConfig.segments.isEmpty()
-            && statusBarConfig.overlay && !statusBarConfig.positionBottom)
-            statusBarInsetPx = dpToPx(statusBarConfig.heightDp);
-
-        mNotificationOverlay.setStatusBarInsetPx(statusBarInsetPx);
-    }
-
-    /**
-     * Called when a notification card is clicked, which jumps to the command that the notification is
-     * about when it was generated for a command that exited with a non-zero exit code.
-     */
-    private void onTerminalNotificationClicked(@NonNull TerminalNotification notification) {
-        Logger.logDebug(LOG_TAG, "Terminal notification card clicked: " + notification);
-    }
-
-    /** @return The manager of the notification cards, or {@code null} if the overlay is not in the layout. */
+    /** @return The manager of the notification cards, or {@code null} while the extension is disabled. */
     @Nullable
     public TerminalNotificationManager getTerminalNotificationManager() {
-        return mNotificationManager;
+        NotificationsExtension extension = notificationsExtension();
+        return extension != null ? extension.getManager() : null;
+    }
+
+    /**
+     * Move the notification cards below the status bar when it overlays the terminal.
+     *
+     * <p>Called through {@link #requestExtensionLayout()} after the layout of a decorated region changed, since
+     * only the host knows when the status bar takes space.</p>
+     */
+    public void updateNotificationOverlayLayout() {
+        NotificationsExtension extension = notificationsExtension();
+        if (extension != null) extension.updateOverlayLayout();
     }
 
     /**
@@ -1219,75 +1169,18 @@ public final class TermuxActivity extends AppCompatActivity
             terminalView.scrollToPreviousCommand();
     }
 
-    /**
-     * Send a test notification, which cycles through the kinds of notifications so that the user can
-     * check the appearance of the cards and tune the `notification-*` properties without having to
-     * wait for a command to fail.
-     */
+    /** Send a test notification, which is implemented by the notifications extension. */
     @Override
     public void sendTestNotification() {
-        if (mNotificationManager == null) return;
-
-        String separator = " " + getString(R.string.notification_meta_separator) + " ";
-        String cwd = getString(R.string.notification_test_meta_cwd);
-        String duration = getString(R.string.notification_test_meta_duration);
-        String session = getString(R.string.notification_test_meta_session);
-        String meta = cwd + separator + duration + separator + session;
-
-        TerminalNotification notification;
-        switch (mTestNotificationCount++ % 4) {
-            case 0:
-                notification = new TerminalNotification.Builder(TerminalNotification.Kind.FAILURE, TerminalNotification.Source.EXIT_CODE)
-                    .setTitle(getString(R.string.notification_test_title_failed_command, 1))
-                    .setBody(getString(R.string.notification_test_meta_command))
-                    .setMeta(meta)
-                    .build();
-                break;
-            case 1:
-                notification = new TerminalNotification.Builder(TerminalNotification.Kind.SUCCESS, TerminalNotification.Source.EXIT_CODE)
-                    .setTitle(getString(R.string.notification_test_title_succeeded_command))
-                    .setBody(getString(R.string.notification_test_body_succeeded_command))
-                    .setMeta(meta)
-                    .build();
-                break;
-            case 2:
-                notification = new TerminalNotification.Builder(TerminalNotification.Kind.WARNING, TerminalNotification.Source.APP_EVENT)
-                    .setTitle(getString(R.string.notification_test_title_session_exited))
-                    .setMeta(session)
-                    .build();
-                break;
-            default:
-                notification = new TerminalNotification.Builder(TerminalNotification.Kind.INFO, TerminalNotification.Source.OSC)
-                    .setTitle(getString(R.string.notification_test_title_osc))
-                    .setBody(getString(R.string.notification_test_body_osc))
-                    .setMeta(getString(R.string.notification_test_meta_osc_app))
-                    .build();
-                break;
-        }
-
-        mNotificationManager.notifyForTesting(notification);
+        NotificationsExtension extension = notificationsExtension();
+        if (extension != null) extension.sendTestNotification();
     }
 
-    /**
-     * Show the notifications that were shown recently, including the ones whose cards have already
-     * disappeared. Clicking an entry jumps to the command of a failed command, or copies the text of the
-     * other notifications to the clipboard, since they have no command that could be jumped to.
-     */
+    /** Show the recently shown notifications, which is implemented by the notifications extension. */
     @Override
     public void showRecentNotifications() {
-        if (mNotificationManager == null) return;
-
-        List<RecentNotifications.Entry> entries = mNotificationManager.getRecentNotifications().getEntries();
-        NotificationConfig config = mNotificationManager.getConfig();
-
-        RecentNotificationsDialog.show(this, config, entries, entry -> {
-            if (entry.onOpen != null) {
-                entry.onOpen.run();
-            } else {
-                ShareUtils.copyTextToClipboard(this, RecentNotificationsDialog.getTextFor(entry.notification),
-                    getString(R.string.msg_copied_to_clipboard));
-            }
-        }, () -> mNotificationManager.getRecentNotifications().clear());
+        NotificationsExtension extension = notificationsExtension();
+        if (extension != null) extension.showRecentNotifications();
     }
 
     /**
@@ -1325,7 +1218,7 @@ public final class TermuxActivity extends AppCompatActivity
     /** @return The manager of the notification cards and of the recent notifications, or {@code null}. */
     @Nullable
     public TerminalNotificationManager getNotificationManager() {
-        return mNotificationManager;
+        return getTerminalNotificationManager();
     }
 
     /** Run the action of an item of the terminal context menu, or of a command of the palette. */
@@ -1424,8 +1317,10 @@ public final class TermuxActivity extends AppCompatActivity
             isSplitScreenEnabled(),
             !DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText()),
             mTerminalView.isAutoFillEnabled(),
-            mNotificationManager != null && mNotificationManager.isEnabled(),
-            mNotificationManager != null && !mNotificationManager.getRecentNotifications().isEmpty(),
+            getTerminalNotificationManager() != null && getTerminalNotificationManager().isEnabled(),
+            // The list is only useful when a notification was shown since the app was started.
+            getTerminalNotificationManager() != null
+                && !getTerminalNotificationManager().getRecentNotifications().isEmpty(),
             session.isRunning());
 
         List<com.termux.app.commands.ShellCommand> commands = ShellCommandCatalog.build(
@@ -2148,13 +2043,6 @@ public final class TermuxActivity extends AppCompatActivity
         // Rebuild the status bar, since the `status-bar-*` properties may have changed, and apply the
         // new position and overlay rules.
         if (mExtensionManager != null) mExtensionManager.onReload();
-
-        // Reload the `notification-*` properties, which apply the new position, width and colors to
-        // the cards that are currently shown.
-        if (mNotificationManager != null) {
-            mNotificationManager.reload();
-            updateNotificationOverlayLayout();
-        }
 
         // Reload the `terminal-menu-*` and `selection-toolbar-items` properties.
 

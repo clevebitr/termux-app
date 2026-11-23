@@ -26,7 +26,7 @@ public class PreferenceResetSourceTest {
         {"AppearancePreferencesFragment", "src/main/java/com/termux/app/fragments/settings/termux/AppearancePreferencesFragment.java"},
         {"BackupPreferencesFragment", "src/main/java/com/termux/app/ext/backup/BackupPreferencesFragment.java"},
         {"DebuggingPreferencesFragment", "src/main/java/com/termux/app/fragments/settings/termux/DebuggingPreferencesFragment.java"},
-        {"NotificationPreferencesFragment", "src/main/java/com/termux/app/fragments/settings/termux/NotificationPreferencesFragment.java"},
+        {"NotificationPreferencesFragment", "src/main/java/com/termux/app/ext/notifications/NotificationPreferencesFragment.java"},
         {"StatusBarPreferencesFragment", "src/main/java/com/termux/app/ext/statusbar/StatusBarPreferencesFragment.java"},
         {"VolumeKeysPreferencesFragment", "src/main/java/com/termux/app/ext/volumekeys/VolumeKeysPreferencesFragment.java"},
         {"TerminalIOPreferencesFragment", "src/main/java/com/termux/app/fragments/settings/termux/TerminalIOPreferencesFragment.java"},

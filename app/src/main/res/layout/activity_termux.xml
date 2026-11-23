@@ -139,7 +139,7 @@
                  and it is an overlay so that the terminal is not resized and the rows that the
                  terminal programs see do not change while a card is shown. Its gravity, margins and
                  width are set programmatically from the `notification-*` properties. -->
-            <com.termux.app.notifications.NotificationOverlayView
+            <com.termux.app.ext.notifications.NotificationOverlayView
                 android:id="@+id/notification_overlay"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
