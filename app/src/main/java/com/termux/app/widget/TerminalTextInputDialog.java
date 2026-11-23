@@ -13,7 +13,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
-import com.termux.app.ext.drawer.DrawerColorUtils;
 import com.termux.terminal.TerminalSession;
 
 /**
@@ -54,8 +53,8 @@ public final class TerminalTextInputDialog {
         EditText input = new EditText(activity);
         input.setSingleLine();
         input.setTextColor(foregroundColor);
-        input.setHintTextColor(DrawerColorUtils.withAlpha(foregroundColor, 0xB3));
-        input.setHighlightColor(DrawerColorUtils.withAlpha(foregroundColor, 0x33));
+        input.setHintTextColor(TerminalDialogStyles.withAlpha(foregroundColor, 0.70f));
+        input.setHighlightColor(TerminalDialogStyles.withAlpha(foregroundColor, 0.20f));
         if (initialText != null) {
             input.setText(initialText);
             Selection.setSelection(input.getText(), initialText.length());
