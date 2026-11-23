@@ -120,7 +120,10 @@ public final class TerminalMenuExtension implements Extension {
         if (activity.getCurrentSession() == null || activity.getTerminalView() == null) return;
 
         TerminalMenuItems.State state = new TerminalMenuItems.State(
+            activity.isSplitScreenAvailable(),
             activity.isSplitScreenEnabled(),
+            activity.isSearchAvailable(),
+            activity.isSessionsDrawerAvailable(),
             !DataUtils.isNullOrEmpty(activity.getTerminalView().getStoredSelectedText()),
             activity.getTerminalView().isAutoFillEnabled(),
             activity.getNotificationManager() != null && activity.getNotificationManager().isEnabled(),

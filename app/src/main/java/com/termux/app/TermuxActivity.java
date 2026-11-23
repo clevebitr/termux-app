@@ -833,6 +833,21 @@ public final class TermuxActivity extends AppCompatActivity
         return splitScreen != null && splitScreen.isEnabled();
     }
 
+    /** @return Whether the split screen extension is running, i.e. whether its actions can do anything. */
+    public boolean isSplitScreenAvailable() {
+        return splitScreenExtension() != null;
+    }
+
+    /** @return Whether the search extension is running, i.e. whether the search actions can do anything. */
+    public boolean isSearchAvailable() {
+        return searchExtension() != null;
+    }
+
+    /** @return Whether the sessions drawer extension is running, i.e. whether it can be opened. */
+    public boolean isSessionsDrawerAvailable() {
+        return drawerExtension() != null;
+    }
+
     /**
      * Enable or disable split screen, and set the orientation of the panes.
      *
@@ -1331,7 +1346,10 @@ public final class TermuxActivity extends AppCompatActivity
         if (session == null || mTerminalView == null) return;
 
         TerminalMenuItems.State state = new TerminalMenuItems.State(
+            isSplitScreenAvailable(),
             isSplitScreenEnabled(),
+            isSearchAvailable(),
+            isSessionsDrawerAvailable(),
             !DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText()),
             mTerminalView.isAutoFillEnabled(),
             getTerminalNotificationManager() != null && getTerminalNotificationManager().isEnabled(),
