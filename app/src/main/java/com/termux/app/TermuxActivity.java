@@ -81,6 +81,7 @@ import com.termux.app.terminal.io.TerminalToolbarViewPager;
 import com.termux.app.commands.ShellCommandCatalog;
 import com.termux.app.commands.ShellCommandHost;
 import com.termux.app.commands.ShellCommandPalette;
+import com.termux.app.commands.TerminalActionRunner;
 import com.termux.app.ext.host.ExtensionManager;
 import com.termux.app.terminal.TermuxTerminalViewClient;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
@@ -128,7 +129,8 @@ import java.util.Objects;
  * </ul>
  * about memory leaks.
  */
-public final class TermuxActivity extends AppCompatActivity implements ServiceConnection {
+public final class TermuxActivity extends AppCompatActivity
+    implements ServiceConnection, TerminalActionRunner.Host {
 
     /**
      * The connection to the {@link TermuxService}. Requested in {@link #onCreate(Bundle)} with a call to
@@ -280,6 +282,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private ShellCommandHost mShellCommandHost;
 
     /**
+     * Maps a terminal menu action to its implementation, which is one of the {@code Host} methods of this
+     * activity. Replaces the switch that used to run the actions, so that the mapping is complete and testable.
+     */
+    private TerminalActionRunner mTerminalActionRunner;
+
+    /**
      * If between onResume() and onStop(). Note that only one session is in the foreground of the terminal view at the
      * time, so if the session causing a change is not in the foreground it should probably be treated as background.
      */
@@ -418,6 +426,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         setTermuxTerminalViewAndClients();
 
         mShellCommandHost = new ShellCommandHost(this);
+        mTerminalActionRunner = new TerminalActionRunner(this);
 
         mTerminalSearchController = new TerminalSearchController(this);
         mTerminalSearchController.setUp();
@@ -1039,6 +1048,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     /** Open the sessions drawer, like from the edge handle, the terminal menu or a virtual key. */
+    @Override
     public void openSessionsDrawer() {
         DrawerLayout drawer = getDrawer();
         if (drawer == null) return;
@@ -1321,6 +1331,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /** Update the layout params of the panes and the divider for the current orientation and split state. */
     /** Show the terminal search bar and focus its text input, so that the user can type a query. */
+    @Override
     public void showTerminalSearch() {
         mTerminalSearchController.show();
     }
@@ -1497,6 +1508,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * check the appearance of the cards and tune the `notification-*` properties without having to
      * wait for a command to fail.
      */
+    @Override
     public void sendTestNotification() {
         if (mNotificationManager == null) return;
 
@@ -1545,6 +1557,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * disappeared. Clicking an entry jumps to the command of a failed command, or copies the text of the
      * other notifications to the clipboard, since they have no command that could be jumped to.
      */
+    @Override
     public void showRecentNotifications() {
         if (mNotificationManager == null) return;
 
@@ -1613,78 +1626,82 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /** Run the action of an item of the terminal context menu, or of a command of the palette. */
     public void runTerminalMenuAction(@NonNull TerminalMenuAction action) {
-        TerminalSession session = getCurrentSession();
+        mTerminalActionRunner.run(action);
+    }
 
-        switch (action) {
-            case SEARCH:
-                showTerminalSearch();
-                break;
-            case SESSIONS:
-                openSessionsDrawer();
-                break;
-            case COMMAND_PALETTE:
-                showCommandPalette();
-                break;
-            case PREVIOUS_COMMAND:
-                mTerminalView.scrollToPreviousCommand();
-                break;
-            case NEXT_COMMAND:
-                mTerminalView.scrollToNextCommand();
-                break;
-            case SPLIT_VERTICAL:
-                setSplitScreen(true, LinearLayout.VERTICAL);
-                break;
-            case SPLIT_HORIZONTAL:
-                setSplitScreen(true, LinearLayout.HORIZONTAL);
-                break;
-            case SPLIT_CLOSE:
-                setSplitScreen(false, mTerminalSplitScreenController.getOrientation());
-                break;
-            case SELECT_URL:
-                mTermuxTerminalViewClient.showUrlSelection();
-                break;
-            case SHARE_TRANSCRIPT:
-                mTermuxTerminalViewClient.shareSessionTranscript();
-                break;
-            case SHARE_SELECTED_TEXT:
-                mTermuxTerminalViewClient.shareSelectedText();
-                break;
-            case AUTOFILL_USERNAME:
-                mTerminalView.requestAutoFillUsername();
-                break;
-            case AUTOFILL_PASSWORD:
-                mTerminalView.requestAutoFillPassword();
-                break;
-            case RESET_TERMINAL:
-                onResetTerminalSession(session);
-                break;
-            case KILL_PROCESS:
-                showKillSessionDialog(session);
-                break;
-            case STYLING:
-                showStylingDialog();
-                break;
-            case KEEP_SCREEN_ON:
-                toggleKeepScreenOn();
-                break;
-            case HELP:
-                ActivityUtils.startActivity(this, new Intent(this, HelpActivity.class));
-                break;
-            case SETTINGS:
-                ActivityUtils.startActivity(this, new Intent(this, SettingsActivity.class));
-                break;
-            case REPORT:
-                mTermuxTerminalViewClient.reportIssueFromTranscript();
-                break;
-            case RECENT_NOTIFICATIONS:
-                showRecentNotifications();
-                break;
-            case TEST_NOTIFICATION:
-                sendTestNotification();
-                break;
-            default:
-                break;
-        }
+    @Override
+    public void scrollToPreviousCommand() {
+        mTerminalView.scrollToPreviousCommand();
+    }
+
+    @Override
+    public void scrollToNextCommand() {
+        mTerminalView.scrollToNextCommand();
+    }
+
+    @Override
+    public void splitScreenVertically() {
+        setSplitScreen(true, LinearLayout.VERTICAL);
+    }
+
+    @Override
+    public void splitScreenHorizontally() {
+        setSplitScreen(true, LinearLayout.HORIZONTAL);
+    }
+
+    @Override
+    public void closeSplitScreen() {
+        setSplitScreen(false, mTerminalSplitScreenController.getOrientation());
+    }
+
+    @Override
+    public void selectUrl() {
+        mTermuxTerminalViewClient.showUrlSelection();
+    }
+
+    @Override
+    public void shareTranscript() {
+        mTermuxTerminalViewClient.shareSessionTranscript();
+    }
+
+    @Override
+    public void shareSelectedText() {
+        mTermuxTerminalViewClient.shareSelectedText();
+    }
+
+    @Override
+    public void autofillUsername() {
+        mTerminalView.requestAutoFillUsername();
+    }
+
+    @Override
+    public void autofillPassword() {
+        mTerminalView.requestAutoFillPassword();
+    }
+
+    @Override
+    public void resetTerminal() {
+        onResetTerminalSession(getCurrentSession());
+    }
+
+    @Override
+    public void killSession() {
+        showKillSessionDialog(getCurrentSession());
+    }
+
+    @Override
+    public void openHelp() {
+        ActivityUtils.startActivity(this, new Intent(this, HelpActivity.class));
+    }
+
+    @Override
+    public void openSettings() {
+        ActivityUtils.startActivity(this, new Intent(this, SettingsActivity.class));
+    }
+
+    @Override
+    public void reportIssue() {
+        mTermuxTerminalViewClient.reportIssueFromTranscript();
     }
 
     /**
@@ -1694,6 +1711,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * that an action that is hidden or disabled in the menu is shown the same way here. The commands run
      * through the existing action dispatcher, which keeps a single implementation per action.</p>
      */
+    @Override
     public void showCommandPalette() {
         TerminalSession session = getCurrentSession();
         if (session == null || mTerminalView == null) return;
@@ -2085,7 +2103,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }
     }
 
-    private void showStylingDialog() {
+    @Override
+    public void showStylingDialog() {
         Intent stylingIntent = new Intent();
         stylingIntent.setClassName(TermuxConstants.TERMUX_STYLING_PACKAGE_NAME, TermuxConstants.TERMUX_STYLING_APP.TERMUX_STYLING_ACTIVITY_NAME);
         try {
@@ -2099,7 +2118,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 .setNegativeButton(android.R.string.cancel, null).show();
         }
     }
-    private void toggleKeepScreenOn() {
+
+    @Override
+    public void toggleKeepScreenOn() {
         if (mTerminalView.getKeepScreenOn()) {
             mTerminalView.setKeepScreenOn(false);
             mPreferences.setKeepScreenOn(false);
