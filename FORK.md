@@ -2068,7 +2068,7 @@ terminal-emulator 236 个
 | 终端菜单、命名对话框、通知历史 | 改为 Material 3 圆角窗口，标题与按钮层级统一；窗口、滚动与按钮由共用的 `TerminalDialogBuilder` 绘制 |
 | 通知卡片 | 默认圆角由 0 改为 12dp；`notification-corner-radius` 仍可覆盖 |
 | 终端菜单 | 默认圆角由 0 改为 16dp；`terminal-menu-corner-radius` 仍可覆盖 |
-| 抽屉 | 会话行、选中底色与涟漪改为 12dp 圆角，会话强调条改为圆头，列表左右各留 8dp；头部按钮补涟漪，底部两个按钮改为 Material 3 文字按钮 |
+| 抽屉 | 会话行、选中底色与涟漪改为 12dp 圆角；当前会话的强调条改为 3dp 内缩胶囊（距左 6dp、上下各 8dp），列表左右各留 8dp 并去掉平台选择高亮；头部按钮补涟漪，底部两个按钮改为 Material 3 文字按钮 |
 | 状态栏 | 分段之间留 4dp 内距；可点击分段按下时有 8dp 圆角高亮 |
 | 命令面板、设置搜索 | 窗口圆角改用令牌，尺寸随屏幕高度收缩；设置搜索改为 Material 3 输入框与行布局 |
 | 平台提示对话框 | 改用 `MaterialAlertDialogBuilder`（终止会话、URL 选择、会话数上限、风格未安装、备份恢复、扩展停用确认、长按复位等） |
@@ -2077,3 +2077,20 @@ terminal-emulator 236 个
 （抽屉、状态栏等）。若要让 MD3 表面色跟随 `colors.properties`，需要运行期 theme overlay，仍属未决设计。
 
 两个可覆盖属性的默认值变化会影响自定义过 `corner-radius` 的用户：显式设置为其他值（含 0）时行为不变。
+
+## 36. 手势小横条与刘海适配（2026-11-23）
+
+两项系统界面适配，均以真机 `fullscreen`（默认 `true`）为前提：
+
+| 区域 | 行为 |
+| --- | --- |
+| 手势导航的小横条（导航栏） | 底部始终保留系统栏 inset，终端最后一行与额外键都在小横条上方，不会被覆盖；小横条区域显示终端背景色 |
+| 刘海 / 挖孔 | 仅全屏（`fullscreen=true`，状态栏隐藏）时使用 `shortEdges`，终端绘制到挖孔区域，顶部不再有黑带；非全屏时内容仍避开挖孔，状态栏图标不被摄像头遮挡 |
+
+实现要点：
+
+- 根布局不再使用 `android:fitsSystemWindows`，改由 `TermuxActivityRootView.WindowInsetsListener` 显式设置内边距，两者同时启用会叠加两次。
+- 窗口属性（`FLAG_FULLSCREEN` 与 `layoutInDisplayCutoutMode`）在 `setContentView()` 之前设置，避免首帧状态栏闪烁。
+- `fullscreen` 是启动期属性，修改后需要重启应用（与既有的 `fullscreen`、主题等属性一致）。
+
+未真机验证：刘海填充、非全屏避让、键盘弹起时额外键与小横条的关系、`fullscreen=false` 时的状态栏图标。

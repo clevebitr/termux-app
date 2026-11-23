@@ -385,3 +385,34 @@
 - 已登记到 `docs/API_INDEX.md` §10，并在 §9 增加三条「不要重复实现」条目。
 
 未验证：本机无 `adb`，全部观感（圆角、描边、标题层级、按钮按下态、设置搜索与色板、键盘弹出后的面板高度）未在真机确认。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 177 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。`:app:lintDebug` 仍因 NDK 缺 `libc++_shared` 无法本地执行，lint 以 CI 为准。
+
+## 2026-11-23 — 抽屉胶囊条、扩展可用性与系统栏刘海适配
+
+按需求方四项反馈实施（提交 c917360、32d7c52、5b85fb5、8db2e1b、0a45190、91f9f0b），并附代码审查结论。
+
+一、扩展可用性（分屏禁用后命令面板仍有分屏项）
+- 根因：`TerminalMenuItems.State` 只有 `splitScreenEnabled`（分屏当前是否开启），没有「分屏扩展是否可运行」。扩展禁用后 `isSplitScreenEnabled()` 恒为 false，但 `SPLIT_VERTICAL`/`SPLIT_HORIZONTAL` 的可见性规则是 `default: true`，于是仍列出，点击后 `setSplitScreen()` 因扩展缺失直接返回，表现为无操作。
+- 修法：`State` 增加 `splitScreenAvailable`、`searchAvailable`、`sessionsDrawerAvailable`；`isVisible` 对 SEARCH、SESSIONS、SPLIT_VERTICAL/HORIZONTAL 按扩展可用性判定，SPLIT_CLOSE 另外要求分屏已开启。`TermuxActivity` 新增 `isSplitScreenAvailable()`/`isSearchAvailable()`/`isSessionsDrawerAvailable()`，菜单扩展与命令面板共用同一组判定，规则仍集中在 `TerminalMenuItems`。
+- 测试：`TerminalMenuItemsTest` 新增 2 项（扩展全禁用时上述动作全部隐藏而 SETTINGS/RESET 仍可见；分屏可用性与当前状态联合判定），共 10 项。
+
+二、抽屉选中胶囊条
+- 强调条由贴边整高改为 3dp 内缩胶囊：距行左缘 6dp、上下各 8dp、圆角 1.5dp（半径取宽度一半），与行 12dp 圆角背景配合；行最小高度 56dp，详情字号 11sp → 12sp，文字区内距 8dp。
+- 列表去掉平台选择高亮与默认分隔线（`listSelector` 透明、`divider` 置空），避免叠在圆角行背景上。
+
+三、系统栏手势条与刘海
+- 根布局不再使用 `android:fitsSystemWindows`，改由 `TermuxActivityRootView.WindowInsetsListener` 显式设置内边距：底部始终取导航栏/手势条 inset，终端底行与额外键不被手势小横条覆盖；顶部与左右在非全屏时取系统栏与挖孔 inset 的较大值，`fullscreen=true` 时取 0，让终端真正绘制到刘海区域。
+- 挖孔模式：新增 `applyWindowFlags()` 在 `setContentView()` 之前设置窗口属性——全屏时加 `FLAG_FULLSCREEN` 并置 `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`，非全屏使用默认模式（内容避开挖孔）；原 `FLAG_FULLSCREEN` 调用从 `setContentView` 之后移到此处。API 28 以下只设全屏标志。
+- 两者不能同时启用：若保留 `fitsSystemWindows` 又设内边距，会叠加两次，已写入监听器 KDoc 与 `docs/API_INDEX.md`。
+
+四、其余打磨
+- 命令面板与设置搜索的列表高度按结果数收缩（最多 8 行 / 6 行），上限仍为 360dp，小屏按屏幕高度收缩；命令面板的初始 360dp 列表在只有一两条结果时不再留大片空白。
+- 终端搜索条背景改为底部 16dp 圆的形状（顶部贴边保持方角），与对话框同一圆角令牌。
+- `TerminalDialogBuilder.dialogWidth()` 增加 200dp 下限，避免极窄窗口下用负宽度测量正文。
+
+五、审查结论（未处理项，待需求方定夺）
+1. 额外键中的特殊键（`SEARCH`、`DRAWER`、`SPLIT_VERTICAL/HORIZONTAL`、`SPLIT_CLOSE`）来自用户 `extra-keys` 属性，扩展禁用后仍显示且无动作。是否按扩展可用性过滤属于「用户自定义布局是否随扩展变化」的产品决策，本轮未动。
+2. 设置、帮助、报告页顶栏背景取自 `?attr/colorPrimaryDark`，在 Material 3 主题下等于 `colorPrimary`（红色），属 Material 2 的观感；改成 `colorSurface` 需同时确认标题与图标颜色，本轮未改。
+3. androidx.preference 没有 Material 3 变体，设置页仍用其默认 `preferenceTheme`。
+4. `TermuxInstaller` 的引导失败对话框仍是平台 `AlertDialog`：该路径在应用初始化失败时执行，不宜再依赖 Material 组件。
+
+未验证：本机无 `adb`，胶囊条观感、手势条留白、全屏刘海填充、非全屏避让、键盘弹起时额外键与手势条的关系、动态列表高度均未在真机确认。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 179 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。
