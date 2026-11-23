@@ -79,6 +79,8 @@ import com.termux.app.ext.host.ExtensionHost;
 import com.termux.app.ext.host.ExtensionManager;
 import com.termux.app.ext.statusbar.StatusBarExtension;
 import com.termux.app.terminal.TermuxTerminalViewClient;
+import com.termux.app.terminal.layout.TerminalPaneHost;
+import com.termux.app.terminal.layout.TwoPaneTerminalLayout;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxUtils;
@@ -182,21 +184,12 @@ public final class TermuxActivity extends AppCompatActivity
     private final FrameLayout[] mTerminalPaneContainers = new FrameLayout[2];
 
     /**
-     * The {@link TerminalView} of each pane. The view of the active pane is {@link #mTerminalView},
-     * which most of the activity operates on, so that the code that was written for a single
-     * terminal view keeps working with split screen.
+     * The panes of the terminal and which of them is active. The active pane is the one that receives the keyboard,
+     * the extra keys and the menus; its view and client are cached in {@link #mTerminalView} and
+     * {@link #mTermuxTerminalViewClient} so that the code that was written for a single terminal view keeps working.
      */
-    private final TerminalView[] mTerminalViews = new TerminalView[2];
-
-    /**
-     * The {@link TermuxTerminalViewClient} of each pane. Each view has its own client, since the
-     * callbacks of a view must act on the view that received the event, not on the active pane.
-     * The client of the active pane is {@link #mTermuxTerminalViewClient}.
-     */
-    private final TermuxTerminalViewClient[] mTermuxTerminalViewClients = new TermuxTerminalViewClient[2];
-
-    /** The index of the pane that is active, i.e. that receives the keyboard, extra keys and menus. */
-    private int mActiveTerminalViewIndex = 0;
+    @NonNull
+    private final TerminalPaneHost mPanes = new TwoPaneTerminalLayout();
 
     /**
      * The drawer of the sessions: its colors, its handle and the summary of the current session. Created with the
@@ -530,7 +523,7 @@ public final class TermuxActivity extends AppCompatActivity
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onStart();
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.onStart();
         }
 
@@ -559,7 +552,7 @@ public final class TermuxActivity extends AppCompatActivity
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onResume();
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.onResume();
         }
 
@@ -618,7 +611,7 @@ public final class TermuxActivity extends AppCompatActivity
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onStop();
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.onStop();
         }
 
@@ -685,13 +678,13 @@ public final class TermuxActivity extends AppCompatActivity
         savedInstanceState.putBoolean(ARG_SPLIT_SCREEN_ENABLED, true);
         savedInstanceState.putInt(ARG_SPLIT_SCREEN_ORIENTATION, splitScreen.getOrientation());
         savedInstanceState.putFloat(ARG_SPLIT_SCREEN_PANE_RATIO, splitScreen.getPaneRatio());
-        savedInstanceState.putInt(ARG_SPLIT_SCREEN_ACTIVE_PANE, mActiveTerminalViewIndex);
+        savedInstanceState.putInt(ARG_SPLIT_SCREEN_ACTIVE_PANE, mPanes.getActiveIndex());
 
-        TerminalSession primarySession = mTerminalViews[0] != null ? mTerminalViews[0].getCurrentSession() : null;
+        TerminalSession primarySession = mPanes.getView(0) != null ? mPanes.getView(0).getCurrentSession() : null;
         if (primarySession != null)
             savedInstanceState.putString(ARG_SPLIT_SCREEN_PRIMARY_SESSION, primarySession.mHandle);
 
-        TerminalSession secondarySession = mTerminalViews[1] != null ? mTerminalViews[1].getCurrentSession() : null;
+        TerminalSession secondarySession = mPanes.getView(1) != null ? mPanes.getView(1).getCurrentSession() : null;
         if (secondarySession != null)
             savedInstanceState.putString(ARG_SPLIT_SCREEN_SECONDARY_SESSION, secondarySession.mHandle);
     }
@@ -729,7 +722,7 @@ public final class TermuxActivity extends AppCompatActivity
         // Show the primary session in the first pane, which attaches it to the active pane, and then the
         // secondary one in the other pane, so that the panes keep the order that they had.
         mTermuxTerminalSessionActivityClient.setCurrentSession(primarySession);
-        mTerminalViews[1].attachSession(secondarySession);
+        mPanes.getView(1).attachSession(secondarySession);
 
         SplitScreenExtension splitScreen = splitScreenExtension();
         if (splitScreen != null) splitScreen.setOrientation(mSavedSplitScreenOrientation);
@@ -855,7 +848,7 @@ public final class TermuxActivity extends AppCompatActivity
         mKeyboardCompatLog = ForkProperties.getBoolean(forkProperties, ForkPropertyKeys.KEYBOARD_COMPAT_LOG, false);
         applySecondaryButtonBehaviour();
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.onReloadProperties();
         }
 
@@ -990,7 +983,7 @@ public final class TermuxActivity extends AppCompatActivity
 
     /** @return The {@link TerminalView} of every pane, including the hidden secondary pane. */
     public TerminalView[] getTerminalViews() {
-        return mTerminalViews;
+        return mPanes.getViews();
     }
 
     /** @return Whether split screen is enabled, i.e. whether the secondary pane is visible. */
@@ -1045,7 +1038,7 @@ public final class TermuxActivity extends AppCompatActivity
                 splitScreen.setEnabled(false);
                 splitScreen.updateLayout();
                 setActiveTerminalPane(0);
-                splitScreen.updatePaneActiveStates(mActiveTerminalViewIndex);
+                splitScreen.updatePaneActiveStates(mPanes.getActiveIndex());
             }
             return;
         }
@@ -1056,8 +1049,8 @@ public final class TermuxActivity extends AppCompatActivity
             return;
         }
 
-        TerminalSession primarySession = mTerminalViews[0].getCurrentSession();
-        TerminalSession secondarySession = mTerminalViews[1].getCurrentSession();
+        TerminalSession primarySession = mPanes.getView(0).getCurrentSession();
+        TerminalSession secondarySession = mPanes.getView(1).getCurrentSession();
         if (secondarySession == null || secondarySession == primarySession || !secondarySession.isRunning()) {
             // Show a different session in the secondary pane, or create a new one if there is none.
             secondarySession = findSessionForSecondaryPane(primarySession);
@@ -1073,15 +1066,15 @@ public final class TermuxActivity extends AppCompatActivity
 
             // Attach the session to the secondary pane's view. The fonts and the font size have
             // already been applied to it, since they are applied to the view of every pane.
-            mTerminalViews[1].attachSession(secondarySession);
+            mPanes.getView(1).attachSession(secondarySession);
         }
 
         splitScreen.setEnabled(true);
         splitScreen.updateLayout();
-        splitScreen.updatePaneActiveStates(mActiveTerminalViewIndex);
+        splitScreen.updatePaneActiveStates(mPanes.getActiveIndex());
         // The secondary pane may have been running for a long time while it was hidden, so show its
         // current output right away instead of waiting for the next output of its session.
-        mTerminalViews[1].onScreenOutput();
+        mPanes.getView(1).onScreenOutput();
     }
 
     /**
@@ -1089,21 +1082,21 @@ public final class TermuxActivity extends AppCompatActivity
      * and the context menu. Only the session of the active pane receives focus events.
      */
     public void setActiveTerminalPane(int index) {
-        if (index < 0 || index >= mTerminalViews.length) return;
+        if (index < 0 || index >= mPanes.getPaneCount()) return;
         SplitScreenExtension splitScreen = splitScreenExtension();
         if (splitScreen == null || !splitScreen.isEnabled()) index = 0;
-        if (index == mActiveTerminalViewIndex) return;
+        if (index == mPanes.getActiveIndex()) return;
 
         TerminalSession previousSession = getCurrentSession();
         // Clear the search highlights of the previously active pane, since the search bar operates
         // on the active pane only.
-        mTerminalViews[mActiveTerminalViewIndex].clearSearch();
+        mPanes.getView(mPanes.getActiveIndex()).clearSearch();
 
-        mActiveTerminalViewIndex = index;
-        mTerminalView = mTerminalViews[index];
-        mTermuxTerminalViewClient = mTermuxTerminalViewClients[index];
+        mPanes.setActiveIndex(index);
+        mTerminalView = mPanes.getView(index);
+        mTermuxTerminalViewClient = mPanes.getViewClient(index);
 
-        if (splitScreen != null) splitScreen.updatePaneActiveStates(mActiveTerminalViewIndex);
+        if (splitScreen != null) splitScreen.updatePaneActiveStates(mPanes.getActiveIndex());
 
         // Only the session of the active pane may report having window focus.
         if (previousSession != null && previousSession.getEmulator() != null)
@@ -1126,7 +1119,7 @@ public final class TermuxActivity extends AppCompatActivity
 
     /** @return Whether the {@link TerminalView} of any pane has focus. */
     public boolean isAnyTerminalViewFocused() {
-        for (TerminalView terminalView : mTerminalViews) {
+        for (TerminalView terminalView : mPanes.getViews()) {
             if (terminalView != null && terminalView.hasFocus()) return true;
         }
         return false;
@@ -1137,7 +1130,7 @@ public final class TermuxActivity extends AppCompatActivity
     public TerminalView getInactiveTerminalPaneView() {
         SplitScreenExtension splitScreen = splitScreenExtension();
         if (splitScreen == null || !splitScreen.isEnabled()) return null;
-        return mTerminalViews[1 - mActiveTerminalViewIndex];
+        return mPanes.getInactiveView();
     }
 
     /**
@@ -1149,10 +1142,10 @@ public final class TermuxActivity extends AppCompatActivity
     public TerminalView getTerminalViewForSession(@Nullable TerminalSession session) {
         if (session == null) return null;
 
-        for (int i = 0; i < mTerminalViews.length; i++) {
+        for (int i = 0; i < mPanes.getPaneCount(); i++) {
             // The secondary pane is hidden when split screen is disabled, so it must not be redrawn.
             if (i != 0 && (splitScreenExtension() == null || !splitScreenExtension().isEnabled())) continue;
-            TerminalView terminalView = mTerminalViews[i];
+            TerminalView terminalView = mPanes.getView(i);
             if (terminalView != null && terminalView.getCurrentSession() == session) return terminalView;
         }
 
@@ -1164,7 +1157,7 @@ public final class TermuxActivity extends AppCompatActivity
     public TerminalSession getInactiveTerminalPaneSession() {
         SplitScreenExtension splitScreen = splitScreenExtension();
         if (splitScreen == null || !splitScreen.isEnabled()) return null;
-        return mTerminalViews[1 - mActiveTerminalViewIndex].getCurrentSession();
+        return mPanes.getInactiveView().getCurrentSession();
     }
 
     /**
@@ -1177,8 +1170,8 @@ public final class TermuxActivity extends AppCompatActivity
         SplitScreenExtension splitScreen = splitScreenExtension();
         if (splitScreen == null || !splitScreen.isEnabled()) return;
 
-        TerminalView activeView = mTerminalViews[mActiveTerminalViewIndex];
-        TerminalView inactiveView = mTerminalViews[1 - mActiveTerminalViewIndex];
+        TerminalView activeView = mPanes.getView(mPanes.getActiveIndex());
+        TerminalView inactiveView = mPanes.getInactiveView();
         TerminalSession activeSession = activeView.getCurrentSession();
         TerminalSession inactiveSession = inactiveView.getCurrentSession();
 
@@ -1690,7 +1683,7 @@ public final class TermuxActivity extends AppCompatActivity
      * {@link TermuxTerminalViewClient#getInputType(int)} resolves for the current keyboard state.
      */
     private void restartTerminalInputConnections() {
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.restartInputConnection();
         }
     }
@@ -1794,15 +1787,15 @@ public final class TermuxActivity extends AppCompatActivity
         // Set termux terminal views, one for each pane, and their clients
         mTerminalPaneContainers[0] = findViewById(R.id.terminal_pane_0);
         mTerminalPaneContainers[1] = findViewById(R.id.terminal_pane_1);
-        mTerminalViews[0] = findViewById(R.id.terminal_view);
-        mTerminalViews[1] = findViewById(R.id.terminal_view_2);
+        mPanes.setView(0, findViewById(R.id.terminal_view));
+        mPanes.setView(1, findViewById(R.id.terminal_view_2));
 
-        for (int i = 0; i < mTerminalViews.length; i++) {
+        for (int i = 0; i < mPanes.getPaneCount(); i++) {
             final int paneIndex = i;
-            TerminalView terminalView = mTerminalViews[i];
+            TerminalView terminalView = mPanes.getView(i);
             TermuxTerminalViewClient viewClient =
                 new TermuxTerminalViewClient(this, terminalView, mTermuxTerminalSessionActivityClient);
-            mTermuxTerminalViewClients[i] = viewClient;
+            mPanes.setViewClient(i, viewClient);
             terminalView.setTerminalViewClient(viewClient);
             registerForContextMenu(terminalView);
 
@@ -1812,7 +1805,7 @@ public final class TermuxActivity extends AppCompatActivity
                 SplitScreenExtension splitScreen = splitScreenExtension();
                 if (event.getActionMasked() == MotionEvent.ACTION_DOWN
                     && splitScreen != null && splitScreen.isEnabled()
-                    && paneIndex != mActiveTerminalViewIndex)
+                    && paneIndex != mPanes.getActiveIndex())
                     setActiveTerminalPane(paneIndex);
                 return false;
             });
@@ -1820,11 +1813,11 @@ public final class TermuxActivity extends AppCompatActivity
 
         applySecondaryButtonBehaviour();
 
-        mActiveTerminalViewIndex = 0;
-        mTerminalView = mTerminalViews[0];
-        mTermuxTerminalViewClient = mTermuxTerminalViewClients[0];
+        mPanes.setActiveIndex(0);
+        mTerminalView = mPanes.getView(0);
+        mTermuxTerminalViewClient = mPanes.getViewClient(0);
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.onCreate();
         }
 
@@ -2476,7 +2469,7 @@ public final class TermuxActivity extends AppCompatActivity
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onReloadActivityStyling();
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.onReloadActivityStyling();
         }
 
