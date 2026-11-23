@@ -12,8 +12,8 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `08f64b7 refactor: 将会话抽屉提取为 drawer 扩展` |
-| 规模 | `TermuxActivity` 2089 行；`commands/` 5 文件 491 行；`ext/` 62 文件 8600 行（notifications 15、drawer 9、statusbar 7、menu 7、search 4、volumekeys 4、backup 3、api 6、host 7） |
+| 最近提交 | `596e946 refactor: 将分屏提取为 split 扩展` |
+| 规模 | `TermuxActivity` 2100 行；`commands/` 5 文件 491 行；`ext/` 8 个扩展 + api/host；`terminal/` 仅剩 6 文件 |
 | 验证 | 本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 164 项、1 项既有失败 |
 
 ---
@@ -53,6 +53,8 @@
 - [x] `ext.notifications` 迁移：管理器、三个事件适配器、叠层、历史、测试通知与设置页迁入扩展包；宿主改为转发命令结束/标题/会话结束/响铃/OSC 事件（`db99dc9`、`#12`）
 - [x] `ext.search` 迁移：控制器与偏好迁入扩展包，宿主转发显示/隐藏/刷新；槽位 `terminal_search_bar`（`7a47843`、`#13`）
 - [x] `ext.drawer` 迁移：控制器、会话列表适配器、配置、把手、颜色工具与会话详情迁入扩展包；扩展负责创建并绑定列表，宿主在服务连接后通知（`08f64b7`、`#13`）
+- [x] `ext.split` 迁移：控制器改为只依赖 `Context` 并迁入扩展包，新增 `SplitScreenExtension`（槽位、启停、比例与边框）；会话挂载仍由宿主 `setSplitScreen()` 负责（`596e946`、`#14`）
+- [x] 扩展查询 API 收敛为 `ExtensionHost.find/findRunning`，删除各处的 `instanceof` 强转（`767c575`、`#14`）
 
 ### 2.5 文档与治理
 

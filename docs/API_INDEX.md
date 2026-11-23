@@ -21,7 +21,7 @@
 | `ExtensionSettingsPage` | `ext/api/ExtensionSettingsPage.java` | 设置页声明：`titleRes`、`xmlRes`、`fragmentClassName` | 不要在 `SettingsSearchIndex` 里手写扩展页面 |
 | `ExtensionViewSlot` | `ext/api/ExtensionViewSlot.java` | 布局区域声明：`viewId`、`viewName`、`description`；配合 `Extension.slots()` | 不要在宿主里另行接管同一视图，也不要接管终端视图与抽屉结构 |
 | `ExtensionLayoutHost` | `ext/api/ExtensionLayoutHost.java` | 宿主实现 `requestExtensionLayout()`，供扩展请求重排 | 不要再加 `onXxxLayoutChanged()` 之类按特性命名的钩子 |
-| `ExtensionHost` | `ext/host/ExtensionHost.java` | **扩展状态唯一来源**：`installed`/`statuses`/`stateOf`/`isRunning`/`disabledIds`/`extension`/`dependentsOf`/`setEnabled` | 不要再写「读 SharedPreferences 判断扩展是否启用」的代码 |
+| `ExtensionHost` | `ext/host/ExtensionHost.java` | **扩展状态唯一来源**：`installed`/`statuses`/`stateOf`/`isRunning`/`disabledIds`/`extension`/**`find(Class)`**/**`findRunning(Class)`**/`slotOwner`/`dependentsOf`/`setEnabled` | 不要再写「读 SharedPreferences 判断扩展是否启用」的代码，也不要再用 `instanceof` 强转取扩展实例 |
 | `ExtensionManager` | `ext/host/ExtensionManager.java` | 扩展生命周期：`apply`/`onStart`/`onStop`/`onReload`/`destroy`，异常隔离 | 不要在 Activity 里逐个调用扩展的 `onEnable`/`onStart` |
 | `ExtensionGraph` | `ext/host/ExtensionGraph.java` | 纯函数依赖解析：拓扑顺序、缺依赖、依赖环、级联 | 不要另写依赖排序 |
 | `ExtensionPreferences` | `ext/host/ExtensionPreferences.java` | 偏好层：`enabled.<id>` 读写、`applyPreferenceVisibility`（含空分类收起） | 不要另写「隐藏禁用扩展的设置项」 |
@@ -56,7 +56,7 @@
 | --- | --- | --- | --- |
 | `TerminalDrawerController` | `ext/drawer/TerminalDrawerController.java` | 抽屉配色、把手、开合模式、头部概要；`setUp`/`reloadConfig`/`openDrawer`/`updateColors`/`updateSummary`/`setSessionsListAdapter` | 不要在 Activity 或适配器里另算抽屉颜色与把手位置 |
 | `TerminalSearchController` | `ext/search/TerminalSearchController.java` | 终端内搜索栏与搜索历史 | 不要另写搜索栏 |
-| `TerminalSplitScreenController` | `terminal/TerminalSplitScreenController.java` | 分屏状态与两窗格布局 | 不要在 Activity 里直接算分屏布局参数 |
+| `TerminalSplitScreenController` | `ext/split/TerminalSplitScreenController.java` | 分屏状态与两窗格布局 | 不要在 Activity 里直接算分屏布局参数 |
 | `TermuxTerminalFrame` | `terminal/TermuxTerminalFrame.java` | 包装 `TerminalView`，转发鼠标右键 | 不要去改只读模块的 `TerminalView` |
 | `TermuxSessionsListViewController` | `ext/drawer/TermuxSessionsListViewController.java` | 抽屉会话列表适配器（依赖 `TerminalDrawerController`） | 不要另写会话列表行布局逻辑 |
 | `TermuxTerminalViewClient` | `terminal/TermuxTerminalViewClient.java` | 终端视图事件（按键、软键盘、颜色、属性重载） | 不要另写「切换软键盘」实现，用 `onToggleSoftKeyboardRequest()` |
@@ -108,6 +108,7 @@
 | 扩展 | 路径 | 提供的能力 | 宿主接口 |
 | --- | --- | --- | --- |
 | `statusbar` | `ext/statusbar/` | `StatusBarConfig`/`StatusBarView`/`StatusBarController`/`StatusBarMetrics`/`SparklineView`/`StatusBarPreferencesFragment`，`StatusBarExtension.getConfig()` 供宿主查询 | 槽位 `status_bar_view`；`ExtensionLayoutHost.requestExtensionLayout()` |
+| `split` | `ext/split/` | `TerminalSplitScreenController`（窗格排列、分隔条拖拽、活动窗格边框）与 `SplitScreenExtension`；槽位 `terminal_panes_container`/`terminal_split_divider` | `TermuxActivity.setSplitScreen()`（会话挂载仍由宿主负责） |
 | `search` | `ext/search/` | `TerminalSearchController`、`TerminalSearchPreferences`、`SearchExtension`；槽位 `terminal_search_bar` | `TermuxActivity.showTerminalSearch()`/`hideTerminalSearch()`/`refreshTerminalSearch()` |
 | `drawer` | `ext/drawer/` | `TerminalDrawerController`、`TermuxSessionsListViewController`、`DrawerConfig`/`DrawerHandleView`/`DrawerColorUtils`、`SessionDetails`、`DrawerExtension`；槽位 `left_drawer`/`drawer_handle` | `TermuxActivity.getDrawer()`（布局访问）、`openSessionsDrawer()` |
 | `notifications` | `ext/notifications/` | `TerminalNotificationManager`（卡片/后台通知/历史）、三个事件适配器、叠层视图与设置页；`NotificationsExtension` 提供事件转发与 `getManager()` | `TermuxActivity.getTerminalNotificationManager()`、`onCommandFinished`/`onBell`/`onOscNotification` 等转发方法 |
@@ -148,3 +149,4 @@
 | 打开设置页 | `SettingsActivity` + `SettingsSearchNavigation` | 不要 `startActivity` 绕过校验 |
 | 抽屉颜色 | `TerminalDrawerController.get*Color()` | 不要在适配器里重算 |
 | 打开/关闭抽屉 | `DrawerExtension.openDrawer()`/`closeDrawer()`（`TermuxActivity.openSessionsDrawer()` 转发） | 不要直接操作 `DrawerLayout` 的开合 |
+| 取扩展实例 | `ExtensionHost.get(ctx).findRunning(XxxExtension.class)` | 不要写 `instanceof` 强转，`findRunning` 同时完成「是否启用」判断 |
