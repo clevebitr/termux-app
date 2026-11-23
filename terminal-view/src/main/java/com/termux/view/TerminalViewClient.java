@@ -92,6 +92,19 @@ public interface TerminalViewClient {
     }
 
     /**
+     * Called for every event of the input connection, like the text of {@code commitText} or the deletion
+     * request of the IME, so that an application can diagnose an input method that does not deliver the
+     * expected events.
+     *
+     * <p>The default implementation ignores the event, so that an application that does not need the
+     * diagnostics does not pay for it.</p>
+     *
+     * @param message A one line description of the event, like {@code commitText("a")}.
+     */
+    default void onImeEvent(@NonNull String message) {
+    }
+
+    /**
      * If the workaround to be able to use CJK keyboards of IMEs like Gboard in the terminal view
      * should be enabled. If enabled, the terminal view will use a text class input type for the IME
      * and restart the input whenever the IME language is changed.

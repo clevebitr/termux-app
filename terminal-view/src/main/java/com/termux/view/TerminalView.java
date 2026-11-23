@@ -493,6 +493,7 @@ public final class TerminalView extends View {
             @Override
             public boolean finishComposingText() {
                 if (TERMINAL_VIEW_KEY_LOGGING_ENABLED) mClient.logInfo(LOG_TAG, "IME: finishComposingText()");
+                mClient.onImeEvent("finishComposingText");
                 super.finishComposingText();
 
                 sendTextToTerminal(getEditable());
@@ -514,10 +515,20 @@ public final class TerminalView extends View {
             }
 
             @Override
+            public boolean setComposingText(CharSequence text, int newCursorPosition) {
+                if (TERMINAL_VIEW_KEY_LOGGING_ENABLED) {
+                    mClient.logInfo(LOG_TAG, "IME: setComposingText(\"" + text + "\", " + newCursorPosition + ")");
+                }
+                mClient.onImeEvent("setComposingText(\"" + text + "\", " + newCursorPosition + ")");
+                return super.setComposingText(text, newCursorPosition);
+            }
+
+            @Override
             public boolean commitText(CharSequence text, int newCursorPosition) {
                 if (TERMINAL_VIEW_KEY_LOGGING_ENABLED) {
                     mClient.logInfo(LOG_TAG, "IME: commitText(\"" + text + "\", " + newCursorPosition + ")");
                 }
+                mClient.onImeEvent("commitText(\"" + text + "\", " + newCursorPosition + ")");
                 super.commitText(text, newCursorPosition);
 
                 if (mEmulator == null) return true;
@@ -538,6 +549,7 @@ public final class TerminalView extends View {
                 if (TERMINAL_VIEW_KEY_LOGGING_ENABLED) {
                     mClient.logInfo(LOG_TAG, "IME: deleteSurroundingText(" + leftLength + ", " + rightLength + ")");
                 }
+                mClient.onImeEvent("deleteSurroundingText(" + leftLength + ", " + rightLength + ")");
                 // The stock Samsung keyboard with 'Auto check spelling' enabled sends leftLength > 1.
                 KeyEvent deleteKey = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL);
                 for (int i = 0; i < leftLength; i++) sendKeyEvent(deleteKey);
