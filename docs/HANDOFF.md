@@ -9,9 +9,9 @@
 ## 1. 一句话状态
 
 `app/` 的扩展化已完成主体：8 个功能扩展 + 1 个不可禁用的核心扩展、6 类贡献点、命令面板与菜单收敛、
-三个控制器（抽屉/搜索/分屏）与通知体系全部迁出 `TermuxActivity`，界面已切到 Material 3。
-**代码侧迁移计划已走完，目前处在「真机试机 → 定位 → 修复 → 加守卫」的迭代阶段**；剩余是界面风格统一与
-若干未验证项。
+三个控制器（抽屉/搜索/分屏）与通知体系全部迁出 `TermuxActivity`。**UI 层第一批统一已完成**：形状令牌、
+共用对话框构建器、应用级对话框改 Material 3、抽屉/状态栏/命令面板/设置搜索的观感修正。
+目前仍处在「真机试机 → 定位 → 修复 → 加守卫」的迭代阶段，剩余是观感验证与若干未验证项。
 
 ---
 
@@ -22,11 +22,12 @@
 | 交付基线 | `app/`（`com.termux`） |
 | 只读模块 | `terminal-view/`、`terminal-emulator/`、`termux-shared/`（改动需书面豁免） |
 | 原型（冻结） | `app_new/`（Kotlin/Compose 外壳，仅作参考） |
-| 工作分支 | `refactor/app-extensions`（比 `master` 多 10 个提交） |
+| 工作分支 | `refactor/app-extensions`（尚未合并到 `master`；UI 层优化追加 9 个提交） |
 | PR | #2 `fix: 修正迁移后资源文件中的失效类名`，OPEN |
 | CI | Validation / testing(lint+单测) / build(apt-android-5) / Fork Build 通过；`build (apt-android-7)` 一次因 **Maven 依赖瞬时 404** 失败（`javawriter`/`jsr305`），已重跑 |
-| 最新安装包 | `termux-app_fork-20261123-0521-testkey_arm64-v8a.apk`（release `fork-latest`） |
+| 最新安装包 | `termux-app_fork-20261123-0521-testkey_arm64-v8a.apk`（UI 层改动尚未出包） |
 | 未提交 | `app_new/PLAN.md`（历史改动）、`app/PLAN.md`（plan 工具按 cwd 生成的空文件，需求方已明确不需要） |
+| UI 层优化提交 | `1f0d811` `c10a35c` `c43fe8b` `a2345f5` `e39607c` `70010a1` `3db4815` `12324f6` `6d1ee61` |
 
 新会话的第一条命令：
 
@@ -89,7 +90,7 @@ ext/ForkExtensions  本构建的扩展登记表
 | `TermuxActivity` | 2523 行 | **2099 行** |
 | `ext/` | 14 文件 1130 行 | **63 文件 10613 行** |
 | `terminal/` | 23 文件 5356 行 | 6 文件 |
-| 单元测试 | 159 项 / 32 类 | **175 项 / 34 类** |
+| 单元测试 | 159 项 / 32 类 | **177 项 / 35 类** |
 
 ---
 
@@ -115,6 +116,12 @@ ext/ForkExtensions  本构建的扩展登记表
 9. **本机测试限制**：`FileReceiverActivityTest > testIsSharedTextAnUrl` 在 JDK 21 + Robolectric 4.10 下失败，
    CI（JDK 17）不复现，属既有问题。
 10. **CI 偶发失败**：`build (apt-android-*)` 曾因 Maven 仓库瞬时 404 失败，用 `gh run rerun <id> --failed` 重跑。
+11. **`shapeAppearanceOverlay` 改不动对话框圆角**：Material 3 对话框的形状来自 `alertDialogStyle`
+    （`MaterialAlertDialog.Material3`）的 `shapeAppearance`，主题里的 `shapeAppearanceOverlay` 只被
+    `MaterialCardView` 这类自身读该属性的控件使用。要改对话框圆角必须覆盖 `alertDialogStyle`，
+    见 `ThemeOverlay.Termux.Dialog` 与 `TermuxAlertDialogStyle`。
+12. **形状令牌有两处来源**：`dimens.xml`（运行时）与 `TerminalDialogStyles` 的 Java 常量（无 `Context` 时的
+    配置默认值），`ShapeTokenTest` 守卫两者一致；只改一处会让终端菜单与 MD3 对话框圆角漂移。
 
 ---
 
@@ -134,8 +141,9 @@ ext/ForkExtensions  本构建的扩展登记表
 
 - 9 个扩展的启用/禁用是否都即时生效、禁用后是否无残留视图与定时器；
 - 抽屉选中行底色是否只作用于当前会话、长按是否只亮一行；
-- 命令面板的观感（圆角、chip、空状态、输入法弹出后列表高度）与面板内快捷键（`Ctrl+Alt+F/K/C`）；
-- Material 3 主题在设置页、`ColorPreference`、`OrderedItemsPreference`、各对话框中的观感；
+- UI 层第一批的观感：终端菜单/命名对话框/通知历史的圆角与标题层级、抽屉会话行圆角涟漪与强调条、
+  状态栏分段间距与按下态、命令面板在输入法弹出后的列表高度、设置搜索与色板、有序列表对话框；
+- 命令面板内快捷键（`Ctrl+Alt+F/K/C`）在真机上的触发；
 - 分屏排列/拖拽/活动窗格边框/状态恢复；搜索条；右键转发在 `vim`/`tmux` 与分屏下的坐标；
 - OCR/设备侧一切 UI 行为（本机无 `adb`）。
 
@@ -143,8 +151,8 @@ ext/ForkExtensions  本构建的扩展登记表
 
 ## 7. 待决策（会阻塞下一步）
 
-1. **风格边界**：终端内的菜单/对话框是否保持「tui 方角 + 1dp 描边」，还是统一成 MD3 圆角？
-   `TerminalMenuDialog`、`TerminalTextInputDialog`、`TerminalDrawerController` 都受影响，需先定调再统一执行。
+1. ~~**风格边界**~~（2026-11-24 已决）：全部统一为 Material 3 圆角，终端内对话框也使用圆角；
+   1dp 强调色描边保留，可用 `terminal-menu-border-width=0` 关闭。
 2. **MD3 表面色与配色方案的深度映射**：目前只做到「按配色方案明暗切换 DayNight 变体」；抽屉、对话框、
    状态栏等自绘表面直接用配色方案颜色。若要 MD3 表面色也跟随 `colors.properties`，需要设计运行期
    theme overlay 方案（`applyStyle` 只能引用静态资源）。

@@ -133,6 +133,7 @@
 | `PreferenceResetSourceTest` | `fragments/settings/termux/` | 每个设置页都安装长按复位监听（页面清单是「类名 → 路径」映射，移动页面必须同步） |
 | `TerminalActionRunnerTest` / `ShellCommandPaletteTest` | `commands/` | 注意 `ShellCommandCatalog` 需要 `Context`，当前无单测 |
 | `ResourceClassNameTest` | `app/src/test/java/com/termux/app/ext/` | 资源文件里写的 `com.termux.*` 类名必须存在（自定义控件标签、`app:fragment`）；移动类后忘记改 XML 会在此失败，而不是真机崩溃 |
+| `ShapeTokenTest` | `app/src/test/java/com/termux/app/widget/` | `dimens.xml` 的形状令牌必须等于 `TerminalDialogStyles` 的 Java 常量（配置默认值在无 `Context` 时只能读常量，两侧不一致会让终端菜单与 MD3 对话框圆角漂移） |
 
 ---
 
@@ -149,7 +150,22 @@
 | 切换软键盘 | `ShellCommandHost.toggleSoftKeyboard()` → `onToggleSoftKeyboardRequest()` | 直接调 Activity 的私有同名方法会递归 |
 | 实现音量键动作 | `ext.volumekeys.VolumeKeyActions.perform(...)` | 不要在 `TermuxTerminalViewClient` 里再写 `switch (action)` |
 | 解析颜色 / 主题引用 | `ColorSchemeColors.resolve` | dialogs、通知、设置页共用 |
+| 取主题色（`?attr/colorPrimary` 等） | `TerminalDialogStyles.themeColor(context, attr, fallback)` | 不要自己 `obtainStyledAttributes` 或用硬编码颜色 |
+| 终端内对话框（菜单、命名、通知历史） | `TerminalDialogBuilder` + `TerminalDialogStyles` | 不要新写 `Dialog` 窗口、按钮栏与尺寸计算 |
+| 对话框圆角与行圆角 | `@dimen/termux_dialog_corner_radius`、`@dimen/termux_row_corner_radius` | 不要在 XML/代码里写死 dp |
+| 应用级提示对话框 | `MaterialAlertDialogBuilder`（主题已含 `TermuxAlertDialogStyle`） | 不要用 `android.app.AlertDialog.Builder`，否则圆角与按钮样式不随令牌 |
 | 打开设置页 | `SettingsActivity` + `SettingsSearchNavigation` | 不要 `startActivity` 绕过校验 |
 | 抽屉颜色 | `TerminalDrawerController.get*Color()` | 不要在适配器里重算 |
 | 打开/关闭抽屉 | `DrawerExtension.openDrawer()`/`closeDrawer()`（`TermuxActivity.openSessionsDrawer()` 转发） | 不要直接操作 `DrawerLayout` 的开合 |
 | 取扩展实例 | `ExtensionHost.get(ctx).findRunning(XxxExtension.class)` | 不要写 `instanceof` 强转，`findRunning` 同时完成「是否启用」判断 |
+
+---
+
+## 10. 界面形状与对话框（`com.termux.app.widget`）
+
+| 类 | 路径 | 职责 | 不要重复实现 |
+| --- | --- | --- | --- |
+| `TerminalDialogStyles` | `widget/TerminalDialogStyles.java` | 形状令牌（`DIALOG_CORNER_DP`/`ROW_CORNER_DP`）、dp 换算、主题色读取（`themeColor`）、对话框背景与行按下态 | 不要在别处写 `GradientDrawable` 圆角或 `obtainStyledAttributes` |
+| `TerminalDialogBuilder` | `widget/TerminalDialogBuilder.java` | 终端内对话框的窗口、标题、自动滚动正文、按钮栏与尺寸限制（`Style` 描述配色与半径） | 不要新写 `Dialog` + `setLayout` + 透明窗口背景的组合 |
+| `TerminalTextInputDialog` | `widget/TerminalTextInputDialog.java` | 跟随终端配色的单行文本输入（重命名/新建命名会话） | 不要回到只读模块的 `TextInputDialogUtils` |
+| `ThemeOverlay.Termux.Dialog` / `TermuxAlertDialogStyle` | `res/values/themes.xml` | 平台与 Material 3 对话框的圆角与按钮样式 | 不要再设 `shapeAppearanceOverlay` 试图改对话框圆角（对话框读 `alertDialogStyle` 的 `shapeAppearance`） |

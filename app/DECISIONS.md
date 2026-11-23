@@ -354,3 +354,34 @@
 测试：新增 `ShellCommandShortcutTest` 5 项（修饰键精确匹配、按字符而非物理键匹配、命名单键、无法解析不匹配、归一化顺序），总测试数 170 → 175。
 
 未验证：面板在真机上的观感（圆角、chip、空状态、输入法弹出与列表高度）、快捷键在面板内触发、MD3 深色下的可读性，均未确认。CI：PR #2 lint/单测/双 ABI 构建全部通过；Fork Build 产出 `termux-app_fork-20261123-0521-testkey_arm64-v8a.apk`。
+
+## 2026-11-23 — UI 层形状统一为 Material 3 圆角
+
+按需求方三项决策执行 UI 层第一批优化：全部表面统一 Material 3 圆角；终端内对话框、设置页、抽屉、状态栏、命令面板全在范围内；MD3 表面色暂不跟随 `colors.properties`，仅日夜跟随。提交 1f0d811、c10a35c、c43fe8b、a2345f5、e39607c、70010a1、3db4815、12324f6、6d1ee61。
+
+一、形状令牌
+- 新增 `res/values/dimens.xml`：`termux_dialog_corner_radius`=16dp（对话框与浮动窗口，对应 MD3 large）、`termux_row_corner_radius`=12dp（行、卡片、抽屉会话行，对应 medium）、`termux_chip_corner_radius`=8dp、宽度/外边距/内距/按钮高度。
+- Java 侧另有 `TerminalDialogStyles.DIALOG_CORNER_DP`/`ROW_CORNER_DP`：终端菜单与通知配置的默认值在解析时没有 `Context`，只能读常量。两处来源会漂移，因此新增 `ShapeTokenTest` 读取 `dimens.xml` 与常量比对。
+- 默认圆角变更：`terminal-menu-corner-radius` 0 → 16dp，`notification-corner-radius` 0 → 12dp。显式设过值的用户不受影响；影响面已写入 `FORK.md` §35。
+
+二、对话框主题修正（踩坑）
+- 原实现只在 `ThemeOverlay.Termux.Dialog` 里设 `shapeAppearanceOverlay`，对对话框无效：Material 3 对话框（`MaterialAlertDialogBuilder`）的形状来自 `alertDialogStyle`（`MaterialAlertDialog.Material3`）的 `shapeAppearance`，`shapeAppearanceOverlay` 只被自身读取该属性的控件（如 `MaterialCardView`）使用。
+- 现改为覆盖 `alertDialogStyle` 为 `TermuxAlertDialogStyle`（parent `MaterialAlertDialog.Material3`，`shapeAppearance` 指向 `ShapeAppearance.Termux.Dialog`），并删除 `styles.xml` 中已无引用的旧 `TermuxAlertDialogStyle`（平台 `Theme.Material.Light.Dialog.Alert`）。
+
+三、共用构建器
+- 新增 `widget/TerminalDialogBuilder`：负责窗口背景（配色方案颜色 + 令牌圆角 + 1dp 强调色描边）、标题（18sp）、自动滚动正文（超过屏幕七成滚动）、右对齐文字按钮栏与宽度上限。终端菜单、命名对话框、通知历史迁入；`Style` 封装配色、圆角、字号与等宽字体。
+- 迁移中修正一处实现错误：构建器最初把窗口背景设为透明，正文没有背景，真机上将出现浮空文字；现由 `TerminalDialogStyles.createDialogBackgroundPx` 绘制窗口背景。
+
+四、其余表面
+- 设置搜索：新增 `dialog_settings_search.xml` 与 `item_settings_search.xml`，改为 Material 3 输入框（`TextInputLayout` FilledBox.Dense）+ 行布局 + 空状态；新增字符串 `settings_search_empty` 并补 `values-zh`。
+- 应用级对话框改用 `MaterialAlertDialogBuilder`：终止会话、URL 选择（含长按打开）、会话数上限、风格未安装、备份恢复确认、扩展级联停用、长按复位。
+- 偏好控件：`ColorPreference` 色板改用 12dp 圆角与主题 `colorPrimary`/`colorOutline` 描边，自定义颜色输入包 `TextInputLayout`；`OrderedItemsPreference` 行按下态改用令牌圆角 + `colorPrimary`，文字与分区标题取 `colorOnSurface`/`colorOnSurfaceVariant`。
+- 抽屉：会话行涟漪掩码与选中底色改为 12dp 圆角，列表左右 8dp 内距，强调条改圆头，头部两个 `ImageButton` 补 `selectableItemBackgroundBorderless`，底部按钮 parent 改 `Widget.Material3.Button.TextButton`。
+- 状态栏：分段 4dp 内距，可点击分段加 8dp 圆角按下态。
+- 命令面板：背景与 chip 改用令牌，行高 12dp，列表高度按屏幕高度收缩（键盘弹出后不再挤压输入框）。
+
+五、新增 API
+- `TerminalDialogStyles.themeColor(Context, attr, fallback)` 统一读取主题色，禁止再手写 `obtainStyledAttributes` 或硬编码颜色。
+- 已登记到 `docs/API_INDEX.md` §10，并在 §9 增加三条「不要重复实现」条目。
+
+未验证：本机无 `adb`，全部观感（圆角、描边、标题层级、按钮按下态、设置搜索与色板、键盘弹出后的面板高度）未在真机确认。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 177 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。`:app:lintDebug` 仍因 NDK 缺 `libc++_shared` 无法本地执行，lint 以 CI 为准。
