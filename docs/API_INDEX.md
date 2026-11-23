@@ -54,15 +54,15 @@
 
 | 类 | 路径 | 职责 | 不要重复实现 |
 | --- | --- | --- | --- |
-| `TerminalDrawerController` | `terminal/TerminalDrawerController.java` | 抽屉配色、把手、开合模式、头部概要；`setUp`/`reloadConfig`/`openDrawer`/`updateColors`/`updateSummary`/`setSessionsListAdapter` | 不要在 Activity 或适配器里另算抽屉颜色与把手位置 |
-| `TerminalSearchController` | `terminal/TerminalSearchController.java` | 终端内搜索栏与搜索历史 | 不要另写搜索栏 |
+| `TerminalDrawerController` | `ext/drawer/TerminalDrawerController.java` | 抽屉配色、把手、开合模式、头部概要；`setUp`/`reloadConfig`/`openDrawer`/`updateColors`/`updateSummary`/`setSessionsListAdapter` | 不要在 Activity 或适配器里另算抽屉颜色与把手位置 |
+| `TerminalSearchController` | `ext/search/TerminalSearchController.java` | 终端内搜索栏与搜索历史 | 不要另写搜索栏 |
 | `TerminalSplitScreenController` | `terminal/TerminalSplitScreenController.java` | 分屏状态与两窗格布局 | 不要在 Activity 里直接算分屏布局参数 |
 | `TermuxTerminalFrame` | `terminal/TermuxTerminalFrame.java` | 包装 `TerminalView`，转发鼠标右键 | 不要去改只读模块的 `TerminalView` |
-| `TermuxSessionsListViewController` | `terminal/TermuxSessionsListViewController.java` | 抽屉会话列表适配器（依赖 `TerminalDrawerController`） | 不要另写会话列表行布局逻辑 |
+| `TermuxSessionsListViewController` | `ext/drawer/TermuxSessionsListViewController.java` | 抽屉会话列表适配器（依赖 `TerminalDrawerController`） | 不要另写会话列表行布局逻辑 |
 | `TermuxTerminalViewClient` | `terminal/TermuxTerminalViewClient.java` | 终端视图事件（按键、软键盘、颜色、属性重载） | 不要另写「切换软键盘」实现，用 `onToggleSoftKeyboardRequest()` |
 | `TermuxTerminalSessionActivityClient` | `terminal/TermuxTerminalSessionActivityClient.java` | 会话增删与切换（`addNewSession`、`renameSession`） | 不要直接操作 `TermuxService` 的会话列表 |
-| `SessionDetails` | `terminal/SessionDetails.java` | 前台进程名、工作目录、短详情 | 不要另写 `/proc` 解析 |
-| `DrawerConfig` / `DrawerHandleView` | `terminal/` | `drawer-*` 属性与把手视图 | 不要另解析 `drawer-*` |
+| `SessionDetails` | `ext/drawer/SessionDetails.java` | 前台进程名、工作目录、短详情 | 不要另写 `/proc` 解析 |
+| `DrawerConfig` / `DrawerHandleView` / `DrawerColorUtils` | `ext/drawer/` | `drawer-*` 属性与把手视图 | 不要另解析 `drawer-*` |
 
 ---
 
@@ -108,6 +108,8 @@
 | 扩展 | 路径 | 提供的能力 | 宿主接口 |
 | --- | --- | --- | --- |
 | `statusbar` | `ext/statusbar/` | `StatusBarConfig`/`StatusBarView`/`StatusBarController`/`StatusBarMetrics`/`SparklineView`/`StatusBarPreferencesFragment`，`StatusBarExtension.getConfig()` 供宿主查询 | 槽位 `status_bar_view`；`ExtensionLayoutHost.requestExtensionLayout()` |
+| `search` | `ext/search/` | `TerminalSearchController`、`TerminalSearchPreferences`、`SearchExtension`；槽位 `terminal_search_bar` | `TermuxActivity.showTerminalSearch()`/`hideTerminalSearch()`/`refreshTerminalSearch()` |
+| `drawer` | `ext/drawer/` | `TerminalDrawerController`、`TermuxSessionsListViewController`、`DrawerConfig`/`DrawerHandleView`/`DrawerColorUtils`、`SessionDetails`、`DrawerExtension`；槽位 `left_drawer`/`drawer_handle` | `TermuxActivity.getDrawer()`（布局访问）、`openSessionsDrawer()` |
 | `notifications` | `ext/notifications/` | `TerminalNotificationManager`（卡片/后台通知/历史）、三个事件适配器、叠层视图与设置页；`NotificationsExtension` 提供事件转发与 `getManager()` | `TermuxActivity.getTerminalNotificationManager()`、`onCommandFinished`/`onBell`/`onOscNotification` 等转发方法 |
 | `volume-keys` | `ext/volumekeys/` | `VolumeKeyActions`（动作派发，`Host` 接口）、`VolumeKeysExtension.perform(...)`、`VolumeKeysPreferencesFragment`；宿主侧状态机留在 `TermuxTerminalViewClient` | `ExtensionHost.isRunning()` 闸门 + `VolumeKeyActions.Host` |
 | `menu` | `ext/menu/` | `TerminalMenuAction`/`TerminalMenuItems`/`TerminalMenuConfig`/`TerminalMenuDialog`/`TerminalMenuExtension`/`TerminalMenuPreferencesFragment` 与两个有序列表偏好项；`getConfig()` 供宿主查询选择工具条动作 | `TermuxActivity.showTerminalMenu()`、`getTerminalMenuConfig()` |
@@ -145,3 +147,4 @@
 | 解析颜色 / 主题引用 | `ColorSchemeColors.resolve` | dialogs、通知、设置页共用 |
 | 打开设置页 | `SettingsActivity` + `SettingsSearchNavigation` | 不要 `startActivity` 绕过校验 |
 | 抽屉颜色 | `TerminalDrawerController.get*Color()` | 不要在适配器里重算 |
+| 打开/关闭抽屉 | `DrawerExtension.openDrawer()`/`closeDrawer()`（`TermuxActivity.openSessionsDrawer()` 转发） | 不要直接操作 `DrawerLayout` 的开合 |

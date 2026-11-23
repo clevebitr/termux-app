@@ -267,10 +267,10 @@ public final class ExtensionHost {
 | 状态栏 | `ext/statusbar/`（原 `app/statusbar/`） | 7 文件 2413 行 | 生命周期回调、控制器去 Activity 化、共享颜色解析下沉 | **已迁移** |
 | 备份恢复 | `ext/backup/` | 3 文件 380 行 | 无 | 已迁移 |
 | 通知体系 | `ext/notifications/`（原 `notifications/`） | 13 文件 2704 行 + 设置页 | 视图槽位（`notification_overlay`）；状态栏配置经扩展查询 | **已迁移** |
-| 分屏 | `terminal/TerminalSplitScreenController` + Activity 布局代码 | 中 | 视图装饰器贡献点（窗格容器由扩展接管或宿主提供槽位） | 待迁移 |
-| 终端内搜索 | `terminal/TerminalSearchController` + 布局中的搜索条 | 中 | 同上（布局条目需可隐藏） | 待迁移 |
+| 分屏 | `terminal/TerminalSplitScreenController` + Activity 内的窗格与会话创建代码 | 大（与 `mTerminalViews[2]`、副窗格会话创建、状态保存/恢复交织） | 需要把副窗格视图与会话归属一并过继；不适合作为「小步」处理 | 待迁移 |
+| 终端内搜索 | `ext/search/`（原 `terminal/TerminalSearchController` + 偏好） | 449 行 | 视图槽位（`terminal_search_bar`） | **已迁移** |
 | 终端菜单 | `ext/menu/`（原 `terminal/menu/`） | 4 文件 590 行 + 设置页与两个偏好项 | 无（纯规则 + 对话框）；默认列表在只读模块内，只能以属性开关表达 | **已迁移** |
-| 会话抽屉 | `terminal/TerminalDrawerController` 等 | 中 | 会话列表视图与抽屉布局在 Activity 中 | 待迁移 |
+| 会话抽屉 | `ext/drawer/`（控制器、适配器、配置、把手、颜色工具、会话详情） | 中 | 视图槽位（`left_drawer`/`drawer_handle`） | **已迁移** |
 | 音量键动作 | Activity 中约 80 行 | 小 | 无 | 待迁移 |
 | VT 级行为（OSC 52/133、1004、悬停、滚动保持） | 只读模块内 | — | 无法拆包，只能 `builtin.vt` 属性开关 | 不迁移 |
 

@@ -11,8 +11,8 @@
 `app/` 的扩展 API 骨架、第一个扩展（备份）、终端菜单规则下沉、命令面板（含四个入口）与终端右键转发均已完成，
 并在 PR #1 上通过 CI（单元测试 + Lint + 双 ABI 构建 + 签名 APK）；扩展禁用语义已在 M-E1 改为「入口不可达 +
 运行时闸门」，菜单收敛已完成（抽屉按钮与面板共用 `ShellCommandHost`），X1 控制器拆分已完成第一轮（动作映射表 +
-抽屉控制器），`ext.statusbar`、`ext.menu`、`ext.notifications` 与 `ext.volumekeys` 已迁移（`TermuxActivity` 2084 行）；
-**分屏、搜索、抽屉的迁移尚未开始**。
+抽屉控制器），`ext.statusbar`、`ext.menu`、`ext.notifications`、`ext.volumekeys`、`ext.search` 与 `ext.drawer` 已迁移
+（`TermuxActivity` 2089 行）；**仅剩分屏（需过继副窗格与会话创建）与 `builtin.vt` 开关页**。
 
 ---
 
@@ -134,12 +134,12 @@ X1 控制器拆分已完成第一轮：动作分发改为 `TerminalActionRunner`
 记录见 `app/DECISIONS.md` #8；`ext.menu` 已迁移（动作/规则/配置/对话框/设置页整体迁入，宿主转发），
 记录见 `app/DECISIONS.md` #9；`ext.volumekeys` 已迁移（动作派发与设置页迁入，状态机留在视图客户端），
 记录见 `app/DECISIONS.md` #10；视图槽位贡献点已就绪（`ExtensionViewSlot`、`ExtensionContext.view()`、
-`requestExtensionLayout()`），记录见 `app/DECISIONS.md` #11；`ext.notifications` 已迁移，记录见 #12；
+`requestExtensionLayout()`），记录见 `app/DECISIONS.md` #11；`ext.notifications`、`ext.search` 与 `ext.drawer` 已迁移，记录见 #12–#13；
 迁移评估与后续顺序见 `docs/EXTENSION_API.md` §10。
 
 | 序 | 任务 | 要点 | 验收 |
 | --- | --- | --- | --- |
-| 1 | `ext.split` / `ext.search` / `ext.drawer` | 槽位已就绪（`terminal_panes_container`、`terminal_search_bar`） | 逐项可禁用 |
+| 1 | `ext.split` | 需把副窗格视图与会话创建一并过继，非小步；建议先补设备验证再评估 | 可启用/禁用；禁用后回到单窗格 |
 | 5 | `builtin.vt` 开关页 | 仅属性开关（OSC52/133、1004、悬停、滚动保持、内边距） | 设置页明确标注「核心能力，仅可关闭行为」 |
 | 6 | 设备验证 | 无 `adb`，需出包后按 `FORK.md` §33 与验收矩阵逐项确认 | 记录到 PR 或 `FORK.md` |
 

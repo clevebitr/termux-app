@@ -12,8 +12,8 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `db99dc9 refactor: 将通知体系提取为 notifications 扩展` |
-| 规模 | `TermuxActivity` 2084 行；`commands/` 5 文件 491 行；`ext/` 49 文件 7600 行（`notifications` 15、`statusbar` 7、`menu` 7、`volumekeys` 4、`backup` 3、`api` 6、`host` 7） |
+| 最近提交 | `08f64b7 refactor: 将会话抽屉提取为 drawer 扩展` |
+| 规模 | `TermuxActivity` 2089 行；`commands/` 5 文件 491 行；`ext/` 62 文件 8600 行（notifications 15、drawer 9、statusbar 7、menu 7、search 4、volumekeys 4、backup 3、api 6、host 7） |
 | 验证 | 本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 164 项、1 项既有失败 |
 
 ---
@@ -51,6 +51,8 @@
 - [x] `ext.volumekeys` 迁移：动作派发迁入 `VolumeKeyActions`（`Host` 接口），音量键设置从键盘页拆出为独立页，新增 `VolumeKeysExtension` 与闸门；状态机仍由视图客户端持有（`d418a90`、`#10`）
 - [x] 视图槽位贡献点：`ExtensionViewSlot` + `Extension.slots()`、`ExtensionContext.view()`、`ExtensionContext.requestExtensionLayout()` + `ExtensionLayoutHost`、`ExtensionHost.slotOwner()`，2 项守卫测试（`53079b2`、`#11`）
 - [x] `ext.notifications` 迁移：管理器、三个事件适配器、叠层、历史、测试通知与设置页迁入扩展包；宿主改为转发命令结束/标题/会话结束/响铃/OSC 事件（`db99dc9`、`#12`）
+- [x] `ext.search` 迁移：控制器与偏好迁入扩展包，宿主转发显示/隐藏/刷新；槽位 `terminal_search_bar`（`7a47843`、`#13`）
+- [x] `ext.drawer` 迁移：控制器、会话列表适配器、配置、把手、颜色工具与会话详情迁入扩展包；扩展负责创建并绑定列表，宿主在服务连接后通知（`08f64b7`、`#13`）
 
 ### 2.5 文档与治理
 
