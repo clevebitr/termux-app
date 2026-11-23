@@ -155,3 +155,18 @@
 效果：`TermuxActivity` 2209 → 2194 行；菜单成为第二个带设置页与宿主查询的可禁用扩展；禁用手语义为「长按/右键/菜单键不再打开该菜单，选择工具条退回默认」。
 
 未验证：菜品项顺序与样式、长按与右键触发、硬件菜单键、文本选择工具条动作在真机上的表现未验证；本机 :app:compileDebugJavaWithJavac 通过，:app:testDebugUnitTest 167 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。`TerminalMenuExtension` 无单测（直接依赖 Activity 视图）。
+
+## 2026-11-23 — 小步迁移：音量键动作提取为 volume-keys 扩展
+
+按评估顺序完成第二个小步迁移：音量键（`ext.volumekeys`）。
+
+切分原则：状态机留在输入层，动作实现进扩展。
+- `TermuxTerminalViewClient` 保留 `handleVirtualKeys`/`handleVolumeKey`/`setVirtualVolumeKeyDown`，因为它们参与 `readControlKey()`/`readFnKey()` 的虚拟修饰键判断，属于输入层。
+- 新增 `VolumeKeyActions`（`ext/volumekeys`）：`perform(action, isVolumeUp)` 只做属性值到宿主行为的派发，`Host` 接口提供 toggleSoftKeyboard/toggleExtraKeys/scroll*/switchTo*/addNewSession/paste/sendKeySequence/sendHardwareKey；音量调节用 AudioManager 就地完成。
+- 新增 `VolumeKeysExtension`（id=volume-keys，默认启用，preferenceKeys=["volume-key-actions"]，settingsPages 声明音量键页）；`perform(context, host, action, isVolumeUp)` 每次由调用方传入 Host，扩展不保存视图或客户端引用；`onEnable/onDisable` 无资源，注释说明原因。
+- 闸门：`handleVirtualKeys` 首行检查 `ExtensionHost.get(mActivity).isRunning(VolumeKeysExtension.ID)`，禁用后返回 false，音量键回到系统字面音量行为。
+- 设置页拆分：从 `termux_keyboard_preferences.xml` 抽出 6 个 `volume-*` 偏好项 + 复位入口到新页 `termux_volume_keys_preferences.xml`，新增 `VolumeKeysPreferencesFragment`（含闸门与数据存储），根设置页新增 `app:key="volume-key-actions"` 条目；`TerminalKeyboardPreferencesFragment` 与其数据存储删除音量键相关代码；`PreferenceResetSourceTest` 登记新页。
+
+效果：音量键动作（约 150 行 switch）离开视图客户端；`ext/` 现有 4 个扩展（statusbar/menu/volumekeys/backup）；`TermuxActivity` 行数不变（该切片不涉及 Activity）。
+
+未验证：音量键的单按/长按动作、虚拟修饰键、禁用后的字面音量行为、设置页复位与 `send-keys` 条件显示均未在真机验证；本机 :app:compileDebugJavaWithJavac 通过，:app:testDebugUnitTest 167 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。`VolumeKeyActions` 无单测（依赖 AudioManager 与 Host 实现）。
