@@ -12,7 +12,7 @@
 并在 PR #1 上通过 CI（单元测试 + Lint + 双 ABI 构建 + 签名 APK）；扩展禁用语义已在 M-E1 改为「入口不可达 +
 运行时闸门」，菜单收敛已完成（抽屉按钮与面板共用 `ShellCommandHost`），X1 控制器拆分已完成第一轮（动作映射表 +
 抽屉控制器），`ext.statusbar`、`ext.menu`、`ext.notifications`、`ext.volumekeys`、`ext.search`、`ext.drawer` 与 `ext.split`
-已迁移（`TermuxActivity` 2100 行）；**仅剩 `builtin.vt` 属性开关页与设备验证**。
+已迁移，`builtin.vt` 核心行为页已交付（`TermuxActivity` 2100 行）；**代码侧只剩设备验证**。
 
 ---
 
@@ -135,7 +135,8 @@ X1 控制器拆分已完成第一轮：动作分发改为 `TerminalActionRunner`
 记录见 `app/DECISIONS.md` #9；`ext.volumekeys` 已迁移（动作派发与设置页迁入，状态机留在视图客户端），
 记录见 `app/DECISIONS.md` #10；视图槽位贡献点已就绪（`ExtensionViewSlot`、`ExtensionContext.view()`、
 `requestExtensionLayout()`），记录见 `app/DECISIONS.md` #11；`ext.notifications`、`ext.search`、`ext.drawer` 与 `ext.split` 已迁移，扩展查询统一为
-`ExtensionHost.find/findRunning`，记录见 #12–#14；迁移评估与后续顺序见 `docs/EXTENSION_API.md` §10。
+`ExtensionHost.find/findRunning`，`builtin.vt` 核心行为页已交付，记录见 #12–#15；
+迁移评估与后续顺序见 `docs/EXTENSION_API.md` §10。
 
 | 序 | 任务 | 要点 | 验收 |
 | --- | --- | --- | --- |

@@ -108,6 +108,7 @@
 | 扩展 | 路径 | 提供的能力 | 宿主接口 |
 | --- | --- | --- | --- |
 | `statusbar` | `ext/statusbar/` | `StatusBarConfig`/`StatusBarView`/`StatusBarController`/`StatusBarMetrics`/`SparklineView`/`StatusBarPreferencesFragment`，`StatusBarExtension.getConfig()` 供宿主查询 | 槽位 `status_bar_view`；`ExtensionLayoutHost.requestExtensionLayout()` |
+| `builtin.vt` | `ext/builtin/` | `BuiltinVtExtension`（**不可禁用**的核心扩展）与 `BuiltinVtPreferencesFragment`；收纳只能在只读模块内实现的行为开关 | 设置页 `builtin-vt`；不要把可关闭的 fork 功能放进这里 |
 | `split` | `ext/split/` | `TerminalSplitScreenController`（窗格排列、分隔条拖拽、活动窗格边框）与 `SplitScreenExtension`；槽位 `terminal_panes_container`/`terminal_split_divider` | `TermuxActivity.setSplitScreen()`（会话挂载仍由宿主负责） |
 | `search` | `ext/search/` | `TerminalSearchController`、`TerminalSearchPreferences`、`SearchExtension`；槽位 `terminal_search_bar` | `TermuxActivity.showTerminalSearch()`/`hideTerminalSearch()`/`refreshTerminalSearch()` |
 | `drawer` | `ext/drawer/` | `TerminalDrawerController`、`TermuxSessionsListViewController`、`DrawerConfig`/`DrawerHandleView`/`DrawerColorUtils`、`SessionDetails`、`DrawerExtension`；槽位 `left_drawer`/`drawer_handle` | `TermuxActivity.getDrawer()`（布局访问）、`openSessionsDrawer()` |
