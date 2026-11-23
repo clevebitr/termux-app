@@ -257,6 +257,9 @@ public final class TermuxActivity extends AppCompatActivity
     private TermuxTerminalFrame.SecondaryButtonBehaviour mSecondaryButtonBehaviour =
         TermuxTerminalFrame.SecondaryButtonBehaviour.AUTO;
 
+    /** Whether the key events that the activity sees are logged, from `keyboard-compat-log`. */
+    private boolean mKeyboardCompatLog;
+
     /**
      * If between onResume() and onStop(). Note that only one session is in the foreground of the terminal view at the
      * time, so if the session causing a change is not in the foreground it should probably be treated as background.
@@ -780,6 +783,7 @@ public final class TermuxActivity extends AppCompatActivity
         Properties forkProperties = ForkProperties.readTermuxProperties();
         mCommandShortcuts = CommandShortcuts.parse(forkProperties);
         mSecondaryButtonBehaviour = parseSecondaryButtonBehaviour(forkProperties);
+        mKeyboardCompatLog = ForkProperties.getBoolean(forkProperties, ForkPropertyKeys.KEYBOARD_COMPAT_LOG, false);
         applySecondaryButtonBehaviour();
 
         for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
@@ -1459,6 +1463,24 @@ public final class TermuxActivity extends AppCompatActivity
         return super.dispatchKeyEvent(event);
     }
 
+    /** @return Whether key events are logged, as the `keyboard-compat-log` property configures it. */
+    public boolean isKeyboardCompatLogEnabled() {
+        return mKeyboardCompatLog;
+    }
+
+    /** @return The fields of {@code event} for the keyboard log, like the key code and the modifiers. */
+    @NonNull
+    public static String describeKeyEvent(@NonNull KeyEvent event) {
+        return "action=" + (event.getAction() == KeyEvent.ACTION_DOWN ? "down" : "up")
+            + ", code=" + KeyEvent.keyCodeToString(event.getKeyCode())
+            + ", unicode=" + event.getUnicodeChar(0)
+            + ", ctrl=" + event.isCtrlPressed()
+            + ", alt=" + event.isAltPressed()
+            + ", shift=" + event.isShiftPressed()
+            + ", source=0x" + Integer.toHexString(event.getSource())
+            + ", device=" + event.getDeviceId();
+    }
+
     /**
      * Run the command whose shortcut is {@code event}, if any.
      *
@@ -1468,6 +1490,9 @@ public final class TermuxActivity extends AppCompatActivity
      * @return Whether the event was taken by a command, so that it is not sent to the terminal.
      */
     public boolean handleCommandShortcut(@NonNull KeyEvent event) {
+        if (mKeyboardCompatLog)
+            Logger.logInfo(LOG_TAG, "handleCommandShortcut: " + describeKeyEvent(event));
+
         if (event.getAction() != KeyEvent.ACTION_DOWN || mShellCommandHost == null) return false;
 
         if (mCommandShortcuts.matches(CommandShortcuts.ID_PALETTE, event)) {

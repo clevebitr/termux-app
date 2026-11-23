@@ -33,7 +33,7 @@ public final class ShellCommandShortcut {
     public static boolean matches(@Nullable String shortcut, @NonNull KeyEvent event) {
         if (shortcut == null || shortcut.isEmpty()) return false;
         if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
-        return matches(shortcut, event.getKeyCode(), event.getUnicodeChar(),
+        return matches(shortcut, event.getKeyCode(), event.getUnicodeChar(0),
             event.isCtrlPressed(), event.isAltPressed(), event.isShiftPressed());
     }
 
@@ -65,9 +65,12 @@ public final class ShellCommandShortcut {
         if (ctrlPressed != ctrl || altPressed != alt || shiftPressed != shift) return false;
 
         if (keyChar != 0) {
-            if (unicodeChar == 0) return false;
-            char pressed = Character.toLowerCase((char) unicodeChar);
-            return pressed == keyChar;
+            // The character is the primary comparison, since a shortcut describes the character and not the
+            // physical key. Some hardware keyboards and IMEs report a key without a character while a modifier is
+            // held, so the key code of the character is used as a fallback, otherwise `Ctrl+Shift+P` would not
+            // match on those keyboards.
+            if (unicodeChar != 0 && Character.toLowerCase((char) unicodeChar) == keyChar) return true;
+            return keyCode == keyCodeOfCharacter(keyChar);
         }
         return keyCode == expectedKeyCode;
     }
@@ -97,6 +100,18 @@ public final class ShellCommandShortcut {
         if (alt) normalized.append(KEY_ALT).append('+');
         if (shift) normalized.append(KEY_SHIFT).append('+');
         return normalized.append(key).toString();
+    }
+
+    /**
+     * @return The key code of the letter or digit {@code character}, or {@link KeyEvent#KEYCODE_UNKNOWN} if it is
+     *         not one, so that a letter shortcut can match the physical key when the keyboard reports no character.
+     */
+    private static int keyCodeOfCharacter(char character) {
+        if (character >= 'a' && character <= 'z')
+            return KeyEvent.KEYCODE_A + (character - 'a');
+        if (character >= '0' && character <= '9')
+            return KeyEvent.KEYCODE_0 + (character - '0');
+        return KeyEvent.KEYCODE_UNKNOWN;
     }
 
     /** @return The key code of a named key, like {@code up} or {@code pgup}, or {@link KeyEvent#KEYCODE_UNKNOWN}. */

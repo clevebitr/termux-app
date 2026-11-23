@@ -23,6 +23,13 @@ public final class ForkPropertyKeys {
     public static final String COMMAND_SHORTCUTS = "command-shortcuts";
 
     /**
+     * Whether every hardware key event that the activity, the terminal view and the input connection see is
+     * logged at info level, so that a keyboard that does not deliver the expected events can be diagnosed from
+     * the log. The keys are only logged while this is `true`.
+     */
+    public static final String KEYBOARD_COMPAT_LOG = "keyboard-compat-log";
+
+    /**
      * What the secondary mouse button does: `auto` forwards it to the program when it tracks the mouse and
      * opens the command palette otherwise, `forward` never opens the palette and only forwards the button,
      * and `palette` always opens the palette. See {@code TermuxTerminalFrame.SecondaryButtonBehaviour}.
