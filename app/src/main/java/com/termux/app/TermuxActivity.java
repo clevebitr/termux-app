@@ -9,15 +9,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.StateListDrawable;
-import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.Build;
-import android.util.StateSet;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
@@ -34,7 +28,6 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.termux.R;
@@ -52,15 +45,11 @@ import com.termux.app.notifications.TerminalNotificationManager;
 import com.termux.app.statusbar.StatusBarConfig;
 import com.termux.app.statusbar.StatusBarController;
 import com.termux.app.statusbar.StatusBarView;
-import com.termux.app.terminal.DrawerColorUtils;
-import com.termux.app.terminal.DrawerConfig;
-import com.termux.app.terminal.DrawerHandleView;
-import com.termux.app.terminal.SessionDetails;
+import com.termux.app.terminal.TerminalDrawerController;
 import com.termux.app.terminal.TerminalSearchController;
 import com.termux.app.terminal.TerminalSplitScreenController;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
-import com.google.android.material.button.MaterialButton;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
 import com.termux.shared.activities.ReportActivity;
 import com.termux.shared.interact.ShareUtils;
@@ -91,14 +80,12 @@ import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
 import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 import com.termux.shared.termux.theme.TermuxThemeUtils;
 import com.termux.shared.theme.NightMode;
-import com.termux.shared.theme.ThemeUtils;
 import com.termux.shared.view.KeyboardUtils;
 import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalColors;
 import com.termux.terminal.TerminalColorScheme;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalNotification;
-import com.termux.terminal.TextStyle;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.view.TerminalView;
@@ -107,7 +94,6 @@ import com.termux.view.TerminalViewClient;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.view.GravityCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -205,21 +191,13 @@ public final class TermuxActivity extends AppCompatActivity
     /** The index of the pane that is active, i.e. that receives the keyboard, extra keys and menus. */
     private int mActiveTerminalViewIndex = 0;
 
-    /** The configuration of how the sessions drawer can be opened, like with the edge handle. */
-    @NonNull
-    private DrawerConfig mDrawerConfig = new DrawerConfig();
-
     /**
-     * The colors of the sessions drawer, which follow the color scheme of the terminal so that the drawer
-     * looks like the terminal instead of having its own hardcoded black and white.
+     * The drawer of the sessions: its colors, its handle and the summary of the current session. Created with the
+     * activity instead of in {@link #onCreate(Bundle)}, since the `drawer-*` properties are reloaded before the
+     * views exist; every method of the controller tolerates missing views.
      */
-    private int mDrawerBackgroundColor = Color.BLACK;
-    private int mDrawerForegroundColor = Color.WHITE;
-    private int mDrawerSecondaryTextColor = 0xB3FFFFFF;
-    private int mDrawerAccentColor = Color.WHITE;
-    /** The background of the rows of the sessions drawer, with a ripple in the accent color. */
-    @Nullable
-    private Drawable mDrawerSessionRowBackground;
+    @NonNull
+    private final TerminalDrawerController mDrawerController = new TerminalDrawerController(this);
 
     /** The status bar that shows the time, battery, memory, cpu, network, ip and proxy segments. */
     private StatusBarView mStatusBarView;
@@ -439,23 +417,7 @@ public final class TermuxActivity extends AppCompatActivity
 
         setToggleKeyboardView();
 
-        // Apply the colors of the drawer before the first session is available, so that the drawer does not
-        // flash the colors of the app theme, which the black and white theme does not use at all.
-        updateDrawerColors(getCurrentSession());
-
-        setUpDrawerHandle();
-        applyDrawerConfig();
-
-        // Refresh the session list when the drawer is opened, since the details shown for the sessions,
-        // like the foreground process and the working directory, may have changed while it was closed.
-        getDrawer().addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
-            @Override
-            public void onDrawerOpened(@NonNull View drawerView) {
-                updateDrawerSummary();
-                if (mTermuxSessionListViewController != null)
-                    mTermuxSessionListViewController.notifyDataSetChanged();
-            }
-        });
+        mDrawerController.setUp();
 
         // The receiver must be registered for the whole lifetime of the activity and not only while it
         // is started, since the settings activities change termux properties while this activity is
@@ -819,8 +781,7 @@ public final class TermuxActivity extends AppCompatActivity
 
         // The `drawer-open-mode` property is not part of the properties that the shared library parses,
         // so it is read from the file, like the `status-bar-*` and `notification-*` ones.
-        mDrawerConfig = DrawerConfig.parse(ForkProperties.readTermuxProperties());
-        applyDrawerConfig();
+        mDrawerController.reloadConfig();
 
         for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
             if (viewClient != null) viewClient.onReloadProperties();
@@ -876,246 +837,15 @@ public final class TermuxActivity extends AppCompatActivity
         }
     }
 
-    /**
-     * Apply the color scheme of {@code session} to the sessions drawer, so that the drawer uses the
-     * background, the foreground and the accent color of the terminal instead of the black and white of the
-     * app theme. A session that has no emulator, like before the first session was started, falls back to
-     * the colors of the app theme.
-     */
+    /** Apply the color scheme of {@code session} to the sessions drawer, see {@link TerminalDrawerController}. */
     public void updateDrawerColors(@Nullable TerminalSession session) {
-        int[] colors = session != null && session.getEmulator() != null
-            ? session.getEmulator().mColors.mCurrentColors : null;
-
-        if (colors != null) {
-            mDrawerBackgroundColor = colors[TextStyle.COLOR_INDEX_BACKGROUND];
-            mDrawerForegroundColor = colors[TextStyle.COLOR_INDEX_FOREGROUND];
-            // The `color4` of the palette (blue) is the accent color of the informational notification cards
-            // too, so the whole fork uses the same accent color for the same kind of information.
-            mDrawerAccentColor = DrawerColorUtils.visibleAccentColor(colors[4], mDrawerBackgroundColor);
-        } else {
-            boolean isLightTheme = !ThemeUtils.shouldEnableDarkTheme(this, NightMode.getAppNightMode().getName());
-            mDrawerBackgroundColor = isLightTheme ? Color.WHITE : Color.BLACK;
-            mDrawerForegroundColor = DrawerColorUtils.contrastingTextColor(mDrawerBackgroundColor);
-            mDrawerAccentColor = mDrawerForegroundColor;
-        }
-
-        // The details of a session are drawn in a dimmer color than its title, and the divider below the
-        // header in a color that is barely visible, so that neither competes with the text.
-        mDrawerSecondaryTextColor = DrawerColorUtils.withAlpha(mDrawerForegroundColor, 0xB3);
-
-        // The row of the session that is shown in the terminal keeps a tint of the accent color, and the
-        // ripple of a pressed row is drawn on top of it within a mask, so that it is a rounded flash of the
-        // row instead of a block without a content.
-        StateListDrawable rowContent = new StateListDrawable();
-        rowContent.addState(new int[]{android.R.attr.state_activated},
-            new ColorDrawable(DrawerColorUtils.blend(mDrawerBackgroundColor, mDrawerAccentColor, 0.22f)));
-        rowContent.addState(StateSet.WILD_CARD, new ColorDrawable(Color.TRANSPARENT));
-
-        mDrawerSessionRowBackground = new RippleDrawable(
-            ColorStateList.valueOf(DrawerColorUtils.withAlpha(mDrawerAccentColor, 0x33)),
-            rowContent, new ColorDrawable(Color.WHITE));
-
-        applyDrawerColors();
-    }
-
-    /** Apply the colors that were set by {@link #updateDrawerColors(TerminalSession)} to the drawer views. */
-    private void applyDrawerColors() {
-        View drawer = findViewById(R.id.left_drawer);
-        if (drawer == null) return;
-
-        drawer.setBackgroundColor(mDrawerBackgroundColor);
-
-        TextView titleView = findViewById(R.id.drawer_title);
-        if (titleView != null) titleView.setTextColor(mDrawerForegroundColor);
-
-        TextView summaryView = findViewById(R.id.drawer_summary);
-        if (summaryView != null) summaryView.setTextColor(mDrawerSecondaryTextColor);
-
-        View divider = findViewById(R.id.drawer_header_divider);
-        if (divider != null)
-            divider.setBackgroundColor(DrawerColorUtils.withAlpha(mDrawerForegroundColor, 0x33));
-
-        ImageButton settingsButton = findViewById(R.id.settings_button);
-        if (settingsButton != null) settingsButton.setColorFilter(mDrawerForegroundColor);
-
-        ImageButton paletteButton = findViewById(R.id.palette_button);
-        if (paletteButton != null) paletteButton.setColorFilter(mDrawerForegroundColor);
-
-        for (int id : new int[]{R.id.toggle_keyboard_button, R.id.new_session_button}) {
-            View button = findViewById(id);
-            if (!(button instanceof MaterialButton)) continue;
-
-            MaterialButton materialButton = (MaterialButton) button;
-            materialButton.setTextColor(mDrawerForegroundColor);
-            materialButton.setIconTint(ColorStateList.valueOf(mDrawerForegroundColor));
-        }
-
-        ListView sessionsList = findViewById(R.id.terminal_sessions_list);
-        if (sessionsList != null) sessionsList.setBackgroundColor(Color.TRANSPARENT);
-
-        DrawerHandleView handle = findViewById(R.id.drawer_handle);
-        if (handle != null) {
-            int alpha = Math.round(255f * mDrawerConfig.handleOpacityPercent / 100f);
-            handle.setHandleColor(DrawerColorUtils.withAlpha(mDrawerAccentColor, alpha));
-        }
-
-        updateDrawerSummary();
-
-        // The rows that are already laid out keep the colors of the previous color scheme, and the accent
-        // strip of the current session may have moved to another row.
-        if (mTermuxSessionListViewController != null)
-            mTermuxSessionListViewController.notifyDataSetChanged();
-    }
-
-    /**
-     * Set up the handle on the left edge of the terminal that opens the sessions drawer, since a swipe from
-     * the edge is the system back gesture on android 10 and later.
-     */
-    private void setUpDrawerHandle() {
-        DrawerHandleView handle = findViewById(R.id.drawer_handle);
-        if (handle == null) return;
-
-        handle.setOnOpenDrawerListener(this::openSessionsDrawer);
-
-        // The handle is drawn under the drawer, so it is faded out while the drawer is dragged open, which
-        // also makes it clear that the touch of the drawer belongs to the drawer.
-        getDrawer().addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
-            @Override
-            public void onDrawerSlide(@NonNull View drawerView, float slideOffset) {
-                handle.setAlpha(1f - slideOffset);
-            }
-        });
-
-        // The position of the handle is a fraction of the height of the screen, so it is re-applied when the
-        // height of the layout changes, like when the soft keyboard or the extra keys change it.
-        View parent = (View) handle.getParent();
-        if (parent != null) parent.addOnLayoutChangeListener((view, left, top, right, bottom,
-                                                              oldLeft, oldTop, oldRight, oldBottom) ->
-            positionDrawerHandle());
-    }
-
-    /**
-     * Apply the length, the opacity and the position of the handle that opens the sessions drawer, which are
-     * configured with the `drawer-handle-*` properties.
-     */
-    private void applyDrawerHandleConfig() {
-        DrawerHandleView handle = findViewById(R.id.drawer_handle);
-        if (handle == null) return;
-
-        handle.setVisibility(mDrawerConfig.isHandleVisible() ? View.VISIBLE : View.GONE);
-        handle.setHandleLengthDp(mDrawerConfig.handleLengthDp);
-        // The opacity of the bar is a percentage of the accent color, so a low value keeps the terminal
-        // readable behind it.
-        int alpha = Math.round(255f * mDrawerConfig.handleOpacityPercent / 100f);
-        handle.setHandleColor(DrawerColorUtils.withAlpha(mDrawerAccentColor, alpha));
-
-        positionDrawerHandle();
-    }
-
-    /** Move the handle to the configured fraction of the height of the screen. */
-    private void positionDrawerHandle() {
-        View handle = findViewById(R.id.drawer_handle);
-        if (handle == null || !(handle.getLayoutParams() instanceof RelativeLayout.LayoutParams)) return;
-
-        View parent = (View) handle.getParent();
-        if (parent == null || parent.getHeight() <= 0) return;
-
-        int handleHeight = handle.getHeight();
-        int freeHeight = Math.max(0, parent.getHeight() - handleHeight);
-        int topMargin = Math.round(freeHeight * mDrawerConfig.handlePositionPercent / 100f);
-
-        RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) handle.getLayoutParams();
-        layoutParams.topMargin = topMargin;
-        // The parent is inset by the margin of the content, but the bar has to be flush with the screen edge.
-        layoutParams.setMarginStart(-dpToPx(3));
-        handle.setLayoutParams(layoutParams);
-    }
-
-    /**
-     * Show or hide the edge handle and enable or disable the edge swipe of the drawer layout, as the
-     * `drawer-open-mode` property configures it.
-     */
-    private void applyDrawerConfig() {
-        applyDrawerHandleConfig();
-
-        DrawerLayout drawer = getDrawer();
-        if (drawer == null) return;
-
-        // The edge drag of the drawer layout is disabled when the system back gesture would steal it, since
-        // it would close the app window instead of opening the drawer.
-        drawer.setDrawerLockMode(mDrawerConfig.isEdgeSwipeEnabled()
-            ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED, GravityCompat.START);
+        mDrawerController.updateColors(session);
     }
 
     /** Open the sessions drawer, like from the edge handle, the terminal menu or a virtual key. */
     @Override
     public void openSessionsDrawer() {
-        DrawerLayout drawer = getDrawer();
-        if (drawer == null) return;
-
-        // A locked drawer may not be opened by the layout, so it is unlocked for the programmatic open.
-        if (drawer.getDrawerLockMode(GravityCompat.START) == DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
-            drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, GravityCompat.START);
-
-        drawer.openDrawer(GravityCompat.START);
-    }
-
-    /**
-     * Show a summary of the current session in the header of the sessions drawer, like the number of the
-     * sessions and the process and the working directory of the active one, so that the user can tell where
-     * they are before opening the drawer.
-     */
-    public void updateDrawerSummary() {
-        TextView summaryView = findViewById(R.id.drawer_summary);
-        if (summaryView == null) return;
-
-        TermuxService service = getTermuxService();
-        int sessionCount = service != null ? service.getTermuxSessionsSize() : 0;
-        if (sessionCount == 0) {
-            summaryView.setVisibility(View.GONE);
-            return;
-        }
-
-        List<String> parts = new ArrayList<>();
-        parts.add(getString(R.string.termux_drawer_summary_sessions, sessionCount));
-
-        TerminalSession session = getCurrentSession();
-        if (session != null) {
-            int pid = session.getPid();
-            String processName = SessionDetails.getForegroundProcessName(pid);
-            if (processName != null) parts.add(processName);
-            String workingDirectory = SessionDetails.getWorkingDirectory(pid);
-            if (workingDirectory != null) parts.add(workingDirectory);
-        }
-
-        summaryView.setText(SessionDetails.join(parts, " " + getString(R.string.termux_drawer_summary_separator) + " "));
-        summaryView.setVisibility(View.VISIBLE);
-    }
-
-    /** @return The background color of the sessions drawer, which follows the terminal color scheme. */
-    public int getDrawerBackgroundColor() {
-        return mDrawerBackgroundColor;
-    }
-
-    /** @return The color of the text of the sessions drawer, which follows the terminal color scheme. */
-    public int getDrawerForegroundColor() {
-        return mDrawerForegroundColor;
-    }
-
-    /** @return The color of the details of the sessions and of the summary of the drawer. */
-    public int getDrawerSecondaryTextColor() {
-        return mDrawerSecondaryTextColor;
-    }
-
-    /** @return The accent color of the sessions drawer, like of the current session and of the ripples. */
-    public int getDrawerAccentColor() {
-        return mDrawerAccentColor;
-    }
-
-    /** @return The background of the rows of the sessions drawer, which is {@code null} before the first call. */
-    @Nullable
-    public Drawable getDrawerSessionRowBackground() {
-        return mDrawerSessionRowBackground;
+        mDrawerController.openDrawer();
     }
 
     /** @return The {@link TerminalView} of every pane, including the hidden secondary pane. */
@@ -1869,7 +1599,8 @@ public final class TermuxActivity extends AppCompatActivity
 
     private void setTermuxSessionsListView() {
         ListView termuxSessionsListView = findViewById(R.id.terminal_sessions_list);
-        mTermuxSessionListViewController = new TermuxSessionsListViewController(this, mTermuxService.getTermuxSessions());
+        mTermuxSessionListViewController = new TermuxSessionsListViewController(this, mTermuxService.getTermuxSessions(), mDrawerController);
+        mDrawerController.setSessionsListAdapter(mTermuxSessionListViewController);
         termuxSessionsListView.setAdapter(mTermuxSessionListViewController);
         termuxSessionsListView.setOnItemClickListener(mTermuxSessionListViewController);
         termuxSessionsListView.setOnItemLongClickListener(mTermuxSessionListViewController);

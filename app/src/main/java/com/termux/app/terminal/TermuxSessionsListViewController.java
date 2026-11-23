@@ -33,13 +33,17 @@ import java.util.List;
 public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession> implements AdapterView.OnItemClickListener, AdapterView.OnItemLongClickListener {
 
     final TermuxActivity mActivity;
+    /** The drawer whose colors the rows follow, see {@link TerminalDrawerController}. */
+    final TerminalDrawerController mDrawerController;
 
     final StyleSpan boldSpan = new StyleSpan(Typeface.BOLD);
     final StyleSpan italicSpan = new StyleSpan(Typeface.ITALIC);
 
-    public TermuxSessionsListViewController(TermuxActivity activity, List<TermuxSession> sessionList) {
+    public TermuxSessionsListViewController(TermuxActivity activity, List<TermuxSession> sessionList,
+                                            TerminalDrawerController drawerController) {
         super(activity.getApplicationContext(), R.layout.item_terminal_sessions_list, sessionList);
         this.mActivity = activity;
+        this.mDrawerController = drawerController;
     }
 
     @SuppressLint("SetTextI18n")
@@ -66,15 +70,15 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
         // The drawer follows the colors of the terminal color scheme, so the row background and the text
         // colors come from the activity instead of from the app theme. The accent strip marks the session
         // that is shown in the active pane, like the border of the active pane of the split screen.
-        sessionRowView.setBackground(mActivity.getDrawerSessionRowBackground());
+        sessionRowView.setBackground(mDrawerController.getSessionRowBackground());
 
         View accentView = sessionRowView.findViewById(R.id.session_accent);
         boolean isCurrentSession = sessionAtRow == mActivity.getCurrentSession();
         accentView.setBackgroundColor(isCurrentSession
-            ? mActivity.getDrawerAccentColor() : Color.TRANSPARENT);
+            ? mDrawerController.getAccentColor() : Color.TRANSPARENT);
 
-        final int foregroundColor = mActivity.getDrawerForegroundColor();
-        final int secondaryColor = mActivity.getDrawerSecondaryTextColor();
+        final int foregroundColor = mDrawerController.getForegroundColor();
+        final int secondaryColor = mDrawerController.getSecondaryTextColor();
 
         String name = sessionAtRow.mSessionName;
         String sessionTitle = sessionAtRow.getTitle();
