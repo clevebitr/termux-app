@@ -98,6 +98,8 @@ public final class DrawerExtension implements Extension {
     @Override
     public void onDisable() {
         if (mController != null) {
+            android.widget.ListView listView = mController.getSessionsListView();
+            if (listView != null) listView.setAdapter(null);
             mController.setSessionsListAdapter(null);
             mController.closeDrawer();
         }

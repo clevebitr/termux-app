@@ -499,6 +499,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         TerminalSession previousSession = mActivity.getCurrentSession();
 
         if (mActivity.getTerminalView().attachSession(session)) {
+            // The drawer marks the session that is shown, so its rows have to be redrawn when it changes.
+            termuxSessionListNotifyUpdated();
             // notify about switched session if not already displaying the session
             notifyOfSessionChange();
 

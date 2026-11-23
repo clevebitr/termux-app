@@ -74,6 +74,9 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
 
         View accentView = sessionRowView.findViewById(R.id.session_accent);
         boolean isCurrentSession = sessionAtRow == mActivity.getCurrentSession();
+        // The background is a state list, so the row of the session that is shown is tinted only when it is
+        // activated; without this the tint of the current session would never be drawn.
+        sessionRowView.setActivated(isCurrentSession);
         accentView.setBackgroundColor(isCurrentSession
             ? mDrawerController.getAccentColor() : Color.TRANSPARENT);
 

@@ -748,8 +748,11 @@ public final class TermuxActivity extends AppCompatActivity
     private boolean reloadProperties() {
         mProperties.loadTermuxPropertiesFromDisk();
 
-        // The `drawer-open-mode` property is not part of the properties that the shared library parses,
-        // so it is read from the file, like the `status-bar-*` and `notification-*` ones.
+        // The fork specific properties, like the `drawer-*`, `status-bar-*`, `notification-*`, `terminal-menu-*`
+        // and `volume-*` ones, are not part of the properties that the shared library parses, so the extensions
+        // that own them are told to read the file again here, which is the only place every configuration reload
+        // goes through.
+        if (mExtensionManager != null) mExtensionManager.onReload();
 
         for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
             if (viewClient != null) viewClient.onReloadProperties();
@@ -2055,10 +2058,6 @@ public final class TermuxActivity extends AppCompatActivity
         setMargins();
         setTerminalPadding();
         setTerminalToolbarHeight();
-
-        // Rebuild the status bar, since the `status-bar-*` properties may have changed, and apply the
-        // new position and overlay rules.
-        if (mExtensionManager != null) mExtensionManager.onReload();
 
         // Reload the `terminal-menu-*` and `selection-toolbar-items` properties.
 
