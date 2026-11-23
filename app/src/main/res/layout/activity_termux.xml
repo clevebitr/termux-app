@@ -24,7 +24,7 @@
              open drawer covers it, and it is flush with the edge of the screen, which is 3dp to the left of
              the content of this layout, hence the negative margin and the disabled clipping. It is hidden
              when the `drawer-open-mode` property selects the edge swipe only. -->
-        <com.termux.app.terminal.DrawerHandleView
+        <com.termux.app.ext.drawer.DrawerHandleView
             android:id="@+id/drawer_handle"
             android:layout_width="20dp"
             android:layout_height="120dp"
@@ -127,7 +127,7 @@
                  terminal is resized and has fewer rows instead of being covered or pushed over the
                  soft keyboard area. It is the last child of the content container, so that it is
                  drawn over the terminal when it is an overlay. -->
-            <com.termux.app.statusbar.StatusBarView
+            <com.termux.app.ext.statusbar.StatusBarView
                 android:id="@+id/status_bar_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
