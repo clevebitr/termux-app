@@ -5,6 +5,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.media.AudioManager;
+import android.os.Build;
 import android.os.Environment;
 import android.text.TextUtils;
 import android.view.Gravity;
@@ -282,11 +283,17 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
 
     @Override
     public int getInputType(int defaultInputType) {
-        boolean hardwareKeyboardAttached = HardwareKeyboard.isAttached(mActivity);
-        int inputType = mActivity.getImeInputType().inputType(defaultInputType, hardwareKeyboardAttached);
+        boolean hardwareKeyboardAttached = KeyboardUtils.isHardKeyboardConnected(mActivity);
+        // The soft keyboard visibility is read from the window insets, which android 5.0 and 6.0 do not report, so
+        // the terminal is presented as a text editor there, which keeps the IME usable but gives up the passthrough.
+        boolean softKeyboardVisible = Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+            || mActivity.isSoftKeyboardVisibleForIme();
+        int inputType = mActivity.getImeInputType().inputType(defaultInputType,
+            hardwareKeyboardAttached, softKeyboardVisible);
         if (mActivity.isKeyboardCompatLogEnabled()) {
             KeyboardCompatLog.log("ime", "getInputType mode=" + mActivity.getImeInputType().getValue()
                 + ", hardwareKeyboard=" + hardwareKeyboardAttached
+                + ", softKeyboardVisible=" + softKeyboardVisible
                 + ", default=0x" + Integer.toHexString(defaultInputType)
                 + ", reported=0x" + Integer.toHexString(inputType));
         }

@@ -18,7 +18,8 @@ import java.util.Locale;
  *
  * <p>输入法在 `text`、`password` 与 `auto` 的文本类类型下会把物理按键先收进自己再以文本提交，字符与
  * Tab、方向键因此走两条通道，顺序可能错乱；`hardware` 通过 `TYPE_NULL` 让输入法不接管物理按键，
- * 代价是物理键盘上的 CJK 组合输入（拼音候选）不可用，中文需改用软键盘，软键盘提交仍会经输入连接送达。</p>
+ * 顺序回到与桌面终端一致。中文输入由软键盘触发：软键盘弹出期间 `hardware` 改为上报文本框类型，
+ * 输入法因此可以显示悬浮栏与候选词，物理键也一并进入拼音组合；软键盘收起后重新回到 `TYPE_NULL`。</p>
  *
  * <p>约束 — 只影响 {@code EditorInfo}，不改变输入连接、按键或终端渲染；切换取值后必须调用
  * {@code TerminalView.restartInputConnection()} 才会让输入法重新读取类型，这一调用由
@@ -75,8 +76,17 @@ public enum ImeInputType {
      * @return The input type that is reported to the IME.
      */
     public int inputType(int defaultInputType) {
-        // Without the state of the hardware keyboard the `hardware` mode is the same as `auto`.
-        return inputType(defaultInputType, false);
+        // Without the state of the keyboards the `hardware` mode is the same as `auto`.
+        return inputType(defaultInputType, false, false);
+    }
+
+    /**
+     * @return A normal text field without suggestions: the IME shows its editor affordances, like the floating
+     *         toolbar and the candidate view, but does not offer completions for a terminal.
+     */
+    private static int textEditorInputType() {
+        return InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            | InputType.TYPE_TEXT_VARIATION_NORMAL;
     }
 
     /**
@@ -84,17 +94,17 @@ public enum ImeInputType {
      *                         hardware keyboard use.
      * @param hardwareKeyboardAttached Whether a hardware keyboard is attached, which `hardware` turns into
      *                                 {@code TYPE_NULL} so that the IME does not take the physical keys.
+     * @param softKeyboardVisible Whether the soft keyboard is visible, during which `hardware` presents the
+     *                            terminal as a text editor so that the IME can compose text, like pinyin.
      * @return The input type that is reported to the IME.
      */
-    public int inputType(int defaultInputType, boolean hardwareKeyboardAttached) {
+    public int inputType(int defaultInputType, boolean hardwareKeyboardAttached, boolean softKeyboardVisible) {
         switch (this) {
             case HARDWARE:
-                return hardwareKeyboardAttached ? InputType.TYPE_NULL : defaultInputType;
+                if (!hardwareKeyboardAttached) return defaultInputType;
+                return softKeyboardVisible ? textEditorInputType() : InputType.TYPE_NULL;
             case TEXT:
-                // A normal text field without suggestions: the IME shows its editor affordances, like the
-                // floating toolbar for a hardware keyboard, but does not offer completions for a terminal.
-                return InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-                    | InputType.TYPE_TEXT_VARIATION_NORMAL;
+                return textEditorInputType();
             case PASSWORD:
                 return InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
                     | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD;

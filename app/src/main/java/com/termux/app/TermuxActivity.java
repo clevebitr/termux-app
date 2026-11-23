@@ -49,7 +49,6 @@ import com.termux.app.ext.search.SearchExtension;
 import com.termux.app.ext.split.SplitScreenExtension;
 import com.termux.app.properties.ForkProperties;
 import com.termux.app.properties.ForkPropertyKeys;
-import com.termux.app.terminal.HardwareKeyboard;
 import com.termux.app.terminal.ImeInputType;
 import com.termux.app.terminal.KeyboardCompatLog;
 import com.termux.terminal.KeyHandler;
@@ -272,10 +271,17 @@ public final class TermuxActivity extends AppCompatActivity
 
     /**
      * Whether a hardware keyboard was attached when the current input connections were created, which
-     * `ime-input-type=hardware` turns into {@code TYPE_NULL}. The input connections are restarted when it
+     * `ime-input-type=hardware` turns into {@code TYPE_NULL`. The input connections are restarted when it
      * changes, since the IME only reads the input type when it creates them.
      */
     private boolean mHardwareKeyboardAttached;
+
+    /**
+     * Whether the soft keyboard is visible as of the last layout pass. `ime-input-type=hardware` presents the
+     * terminal as a text editor while it is visible, so that the IME can compose CJK text, and as an untyped
+     * editor while it is hidden, so that the physical keys reach the terminal directly.
+     */
+    private boolean mIsSoftKeyboardVisible;
 
     /** Notified when an input device is added or removed, which is when a hardware keyboard may have changed. */
     private InputManager.InputDeviceListener mInputDeviceListener;
@@ -1530,6 +1536,7 @@ public final class TermuxActivity extends AppCompatActivity
                     + ", activePane=" + (terminalView == mTerminalView)
                     + ", imeInputType=" + mImeInputType.getValue()
                     + ", hardwareKeyboard=" + mHardwareKeyboardAttached
+                    + ", softKeyboardVisible=" + mIsSoftKeyboardVisible
                     + ", pid=" + (terminalView.getCurrentSession() != null
                         ? terminalView.getCurrentSession().getPid() : -1));
             }
@@ -1586,7 +1593,7 @@ public final class TermuxActivity extends AppCompatActivity
      * one that is still being paired, does not always change it.</p>
      */
     private void registerHardwareKeyboardWatcher() {
-        mHardwareKeyboardAttached = HardwareKeyboard.isAttached(this);
+        mHardwareKeyboardAttached = KeyboardUtils.isHardKeyboardConnected(this);
 
         InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
         if (inputManager == null) return;
@@ -1627,7 +1634,7 @@ public final class TermuxActivity extends AppCompatActivity
      * restarted.</p>
      */
     private void updateHardwareKeyboardState() {
-        boolean attached = HardwareKeyboard.isAttached(this);
+        boolean attached = KeyboardUtils.isHardKeyboardConnected(this);
         if (attached == mHardwareKeyboardAttached) return;
 
         mHardwareKeyboardAttached = attached;
@@ -1639,6 +1646,39 @@ public final class TermuxActivity extends AppCompatActivity
         for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
             if (viewClient != null) viewClient.restartInputConnection();
         }
+    }
+
+    /**
+     * Switch the input type of the terminal when the soft keyboard is shown or hidden.
+     *
+     * <p>With `ime-input-type=hardware` the terminal is an untyped editor while the soft keyboard is hidden, so
+     * that the physical keys reach the program directly, and a text editor while it is visible, so that the IME
+     * can show its toolbar and candidate view and compose CJK text. An IME only reads the editor information when
+     * it creates the input connection, so the connections are restarted when the visibility changes.</p>
+     */
+    private void updateImePassthroughForSoftKeyboardVisibility(boolean softKeyboardVisible) {
+        if (softKeyboardVisible == mIsSoftKeyboardVisible) return;
+        mIsSoftKeyboardVisible = softKeyboardVisible;
+
+        // Only the passthrough mode switches the input type, the other modes keep the type that the view computed.
+        if (mImeInputType != ImeInputType.HARDWARE) return;
+
+        if (mKeyboardCompatLog) {
+            KeyboardCompatLog.log("ime", "soft keyboard " + (softKeyboardVisible ? "shown" : "hidden")
+                + ", restarting the input connections");
+        }
+
+        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+            if (viewClient != null) viewClient.restartInputConnection();
+        }
+    }
+
+    /**
+     * @return Whether the soft keyboard is visible as of the last layout pass, which `ime-input-type=hardware`
+     *         uses to decide whether the IME takes over the input.
+     */
+    public boolean isSoftKeyboardVisibleForIme() {
+        return mIsSoftKeyboardVisible;
     }
 
     /** @return Whether key events are logged, as the `keyboard-compat-log` property configures it. */
@@ -1884,12 +1924,15 @@ public final class TermuxActivity extends AppCompatActivity
 
         boolean hideWhenSoftKeyboardIsHidden = mProperties.shouldHideExtraKeysWhenSoftKeyboardIsHidden();
 
-        Boolean isSoftKeyboardVisible = null;
-        if (hideWhenSoftKeyboardIsHidden && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // The soft keyboard visibility cannot be checked on android 7 and below, so the toolbar
-            // visibility is not updated based on it there.
-            isSoftKeyboardVisible = KeyboardUtils.isSoftKeyboardVisible(this) ? Boolean.TRUE : Boolean.FALSE;
+        // The soft keyboard visibility cannot be checked on android 7 and below, so it is treated as hidden there.
+        Boolean softKeyboardVisible = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            softKeyboardVisible = KeyboardUtils.isSoftKeyboardVisible(this) ? Boolean.TRUE : Boolean.FALSE;
+            updateImePassthroughForSoftKeyboardVisibility(softKeyboardVisible);
         }
+
+        Boolean isSoftKeyboardVisible = null;
+        if (hideWhenSoftKeyboardIsHidden) isSoftKeyboardVisible = softKeyboardVisible;
 
         if (!Objects.equals(isSoftKeyboardVisible, mIsSoftKeyboardVisibleForToolbar)) {
             // The soft keyboard visibility changed, so the user should have to toggle the toolbar again

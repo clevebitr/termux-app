@@ -65,22 +65,40 @@ public class ImeInputTypeTest {
     }
 
     @Test
-    public void testHardwareReportsTypeNullOnlyWhileAKeyboardIsAttached() {
-        int viewType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL;
+    public void testHardwareReportsTypeNullOnlyWhileTheSoftKeyboardIsHidden() {
+        int viewType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD;
 
-        Assert.assertEquals(InputType.TYPE_NULL, ImeInputType.HARDWARE.inputType(viewType, true));
-        Assert.assertEquals(viewType, ImeInputType.HARDWARE.inputType(viewType, false));
-        // Without the state of the keyboard the mode must not change the reported type.
+        Assert.assertEquals(InputType.TYPE_NULL, ImeInputType.HARDWARE.inputType(viewType, true, false));
+        // Without the state of the keyboards the mode must not change the reported type.
         Assert.assertEquals(viewType, ImeInputType.HARDWARE.inputType(viewType));
     }
 
     @Test
-    public void testOtherModesIgnoreTheHardwareKeyboardState() {
+    public void testHardwarePresentsATextEditorWhileTheSoftKeyboardIsVisible() {
+        int inputType = ImeInputType.HARDWARE.inputType(InputType.TYPE_NULL, true, true);
+
+        Assert.assertEquals(InputType.TYPE_CLASS_TEXT, inputType & InputType.TYPE_MASK_CLASS);
+        Assert.assertEquals(InputType.TYPE_TEXT_VARIATION_NORMAL, inputType & InputType.TYPE_MASK_VARIATION);
+        Assert.assertTrue((inputType & InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0);
+    }
+
+    @Test
+    public void testHardwareKeepsTheViewTypeWithoutAHardwareKeyboard() {
         int viewType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD;
 
-        Assert.assertEquals(viewType, ImeInputType.AUTO.inputType(viewType, true));
-        Assert.assertEquals(InputType.TYPE_NULL, ImeInputType.NONE.inputType(viewType, false));
+        // Only the software keyboard is available, so the terminal keeps the type that the view computed and the
+        // IME keeps its CJK workaround.
+        Assert.assertEquals(viewType, ImeInputType.HARDWARE.inputType(viewType, false, true));
+        Assert.assertEquals(viewType, ImeInputType.HARDWARE.inputType(viewType, false, false));
+    }
+
+    @Test
+    public void testOtherModesIgnoreTheKeyboardStates() {
+        int viewType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD;
+
+        Assert.assertEquals(viewType, ImeInputType.AUTO.inputType(viewType, true, false));
+        Assert.assertEquals(InputType.TYPE_NULL, ImeInputType.NONE.inputType(viewType, true, true));
         Assert.assertEquals(ImeInputType.TEXT.inputType(viewType),
-            ImeInputType.TEXT.inputType(viewType, true));
+            ImeInputType.TEXT.inputType(viewType, true, false));
     }
 }
