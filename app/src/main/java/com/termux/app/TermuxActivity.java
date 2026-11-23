@@ -16,6 +16,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -106,9 +107,11 @@ import androidx.viewpager.widget.ViewPager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.Set;
 import java.util.Objects;
 
 /**
@@ -286,6 +289,19 @@ public final class TermuxActivity extends AppCompatActivity
      * type it read before, which leaves the terminal without the IME toolbar and candidate view.
      */
     private static final long IME_RESTART_AFTER_SOFT_KEYBOARD_SHOWN_DELAY_MS = 200;
+
+    /**
+     * The key codes whose {@link KeyEvent#ACTION_DOWN} the activity saw and whose {@link KeyEvent#ACTION_UP} it has
+     * not seen yet. A key up without a recorded down means that the IME took the down event even though the
+     * terminal should be the input path, which is recovered from in {@link #trackKeyEventsForImeState(KeyEvent)}.
+     */
+    private final Set<Integer> mPendingKeyDowns = new HashSet<>();
+
+    /** When the input connections were last restarted because a key down was missing, to limit the restarts. */
+    private long mLastMissingKeyDownRestartMs;
+
+    /** The minimum time between two restarts that are caused by a missing key down event. */
+    private static final long MISSING_KEY_DOWN_RESTART_INTERVAL_MS = 2000;
 
     /** Restarts the input connections again after the soft keyboard was shown, see the delay constant. */
     private final Runnable mDelayedImeRestart = () -> {
@@ -1501,8 +1517,41 @@ public final class TermuxActivity extends AppCompatActivity
      */
     @Override
     public boolean dispatchKeyEvent(@NonNull KeyEvent event) {
+        trackKeyEventsForImeState(event);
         if (handleCommandShortcut(event)) return true;
         return super.dispatchKeyEvent(event);
+    }
+
+    /**
+     * Restart the input connections when a key up arrives without its key down.
+     *
+     * <p>The terminal is an untyped editor whenever the physical keys are the input path, so the activity sees the
+     * down and the up event of every key. An IME that still holds a text editor connection takes the down events
+     * and returns the text later, which leaves the activity with the up event only; restarting the connections
+     * makes the IME read the type that {@link TermuxTerminalViewClient#getInputType(int)} resolves again. This is
+     * the recovery for an IME that ignored the restart when the soft keyboard was hidden.</p>
+     */
+    private void trackKeyEventsForImeState(@NonNull KeyEvent event) {
+        int keyCode = event.getKeyCode();
+
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            mPendingKeyDowns.add(keyCode);
+            return;
+        }
+        if (event.getAction() != KeyEvent.ACTION_UP) return;
+        if (mPendingKeyDowns.remove(keyCode)) return;
+
+        // While the soft keyboard is visible the IME is the input path on purpose, so a missing down is expected.
+        if (mIsSoftKeyboardVisible || !mHardwareKeyboardAttached) return;
+
+        long now = SystemClock.uptimeMillis();
+        if (now - mLastMissingKeyDownRestartMs < MISSING_KEY_DOWN_RESTART_INTERVAL_MS) return;
+        mLastMissingKeyDownRestartMs = now;
+
+        if (mKeyboardCompatLog) {
+            KeyboardCompatLog.log("ime", "key up without its down, restarting the input connections");
+        }
+        restartTerminalInputConnections();
     }
 
     /**
