@@ -2124,7 +2124,26 @@ mouse-right-click = auto     # auto（默认）| forward | palette
 设置路径：命令面板设置页（原「长按菜单」页）→「鼠标右键」。`forward` 适合接显示器用鼠标操作、
 不希望误触弹出面板的场景。
 
-### 37.3 键盘诊断日志（`keyboard-compat-log`）
+### 37.3 输入法兼容（`ime-input-type`）
+
+连接硬件键盘时，Gboard 等输入法只在「看起来是普通文本输入框」的组件上显示悬浮栏。终端默认上报
+`TYPE_NULL` 或 `VISIBLE_PASSWORD`，输入法因此不显示悬浮栏；把取值设为 `text` 后终端按普通文本框上报：
+
+```properties
+ime-input-type = auto     # auto（默认）| text | password | none
+```
+
+| 取值 | 上报的输入类型 | 用途 |
+| --- | --- | --- |
+| `auto` | 视图按属性与 IME 语言算出的值 | 与上游一致 |
+| `text` | `TYPE_CLASS_TEXT \| NO_SUGGESTIONS \| NORMAL` | 让输入法显示悬浮栏与编辑能力，但不接收联想文本 |
+| `password` | `TYPE_CLASS_TEXT \| NO_SUGGESTIONS \| VISIBLE_PASSWORD` | 旧输入法兼容 |
+| `none` | `TYPE_NULL` | 最纯的终端语义 |
+
+设置路径：终端键盘页 →「硬件键盘与输入法」。切换后输入法会重新读取类型（`restartInputConnection`）。
+完整设计见 `docs/KEYBOARD_COMPAT.md`。
+
+### 37.4 键盘诊断日志（`keyboard-compat-log`）
 
 ```properties
 keyboard-compat-log = true   # 默认 false

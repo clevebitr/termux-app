@@ -34,7 +34,7 @@
 | 交互与系统界面提交 | `c917360` `32d7c52` `5b85fb5` `8db2e1b` `0a45190` `91f9f0b` |
 | 真机反馈修复提交 | `55b3012`（闪烁）`f817e06`（面板配色）`3877f33`（抽屉间隙） |
 | 面板接管提交 | `71708e0`（搜索框）`4d39d05`（通知胶囊）`7c0ed84`（接管/快捷键/右键）`272248d`（分层修正） |
-| 键盘兼容提交 | `a1b589e`（快捷键匹配加固 + `keyboard-compat-log`） |
+| 键盘兼容提交 | `a1b589e`（快捷键匹配加固 + `keyboard-compat-log`）`8a1fc86`（只读模块钩子）`a5cba39`（`ime-input-type`） |
 
 新会话的第一条命令：
 
@@ -155,6 +155,8 @@ ext/ForkExtensions  本构建的扩展登记表
 - 命令面板在深色/浅色与彩色强调色配色下的可读性、chip 与行按下态、抽屉首末行间隙；
 - 面板接管：浮条「更多」、菜单键、右键三种模式（`auto`/`forward`/`palette`）是否都符合预期；
 - 快捷键：`command-shortcuts` 改绑后面板标签与按键是否一致、额外键宏按键是否被识别、取消快捷键是否真的不再拦截；
+- 输入法兼容：`ime-input-type=text` 时英文 Gboard + 硬件键盘是否出现悬浮栏、是否有组合文本残留；
+  `keyboard-compat-log=true` 的日志能否区分 Activity / 视图 / pre-IME 三条路径；
 - 扩展禁用门禁：分屏/搜索/抽屉动作从终端菜单与命令面板消失；
 - 命令面板内快捷键（`Ctrl+Alt+F/K/C`）在真机上的触发；
 - 分屏排列/拖拽/活动窗格边框/状态恢复；搜索条；右键转发在 `vim`/`tmux` 与分屏下的坐标；
@@ -174,8 +176,8 @@ ext/ForkExtensions  本构建的扩展登记表
    需要恢复 `MaterialAlertDialogBuilder` 版本（`DECISIONS.md` #22 记录了原因与差异）。
 5. **扩展禁用后的额外键**：`extra-keys` 属性里的 `SEARCH`/`DRAWER`/`SPLIT_*` 等特殊键在扩展禁用后仍显示但无动作，
    是否随扩展可用性过滤需需求方决定（涉及改写用户自定义布局）。
-6. **`ime-input-type` 与只读模块钩子**：Gboard 悬浮栏需要把终端上报为普通文本框，只能在 `terminal-view` 的
-   `onCreateInputConnection` 末尾加两个客户端回调（见 `docs/KEYBOARD_COMPAT.md` §3.3），需需求方书面豁免。
+6. ~~`ime-input-type` 与只读模块钩子~~（已决）：需求方已书面豁免，`terminal-view` 新增
+   `getInputType`/`getImeOptions` 钩子，app 侧提供 `ime-input-type`（默认 `auto`），见 `app/DECISIONS.md` #24。
 7. **设置页顶栏配色**：设置/帮助/报告页的 Toolbar 取自 `?attr/colorPrimaryDark`（Material 3 下等于 `colorPrimary`），
    是否改为 `colorSurface` 需先确定标题与图标的取色。
 

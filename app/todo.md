@@ -12,9 +12,9 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `a1b589e feat: 加固命令快捷键匹配并新增键盘诊断日志` |
+| 最近提交 | `a5cba39 feat: 新增 ime-input-type 输入法兼容模式` |
 | 规模 | `TermuxActivity` 2235 行；`commands/` 7 文件 1062 行；`ext/` 9 个扩展 + api/host；`terminal/` 6 文件 |
-| 验证 | 本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 180 项、1 项既有失败 |
+| 验证 | 本机 `:terminal-view:compileDebugJavaWithJavac`、`:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 186 项、1 项既有失败 |
 
 ---
 
@@ -119,8 +119,9 @@
 - [x] `ShellCommandShortcut`：字符匹配失败时回退到物理键码（覆盖键盘在修饰键下不报字符的情况）（`a1b589e`）
 - [x] `keyboard-compat-log` 属性：`dispatchKeyEvent`、命令快捷键分发、视图客户端统一输出按键字段（`a1b589e`）
 - [x] 设计方案 `docs/KEYBOARD_COMPAT.md`：三层（采集/路由/IME）与只读模块钩子（`docs` 提交）
-- [ ] 待批准：`terminal-view` 新增 `getInputType`/`getImeOptions` 客户端钩子与 `ime-input-type` 属性（`auto|text|password|none`）
-- [ ] 待实现（批准后）：设置页「输入法兼容」项、`restartInputConnection()` 联动、Gboard 悬浮栏真机验收
+- [x] 需求方书面豁免 `terminal-view`，新增 `getInputType`/`getImeOptions` 客户端钩子（`8a1fc86`）
+- [x] `ime-input-type`（`auto`/`text`/`password`/`none`）与 `ImeInputType`、键盘页设置项、`ImeInputTypeTest` 6 项（`a5cba39`）
+- [ ] 待真机验收：`text` 模式下 Gboard 悬浮栏、组合文本残留、其他输入法兼容
 - [ ] 待验证：`keyboard-compat-log` 日志能否区分三条按键路径；改绑快捷键在硬件键盘下的表现
 
 ---

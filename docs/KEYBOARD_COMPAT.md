@@ -177,23 +177,24 @@ keyboard-compat-log = false
 
 ---
 
-## 6. 已实现与待定
+## 6. 交付状态
 
-已实现（`app/` 内，无只读模块改动）：
+已实现并提交：
 
-- `ShellCommandShortcut`：字符匹配失败时回退到物理键码，覆盖键盘在修饰键下不报字符的情况。
-- `keyboard-compat-log`：`TermuxActivity.dispatchKeyEvent`、`handleCommandShortcut`、`TermuxTerminalViewClient.onKeyDown`
-  统一打印按键字段。
-- `command-shortcuts` 属性与设置项、右键行为、面板标签同源（见 `FORK.md` §37）。
+| 项 | 位置 | 提交 |
+| --- | --- | --- |
+| `TerminalViewClient.getInputType/getImeOptions` 钩子（只读模块，需求方已书面豁免） | `terminal-view/` | `8a1fc86` |
+| `ime-input-type` 属性（`auto` 默认 / `text` / `password` / `none`）与 `ImeInputType` | `app/terminal/` | `a5cba39` |
+| 设置页「硬件键盘与输入法」分类（`ime-input-type`、`keyboard-compat-log`） | `res/xml/termux_keyboard_preferences.xml` | `a5cba39` |
+| 快捷键匹配回退物理键码 + `keyboard-compat-log` 日志 | `commands/`、`terminal/` | `a1b589e` |
+| `command-shortcuts` 属性与设置项、右键行为、面板标签同源 | 见 `FORK.md` §37 | `7c0ed84` |
 
-待定（需要只读模块书面豁免）：
+仍待真机验收（`text` 模式与日志）：
 
-- `TerminalViewClient.getInputType/getImeOptions` 钩子与 `ime-input-type` 属性。
-- 设置页「输入法兼容」项与 `restartInputConnection()` 联动。
-- 只在 `text` 模式下验证 Gboard 悬浮栏，避免影响默认路径。
-
-若需求方不批准只读模块改动：`app/` 只能提供 `enforce-char-based-input` 与 `gboard-cjk-workaround` 的组合预设，
-无法把英文 IME 下的输入类型改成 `NORMAL`，Gboard 悬浮栏在该场景下仍不会出现。
+1. 英文 Gboard + 硬件键盘：`ime-input-type=text` 是否出现悬浮栏，输入是否无组合文本残留。
+2. `auto` 模式下行为与上游完全一致。
+3. 其他输入法（Samsung、Hacker's Keyboard）在 `text` 模式下的表现。
+4. `keyboard-compat-log=true` 时日志能否覆盖三条按键路径。
 
 ---
 

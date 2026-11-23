@@ -474,3 +474,35 @@
 测试：`TerminalMenuItemsTest` 8 项（删除已随对话框移除的 build 用例）、`TerminalMenuConfigTest` 12 项（删除外观用例，新增动作顺序与去重用例）、新增 `CommandShortcutsTest` 5 项（默认值、单项覆盖、空值取消、未知 id、动作改绑）。总测试 180 项。
 
 未验证：本机无 `adb`，以下均未真机确认——面板接管后「更多」浮条与菜单键是否都能打开、右键三种模式的实际表现（尤其 `FORWARD` 在 `vim`/`tmux` 与普通 shell 下）、`command-shortcuts` 改绑后面板标签与按键是否一致、额外键宏按键是否被正确识别、搜索框高度与通知卡片胶囊观感。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 180 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。
+
+## 2026-11-23 — 只读模块豁免：终端视图输入法编辑器信息钩子与 ime-input-type
+
+需求方在会话中书面批准修改只读模块 `terminal-view`，用于硬件键盘与输入法兼容（提交 8a1fc86 单独提交该模块，a5cba39 为 app 侧实现）。本条为该豁免的记录。
+
+一、只读模块改动（terminal-view，6 行）
+- `TerminalViewClient` 新增两个默认方法：`default int getInputType(int defaultInputType)` 与 `default int getImeOptions(int defaultImeOptions)`，默认原样返回。
+- `TerminalView.onCreateInputConnection()` 在算完现有 `inputType`/`imeOptions` 后追加两行赋值，把结果交给客户端覆盖。
+- 默认实现不改行为，未实现这两个方法的客户端（包括插件）行为与上游一致。
+
+二、动机
+- 上游在终端聚焦时上报 `TYPE_NULL` 或 `VISIBLE_PASSWORD`，Gboard 连接硬件键盘时不把终端视为普通文本框，因此不显示悬浮栏；在真正的 `EditText`（工具栏文本框）里能显示。
+- app 侧没有任何注入点能改变 `EditorInfo`：`TerminalView` 是 `final`，包装层拿不到输入法连接，Activity 也没有回调。只能由视图自己向客户端询问。
+
+三、app 侧实现
+- 新增 `terminal/ImeInputType` 枚举与 `ime-input-type` 属性（app 自有键，见 `ForkPropertyKeys`）：
+  - `auto`（默认）：沿用视图算出的类型，与上游一致；
+  - `text`：`TYPE_CLASS_TEXT | FLAG_NO_SUGGESTIONS | VARIATION_NORMAL`，让输入法按普通文本框处理，但不下发联想文本；
+  - `password`：旧的 `VISIBLE_PASSWORD` 变体；
+  - `none`：`TYPE_NULL`。
+- `TermuxTerminalViewClient` 实现 `getInputType`，读取 `TermuxActivity.getImeInputType()`；`onReloadProperties()` 已有 `restartInputConnection()`，属性变更后输入法会重新读取类型。
+- 设置页：终端键盘页新增「硬件键盘与输入法」分类，含 `ime-input-type` 列表项与 `keyboard-compat-log` 开关；中英文案同步。
+- 测试：新增 `ImeInputTypeTest` 6 项（未知值回退、取值解析、auto 透传、text/password 的类与变体、none）。
+
+四、同时落地的诊断与匹配加固（提交 a1b589e）
+- `ShellCommandShortcut.matches(String, KeyEvent)` 改用 `getUnicodeChar(0)`，并在字符为 0 时回退到物理键码比较（字母/数字），覆盖硬件键盘在修饰键下不报字符的情况。
+- `keyboard-compat-log=true` 时，`TermuxActivity.dispatchKeyEvent` 的命令快捷键分发与 `TermuxTerminalViewClient.onKeyDown` 统一输出 `action/code/unicode/ctrl/alt/shift/source/device`。
+
+五、设计文档
+- 完整分层设计（事件采集 / 统一路由 / IME 兼容 / 软硬件键盘共存 / 验收 / 风险）见 `docs/KEYBOARD_COMPAT.md`。
+
+未验证：本机无 `adb`。`ime-input-type=text` 时 Gboard 悬浮栏是否出现、组合文本是否残留、其他输入法（Samsung、Hacker's Keyboard）是否正常，以及 `keyboard-compat-log` 日志能否覆盖三条按键路径，均未真机确认。本机 `:terminal-view:compileDebugJavaWithJavac`、`:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 186 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。
