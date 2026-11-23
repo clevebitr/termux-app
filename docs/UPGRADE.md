@@ -492,7 +492,8 @@ terminal-render-cache=true              # 默认 true
 | Kotlin（含 Gradle 插件） | `2.2.20` | Gradle 9.2.x 官方测试范围上限为 KGP 2.2.20（Gradle 兼容矩阵） |
 | Compose 编译器插件 | `org.jetbrains.kotlin.plugin.compose:2.2.20` | 自 Kotlin 2.0 起随语言版本发布，不再单独维护 Compose→Kotlin 兼容表 |
 | Compose BOM | `2025.10.01`（ui/foundation 1.9.4、material3 1.4.0、material-icons-core 1.7.8） | 单一 BOM 统一版本，避免各库版本漂移 |
-| activity-compose | `1.10.1` | 提供 `ComponentActivity.setContent` 与 `enableEdgeToEdge` |
+| activity-compose | `1.12.4` | 提供 `ComponentActivity.setContent` 与 `enableEdgeToEdge`；`1.13.0` 起要求 compileSdk 37，见第 19 节 |
+| lifecycle-viewmodel | `2.10.0` | 窗口状态持有者的基类；`2.11.x` 起要求 compileSdk 37，见第 19 节 |
 | AGP / Gradle / JDK | `8.13.2` / `9.2.1` / `17` | 与根构建一致，不引入工具链升级 |
 | compileSdk / minSdk / targetSdk | `36` / `24` / `28` | 与骨架阶段一致；`targetSdk` 仍受 `exec` 与 W^X 约束 |
 
@@ -844,3 +845,72 @@ Compose PaneArea
   `UnsatisfiedLinkError`（native 方法重命名）与 JSON/反射相关裁剪，并在 `proguard-rules.pro` 补充规则；
 * release 包关闭调试日志输出（`ShellLog` 仍会调用 `Log`，但 debug 级日志在 release 下不打印）；
 * 该包不改变 `applicationId` 与 `targetSdk`，不会影响现有 Termux 安装。
+
+---
+
+## 18. 界面回归测试（2026-11-23）
+
+### 18.1 目标
+
+页面架构与设置页经过一轮较大改造后，需要一层自动化回归保护，至少覆盖「界面操作 → 视图模型 →
+配置文件」这条链路，以及页面级筛选、返回键与抽屉等交互。
+
+### 18.2 引入的依赖
+
+| 依赖 | 版本 | 范围 | 用途 | 替代方案 |
+| --- | --- | --- | --- | --- |
+| `androidx.compose.ui:ui-test-junit4` | 由 Compose BOM `2025.10.01` 管理 | `androidTestImplementation` | Compose 语义树查询与交互 | 自绘视图测试，无法覆盖 Compose |
+| `androidx.test.ext:junit` | `1.3.0` | `androidTestImplementation` | AndroidJUnit4 运行器与 `ApplicationProvider` | 直接使用裸 JUnit，缺少 Activity 宿主 |
+| `androidx.compose.ui:ui-test-manifest` | 由 BOM 管理 | `debugImplementation` | 为测试提供 `ComponentActivity` 宿主声明 | 在应用清单中声明测试专用 Activity，会污染发布包 |
+
+`defaultConfig` 增加 `testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"`；
+测试源码位于 `app_new/src/androidTest/kotlin/`。
+
+### 18.3 为什么不用 Robolectric
+
+Robolectric 可以在 JVM 上运行仪器化风格的测试，本方案最初采用该路线并已跑通编译，但在本机
+（Termux，Android arm64）执行时失败：
+
+```
+java.lang.UnsatisfiedLinkError: no conscrypt_openjdk_jni-linux-aarch_64 in java.library.path
+  at org.conscrypt.NativeCrypto.<clinit>
+  at org.robolectric.android.internal.AndroidTestEnvironment.setUpApplicationState
+```
+
+原因是 Robolectric 在初始化应用环境时安装 Conscrypt 提供方，而 Conscrypt 的 JNI 只有 glibc 桌面
+平台的预编译产物，Termux 使用 bionic 且无对应库。该限制属于运行环境，不是配置问题，因此：
+
+- 单元测试层继续在 JVM 上运行纯逻辑测试（当前 152 项），不受影响；
+- 界面测试放入 `androidTest` 源集，本地执行 `:app_new:assembleDebugAndroidTest` 验证编译，
+  运行结果由设备或 CI 补录。
+
+### 18.4 当前覆盖
+
+| 测试 | 覆盖内容 |
+| --- | --- |
+| `SettingsScreenTest#togglingARowWritesTheSetting` | 点击开关行 → 视图模型 → 配置文件写入 |
+| `SettingsScreenTest#searchFiltersToMatchingSetting` | 搜索输入 → 命中项保留、未命中项移除 |
+
+---
+
+## 19. 依赖版本更新（2026-11-23）
+
+### 19.1 本轮升级
+
+| 依赖 | 旧版本 | 新版本 | 理由 | 替代方案 |
+| --- | --- | --- | --- | --- |
+| `androidx.activity:activity-compose` | `1.10.1` | `1.12.4` | 修复若干边到边与返回键相关的缺陷；`enableEdgeToEdge` 行为与当前实现一致 | 维持旧版本，接口不变，但会持续产生 Lint 版本提示 |
+| `androidx.lifecycle:lifecycle-viewmodel` | `2.9.4` | `2.10.0` | 与 activity-compose 1.12.x 的生命周期版本对齐，避免同一依赖树出现两个 lifecycle 主版本 | 维持在 2.9.x，需要显式约束版本 |
+| `org.json:json`（仅测试） | `20240303` | `20260814` | 单元测试中的 JSON 实现跟进；仅 `testImplementation`，不影响产物 | 维持旧版本 |
+
+### 19.2 版本上限
+
+`activity-compose 1.13.0` 与 `lifecycle 2.11.x` 会引入 `lifecycle-runtime-compose 2.11.x`，其 AAR 元数据要求
+`compileSdk 37`。当前 `app_new` 的 `compileSdk` 取自 `gradle.properties` 的 36，而本地 SDK 只安装了
+`platforms/android-36`，因此本轮停留在兼容 36 的最高稳定版本。升级到 37 需要先提升工具链（见 M15-1），
+属于独立提交。
+
+### 19.3 验证
+
+升级后执行 `:app_new:assembleDebug`、`:app_new:testDebugUnitTest`（164 项）与 `:app_new:lintDebug`，全部通过；
+Lint 的依赖版本提示从 3 条减少到 2 条，剩余提示即上述需要 compileSdk 37 的版本。

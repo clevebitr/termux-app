@@ -68,15 +68,21 @@
                     android:layout_height="0dp"
                     android:layout_weight="1">
 
-                    <com.termux.view.TerminalView
-                        android:id="@+id/terminal_view"
+                    <com.termux.app.terminal.TermuxTerminalFrame
+                        android:id="@+id/terminal_frame"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:defaultFocusHighlightEnabled="false"
-                        android:focusableInTouchMode="true"
-                        android:scrollbarThumbVertical="@drawable/terminal_scroll_shape"
-                        android:scrollbars="vertical"
-                        tools:ignore="UnusedAttribute" />
+                        android:layout_height="match_parent">
+
+                        <com.termux.view.TerminalView
+                            android:id="@+id/terminal_view"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:defaultFocusHighlightEnabled="false"
+                            android:focusableInTouchMode="true"
+                            android:scrollbarThumbVertical="@drawable/terminal_scroll_shape"
+                            android:scrollbars="vertical"
+                            tools:ignore="UnusedAttribute" />
+                    </com.termux.app.terminal.TermuxTerminalFrame>
 
                 </FrameLayout>
 
@@ -94,15 +100,21 @@
                     android:layout_weight="1"
                     android:visibility="gone">
 
-                    <com.termux.view.TerminalView
-                        android:id="@+id/terminal_view_2"
+                    <com.termux.app.terminal.TermuxTerminalFrame
+                        android:id="@+id/terminal_frame_2"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:defaultFocusHighlightEnabled="false"
-                        android:focusableInTouchMode="true"
-                        android:scrollbarThumbVertical="@drawable/terminal_scroll_shape"
-                        android:scrollbars="vertical"
-                        tools:ignore="UnusedAttribute" />
+                        android:layout_height="match_parent">
+
+                        <com.termux.view.TerminalView
+                            android:id="@+id/terminal_view_2"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:defaultFocusHighlightEnabled="false"
+                            android:focusableInTouchMode="true"
+                            android:scrollbarThumbVertical="@drawable/terminal_scroll_shape"
+                            android:scrollbars="vertical"
+                            tools:ignore="UnusedAttribute" />
+                    </com.termux.app.terminal.TermuxTerminalFrame>
 
                 </FrameLayout>
 
@@ -127,7 +139,7 @@
                  and it is an overlay so that the terminal is not resized and the rows that the
                  terminal programs see do not change while a card is shown. Its gravity, margins and
                  width are set programmatically from the `notification-*` properties. -->
-            <com.termux.app.notifications.NotificationOverlayView
+            <com.termux.app.ext.notifications.NotificationOverlayView
                 android:id="@+id/notification_overlay"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -158,6 +170,15 @@
                     android:orientation="horizontal"
                     android:paddingStart="4dp"
                     android:paddingEnd="10dp">
+
+                    <ImageButton
+                        android:id="@+id/palette_button"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="@null"
+                        android:contentDescription="@string/action_command_palette"
+                        android:src="@drawable/ic_pref_search"
+                        app:tint="?attr/termuxActivityDrawerImageTint" />
 
                     <ImageButton
                         android:id="@+id/settings_button"

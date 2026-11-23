@@ -12,6 +12,12 @@ import org.junit.Test
 /** [SessionRegistry] 的派生、查询与记录更新测试。 */
 class SessionRegistryTest {
 
+    private fun boundWorkspace(sessionId: String): TabWorkspace =
+        TabWorkspace.initial("Shell 1").updateActiveTab { tab ->
+            val leaf = tab.leaves.first()
+            tab.copy(root = com.termux.shell.pane.PaneLeaf(leaf.id, sessionId = sessionId))
+        }
+
     private fun workspaceWithTwoTabs(): TabWorkspace {
         val first = TabWorkspace.initial("Shell 1")
         val second = first.newTab("Shell 2")
@@ -48,6 +54,45 @@ class SessionRegistryTest {
         assertFalse(record.isPending)
         assertEquals(record, registry.find("session-a"))
         assertNull(registry.find("missing"))
+    }
+
+    @Test
+    fun descriptorLookupFillsTitleAndRunningState() {
+        val workspace = boundWorkspace("session-a")
+        val registry = SessionRegistry.fromWorkspace(workspace) { id ->
+            SessionDescriptor(
+                id = SessionId.of(id),
+                title = "bash",
+                workingDirectory = "/data",
+                pid = 42,
+                running = true,
+            )
+        }
+
+        val record = registry.records.single()
+        assertEquals("bash", record.title)
+        assertEquals("/data", record.workingDirectory)
+        assertEquals(SessionState.RUNNING, record.state)
+    }
+
+    @Test
+    fun missingDescriptorMarksSessionExited() {
+        val workspace = boundWorkspace("session-a")
+        val registry = SessionRegistry.fromWorkspace(workspace) { null }
+
+        assertEquals(SessionState.EXITED, registry.records.single().state)
+    }
+
+    @Test
+    fun stoppedDescriptorMarksSessionExited() {
+        val workspace = boundWorkspace("session-a")
+        val registry = SessionRegistry.fromWorkspace(workspace) { id ->
+            SessionDescriptor(SessionId.of(id), "vim", null, 42, running = false)
+        }
+
+        val record = registry.records.single()
+        assertEquals("vim", record.title)
+        assertEquals(SessionState.EXITED, record.state)
     }
 
     @Test

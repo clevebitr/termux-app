@@ -10,6 +10,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;
+import com.termux.app.ext.host.ExtensionPreferences;
 import com.termux.app.fragments.settings.PreferenceAccentUtils;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 
@@ -25,6 +26,10 @@ public class TermuxPreferencesFragment extends PreferenceFragmentCompat {
         preferenceManager.setPreferenceDataStore(TermuxPreferencesDataStore.getInstance(context));
 
         setPreferencesFromResource(R.xml.termux_preferences, rootKey);
+        // Hide the entries of the extensions that are disabled, so that a disabled feature cannot be opened.
+        if (getPreferenceScreen() != null) {
+            ExtensionPreferences.applyPreferenceVisibility(requireContext(), getPreferenceScreen());
+        }
 
         PreferenceAccentUtils.applyAccent(this);
 

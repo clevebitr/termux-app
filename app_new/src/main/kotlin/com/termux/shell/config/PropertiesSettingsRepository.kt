@@ -110,12 +110,8 @@ class PropertiesSettingsRepository private constructor(private val file: File) :
         return true
     }
 
-    /** 把单项写入替换到已有行；文件缺少该键时追加到末尾。 */
+    /** 把单项写入替换到已有行；文件缺少该键时追加到末尾。写入通过原子替换完成。 */
     private fun writeValue(key: String, value: String): Boolean {
-        val parent = file.parentFile
-        if (parent != null && !parent.isDirectory && !parent.mkdirs()) {
-            return false
-        }
         val lines = try {
             if (file.isFile) file.readLines(StandardCharsets.UTF_8) else emptyList()
         } catch (e: IOException) {
@@ -135,26 +131,7 @@ class PropertiesSettingsRepository private constructor(private val file: File) :
         if (!replaced) {
             newLines += prefix + value
         }
-        val temp = File(parent ?: file.absoluteFile.parentFile, file.name + ".tmp")
-        val written = try {
-            temp.writeText(newLines.joinToString("\n", postfix = "\n"), StandardCharsets.UTF_8)
-            true
-        } catch (e: IOException) {
-            false
-        }
-        if (!written) {
-            temp.delete()
-            return false
-        }
-        if (file.exists() && !file.delete()) {
-            temp.delete()
-            return false
-        }
-        if (!temp.renameTo(file)) {
-            temp.delete()
-            return false
-        }
-        return true
+        return AtomicFileReplace.writeText(file, newLines.joinToString("\n", postfix = "\n"))
     }
 
     companion object {

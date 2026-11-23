@@ -30,7 +30,7 @@ import com.termux.shared.logger.Logger;
  * androidx.preference caches the values that it reads, so the activity is recreated to show the default
  * values again.
  */
-final class PreferenceResetUtils {
+public final class PreferenceResetUtils {
 
     private static final String LOG_TAG = "PreferenceResetUtils";
 
@@ -45,7 +45,7 @@ final class PreferenceResetUtils {
      * androidx.preference has no long click listener on a preference, so the listener is installed on the
      * list view of the fragment, which only exists once its view was created.
      */
-    static void installResetOnLongClick(@NonNull PreferenceFragmentCompat fragment) {
+    public static void installResetOnLongClick(@NonNull PreferenceFragmentCompat fragment) {
         if (fragment.getPreferenceScreen() == null) return;
 
         // `getListView()` returns the recycler view that androidx.preference uses to show the preferences.

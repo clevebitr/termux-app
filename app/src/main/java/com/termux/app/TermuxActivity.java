@@ -9,19 +9,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.StateListDrawable;
-import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.Build;
-import android.util.StateSet;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.provider.Settings;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MotionEvent;
 import android.view.View;
@@ -31,37 +25,26 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.RelativeLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.termux.R;
 import com.termux.app.api.file.FileReceiverActivity;
-import com.termux.app.notifications.NotificationConfig;
-import com.termux.app.properties.ForkProperties;
-import com.termux.app.notifications.NotificationOverlayView;
-import com.termux.app.notifications.RecentNotifications;
-import com.termux.app.notifications.RecentNotificationsDialog;
-import com.termux.app.terminal.menu.TerminalMenuAction;
-import com.termux.app.terminal.menu.TerminalMenuConfig;
-import com.termux.app.terminal.menu.TerminalMenuDialog;
-import com.termux.app.notifications.TerminalNotificationManager;
-import com.termux.app.statusbar.StatusBarConfig;
-import com.termux.app.statusbar.StatusBarController;
-import com.termux.app.statusbar.StatusBarView;
-import com.termux.app.terminal.DrawerColorUtils;
-import com.termux.app.terminal.DrawerConfig;
-import com.termux.app.terminal.DrawerHandleView;
-import com.termux.app.terminal.SessionDetails;
-import com.termux.app.terminal.TerminalSearchController;
-import com.termux.app.terminal.TerminalSplitScreenController;
+import com.termux.app.ext.notifications.NotificationsExtension;
+import com.termux.app.ext.menu.TerminalMenuAction;
+import com.termux.app.ext.menu.TerminalMenuConfig;
+import com.termux.app.ext.menu.TerminalMenuItems;
+import com.termux.app.ext.notifications.TerminalNotificationManager;
+import com.termux.app.ext.menu.TerminalMenuConfig;
+import com.termux.app.ext.menu.TerminalMenuExtension;
+import com.termux.app.ext.statusbar.StatusBarConfig;
+import com.termux.app.ext.drawer.DrawerExtension;
+import com.termux.app.ext.search.SearchExtension;
+import com.termux.app.ext.split.SplitScreenExtension;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
-import com.google.android.material.button.MaterialButton;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
 import com.termux.shared.activities.ReportActivity;
-import com.termux.shared.interact.ShareUtils;
 import com.termux.shared.activity.ActivityUtils;
 import com.termux.shared.activity.media.AppCompatActivityUtils;
 import com.termux.shared.data.IntentUtils;
@@ -74,25 +57,29 @@ import com.termux.app.activities.SettingsActivity;
 import com.termux.shared.termux.crash.TermuxCrashUtils;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
-import com.termux.app.terminal.TermuxSessionsListViewController;
 import com.termux.app.terminal.io.TerminalToolbarViewPager;
+import com.termux.app.commands.ShellCommandCatalog;
+import com.termux.app.commands.ShellCommandHost;
+import com.termux.app.commands.ShellCommandPalette;
+import com.termux.app.commands.TerminalActionRunner;
+import com.termux.app.ext.api.ExtensionContext;
+import com.termux.app.ext.api.ExtensionLayoutHost;
+import com.termux.app.ext.host.ExtensionHost;
+import com.termux.app.ext.host.ExtensionManager;
+import com.termux.app.ext.statusbar.StatusBarExtension;
 import com.termux.app.terminal.TermuxTerminalViewClient;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
-import com.termux.shared.termux.interact.TextInputDialogUtils;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxUtils;
 import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
 import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 import com.termux.shared.termux.theme.TermuxThemeUtils;
 import com.termux.shared.theme.NightMode;
-import com.termux.shared.theme.ThemeUtils;
 import com.termux.shared.view.KeyboardUtils;
 import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalColors;
 import com.termux.terminal.TerminalColorScheme;
 import com.termux.terminal.TerminalEmulator;
-import com.termux.terminal.TerminalNotification;
-import com.termux.terminal.TextStyle;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.view.TerminalView;
@@ -101,7 +88,6 @@ import com.termux.view.TerminalViewClient;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.view.GravityCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -123,7 +109,8 @@ import java.util.Objects;
  * </ul>
  * about memory leaks.
  */
-public final class TermuxActivity extends AppCompatActivity implements ServiceConnection {
+public final class TermuxActivity extends AppCompatActivity
+    implements ServiceConnection, TerminalActionRunner.Host, ExtensionLayoutHost {
 
     /**
      * The connection to the {@link TermuxService}. Requested in {@link #onCreate(Bundle)} with a call to
@@ -170,10 +157,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     View mTermuxActivityBottomSpaceView;
 
     /** The search bar of the terminal, which is overlayed on top of the terminal view. */
-    private TerminalSearchController mTerminalSearchController;
 
     /** The layout of the split screen, which owns the sizes and the orientation of the panes. */
-    private TerminalSplitScreenController mTerminalSplitScreenController;
 
     /**
      * The containers of the terminal panes. Index 0 is the primary pane, which is always shown, and
@@ -198,39 +183,14 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     /** The index of the pane that is active, i.e. that receives the keyboard, extra keys and menus. */
     private int mActiveTerminalViewIndex = 0;
 
-    /** The configuration of how the sessions drawer can be opened, like with the edge handle. */
+    /**
+     * The drawer of the sessions: its colors, its handle and the summary of the current session. Created with the
+     * activity instead of in {@link #onCreate(Bundle)}, since the `drawer-*` properties are reloaded before the
+     * views exist; every method of the controller tolerates missing views.
+     */
     @NonNull
-    private DrawerConfig mDrawerConfig = new DrawerConfig();
 
-    /**
-     * The colors of the sessions drawer, which follow the color scheme of the terminal so that the drawer
-     * looks like the terminal instead of having its own hardcoded black and white.
-     */
-    private int mDrawerBackgroundColor = Color.BLACK;
-    private int mDrawerForegroundColor = Color.WHITE;
-    private int mDrawerSecondaryTextColor = 0xB3FFFFFF;
-    private int mDrawerAccentColor = Color.WHITE;
-    /** The background of the rows of the sessions drawer, with a ripple in the accent color. */
-    @Nullable
-    private Drawable mDrawerSessionRowBackground;
 
-    /** The status bar that shows the time, battery, memory, cpu, network, ip and proxy segments. */
-    private StatusBarView mStatusBarView;
-    /** The controller that refreshes the segments of the {@link #mStatusBarView}. */
-    private StatusBarController mStatusBarController;
-
-    /**
-     * The overlay that shows the notification cards, like for a command that exited with a non-zero
-     * exit code, in a corner of the terminal.
-     */
-    private NotificationOverlayView mNotificationOverlay;
-    /** The manager that reads the `notification-*` properties and decides which cards are shown. */
-    private TerminalNotificationManager mNotificationManager;
-    /** The number of test notifications that were sent, so that each one shows a different kind. */
-    private int mTestNotificationCount;
-
-    /** The configuration of the terminal context menu and of the text selection toolbar. */
-    private TerminalMenuConfig mTerminalMenuConfig = new TerminalMenuConfig();
 
     /**
      * The terminal extra keys view.
@@ -250,7 +210,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     /**
      * The termux sessions list controller.
      */
-    TermuxSessionsListViewController mTermuxSessionListViewController;
 
     /**
      * The {@link TermuxActivity} broadcast receiver for various things like terminal style configuration changes.
@@ -261,6 +220,24 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * The last toast shown, used cancel current toast before showing new in {@link #showToast(String, boolean)}.
      */
     Toast mLastToast;
+
+    /**
+     * Starts and stops the extensions of the fork. Created with the activity, since an extension may own
+     * views, and released in {@link #onDestroy()}.
+     */
+    private ExtensionManager mExtensionManager;
+
+    /**
+     * Runs the window level actions for every entry point that offers them, like the command palette and the
+     * buttons of the sessions drawer, so that an action has one implementation.
+     */
+    private ShellCommandHost mShellCommandHost;
+
+    /**
+     * Maps a terminal menu action to its implementation, which is one of the {@code Host} methods of this
+     * activity. Replaces the switch that used to run the actions, so that the mapping is complete and testable.
+     */
+    private TerminalActionRunner mTerminalActionRunner;
 
     /**
      * If between onResume() and onStop(). Note that only one session is in the foreground of the terminal view at the
@@ -379,9 +356,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         setMargins();
         setTerminalPadding();
-        setUpStatusBar();
-        setUpNotificationOverlay();
-        reloadTerminalMenuConfig();
 
         mTermuxActivityRootView = findViewById(R.id.activity_termux_root_view);
         mTermuxActivityRootView.setActivity(this);
@@ -400,8 +374,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         setTermuxTerminalViewAndClients();
 
-        mTerminalSearchController = new TerminalSearchController(this);
-        mTerminalSearchController.setUp();
+        mShellCommandHost = new ShellCommandHost(this);
+        mTerminalActionRunner = new TerminalActionRunner(this);
 
         setTerminalToolbarView(savedInstanceState);
 
@@ -411,23 +385,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         setToggleKeyboardView();
 
-        // Apply the colors of the drawer before the first session is available, so that the drawer does not
-        // flash the colors of the app theme, which the black and white theme does not use at all.
-        updateDrawerColors(getCurrentSession());
-
-        setUpDrawerHandle();
-        applyDrawerConfig();
-
-        // Refresh the session list when the drawer is opened, since the details shown for the sessions,
-        // like the foreground process and the working directory, may have changed while it was closed.
-        getDrawer().addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
-            @Override
-            public void onDrawerOpened(@NonNull View drawerView) {
-                updateDrawerSummary();
-                if (mTermuxSessionListViewController != null)
-                    mTermuxSessionListViewController.notifyDataSetChanged();
-            }
-        });
 
         // The receiver must be registered for the whole lifetime of the activity and not only while it
         // is started, since the settings activities change termux properties while this activity is
@@ -457,7 +414,21 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         // Send the {@link TermuxConstants#BROADCAST_TERMUX_OPENED} broadcast to notify apps that Termux
         // app has been opened.
+        // Start the enabled extensions after the terminal, the drawer and the menu are set up.
+        setupExtensions();
+
         TermuxUtils.sendTermuxOpenedBroadcast(this);
+    }
+
+    /**
+     * Create the extension manager and start the enabled extensions.
+     *
+     * <p>Kept out of {@link #onCreate(Bundle)} so that the terminal views and the settings are set up
+     * first; an extension may contribute views that need the activity to be fully initialized.</p>
+     */
+    private void setupExtensions() {
+        mExtensionManager = new ExtensionManager(this);
+        mExtensionManager.apply();
     }
 
     @Override
@@ -470,10 +441,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         mIsVisible = true;
 
-        if (mStatusBarController != null) {
-            mStatusBarController.start();
-            updateStatusBarLayout();
-        }
+        if (mExtensionManager != null) mExtensionManager.onStart();
 
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onStart();
@@ -516,6 +484,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         TermuxCrashUtils.notifyAppCrashFromCrashLogFile(this, LOG_TAG);
 
         mIsOnResumeAfterOnCreate = false;
+
+        // The extensions page stores the flags; apply them when the user returns to the terminal so that
+        // an extension that owns views is started or stopped on a stable point of the lifecycle.
+        if (mExtensionManager != null) mExtensionManager.apply();
     }
 
     /**
@@ -553,7 +525,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         mIsVisible = false;
 
-        if (mStatusBarController != null) mStatusBarController.stop();
+        if (mExtensionManager != null) mExtensionManager.onStop();
 
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onStop();
@@ -576,6 +548,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (mIsInvalidState) return;
 
         unregisterTermuxActivityBroadcastReceiver();
+
+        if (mExtensionManager != null) {
+            mExtensionManager.destroy();
+            mExtensionManager = null;
+        }
 
         if (mTermuxService != null) {
             // Do not leave service and session clients with references to activity.
@@ -609,11 +586,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * handle does not resolve and the split screen is not restored.
      */
     private void saveSplitScreenState(@NonNull Bundle savedInstanceState) {
-        if (mTerminalSplitScreenController == null || !mTerminalSplitScreenController.isEnabled()) return;
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen == null || !splitScreen.isEnabled()) return;
 
         savedInstanceState.putBoolean(ARG_SPLIT_SCREEN_ENABLED, true);
-        savedInstanceState.putInt(ARG_SPLIT_SCREEN_ORIENTATION, mTerminalSplitScreenController.getOrientation());
-        savedInstanceState.putFloat(ARG_SPLIT_SCREEN_PANE_RATIO, mTerminalSplitScreenController.getPaneRatio());
+        savedInstanceState.putInt(ARG_SPLIT_SCREEN_ORIENTATION, splitScreen.getOrientation());
+        savedInstanceState.putFloat(ARG_SPLIT_SCREEN_PANE_RATIO, splitScreen.getPaneRatio());
         savedInstanceState.putInt(ARG_SPLIT_SCREEN_ACTIVE_PANE, mActiveTerminalViewIndex);
 
         TerminalSession primarySession = mTerminalViews[0] != null ? mTerminalViews[0].getCurrentSession() : null;
@@ -660,9 +638,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         mTermuxTerminalSessionActivityClient.setCurrentSession(primarySession);
         mTerminalViews[1].attachSession(secondarySession);
 
-        mTerminalSplitScreenController.setOrientation(mSavedSplitScreenOrientation);
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen != null) splitScreen.setOrientation(mSavedSplitScreenOrientation);
         if (mSavedSplitScreenPaneRatio > 0)
-            mTerminalSplitScreenController.setPaneRatio(mSavedSplitScreenPaneRatio);
+            if (splitScreen != null) splitScreen.setPaneRatio(mSavedSplitScreenPaneRatio);
         setSplitScreen(true, mSavedSplitScreenOrientation);
         setActiveTerminalPane(mSavedSplitScreenActivePane);
 
@@ -702,7 +681,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         mTermuxService = ((TermuxService.LocalBinder) service).service;
 
-        setTermuxSessionsListView();
+        // The sessions drawer extension fills its list when it is started, which happens after the service is
+        // connected, so the list has to be told that the sessions are available now.
+        DrawerExtension drawer = drawerExtension();
+        if (drawer != null) drawer.onSessionsAvailable();
 
         final Intent intent = getIntent();
         setIntent(null);
@@ -768,8 +750,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         // The `drawer-open-mode` property is not part of the properties that the shared library parses,
         // so it is read from the file, like the `status-bar-*` and `notification-*` ones.
-        mDrawerConfig = DrawerConfig.parse(ForkProperties.readTermuxProperties());
-        applyDrawerConfig();
 
         for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
             if (viewClient != null) viewClient.onReloadProperties();
@@ -825,242 +805,17 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }
     }
 
-    /**
-     * Apply the color scheme of {@code session} to the sessions drawer, so that the drawer uses the
-     * background, the foreground and the accent color of the terminal instead of the black and white of the
-     * app theme. A session that has no emulator, like before the first session was started, falls back to
-     * the colors of the app theme.
-     */
+    /** Apply the color scheme of {@code session} to the sessions drawer, see {@link TerminalDrawerController}. */
     public void updateDrawerColors(@Nullable TerminalSession session) {
-        int[] colors = session != null && session.getEmulator() != null
-            ? session.getEmulator().mColors.mCurrentColors : null;
-
-        if (colors != null) {
-            mDrawerBackgroundColor = colors[TextStyle.COLOR_INDEX_BACKGROUND];
-            mDrawerForegroundColor = colors[TextStyle.COLOR_INDEX_FOREGROUND];
-            // The `color4` of the palette (blue) is the accent color of the informational notification cards
-            // too, so the whole fork uses the same accent color for the same kind of information.
-            mDrawerAccentColor = DrawerColorUtils.visibleAccentColor(colors[4], mDrawerBackgroundColor);
-        } else {
-            boolean isLightTheme = !ThemeUtils.shouldEnableDarkTheme(this, NightMode.getAppNightMode().getName());
-            mDrawerBackgroundColor = isLightTheme ? Color.WHITE : Color.BLACK;
-            mDrawerForegroundColor = DrawerColorUtils.contrastingTextColor(mDrawerBackgroundColor);
-            mDrawerAccentColor = mDrawerForegroundColor;
-        }
-
-        // The details of a session are drawn in a dimmer color than its title, and the divider below the
-        // header in a color that is barely visible, so that neither competes with the text.
-        mDrawerSecondaryTextColor = DrawerColorUtils.withAlpha(mDrawerForegroundColor, 0xB3);
-
-        // The row of the session that is shown in the terminal keeps a tint of the accent color, and the
-        // ripple of a pressed row is drawn on top of it within a mask, so that it is a rounded flash of the
-        // row instead of a block without a content.
-        StateListDrawable rowContent = new StateListDrawable();
-        rowContent.addState(new int[]{android.R.attr.state_activated},
-            new ColorDrawable(DrawerColorUtils.blend(mDrawerBackgroundColor, mDrawerAccentColor, 0.22f)));
-        rowContent.addState(StateSet.WILD_CARD, new ColorDrawable(Color.TRANSPARENT));
-
-        mDrawerSessionRowBackground = new RippleDrawable(
-            ColorStateList.valueOf(DrawerColorUtils.withAlpha(mDrawerAccentColor, 0x33)),
-            rowContent, new ColorDrawable(Color.WHITE));
-
-        applyDrawerColors();
-    }
-
-    /** Apply the colors that were set by {@link #updateDrawerColors(TerminalSession)} to the drawer views. */
-    private void applyDrawerColors() {
-        View drawer = findViewById(R.id.left_drawer);
-        if (drawer == null) return;
-
-        drawer.setBackgroundColor(mDrawerBackgroundColor);
-
-        TextView titleView = findViewById(R.id.drawer_title);
-        if (titleView != null) titleView.setTextColor(mDrawerForegroundColor);
-
-        TextView summaryView = findViewById(R.id.drawer_summary);
-        if (summaryView != null) summaryView.setTextColor(mDrawerSecondaryTextColor);
-
-        View divider = findViewById(R.id.drawer_header_divider);
-        if (divider != null)
-            divider.setBackgroundColor(DrawerColorUtils.withAlpha(mDrawerForegroundColor, 0x33));
-
-        ImageButton settingsButton = findViewById(R.id.settings_button);
-        if (settingsButton != null) settingsButton.setColorFilter(mDrawerForegroundColor);
-
-        for (int id : new int[]{R.id.toggle_keyboard_button, R.id.new_session_button}) {
-            View button = findViewById(id);
-            if (!(button instanceof MaterialButton)) continue;
-
-            MaterialButton materialButton = (MaterialButton) button;
-            materialButton.setTextColor(mDrawerForegroundColor);
-            materialButton.setIconTint(ColorStateList.valueOf(mDrawerForegroundColor));
-        }
-
-        ListView sessionsList = findViewById(R.id.terminal_sessions_list);
-        if (sessionsList != null) sessionsList.setBackgroundColor(Color.TRANSPARENT);
-
-        DrawerHandleView handle = findViewById(R.id.drawer_handle);
-        if (handle != null) {
-            int alpha = Math.round(255f * mDrawerConfig.handleOpacityPercent / 100f);
-            handle.setHandleColor(DrawerColorUtils.withAlpha(mDrawerAccentColor, alpha));
-        }
-
-        updateDrawerSummary();
-
-        // The rows that are already laid out keep the colors of the previous color scheme, and the accent
-        // strip of the current session may have moved to another row.
-        if (mTermuxSessionListViewController != null)
-            mTermuxSessionListViewController.notifyDataSetChanged();
-    }
-
-    /**
-     * Set up the handle on the left edge of the terminal that opens the sessions drawer, since a swipe from
-     * the edge is the system back gesture on android 10 and later.
-     */
-    private void setUpDrawerHandle() {
-        DrawerHandleView handle = findViewById(R.id.drawer_handle);
-        if (handle == null) return;
-
-        handle.setOnOpenDrawerListener(this::openSessionsDrawer);
-
-        // The handle is drawn under the drawer, so it is faded out while the drawer is dragged open, which
-        // also makes it clear that the touch of the drawer belongs to the drawer.
-        getDrawer().addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
-            @Override
-            public void onDrawerSlide(@NonNull View drawerView, float slideOffset) {
-                handle.setAlpha(1f - slideOffset);
-            }
-        });
-
-        // The position of the handle is a fraction of the height of the screen, so it is re-applied when the
-        // height of the layout changes, like when the soft keyboard or the extra keys change it.
-        View parent = (View) handle.getParent();
-        if (parent != null) parent.addOnLayoutChangeListener((view, left, top, right, bottom,
-                                                              oldLeft, oldTop, oldRight, oldBottom) ->
-            positionDrawerHandle());
-    }
-
-    /**
-     * Apply the length, the opacity and the position of the handle that opens the sessions drawer, which are
-     * configured with the `drawer-handle-*` properties.
-     */
-    private void applyDrawerHandleConfig() {
-        DrawerHandleView handle = findViewById(R.id.drawer_handle);
-        if (handle == null) return;
-
-        handle.setVisibility(mDrawerConfig.isHandleVisible() ? View.VISIBLE : View.GONE);
-        handle.setHandleLengthDp(mDrawerConfig.handleLengthDp);
-        // The opacity of the bar is a percentage of the accent color, so a low value keeps the terminal
-        // readable behind it.
-        int alpha = Math.round(255f * mDrawerConfig.handleOpacityPercent / 100f);
-        handle.setHandleColor(DrawerColorUtils.withAlpha(mDrawerAccentColor, alpha));
-
-        positionDrawerHandle();
-    }
-
-    /** Move the handle to the configured fraction of the height of the screen. */
-    private void positionDrawerHandle() {
-        View handle = findViewById(R.id.drawer_handle);
-        if (handle == null || !(handle.getLayoutParams() instanceof RelativeLayout.LayoutParams)) return;
-
-        View parent = (View) handle.getParent();
-        if (parent == null || parent.getHeight() <= 0) return;
-
-        int handleHeight = handle.getHeight();
-        int freeHeight = Math.max(0, parent.getHeight() - handleHeight);
-        int topMargin = Math.round(freeHeight * mDrawerConfig.handlePositionPercent / 100f);
-
-        RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) handle.getLayoutParams();
-        layoutParams.topMargin = topMargin;
-        // The parent is inset by the margin of the content, but the bar has to be flush with the screen edge.
-        layoutParams.setMarginStart(-dpToPx(3));
-        handle.setLayoutParams(layoutParams);
-    }
-
-    /**
-     * Show or hide the edge handle and enable or disable the edge swipe of the drawer layout, as the
-     * `drawer-open-mode` property configures it.
-     */
-    private void applyDrawerConfig() {
-        applyDrawerHandleConfig();
-
-        DrawerLayout drawer = getDrawer();
-        if (drawer == null) return;
-
-        // The edge drag of the drawer layout is disabled when the system back gesture would steal it, since
-        // it would close the app window instead of opening the drawer.
-        drawer.setDrawerLockMode(mDrawerConfig.isEdgeSwipeEnabled()
-            ? DrawerLayout.LOCK_MODE_UNLOCKED : DrawerLayout.LOCK_MODE_LOCKED_CLOSED, GravityCompat.START);
+        DrawerExtension extension = drawerExtension();
+        if (extension != null) extension.updateColors(session);
     }
 
     /** Open the sessions drawer, like from the edge handle, the terminal menu or a virtual key. */
+    @Override
     public void openSessionsDrawer() {
-        DrawerLayout drawer = getDrawer();
-        if (drawer == null) return;
-
-        // A locked drawer may not be opened by the layout, so it is unlocked for the programmatic open.
-        if (drawer.getDrawerLockMode(GravityCompat.START) == DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
-            drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, GravityCompat.START);
-
-        drawer.openDrawer(GravityCompat.START);
-    }
-
-    /**
-     * Show a summary of the current session in the header of the sessions drawer, like the number of the
-     * sessions and the process and the working directory of the active one, so that the user can tell where
-     * they are before opening the drawer.
-     */
-    public void updateDrawerSummary() {
-        TextView summaryView = findViewById(R.id.drawer_summary);
-        if (summaryView == null) return;
-
-        TermuxService service = getTermuxService();
-        int sessionCount = service != null ? service.getTermuxSessionsSize() : 0;
-        if (sessionCount == 0) {
-            summaryView.setVisibility(View.GONE);
-            return;
-        }
-
-        List<String> parts = new ArrayList<>();
-        parts.add(getString(R.string.termux_drawer_summary_sessions, sessionCount));
-
-        TerminalSession session = getCurrentSession();
-        if (session != null) {
-            int pid = session.getPid();
-            String processName = SessionDetails.getForegroundProcessName(pid);
-            if (processName != null) parts.add(processName);
-            String workingDirectory = SessionDetails.getWorkingDirectory(pid);
-            if (workingDirectory != null) parts.add(workingDirectory);
-        }
-
-        summaryView.setText(SessionDetails.join(parts, " " + getString(R.string.termux_drawer_summary_separator) + " "));
-        summaryView.setVisibility(View.VISIBLE);
-    }
-
-    /** @return The background color of the sessions drawer, which follows the terminal color scheme. */
-    public int getDrawerBackgroundColor() {
-        return mDrawerBackgroundColor;
-    }
-
-    /** @return The color of the text of the sessions drawer, which follows the terminal color scheme. */
-    public int getDrawerForegroundColor() {
-        return mDrawerForegroundColor;
-    }
-
-    /** @return The color of the details of the sessions and of the summary of the drawer. */
-    public int getDrawerSecondaryTextColor() {
-        return mDrawerSecondaryTextColor;
-    }
-
-    /** @return The accent color of the sessions drawer, like of the current session and of the ripples. */
-    public int getDrawerAccentColor() {
-        return mDrawerAccentColor;
-    }
-
-    /** @return The background of the rows of the sessions drawer, which is {@code null} before the first call. */
-    @Nullable
-    public Drawable getDrawerSessionRowBackground() {
-        return mDrawerSessionRowBackground;
+        DrawerExtension extension = drawerExtension();
+        if (extension != null) extension.openDrawer();
     }
 
     /** @return The {@link TerminalView} of every pane, including the hidden secondary pane. */
@@ -1070,7 +825,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /** @return Whether split screen is enabled, i.e. whether the secondary pane is visible. */
     public boolean isSplitScreenEnabled() {
-        return mTerminalSplitScreenController.isEnabled();
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        return splitScreen != null && splitScreen.isEnabled();
     }
 
     /**
@@ -1087,26 +843,31 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      */
     /** @return The orientation of the split screen panes, either {@link LinearLayout#VERTICAL} or {@link LinearLayout#HORIZONTAL}. */
     public int getSplitScreenOrientation() {
-        return mTerminalSplitScreenController.getOrientation();
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        return splitScreen != null ? splitScreen.getOrientation() : LinearLayout.VERTICAL;
     }
 
     public void setSplitScreen(boolean enabled, int orientation) {
         if (orientation != LinearLayout.VERTICAL && orientation != LinearLayout.HORIZONTAL) return;
-        mTerminalSplitScreenController.setOrientation(orientation);
+
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen == null) return;
+
+        splitScreen.setOrientation(orientation);
 
         if (!enabled) {
-            if (mTerminalSplitScreenController.isEnabled()) {
-                mTerminalSplitScreenController.setEnabled(false);
-                mTerminalSplitScreenController.updateLayout();
+            if (splitScreen.isEnabled()) {
+                splitScreen.setEnabled(false);
+                splitScreen.updateLayout();
                 setActiveTerminalPane(0);
-                mTerminalSplitScreenController.updatePaneActiveStates(mActiveTerminalViewIndex);
+                splitScreen.updatePaneActiveStates(mActiveTerminalViewIndex);
             }
             return;
         }
 
-        if (mTerminalSplitScreenController.isEnabled()) {
+        if (splitScreen.isEnabled()) {
             // Already split, so just change the orientation of the panes.
-            mTerminalSplitScreenController.updateLayout();
+            splitScreen.updateLayout();
             return;
         }
 
@@ -1130,9 +891,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             mTerminalViews[1].attachSession(secondarySession);
         }
 
-        mTerminalSplitScreenController.setEnabled(true);
-        mTerminalSplitScreenController.updateLayout();
-        mTerminalSplitScreenController.updatePaneActiveStates(mActiveTerminalViewIndex);
+        splitScreen.setEnabled(true);
+        splitScreen.updateLayout();
+        splitScreen.updatePaneActiveStates(mActiveTerminalViewIndex);
         // The secondary pane may have been running for a long time while it was hidden, so show its
         // current output right away instead of waiting for the next output of its session.
         mTerminalViews[1].onScreenOutput();
@@ -1144,7 +905,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      */
     public void setActiveTerminalPane(int index) {
         if (index < 0 || index >= mTerminalViews.length) return;
-        if (!mTerminalSplitScreenController.isEnabled()) index = 0;
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen == null || !splitScreen.isEnabled()) index = 0;
         if (index == mActiveTerminalViewIndex) return;
 
         TerminalSession previousSession = getCurrentSession();
@@ -1156,7 +918,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         mTerminalView = mTerminalViews[index];
         mTermuxTerminalViewClient = mTermuxTerminalViewClients[index];
 
-        mTerminalSplitScreenController.updatePaneActiveStates(mActiveTerminalViewIndex);
+        if (splitScreen != null) splitScreen.updatePaneActiveStates(mActiveTerminalViewIndex);
 
         // Only the session of the active pane may report having window focus.
         if (previousSession != null && previousSession.getEmulator() != null)
@@ -1188,7 +950,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     /** @return The {@link TerminalView} of the pane that is not active, or {@code null} if split screen is disabled. */
     @Nullable
     public TerminalView getInactiveTerminalPaneView() {
-        if (!mTerminalSplitScreenController.isEnabled()) return null;
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen == null || !splitScreen.isEnabled()) return null;
         return mTerminalViews[1 - mActiveTerminalViewIndex];
     }
 
@@ -1203,7 +966,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         for (int i = 0; i < mTerminalViews.length; i++) {
             // The secondary pane is hidden when split screen is disabled, so it must not be redrawn.
-            if (i != 0 && !mTerminalSplitScreenController.isEnabled()) continue;
+            if (i != 0 && (splitScreenExtension() == null || !splitScreenExtension().isEnabled())) continue;
             TerminalView terminalView = mTerminalViews[i];
             if (terminalView != null && terminalView.getCurrentSession() == session) return terminalView;
         }
@@ -1214,7 +977,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     /** @return The session shown in the pane that is not active, or {@code null} if split screen is disabled. */
     @Nullable
     public TerminalSession getInactiveTerminalPaneSession() {
-        if (!mTerminalSplitScreenController.isEnabled()) return null;
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen == null || !splitScreen.isEnabled()) return null;
         return mTerminalViews[1 - mActiveTerminalViewIndex].getCurrentSession();
     }
 
@@ -1225,7 +989,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * because the views would resize it differently.
      */
     public void swapTerminalPaneSessions() {
-        if (!mTerminalSplitScreenController.isEnabled()) return;
+        SplitScreenExtension splitScreen = splitScreenExtension();
+        if (splitScreen == null || !splitScreen.isEnabled()) return;
 
         TerminalView activeView = mTerminalViews[mActiveTerminalViewIndex];
         TerminalView inactiveView = mTerminalViews[1 - mActiveTerminalViewIndex];
@@ -1275,19 +1040,29 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     /** Update the layout params of the panes and the divider for the current orientation and split state. */
+    /** @return The extension that owns the search bar, or {@code null} while it is disabled. */
+    @Nullable
+    private SearchExtension searchExtension() {
+        return ExtensionHost.get(this).findRunning(SearchExtension.class);
+    }
+
     /** Show the terminal search bar and focus its text input, so that the user can type a query. */
+    @Override
     public void showTerminalSearch() {
-        mTerminalSearchController.show();
+        SearchExtension extension = searchExtension();
+        if (extension != null) extension.show();
     }
 
     /** Hide the terminal search bar and clear the search highlights. */
     public void hideTerminalSearch() {
-        mTerminalSearchController.hide();
+        SearchExtension extension = searchExtension();
+        if (extension != null) extension.hide();
     }
 
     /** @return Whether the search bar of the terminal is shown. */
     public boolean isTerminalSearchBarVisible() {
-        return mTerminalSearchController.isVisible();
+        SearchExtension extension = searchExtension();
+        return extension != null && extension.isVisible();
     }
 
     /**
@@ -1295,7 +1070,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * session switch since the search matches of the previous session's buffer are then invalid.
      */
     public void refreshTerminalSearch() {
-        mTerminalSearchController.refresh();
+        SearchExtension extension = searchExtension();
+        if (extension != null) extension.refresh();
     }
 
     private void setMargins() {
@@ -1343,84 +1119,44 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             dpToPx(paddingBottom));
     }
 
-    /** @return The configuration of the status bar, or {@code null} if it was not loaded yet. */
+    /**
+     * @return The configuration of the status bar, or {@code null} while the status bar extension is disabled.
+     *
+     * <p>The host reads the configuration of an extension through the instance that the extension registry
+     * holds, which is the only way the layout of the host may depend on a feature that can be turned off.</p>
+     */
     @Nullable
     private StatusBarConfig getStatusBarConfig() {
-        return mStatusBarController != null ? mStatusBarController.getConfig() : null;
+        StatusBarExtension extension = ExtensionHost.get(this).findRunning(StatusBarExtension.class);
+        return extension != null ? extension.getConfig() : null;
     }
 
     private int dpToPx(int dp) {
         return Math.round(ViewUtils.dpToPx(this, dp));
     }
 
-    /**
-     * Set up the status bar that shows the time, battery, memory, cpu, network, ip and proxy
-     * segments, which are configured with the `status-bar-*` properties from `termux.properties` or
-     * the status bar section of the termux settings.
-     */
-    private void setUpStatusBar() {
-        mStatusBarView = findViewById(R.id.status_bar_view);
-        if (mStatusBarView == null) return;
-
-        mStatusBarController = new StatusBarController(this, mStatusBarView);
-        mStatusBarController.reload();
-        updateStatusBarLayout();
+    /** @return The extension that owns the notification cards, or {@code null} while it is disabled. */
+    @Nullable
+    private NotificationsExtension notificationsExtension() {
+        return ExtensionHost.get(this).findRunning(NotificationsExtension.class);
     }
 
-    /**
-     * Set up the overlay that shows the notification cards in a corner of the terminal, like for a
-     * command that exited with a non-zero exit code, which are configured with the `notification-*`
-     * properties from `termux.properties` or the notification section of the termux settings.
-     */
-    private void setUpNotificationOverlay() {
-        mNotificationOverlay = findViewById(R.id.notification_overlay);
-        if (mNotificationOverlay == null) return;
-
-        mNotificationManager = new TerminalNotificationManager(this, mNotificationOverlay);
-        mNotificationManager.setListener(new TerminalNotificationManager.Listener() {
-            @Override
-            public void onTerminalNotificationClicked(@NonNull TerminalNotification notification) {
-                TermuxActivity.this.onTerminalNotificationClicked(notification);
-            }
-
-            @Override
-            public void onTerminalNotificationClosed(@NonNull TerminalNotification notification, boolean expired) {
-                // Nothing to do yet, the list of recent notifications is filled by a later milestone.
-            }
-        });
-        mNotificationManager.reload();
-        updateNotificationOverlayLayout();
-    }
-
-    /**
-     * Apply the height of the status bar to the notification cards, so that they are moved below it
-     * when they are shown in the top corner and the status bar overlays the terminal, since both are
-     * drawn in the same content container.
-     */
-    public void updateNotificationOverlayLayout() {
-        if (mNotificationOverlay == null || mNotificationManager == null) return;
-
-        int statusBarInsetPx = 0;
-        StatusBarConfig statusBarConfig = getStatusBarConfig();
-        if (statusBarConfig != null && statusBarConfig.enabled && !statusBarConfig.segments.isEmpty()
-            && statusBarConfig.overlay && !statusBarConfig.positionBottom)
-            statusBarInsetPx = dpToPx(statusBarConfig.heightDp);
-
-        mNotificationOverlay.setStatusBarInsetPx(statusBarInsetPx);
-    }
-
-    /**
-     * Called when a notification card is clicked, which jumps to the command that the notification is
-     * about when it was generated for a command that exited with a non-zero exit code.
-     */
-    private void onTerminalNotificationClicked(@NonNull TerminalNotification notification) {
-        Logger.logDebug(LOG_TAG, "Terminal notification card clicked: " + notification);
-    }
-
-    /** @return The manager of the notification cards, or {@code null} if the overlay is not in the layout. */
+    /** @return The manager of the notification cards, or {@code null} while the extension is disabled. */
     @Nullable
     public TerminalNotificationManager getTerminalNotificationManager() {
-        return mNotificationManager;
+        NotificationsExtension extension = notificationsExtension();
+        return extension != null ? extension.getManager() : null;
+    }
+
+    /**
+     * Move the notification cards below the status bar when it overlays the terminal.
+     *
+     * <p>Called through {@link #requestExtensionLayout()} after the layout of a decorated region changed, since
+     * only the host knows when the status bar takes space.</p>
+     */
+    public void updateNotificationOverlayLayout() {
+        NotificationsExtension extension = notificationsExtension();
+        if (extension != null) extension.updateOverlayLayout();
     }
 
     /**
@@ -1447,73 +1183,18 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             terminalView.scrollToPreviousCommand();
     }
 
-    /**
-     * Send a test notification, which cycles through the kinds of notifications so that the user can
-     * check the appearance of the cards and tune the `notification-*` properties without having to
-     * wait for a command to fail.
-     */
+    /** Send a test notification, which is implemented by the notifications extension. */
+    @Override
     public void sendTestNotification() {
-        if (mNotificationManager == null) return;
-
-        String separator = " " + getString(R.string.notification_meta_separator) + " ";
-        String cwd = getString(R.string.notification_test_meta_cwd);
-        String duration = getString(R.string.notification_test_meta_duration);
-        String session = getString(R.string.notification_test_meta_session);
-        String meta = cwd + separator + duration + separator + session;
-
-        TerminalNotification notification;
-        switch (mTestNotificationCount++ % 4) {
-            case 0:
-                notification = new TerminalNotification.Builder(TerminalNotification.Kind.FAILURE, TerminalNotification.Source.EXIT_CODE)
-                    .setTitle(getString(R.string.notification_test_title_failed_command, 1))
-                    .setBody(getString(R.string.notification_test_meta_command))
-                    .setMeta(meta)
-                    .build();
-                break;
-            case 1:
-                notification = new TerminalNotification.Builder(TerminalNotification.Kind.SUCCESS, TerminalNotification.Source.EXIT_CODE)
-                    .setTitle(getString(R.string.notification_test_title_succeeded_command))
-                    .setBody(getString(R.string.notification_test_body_succeeded_command))
-                    .setMeta(meta)
-                    .build();
-                break;
-            case 2:
-                notification = new TerminalNotification.Builder(TerminalNotification.Kind.WARNING, TerminalNotification.Source.APP_EVENT)
-                    .setTitle(getString(R.string.notification_test_title_session_exited))
-                    .setMeta(session)
-                    .build();
-                break;
-            default:
-                notification = new TerminalNotification.Builder(TerminalNotification.Kind.INFO, TerminalNotification.Source.OSC)
-                    .setTitle(getString(R.string.notification_test_title_osc))
-                    .setBody(getString(R.string.notification_test_body_osc))
-                    .setMeta(getString(R.string.notification_test_meta_osc_app))
-                    .build();
-                break;
-        }
-
-        mNotificationManager.notifyForTesting(notification);
+        NotificationsExtension extension = notificationsExtension();
+        if (extension != null) extension.sendTestNotification();
     }
 
-    /**
-     * Show the notifications that were shown recently, including the ones whose cards have already
-     * disappeared. Clicking an entry jumps to the command of a failed command, or copies the text of the
-     * other notifications to the clipboard, since they have no command that could be jumped to.
-     */
+    /** Show the recently shown notifications, which is implemented by the notifications extension. */
+    @Override
     public void showRecentNotifications() {
-        if (mNotificationManager == null) return;
-
-        List<RecentNotifications.Entry> entries = mNotificationManager.getRecentNotifications().getEntries();
-        NotificationConfig config = mNotificationManager.getConfig();
-
-        RecentNotificationsDialog.show(this, config, entries, entry -> {
-            if (entry.onOpen != null) {
-                entry.onOpen.run();
-            } else {
-                ShareUtils.copyTextToClipboard(this, RecentNotificationsDialog.getTextFor(entry.notification),
-                    getString(R.string.msg_copied_to_clipboard));
-            }
-        }, () -> mNotificationManager.getRecentNotifications().clear());
+        NotificationsExtension extension = notificationsExtension();
+        if (extension != null) extension.showRecentNotifications();
     }
 
     /**
@@ -1526,203 +1207,171 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         return false;
     }
 
-    /** Reload the configuration of the terminal context menu and of the text selection toolbar. */
-    private void reloadTerminalMenuConfig() {
-        mTerminalMenuConfig = TerminalMenuConfig.parse(ForkProperties.readTermuxProperties());
-    }
-
-    /** @return The configuration of the terminal context menu and of the text selection toolbar. */
+    /**
+     * @return The configuration of the terminal context menu and of the text selection toolbar, read from the
+     *         terminal menu extension, or an empty configuration while the extension is disabled.
+     */
     @NonNull
     public TerminalMenuConfig getTerminalMenuConfig() {
-        return mTerminalMenuConfig;
+        TerminalMenuExtension extension = ExtensionHost.get(this).findRunning(TerminalMenuExtension.class);
+        return extension != null ? extension.getConfig() : new TerminalMenuConfig();
     }
 
     /**
-     * Show the terminal context menu, which is a styled dialog instead of the system context menu, with
-     * the actions and the order that the `terminal-menu-items` property defines.
+     * Show the terminal context menu, which is implemented by the terminal menu extension.
      *
-     * The actions that cannot be used are not shown, like the action that shares the selected text when
-     * no text is selected, so that the menu only shows what the user can actually do.
+     * <p>A disabled extension shows nothing, since the menu belongs to it; the long press, the right click and the
+     * hardware menu key then fall back to the default behaviour of the terminal view.</p>
      */
     public void showTerminalMenu() {
+        TerminalMenuExtension extension = ExtensionHost.get(this).findRunning(TerminalMenuExtension.class);
+        if (extension != null) extension.showMenu();
+    }
+
+    /** @return The manager of the notification cards and of the recent notifications, or {@code null}. */
+    @Nullable
+    public TerminalNotificationManager getNotificationManager() {
+        return getTerminalNotificationManager();
+    }
+
+    /** Run the action of an item of the terminal context menu, or of a command of the palette. */
+    public void runTerminalMenuAction(@NonNull TerminalMenuAction action) {
+        mTerminalActionRunner.run(action);
+    }
+
+    @Override
+    public void scrollToPreviousCommand() {
+        mTerminalView.scrollToPreviousCommand();
+    }
+
+    @Override
+    public void scrollToNextCommand() {
+        mTerminalView.scrollToNextCommand();
+    }
+
+    @Override
+    public void splitScreenVertically() {
+        setSplitScreen(true, LinearLayout.VERTICAL);
+    }
+
+    @Override
+    public void splitScreenHorizontally() {
+        setSplitScreen(true, LinearLayout.HORIZONTAL);
+    }
+
+    @Override
+    public void closeSplitScreen() {
+        setSplitScreen(false, getSplitScreenOrientation());
+    }
+
+    @Override
+    public void selectUrl() {
+        mTermuxTerminalViewClient.showUrlSelection();
+    }
+
+    @Override
+    public void shareTranscript() {
+        mTermuxTerminalViewClient.shareSessionTranscript();
+    }
+
+    @Override
+    public void shareSelectedText() {
+        mTermuxTerminalViewClient.shareSelectedText();
+    }
+
+    @Override
+    public void autofillUsername() {
+        mTerminalView.requestAutoFillUsername();
+    }
+
+    @Override
+    public void autofillPassword() {
+        mTerminalView.requestAutoFillPassword();
+    }
+
+    @Override
+    public void resetTerminal() {
+        onResetTerminalSession(getCurrentSession());
+    }
+
+    @Override
+    public void killSession() {
+        showKillSessionDialog(getCurrentSession());
+    }
+
+    @Override
+    public void openHelp() {
+        ActivityUtils.startActivity(this, new Intent(this, HelpActivity.class));
+    }
+
+    @Override
+    public void openSettings() {
+        ActivityUtils.startActivity(this, new Intent(this, SettingsActivity.class));
+    }
+
+    @Override
+    public void reportIssue() {
+        mTermuxTerminalViewClient.reportIssueFromTranscript();
+    }
+
+    /**
+     * Open the command palette.
+     *
+     * <p>The palette reuses the rules of the terminal context menu through {@link ShellCommandCatalog}, so
+     * that an action that is hidden or disabled in the menu is shown the same way here. The commands run
+     * through the existing action dispatcher, which keeps a single implementation per action.</p>
+     */
+    @Override
+    public void showCommandPalette() {
         TerminalSession session = getCurrentSession();
         if (session == null || mTerminalView == null) return;
 
-        boolean autoFillEnabled = mTerminalView.isAutoFillEnabled();
-        boolean hasSelectedText = !DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText());
-        boolean notificationsEnabled = mNotificationManager != null && mNotificationManager.isEnabled();
+        TerminalMenuItems.State state = new TerminalMenuItems.State(
+            isSplitScreenEnabled(),
+            !DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText()),
+            mTerminalView.isAutoFillEnabled(),
+            getTerminalNotificationManager() != null && getTerminalNotificationManager().isEnabled(),
+            // The list is only useful when a notification was shown since the app was started.
+            getTerminalNotificationManager() != null
+                && !getTerminalNotificationManager().getRecentNotifications().isEmpty(),
+            session.isRunning());
 
-        List<TerminalMenuDialog.Item> items = new ArrayList<>();
-        for (TerminalMenuAction action : mTerminalMenuConfig.menuItems) {
-            switch (action) {
-                case SPLIT_CLOSE:
-                    if (!isSplitScreenEnabled()) continue;
-                    break;
-                case SHARE_SELECTED_TEXT:
-                    if (!hasSelectedText) continue;
-                    break;
-                case AUTOFILL_USERNAME:
-                case AUTOFILL_PASSWORD:
-                    if (!autoFillEnabled) continue;
-                    break;
-                case TEST_NOTIFICATION:
-                    if (!notificationsEnabled) continue;
-                    break;
-                case RECENT_NOTIFICATIONS:
-                    // The list is only useful when a notification was shown since the app was started.
-                    if (mNotificationManager == null || mNotificationManager.getRecentNotifications().isEmpty())
-                        continue;
-                    break;
-                default:
-                    break;
-            }
-
-            boolean enabled = action != TerminalMenuAction.KILL_PROCESS || session.isRunning();
-            items.add(new TerminalMenuDialog.Item(action, action.getTitle(this, session), enabled));
-        }
-
-        if (items.isEmpty()) return;
-
-        TerminalMenuDialog.show(this, mTerminalMenuConfig, items, this::onTerminalMenuActionSelected,
-            () -> mTerminalView.unsetStoredSelectedText());
-    }
-
-    /** Run the action of an item of the terminal context menu. */
-    private void onTerminalMenuActionSelected(@NonNull TerminalMenuAction action) {
-        TerminalSession session = getCurrentSession();
-
-        switch (action) {
-            case SEARCH:
-                showTerminalSearch();
-                break;
-            case SESSIONS:
-                openSessionsDrawer();
-                break;
-            case PREVIOUS_COMMAND:
-                mTerminalView.scrollToPreviousCommand();
-                break;
-            case NEXT_COMMAND:
-                mTerminalView.scrollToNextCommand();
-                break;
-            case SPLIT_VERTICAL:
-                setSplitScreen(true, LinearLayout.VERTICAL);
-                break;
-            case SPLIT_HORIZONTAL:
-                setSplitScreen(true, LinearLayout.HORIZONTAL);
-                break;
-            case SPLIT_CLOSE:
-                setSplitScreen(false, mTerminalSplitScreenController.getOrientation());
-                break;
-            case SELECT_URL:
-                mTermuxTerminalViewClient.showUrlSelection();
-                break;
-            case SHARE_TRANSCRIPT:
-                mTermuxTerminalViewClient.shareSessionTranscript();
-                break;
-            case SHARE_SELECTED_TEXT:
-                mTermuxTerminalViewClient.shareSelectedText();
-                break;
-            case AUTOFILL_USERNAME:
-                mTerminalView.requestAutoFillUsername();
-                break;
-            case AUTOFILL_PASSWORD:
-                mTerminalView.requestAutoFillPassword();
-                break;
-            case RESET_TERMINAL:
-                onResetTerminalSession(session);
-                break;
-            case KILL_PROCESS:
-                showKillSessionDialog(session);
-                break;
-            case STYLING:
-                showStylingDialog();
-                break;
-            case KEEP_SCREEN_ON:
-                toggleKeepScreenOn();
-                break;
-            case HELP:
-                ActivityUtils.startActivity(this, new Intent(this, HelpActivity.class));
-                break;
-            case SETTINGS:
-                ActivityUtils.startActivity(this, new Intent(this, SettingsActivity.class));
-                break;
-            case REPORT:
-                mTermuxTerminalViewClient.reportIssueFromTranscript();
-                break;
-            case RECENT_NOTIFICATIONS:
-                showRecentNotifications();
-                break;
-            case TEST_NOTIFICATION:
-                sendTestNotification();
-                break;
-            default:
-                break;
-        }
+        List<com.termux.app.commands.ShellCommand> commands = ShellCommandCatalog.build(
+            this, state, action -> action.getTitle(this, session), mShellCommandHost);
+        ShellCommandPalette.show(this, commands);
     }
 
     /**
-     * Show or hide the status bar and apply its position and overlay from the `status-bar-position`
-     * and `status-bar-overlay` properties.
+     * Open the command palette with Ctrl+Shift+P.
      *
-     * The status bar is hosted in the content container of the sessions drawer, at the top or bottom
-     * edge, so that the drawer is drawn over it and it never covers the drawer. When it does not
-     * overlay the terminal, the terminal is inset by its height instead, which resizes the terminal
-     * views (fewer rows, `SIGWINCH` to the terminal programs) without covering any content.
+     * <p>Intercepted at the activity level so that the shortcut works whether the terminal view or another
+     * child has the focus; the combination is not used by common terminal programs, and the handler returns
+     * the event as handled only when the palette was actually shown.</p>
      */
-    public void updateStatusBarLayout() {
-        if (mStatusBarView == null || mStatusBarController == null) return;
+    @Override
+    public boolean dispatchKeyEvent(@NonNull KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN
+            && event.isCtrlPressed() && event.isShiftPressed()
+            && event.getKeyCode() == KeyEvent.KEYCODE_P) {
+            showCommandPalette();
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
 
-        StatusBarConfig config = getStatusBarConfig();
-        if (config == null) return;
-
-        boolean visible = config.enabled && !config.segments.isEmpty();
-        mStatusBarView.setVisibility(visible ? View.VISIBLE : View.GONE);
-
-        // Only an overlay needs an elevation, since the terminal is otherwise inset by the height of
-        // the status bar by setTerminalPadding() and nothing is drawn below it.
-        mStatusBarView.setElevation(visible && config.overlay ? dpToPx(4) : 0);
-
-        // Inset the terminal by the height of the status bar, or restore the space it took before.
+    /**
+     * Recompute the space that the decorated regions take from the terminal, and move the notification cards
+     * below the status bar when it overlays the terminal.
+     *
+     * <p>Called by an extension through {@link ExtensionContext#requestExtensionLayout()} after it changed the
+     * visibility or the height of its slot, since only the host knows how the panes and the overlay are laid
+     * out.</p>
+     */
+    @Override
+    public void requestExtensionLayout() {
         setTerminalPadding();
-
-        // Move the notification cards below the status bar when both are shown in the top corner.
         updateNotificationOverlayLayout();
     }
-
-    /**
-     * Run the action of a status bar segment that was clicked, as set with the
-     * `status-bar-segment-<id>-action` property.
-     */
-    public void onStatusBarSegmentClicked(@NonNull StatusBarConfig.Segment segment) {
-        try {
-            switch (segment.action) {
-                case StatusBarConfig.ACTION_WIFI_SETTINGS:
-                    startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
-                    break;
-                case StatusBarConfig.ACTION_BATTERY_SETTINGS:
-                    startActivity(new Intent(Intent.ACTION_POWER_USAGE_SUMMARY));
-                    break;
-                case StatusBarConfig.ACTION_DATA_SETTINGS:
-                    startActivity(new Intent(Settings.ACTION_DATA_ROAMING_SETTINGS));
-                    break;
-                case StatusBarConfig.ACTION_APP_SETTINGS:
-                    startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.parse("package:" + getPackageName())));
-                    break;
-                case StatusBarConfig.ACTION_NEW_SESSION:
-                    if (mTermuxTerminalSessionActivityClient != null)
-                        mTermuxTerminalSessionActivityClient.addNewSession(false, null);
-                    break;
-                default:
-                    break;
-            }
-        } catch (Exception e) {
-            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to run the action \"" + segment.action + "\" of the status bar segment \"" + segment.id + "\"", e);
-            Logger.showToast(this, getString(R.string.msg_status_bar_action_failed, segment.action), true);
-        }
-    }
-
-
 
     public void addTermuxActivityRootViewGlobalLayoutListener() {
         getTermuxActivityRootView().getViewTreeObserver().addOnGlobalLayoutListener(getTermuxActivityRootView());
@@ -1757,8 +1406,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             // Make the pane of the tapped view the active pane before the view handles the touch, so
             // that all the gesture callbacks, the keyboard and the menus act on that pane.
             terminalView.setOnTouchListener((view, event) -> {
-                if (event.getActionMasked() == MotionEvent.ACTION_DOWN && mTerminalSplitScreenController.isEnabled() &&
-                    paneIndex != mActiveTerminalViewIndex)
+                SplitScreenExtension splitScreen = splitScreenExtension();
+                if (event.getActionMasked() == MotionEvent.ACTION_DOWN
+                    && splitScreen != null && splitScreen.isEnabled()
+                    && paneIndex != mActiveTerminalViewIndex)
                     setActiveTerminalPane(paneIndex);
                 return false;
             });
@@ -1775,17 +1426,18 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onCreate();
 
-        mTerminalSplitScreenController = new TerminalSplitScreenController(this, mTerminalPaneContainers,
-            findViewById(R.id.terminal_panes_container), findViewById(R.id.terminal_split_divider));
-        mTerminalSplitScreenController.setUpDividerTouchListener();
     }
 
-    private void setTermuxSessionsListView() {
-        ListView termuxSessionsListView = findViewById(R.id.terminal_sessions_list);
-        mTermuxSessionListViewController = new TermuxSessionsListViewController(this, mTermuxService.getTermuxSessions());
-        termuxSessionsListView.setAdapter(mTermuxSessionListViewController);
-        termuxSessionsListView.setOnItemClickListener(mTermuxSessionListViewController);
-        termuxSessionsListView.setOnItemLongClickListener(mTermuxSessionListViewController);
+    /** @return The extension that owns the split screen, or {@code null} while it is disabled. */
+    @Nullable
+    private SplitScreenExtension splitScreenExtension() {
+        return ExtensionHost.get(this).findRunning(SplitScreenExtension.class);
+    }
+
+    /** @return The extension that owns the sessions drawer, or {@code null} while it is disabled. */
+    @Nullable
+    private DrawerExtension drawerExtension() {
+        return ExtensionHost.get(this).findRunning(DrawerExtension.class);
     }
 
 
@@ -1921,26 +1573,33 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     private void setSettingsButtonView() {
         ImageButton settingsButton = findViewById(R.id.settings_button);
-        settingsButton.setOnClickListener(v -> {
-            ActivityUtils.startActivity(this, new Intent(this, SettingsActivity.class));
-        });
+        settingsButton.setOnClickListener(v
+            -> mShellCommandHost.runTerminalMenuAction(TerminalMenuAction.SETTINGS));
+
+        ImageButton paletteButton = findViewById(R.id.palette_button);
+        if (paletteButton != null) {
+            paletteButton.setOnClickListener(v -> {
+                getDrawer().closeDrawers();
+                showCommandPalette();
+            });
+        }
     }
 
     private void setNewSessionButtonView() {
         View newSessionButton = findViewById(R.id.new_session_button);
-        newSessionButton.setOnClickListener(v -> mTermuxTerminalSessionActivityClient.addNewSession(false, null));
+        newSessionButton.setOnClickListener(v -> mShellCommandHost.addNewSession());
         newSessionButton.setOnLongClickListener(v -> {
-            TextInputDialogUtils.textInput(TermuxActivity.this, R.string.title_create_named_session, null,
-                R.string.action_create_named_session_confirm, text -> mTermuxTerminalSessionActivityClient.addNewSession(false, text),
-                R.string.action_new_session_failsafe, text -> mTermuxTerminalSessionActivityClient.addNewSession(true, text),
-                -1, null, null);
+            // The drawer is closed first, like the other buttons of the header, so that the dialog is not shown
+            // over a drawer that stays open after the session was created.
+            getDrawer().closeDrawers();
+            mShellCommandHost.addNamedSession();
             return true;
         });
     }
 
     private void setToggleKeyboardView() {
         findViewById(R.id.toggle_keyboard_button).setOnClickListener(v -> {
-            mTermuxTerminalViewClient.onToggleSoftKeyboardRequest();
+            mShellCommandHost.toggleSoftKeyboard();
             getDrawer().closeDrawers();
         });
 
@@ -2009,7 +1668,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }
     }
 
-    private void showStylingDialog() {
+    @Override
+    public void showStylingDialog() {
         Intent stylingIntent = new Intent();
         stylingIntent.setClassName(TermuxConstants.TERMUX_STYLING_PACKAGE_NAME, TermuxConstants.TERMUX_STYLING_APP.TERMUX_STYLING_ACTIVITY_NAME);
         try {
@@ -2023,7 +1683,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 .setNegativeButton(android.R.string.cancel, null).show();
         }
     }
-    private void toggleKeepScreenOn() {
+
+    @Override
+    public void toggleKeepScreenOn() {
         if (mTerminalView.getKeepScreenOn()) {
             mTerminalView.setKeepScreenOn(false);
             mPreferences.setKeepScreenOn(false);
@@ -2132,8 +1794,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * changed.
      */
     public void updateExtraKeysViewColors() {
-        // The status bar follows the colors of the color scheme as well.
-        if (mStatusBarController != null) mStatusBarController.reloadColors();
+        // The status bar follows the colors of the color scheme as well, which is why the extensions are told
+        // that the configuration changed.
+        if (mExtensionManager != null) mExtensionManager.onReload();
 
         for (ExtraKeysView extraKeysView : mExtraKeysViews) {
             setExtraKeysViewColors(extraKeysView);
@@ -2236,7 +1899,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
 
     public void termuxSessionListNotifyUpdated() {
-        mTermuxSessionListViewController.notifyDataSetChanged();
+        DrawerExtension extension = drawerExtension();
+        if (extension != null) extension.notifySessionsChanged();
     }
 
     public boolean isVisible() {
@@ -2394,20 +2058,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         // Rebuild the status bar, since the `status-bar-*` properties may have changed, and apply the
         // new position and overlay rules.
-        if (mStatusBarController != null) {
-            mStatusBarController.reload();
-            updateStatusBarLayout();
-        }
-
-        // Reload the `notification-*` properties, which apply the new position, width and colors to
-        // the cards that are currently shown.
-        if (mNotificationManager != null) {
-            mNotificationManager.reload();
-            updateNotificationOverlayLayout();
-        }
+        if (mExtensionManager != null) mExtensionManager.onReload();
 
         // Reload the `terminal-menu-*` and `selection-toolbar-items` properties.
-        reloadTerminalMenuConfig();
 
         // Update the terminal toolbar visibility in case the `hide-extra-keys-when-soft-keyboard-hidden`
         // property was changed or disabled while the soft keyboard was hidden, since the layout may not

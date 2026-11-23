@@ -12,11 +12,8 @@
     <string name="shell_pane_limit">窗格数量已达上限</string>
     <string name="shell_tab_close_denied">每个窗口至少保留一个标签页</string>
     <string name="shell_pane_close_denied">每个窗口至少保留一个窗格</string>
-    <string name="shell_config_reloaded">配置已重新加载，主题变化在窗口重建后生效</string>
+    <string name="shell_config_reloaded">配置与键位表已重新加载</string>
     <string name="shell_config_reload_failed">配置加载失败</string>
-    <string name="size_class_compact">紧凑</string>
-    <string name="size_class_medium">中等</string>
-    <string name="size_class_expanded">展开</string>
 
     <string name="command_category_tab">标签页</string>
     <string name="command_category_pane">窗格</string>
@@ -43,6 +40,8 @@
     <string name="session_group_attached">已附着</string>
     <string name="session_group_detached">已脱离</string>
     <string name="session_pending_title">窗格 %1$s · 未分配会话</string>
+    <string name="session_exited_title">窗格 %1$s · 已退出</string>
+    <string name="session_untitled">运行中的会话</string>
     <string name="session_state_pending">未分配</string>
     <string name="session_state_running">运行中</string>
     <string name="session_state_exited">已退出</string>
@@ -56,6 +55,7 @@
     <string name="settings_section_input">输入</string>
     <string name="settings_section_about">关于</string>
     <string name="settings_theme">主题</string>
+    <string name="settings_theme_hint">修改后立即生效，系统栏图标随之更新。</string>
     <string name="settings_theme_system">跟随系统</string>
     <string name="settings_theme_light">浅色</string>
     <string name="settings_theme_dark">深色</string>
@@ -78,7 +78,13 @@
     <string name="settings_keymap_enabled">外壳快捷键</string>
     <string name="settings_keymap_enabled_hint">关闭后全部按键交给终端处理。</string>
     <string name="settings_command_palette">命令面板</string>
+    <string name="settings_command_palette_hint">关闭后标题栏与溢出菜单不再提供命令面板入口。</string>
     <string name="settings_reload_config">重新加载配置文件</string>
+    <string name="settings_reload_config_hint">重新读取配置文件与键位表，用于应用手工编辑的结果。</string>
+    <string name="settings_cancel">取消</string>
+    <string name="settings_search_hint">搜索设置</string>
+    <string name="settings_search_clear">清除搜索</string>
+    <string name="settings_search_empty">没有匹配的设置项。</string>
     <string name="settings_save_failed">配置保存失败</string>
     <string name="settings_config_file">配置文件路径</string>
     <string name="settings_keymap_file">键位表路径</string>
@@ -93,13 +99,25 @@
     <string name="command_focus_pane_up">聚焦上方窗格</string>
     <string name="command_focus_pane_down">聚焦下方窗格</string>
     <string name="shell_pane_hint">终端会话接入后显示在这里</string>
+    <string name="pane_split_handle_vertical">竖向分割条，拖动可调整左右窗格比例</string>
+    <string name="pane_split_handle_horizontal">横向分割条，拖动可调整上下窗格比例</string>
+    <string name="pane_split_wider">扩大第一个窗格</string>
+    <string name="pane_split_narrower">缩小第一个窗格</string>
+    <string name="pane_split_reset">恢复均分</string>
 
     <string name="session_attached_to">标签 %1$s</string>
     <string name="settings_section_profiles">会话配置</string>
-    <string name="settings_profiles_count">已配置 %1$d 条</string>
+    <plurals name="settings_profiles_count">
+        <item quantity="other">已配置 %1$d 条</item>
+    </plurals>
     <string name="settings_profile_add">新增会话</string>
     <string name="settings_profile_edit">编辑</string>
     <string name="settings_profile_delete">删除</string>
+    <string name="settings_profile_delete_confirm_title">删除会话配置？</string>
+    <string name="settings_profile_delete_confirm_message">将删除「%1$s」。已打开标签的标题保持不变，后续新建标签不再引用该配置。</string>
+    <string name="settings_profile_delete_confirm">删除</string>
+    <string name="settings_profile_summary_distro">发行版 · %1$s</string>
+    <string name="settings_profile_summary_ssh">SSH · %1$s</string>
     <string name="settings_profile_empty">尚未配置会话。</string>
     <string name="settings_profile_name">名称</string>
     <string name="settings_profile_kind">类型</string>
@@ -116,5 +134,7 @@
     <string name="settings_profile_invalid">名称与所选类型对应的字段不能为空。</string>
     <string name="settings_profile_save_failed">会话配置保存失败</string>
     <string name="settings_profile_delete_failed">会话配置删除失败</string>
+    <string name="settings_profile_deleted">会话配置已删除</string>
+    <string name="settings_profile_undo">撤销</string>
     <string name="command_new_profile_tab">新建会话：%1$s</string>
 </resources>

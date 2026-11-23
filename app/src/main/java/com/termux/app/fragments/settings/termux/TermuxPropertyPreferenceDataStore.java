@@ -27,7 +27,7 @@ import java.util.Set;
  * A change made by the user is applied to the running termux app immediately, without having to
  * restart the app. The preference key must be equal to the property key.
  */
-abstract class TermuxPropertyPreferenceDataStore extends PreferenceDataStore {
+public abstract class TermuxPropertyPreferenceDataStore extends PreferenceDataStore {
 
     private final Context mContext;
 

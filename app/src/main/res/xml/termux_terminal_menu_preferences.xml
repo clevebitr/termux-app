@@ -5,12 +5,12 @@
         app:key="terminal_menu_items"
         app:title="@string/termux_terminal_menu_items_header">
 
-        <com.termux.app.fragments.settings.termux.TerminalMenuItemsPreference
+        <com.termux.app.ext.menu.TerminalMenuItemsPreference
             app:key="terminal-menu-items"
             app:summary="@string/termux_terminal_menu_items_summary"
             app:title="@string/termux_terminal_menu_items_title" />
 
-        <com.termux.app.fragments.settings.termux.SelectionToolbarItemsPreference
+        <com.termux.app.ext.menu.SelectionToolbarItemsPreference
             app:key="selection-toolbar-items"
             app:summary="@string/termux_terminal_menu_selection_items_summary"
             app:title="@string/termux_terminal_menu_selection_items_title" />

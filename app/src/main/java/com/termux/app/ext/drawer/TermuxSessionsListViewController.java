@@ -1,0 +1,150 @@
+package com.termux.app.ext.drawer;
+
+import android.annotation.SuppressLint;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Typeface;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.TextUtils;
+import android.text.style.StyleSpan;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import com.termux.R;
+import com.termux.app.TermuxActivity;
+import com.termux.shared.termux.TermuxConstants;
+import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
+import com.termux.terminal.TerminalSession;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession> implements AdapterView.OnItemClickListener, AdapterView.OnItemLongClickListener {
+
+    final TermuxActivity mActivity;
+    /** The drawer whose colors the rows follow, see {@link TerminalDrawerController}. */
+    final TerminalDrawerController mDrawerController;
+
+    final StyleSpan boldSpan = new StyleSpan(Typeface.BOLD);
+    final StyleSpan italicSpan = new StyleSpan(Typeface.ITALIC);
+
+    public TermuxSessionsListViewController(TermuxActivity activity, List<TermuxSession> sessionList,
+                                            TerminalDrawerController drawerController) {
+        super(activity.getApplicationContext(), R.layout.item_terminal_sessions_list, sessionList);
+        this.mActivity = activity;
+        this.mDrawerController = drawerController;
+    }
+
+    @SuppressLint("SetTextI18n")
+    @NonNull
+    @Override
+    public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+        View sessionRowView = convertView;
+        if (sessionRowView == null) {
+            LayoutInflater inflater = mActivity.getLayoutInflater();
+            sessionRowView = inflater.inflate(R.layout.item_terminal_sessions_list, parent, false);
+        }
+
+        TextView sessionTitleView = sessionRowView.findViewById(R.id.session_title);
+        TextView sessionDetailsView = sessionRowView.findViewById(R.id.session_details);
+
+        TerminalSession sessionAtRow = getItem(position).getTerminalSession();
+        if (sessionAtRow == null) {
+            sessionTitleView.setText("null session");
+            sessionDetailsView.setText(null);
+            sessionDetailsView.setVisibility(View.GONE);
+            return sessionRowView;
+        }
+
+        // The drawer follows the colors of the terminal color scheme, so the row background and the text
+        // colors come from the activity instead of from the app theme. The accent strip marks the session
+        // that is shown in the active pane, like the border of the active pane of the split screen.
+        sessionRowView.setBackground(mDrawerController.getSessionRowBackground());
+
+        View accentView = sessionRowView.findViewById(R.id.session_accent);
+        boolean isCurrentSession = sessionAtRow == mActivity.getCurrentSession();
+        accentView.setBackgroundColor(isCurrentSession
+            ? mDrawerController.getAccentColor() : Color.TRANSPARENT);
+
+        final int foregroundColor = mDrawerController.getForegroundColor();
+        final int secondaryColor = mDrawerController.getSecondaryTextColor();
+
+        String name = sessionAtRow.mSessionName;
+        String sessionTitle = sessionAtRow.getTitle();
+
+        String numberPart = "[" + (position + 1) + "] ";
+        String sessionNamePart = (TextUtils.isEmpty(name) ? "" : name);
+        String sessionTitlePart = (TextUtils.isEmpty(sessionTitle) ? "" : ((sessionNamePart.isEmpty() ? "" : "\n") + sessionTitle));
+
+        String fullSessionTitle = numberPart + sessionNamePart + sessionTitlePart;
+        SpannableString fullSessionTitleStyled = new SpannableString(fullSessionTitle);
+        fullSessionTitleStyled.setSpan(boldSpan, 0, numberPart.length() + sessionNamePart.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        fullSessionTitleStyled.setSpan(italicSpan, numberPart.length() + sessionNamePart.length(), fullSessionTitle.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        sessionTitleView.setText(fullSessionTitleStyled);
+
+        boolean sessionRunning = sessionAtRow.isRunning();
+
+        if (sessionRunning) {
+            sessionTitleView.setPaintFlags(sessionTitleView.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
+        } else {
+            sessionTitleView.setPaintFlags(sessionTitleView.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+        }
+        int color = sessionRunning || sessionAtRow.getExitStatus() == 0
+            ? (sessionRunning ? foregroundColor : secondaryColor) : Color.RED;
+        sessionTitleView.setTextColor(color);
+
+        // Show the info about the session below the title, like the pid and the name of the foreground
+        // process and the current working directory of the shell.
+        String sessionDetails = getSessionDetails(sessionAtRow);
+        sessionDetailsView.setText(sessionDetails);
+        sessionDetailsView.setVisibility(sessionDetails == null ? View.GONE : View.VISIBLE);
+        sessionDetailsView.setTextColor(secondaryColor);
+        return sessionRowView;
+    }
+
+    /**
+     * Get the info about the {@code session}, like the pid and the name of the foreground process and the
+     * current working directory of the shell, or {@code null} if the info cannot be read, like if the
+     * session is not running or access to the files of the process is not granted.
+     */
+    @Nullable
+    private String getSessionDetails(@NonNull TerminalSession session) {
+        int pid = session.getPid();
+        if (pid <= 0) return null;
+
+        List<String> details = new ArrayList<>();
+        details.add(mActivity.getString(R.string.termux_session_details_pid, pid));
+
+        String shortDetails = SessionDetails.getShortDetails(pid);
+        if (shortDetails != null) details.add(shortDetails);
+
+        return SessionDetails.join(details, " · ");
+    }
+
+    @Override
+    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        TermuxSession clickedSession = getItem(position);
+        mActivity.getTermuxTerminalSessionClient().setCurrentSession(clickedSession.getTerminalSession());
+        mActivity.getDrawer().closeDrawers();
+    }
+
+    @Override
+    public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+        final TermuxSession selectedSession = getItem(position);
+        mActivity.getTermuxTerminalSessionClient().renameSession(selectedSession.getTerminalSession());
+        return true;
+    }
+
+}

@@ -1,0 +1,92 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- The behaviours on this page are implemented inside the read-only terminal modules, so they cannot be an
+         extension: only the behaviour can be switched off, the terminal itself cannot be removed. -->
+    <Preference
+        app:key="builtin-vt-notice"
+        app:persistent="false"
+        app:selectable="false"
+        app:summary="@string/termux_builtin_vt_notice_summary"
+        app:title="@string/termux_builtin_vt_notice_title" />
+
+    <PreferenceCategory
+        app:key="builtin_vt_behaviour"
+        app:title="@string/termux_builtin_vt_behaviour_header">
+
+        <SwitchPreferenceCompat
+            app:key="keep-scroll-position-on-output"
+            app:summaryOff="@string/termux_terminal_view_keep_scroll_position_off"
+            app:summaryOn="@string/termux_terminal_view_keep_scroll_position_on"
+            app:title="@string/termux_terminal_view_keep_scroll_position_title" />
+
+
+        <SwitchPreferenceCompat
+            app:key="mouse-hover-sends-mouse-motion"
+            app:summaryOff="@string/termux_mouse_hover_sends_mouse_motion_off"
+            app:summaryOn="@string/termux_mouse_hover_sends_mouse_motion_on"
+            app:title="@string/termux_mouse_hover_sends_mouse_motion_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="clipboard"
+        app:title="@string/termux_terminal_view_clipboard_header">
+
+        <ListPreference
+            app:defaultValue="write"
+            app:entries="@array/termux_terminal_view_osc52_clipboard_entries"
+            app:entryValues="@array/termux_terminal_view_osc52_clipboard_values"
+            app:key="terminal-osc52-clipboard"
+            app:title="@string/termux_terminal_view_osc52_clipboard_title"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="padding"
+        app:title="@string/termux_terminal_view_padding_header">
+
+        <SeekBarPreference
+            android:max="100"
+            android:min="0"
+            app:defaultValue="0"
+            app:key="terminal-padding-top"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_terminal_view_padding_summary"
+            app:title="@string/termux_terminal_view_padding_top_title" />
+
+        <SeekBarPreference
+            android:max="100"
+            android:min="0"
+            app:defaultValue="0"
+            app:key="terminal-padding-bottom"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_terminal_view_padding_summary"
+            app:title="@string/termux_terminal_view_padding_bottom_title" />
+
+        <SeekBarPreference
+            android:max="100"
+            android:min="0"
+            app:defaultValue="0"
+            app:key="terminal-padding-left"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_terminal_view_padding_summary"
+            app:title="@string/termux_terminal_view_padding_left_title" />
+
+        <SeekBarPreference
+            android:max="100"
+            android:min="0"
+            app:defaultValue="0"
+            app:key="terminal-padding-right"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/termux_terminal_view_padding_summary"
+            app:title="@string/termux_terminal_view_padding_right_title" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

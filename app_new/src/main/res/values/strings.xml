@@ -12,11 +12,8 @@
     <string name="shell_pane_limit">Pane limit reached</string>
     <string name="shell_tab_close_denied">A window keeps at least one tab</string>
     <string name="shell_pane_close_denied">A window keeps at least one pane</string>
-    <string name="shell_config_reloaded">Configuration reloaded; theme changes apply after the window reloads</string>
+    <string name="shell_config_reloaded">Configuration and keymap reloaded</string>
     <string name="shell_config_reload_failed">Failed to reload configuration</string>
-    <string name="size_class_compact">compact</string>
-    <string name="size_class_medium">medium</string>
-    <string name="size_class_expanded">expanded</string>
 
     <string name="command_category_tab">Tab</string>
     <string name="command_category_pane">Pane</string>
@@ -43,6 +40,8 @@
     <string name="session_group_attached">Attached</string>
     <string name="session_group_detached">Detached</string>
     <string name="session_pending_title">Pane %1$s · no session</string>
+    <string name="session_exited_title">Pane %1$s · exited</string>
+    <string name="session_untitled">Running session</string>
     <string name="session_state_pending">Pending</string>
     <string name="session_state_running">Running</string>
     <string name="session_state_exited">Exited</string>
@@ -56,6 +55,7 @@
     <string name="settings_section_input">Input</string>
     <string name="settings_section_about">About</string>
     <string name="settings_theme">Theme</string>
+    <string name="settings_theme_hint">Applies immediately; the system bar icons follow too.</string>
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
@@ -78,7 +78,13 @@
     <string name="settings_keymap_enabled">Shell shortcuts</string>
     <string name="settings_keymap_enabled_hint">Turned off, every key goes to the terminal.</string>
     <string name="settings_command_palette">Command palette</string>
+    <string name="settings_command_palette_hint">Turned off, the title bar and the overflow menu stop offering the palette.</string>
     <string name="settings_reload_config">Reload configuration</string>
+    <string name="settings_reload_config_hint">Reads the configuration and keymap files again, for changes made by hand.</string>
+    <string name="settings_cancel">Cancel</string>
+    <string name="settings_search_hint">Search settings</string>
+    <string name="settings_search_clear">Clear search</string>
+    <string name="settings_search_empty">No settings match.</string>
     <string name="settings_save_failed">Failed to save configuration</string>
     <string name="settings_config_file">Configuration file</string>
     <string name="settings_keymap_file">Keymap file</string>
@@ -93,13 +99,26 @@
     <string name="command_focus_pane_up">Focus pane up</string>
     <string name="command_focus_pane_down">Focus pane down</string>
     <string name="shell_pane_hint">The terminal session renders here once wired</string>
+    <string name="pane_split_handle_vertical">Vertical split handle, drag to resize panes</string>
+    <string name="pane_split_handle_horizontal">Horizontal split handle, drag to resize panes</string>
+    <string name="pane_split_wider">Enlarge first pane</string>
+    <string name="pane_split_narrower">Shrink first pane</string>
+    <string name="pane_split_reset">Reset to equal split</string>
 
     <string name="session_attached_to">Tab %1$s</string>
     <string name="settings_section_profiles">Session profiles</string>
-    <string name="settings_profiles_count">%1$d configured</string>
+    <plurals name="settings_profiles_count">
+        <item quantity="one">%1$d profile configured</item>
+        <item quantity="other">%1$d profiles configured</item>
+    </plurals>
     <string name="settings_profile_add">Add session</string>
     <string name="settings_profile_edit">Edit</string>
     <string name="settings_profile_delete">Delete</string>
+    <string name="settings_profile_delete_confirm_title">Delete session profile?</string>
+    <string name="settings_profile_delete_confirm_message">This removes "%1$s". Open tabs keep their titles; new tabs stop using it.</string>
+    <string name="settings_profile_delete_confirm">Delete</string>
+    <string name="settings_profile_summary_distro">Distribution · %1$s</string>
+    <string name="settings_profile_summary_ssh">SSH · %1$s</string>
     <string name="settings_profile_empty">No session profiles yet.</string>
     <string name="settings_profile_name">Name</string>
     <string name="settings_profile_kind">Type</string>
@@ -116,5 +135,7 @@
     <string name="settings_profile_invalid">Name and the field for the selected type are required.</string>
     <string name="settings_profile_save_failed">Failed to save session profile</string>
     <string name="settings_profile_delete_failed">Failed to delete session profile</string>
+    <string name="settings_profile_deleted">Session profile deleted</string>
+    <string name="settings_profile_undo">Undo</string>
     <string name="command_new_profile_tab">New session: %1$s</string>
 </resources>

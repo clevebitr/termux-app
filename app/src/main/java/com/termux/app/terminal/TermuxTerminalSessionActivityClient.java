@@ -17,9 +17,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.R;
-import com.termux.app.notifications.AppEventNotifier;
-import com.termux.app.notifications.ExitCodeNotifier;
-import com.termux.app.notifications.OscNotificationHandler;
+import com.termux.app.ext.api.Extension;
+import com.termux.app.ext.host.ExtensionHost;
+import com.termux.app.ext.notifications.NotificationsExtension;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.interact.ShareUtils;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
@@ -49,12 +49,6 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
     private final TermuxActivity mActivity;
 
-    /** Shows the notification cards of the commands that exit with a non-zero exit code. */
-    private final ExitCodeNotifier mExitCodeNotifier;
-    /** Shows the notification cards that terminal programs request with `OSC 99`, `OSC 9` or `OSC 777`. */
-    private final OscNotificationHandler mOscNotificationHandler;
-    /** Shows the notification cards of the events of the app, like a session that exited. */
-    private final AppEventNotifier mAppEventNotifier;
 
     /** The maximum number of sessions that can be created from the app. */
     public static final int MAX_SESSIONS = 8;
@@ -74,9 +68,15 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
     public TermuxTerminalSessionActivityClient(TermuxActivity activity) {
         this.mActivity = activity;
-        this.mExitCodeNotifier = new ExitCodeNotifier(activity, activity.getTerminalNotificationManager());
-        this.mOscNotificationHandler = new OscNotificationHandler(activity, activity.getTerminalNotificationManager());
-        this.mAppEventNotifier = new AppEventNotifier(activity, activity.getTerminalNotificationManager());
+    }
+
+    /**
+     * @return The extension that owns the notification cards, or {@code null} while it is disabled, in which case
+     *         the events of the sessions are dropped instead of being shown.
+     */
+    @Nullable
+    private NotificationsExtension notifications() {
+        return ExtensionHost.get(mActivity).findRunning(NotificationsExtension.class);
     }
 
     /**
@@ -213,11 +213,13 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             if (isPluginCommand) {
                 // The result of a plugin command is shown to the user even when the command ran in the
                 // current session, since the plugin that started it is in another app.
-                mAppEventNotifier.onSessionFinished(finishedSession, true);
+                NotificationsExtension notifications = notifications();
+                if (notifications != null) notifications.onSessionFinished(finishedSession, true);
             } else if (mActivity.isVisible() && finishedSession != mActivity.getCurrentSession()) {
                 // Show a card or the toast of the upstream app for non-current sessions that exit.
                 // Verify that session was not removed before we got told about it finishing:
-                if (!mAppEventNotifier.onSessionFinished(finishedSession, false))
+                NotificationsExtension finishedNotifications = notifications();
+                if (finishedNotifications == null || !finishedNotifications.onSessionFinished(finishedSession, false))
                     mActivity.showToast(toToastTitle(finishedSession) + " - exited", true);
             }
         }
@@ -318,7 +320,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
      */
     private boolean notifyCommandFinishedSafely(@NonNull TerminalSession session, @NonNull TerminalCommandResult result) {
         try {
-            return mExitCodeNotifier.onCommandFinished(session, result);
+            NotificationsExtension notifications = notifications();
+            return notifications != null && notifications.onCommandFinished(session, result);
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Failed to show the notification card of the finished command", e);
             return false;
@@ -328,7 +331,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     /** Show the notification card of a title change, see {@link #notifyCommandFinishedSafely}. */
     private boolean notifyTitleChangedSafely(@NonNull TerminalSession updatedSession) {
         try {
-            return mAppEventNotifier.onTitleChanged(updatedSession);
+            NotificationsExtension notifications = notifications();
+            return notifications != null && notifications.onTitleChanged(updatedSession);
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Failed to show the notification card of the title change", e);
             return false;
@@ -338,7 +342,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     @Override
     public void onTerminalNotification(@NonNull TerminalSession session, @NonNull TerminalNotification notification) {
         try {
-            mOscNotificationHandler.onTerminalNotification(session, notification);
+            NotificationsExtension notifications = notifications();
+            if (notifications != null) notifications.onOscNotification(session, notification);
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Failed to handle the OSC notification", e);
         }
@@ -350,14 +355,15 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
      */
     @Override
     public boolean shouldDecodeOscNotificationIcons() {
-        return mActivity.getTerminalNotificationManager() != null
-            && mActivity.getTerminalNotificationManager().getConfig().oscIcons;
+        NotificationsExtension notifications = notifications();
+        return notifications != null && notifications.isOscIconsEnabled();
     }
 
     @Override
     public void onOsc99Close(@NonNull TerminalSession session, @Nullable String id) {
         try {
-            mOscNotificationHandler.onOsc99Close(id);
+            NotificationsExtension notifications = notifications();
+            if (notifications != null) notifications.onOsc99Close(id);
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Failed to close the OSC notification", e);
         }
@@ -366,7 +372,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     @Override
     public void onOsc99AliveQuery(@NonNull TerminalSession session, @Nullable String id) {
         try {
-            mOscNotificationHandler.onOsc99AliveQuery(session, id);
+            NotificationsExtension notifications = notifications();
+            if (notifications != null) notifications.onOsc99AliveQuery(session, id);
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Failed to answer the OSC notification alive query", e);
         }
@@ -380,7 +387,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         // the current session is meant for the user that is looking at it anyway.
         if (session != mActivity.getCurrentSession()) {
             try {
-                mAppEventNotifier.onBell(session);
+                NotificationsExtension notifications = notifications();
+                if (notifications != null) notifications.onBell(session);
             } catch (Exception e) {
                 Logger.logStackTraceWithMessage(LOG_TAG, "Failed to show the notification card of the bell", e);
             }

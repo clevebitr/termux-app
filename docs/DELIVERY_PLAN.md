@@ -154,6 +154,10 @@ M12 期间不得实现多窗口、页签、kitty 键序与拖放。
 > M13-7 把壳层实现语言与界面框架替换为 Kotlin + Compose，终端视图仍以 `AndroidView` 承载。
 > M13-8 收敛了分层与状态管理，并补齐界面动效；CI 因仓库禁用 Actions 暂未补跑。
 | M13-3 | 布局落盘与恢复 | 新增 `pane/PaneLayoutStore.java`（路径见 D3） | — | 冷启动恢复分割结构与各叶子滚动位置；布局文件损坏时回退单窗格 |
+
+> 2026-11-23 状态：分割结构与当前标签已实现冷启动恢复（`config/FileLayoutStore`，路径
+> `filesDir/layout/window-layout.json`，原子写、版本校验、损坏回退）；各叶子的滚动位置尚未持久化，
+> 需要终端视图提供读取滚动位置的接口。
 | M13-4 | 档位驱动布局 | 修改 `ui/LayoutHost.java`、`ui/WindowSizeResolver.java` | — | 折叠展开、自由窗口拖拽、桌面窗口下布局切换不重建 Activity |
 | M13-5 | 焦点与导航 | 新增 `pane/PaneNavigator.java` | — | 方向键与 `Alt+方向` 迁移焦点；关闭窗格后焦点按规则落到兄弟叶子 |
 | M13-6 | 帧管线适配多窗格 | 修改 `render/ChoreographerFrameScheduler.java` | — | 四窗格同时输出时掉帧率仍低于 5%/s |
@@ -271,6 +275,9 @@ Kotlin 引入不在 M15 范围内，单独评估后再排期。
 | 2026-11-21 | `M17`、`M18` 部分完成：配置写回与两个新配置项、会话注册表、三种密度的会话列表、三档自适应界面、设置页与写回接线、标签与分割条的指针交互。未完成项：会话脱离与移动、指针与按键捕获开关（依赖 M14–M16）。本机 `assembleDebug`、74 项单元测试与 `lintDebug` 通过 | 本机实测 |
 | 2026-11-21 | 修复需求方报告的四个界面问题：宽屏分隔条挤占主区域、深色模式内容色缺失、系统栏图标不跟随应用主题、缺少全屏模式；并补齐会话列表显隐入口（标题栏按钮与菜单项）。本机 `assembleDebug`、74 项单元测试与 `lintDebug` 通过 | 需求方反馈与本机实测 |
 | 2026-11-21 | 窗格分隔条改为不可见热区（仅悬停显示细线），新建/设置/窗口菜单移入会话栏，新增 Ctrl+Alt+方向键的方向聚焦（含命令面板条目与默认键位），打磨标签栏指示条、会话列表信息层级、设置页排版与窗格样式。本机 `assembleDebug`、79 项单元测试与 `lintDebug` 通过 | 需求方反馈与本机实测 |
+| 2026-11-23 | 按 `docs/UI_REVIEW.md` 实施页面架构与设置页改造：导航状态统一层级与返回键、设置页改为配置描述驱动（搜索、分组卡片、宽屏两栏、删除确认）、抽取设置写入与会话绑定协作对象、会话列表接入宿主真实状态、无障碍与触摸目标修复、命令面板分组与系统取色。终端核心层未修改。本机 `assembleDebug`、137 项单元测试与 `lintDebug` 通过；设备侧未验证；里程碑编号待登记 | 需求方要求与本机实测 |
+| 2026-11-23 | 继续 `docs/UI_REVIEW.md` 批次：配置写入原子化与失败回滚、Lint 收敛、界面测试基线（JVM 单元测试 164 项；Robolectric 在 Termux 因缺少 Conscrypt JNI 不可用，界面测试改放 `androidTest`）、冷启动布局恢复（M13-3 的部分验收）、标签拖拽排序与会话配置撤销、activity-compose 与 lifecycle 升级（受 compileSdk 36 限制停留在 1.12.4 / 2.10.0）。本机 `assembleDebug`、164 项单元测试、`lintDebug`与 `assembleDebugAndroidTest` 通过；设备侧未验证 | 需求方要求与本机实测 |
+| 2026-11-23 | 页面层按「屏幕 — 区块 — 行」拆包：`ui/shell`、`ui/settings`、`ui/pane`、`ui/session`、`ui/tabs`、`ui/palette` 各自成包；`pane/PaneNode` 拆为类型与布局函数；视图模型工厂独立。主源 79 文件 8517 行，超过 300 行的只剩 `ShellViewModel`（522 行，门面）。新增架构复审与可扩展性报告 `docs/ARCHITECTURE_REVIEW.md`。本机 `assembleDebug`、164 项单元测试、`lintDebug`、`assembleDebugAndroidTest` 通过；设备侧未验证 | 需求方要求与本机实测 |
 
 
 ---
@@ -345,6 +352,9 @@ Kotlin 引入不在 M15 范围内，单独评估后再排期。
 | 编号 | 目标 | 改动文件 | 验收 |
 | --- | --- | --- | --- |
 | M18-1 | 设置页骨架 | 新增 `ui/SettingsScreen.kt`、`ui/settings/*`；修改 `ui/ShellScreen.kt` 入口 | 分节展示外观、会话、输入、终端、关于；窄屏为整页，宽屏为左右分栏 |
+
+> 2026-11-23 状态：分节、搜索、宽屏左右分栏与会话配置增删改已实现；「终端」分组尚未实现，
+> 依赖 M16-4、M16-5 的虚拟按键行与字号配色设置。
 | M18-2 | 双向同步 | 修改 `config/PropertiesSettingsRepository.kt` | 界面修改写回文件；外部修改后「重新加载配置文件」生效；非法取值回退默认并记录键名 |
 | M18-3 | 权限与状态提示 | 修改 `ui/settings/*` | 无障碍授权状态、指针捕获可用性（API 级别）如实显示，不可用时说明原因 |
 

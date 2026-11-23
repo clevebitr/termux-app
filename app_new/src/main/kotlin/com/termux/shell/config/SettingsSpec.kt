@@ -94,7 +94,7 @@ object SettingsSpec {
         Entry(
             KEY_APP_THEME, Type.CHOICE, THEME_SYSTEM,
             listOf(THEME_SYSTEM, THEME_LIGHT, THEME_DARK),
-            "界面主题，取值 system、light 或 dark；修改后在命令面板执行「重新加载配置文件」立即生效。",
+            "界面主题，取值 system、light 或 dark；修改后立即生效。",
         ),
         Entry(
             KEY_TAB_BAR_VISIBLE, Type.BOOLEAN, "true", emptyList(),
@@ -152,7 +152,7 @@ object SettingsSpec {
      */
     fun buildDefaultFileContent(): String = buildString {
         append("# Termux Shell 配置文件\n")
-        append("# 修改后执行命令面板中的「重新加载配置文件」立即生效。\n")
+        append("# 修改后立即生效；若直接编辑了本文件，请在命令面板执行「重新加载配置文件」。\n")
         append("# 以 # 开头的行与空行被忽略；删除某项即使用默认值。\n")
         for (entry in entries) {
             append('\n')

@@ -1,6 +1,7 @@
 package com.termux.shell.ui
 
 import com.termux.shell.config.ConfigSource
+import com.termux.shell.config.LayoutStore
 import com.termux.shell.config.MemorySettingsRepository
 import com.termux.shell.config.SettingsRepository
 import com.termux.shell.config.ProfileStore
@@ -30,79 +31,6 @@ import kotlinx.coroutines.flow.StateFlow
 
 /** [ShellViewModel] 的状态变更、设置写入与一次性事件测试。 */
 class ShellViewModelTest {
-
-    private class FakeProfileStore : ProfileStore {
-
-        private val state = MutableStateFlow<List<SessionProfile>>(emptyList())
-
-        override val profiles: StateFlow<List<SessionProfile>> = state
-
-        override fun save(profile: SessionProfile): Boolean {
-            state.value = state.value.filterNot { it.id == profile.id } + profile
-            return true
-        }
-
-        override fun delete(id: String): Boolean {
-            val before = state.value
-            state.value = before.filterNot { it.id == id }
-            return before.size != state.value.size
-        }
-
-        override fun reload(): Boolean = true
-    }
-
-    private class FakeConfigSource : ConfigSource {
-
-        val repository: SettingsRepository = MemorySettingsRepository()
-
-        val profileStore: FakeProfileStore = FakeProfileStore()
-
-        var keymapTable: KeymapTable = KeymapTable.parse("ctrl+shift+t = new-tab")
-
-        var reloadResult: Boolean = true
-
-        var reloadCount: Int = 0
-
-        override fun settings(): SettingsRepository = repository
-
-        override fun keymap(): KeymapTable = keymapTable
-
-        override fun reload(): Boolean {
-            reloadCount++
-            return reloadResult
-        }
-
-        override fun profiles(): ProfileStore = profileStore
-
-        override val configFilePath: String = "/tmp/shell.properties"
-
-        override val keymapFilePath: String = "/tmp/keymap.properties"
-    }
-
-    private class FakePersister : ShellViewModel.SettingsPersister {
-
-        val writes: MutableList<Pair<String, String>> = mutableListOf()
-
-        var failNext: Boolean = false
-
-        override fun persist(key: String, value: String, onFailure: () -> Unit) {
-            writes += key to value
-            if (failNext) {
-                failNext = false
-                onFailure()
-            }
-        }
-    }
-
-    private fun newViewModel(
-        config: FakeConfigSource = FakeConfigSource(),
-        persister: FakePersister = FakePersister(),
-    ): ShellViewModel = ShellViewModel(
-        configSource = config,
-        initialWorkspace = TabWorkspace.initial("one"),
-        titleFactory = { index -> "Shell $index" },
-        persister = persister,
-    )
 
     @Test
     fun newTabUsesTitleFactoryAndSelectsIt() {
@@ -183,13 +111,29 @@ class ShellViewModelTest {
     }
 
     @Test
-    fun settingWriteFailurePublishesNoticeAndKeepsState() {
+    fun settingWriteFailureRollsBackAndPublishesNotice() {
+        val persister = FakePersister().apply { failNext = true }
+        val viewModel = newViewModel(persister = persister)
+        assertTrue(viewModel.fullscreen)
+
+        viewModel.updateFullscreen(false)
+
+        // 写盘失败时回到修改前的取值，避免界面停留在一个磁盘上没有的状态。
+        assertTrue(viewModel.fullscreen)
+        assertEquals(ShellNotice.SETTINGS_SAVE_FAILED, viewModel.notice)
+    }
+
+    @Test
+    fun settingWriteFailureKeepsLaterSuccessfulChange() {
         val persister = FakePersister().apply { failNext = true }
         val viewModel = newViewModel(persister = persister)
 
         viewModel.updateFullscreen(false)
+        viewModel.updateThemeMode(SettingsSpec.THEME_DARK)
 
-        assertFalse(viewModel.fullscreen)
+        // 先失败的写入不得回滚后一次成功修改。
+        assertEquals(SettingsSpec.THEME_DARK, viewModel.themeMode)
+        assertTrue(viewModel.fullscreen)
         assertEquals(ShellNotice.SETTINGS_SAVE_FAILED, viewModel.notice)
     }
 
@@ -340,9 +284,21 @@ class ShellViewModelTest {
 
         override fun describeAll(): List<SessionDescriptor> = sessions.values.toList()
 
-        override fun addObserver(observer: SessionHost.Observer) = Unit
+        private val observers = mutableListOf<SessionHost.Observer>()
 
-        override fun removeObserver(observer: SessionHost.Observer) = Unit
+        override fun addObserver(observer: SessionHost.Observer) {
+            observers += observer
+        }
+
+        override fun removeObserver(observer: SessionHost.Observer) {
+            observers -= observer
+        }
+
+        /** 模拟进程自行结束：移除描述并按契约通知观察者。 */
+        fun finish(id: String) {
+            sessions.remove(id)
+            observers.forEach { observer -> observer.onExit(SessionId.of(id), 0) }
+        }
 
         override fun terminalSession(id: SessionId): TerminalSession? = null
 
@@ -361,6 +317,134 @@ class ShellViewModelTest {
         sessionHost = host,
         sessionEnvironment = SessionEnvironment(homeDirectory = "/tmp/home", tempDirectory = "/tmp/cache"),
     )
+
+    private class RecordingLayoutStore : LayoutStore {
+
+        private val latch = java.util.concurrent.CountDownLatch(1)
+
+        @Volatile
+        private var saved: TabWorkspace? = null
+
+        override fun read(): TabWorkspace? = null
+
+        override fun write(workspace: TabWorkspace): Boolean {
+            saved = workspace
+            latch.countDown()
+            return true
+        }
+
+        fun awaitSaved(): TabWorkspace? {
+            latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+            return saved
+        }
+    }
+
+    @Test
+    fun deletingProfileOffersUndo() {
+        val config = FakeConfigSource()
+        val profile = SessionProfile(id = "p1", name = "dev")
+        config.profileStore.save(profile)
+        val viewModel = newViewModel(config = config)
+
+        viewModel.deleteProfile("p1")
+
+        assertEquals(ShellNotice.PROFILE_DELETED, viewModel.notice)
+        assertEquals(profile, viewModel.undoableProfileDelete)
+        assertNull(viewModel.profileById("p1"))
+    }
+
+    @Test
+    fun undoRestoresDeletedProfile() {
+        val config = FakeConfigSource()
+        val profile = SessionProfile(id = "p1", name = "dev")
+        config.profileStore.save(profile)
+        val viewModel = newViewModel(config = config)
+        viewModel.deleteProfile("p1")
+
+        viewModel.undoProfileDelete()
+
+        assertNotNull(viewModel.profileById("p1"))
+        assertNull(viewModel.undoableProfileDelete)
+    }
+
+    @Test
+    fun undoWithoutPendingDeleteIsNoOp() {
+        val viewModel = newViewModel()
+
+        viewModel.undoProfileDelete()
+
+        assertNull(viewModel.undoableProfileDelete)
+        assertTrue(viewModel.profiles.value.isEmpty())
+    }
+
+    @Test
+    fun moveTabToReordersTabs() {
+        val viewModel = newViewModel()
+        viewModel.newTab()
+        viewModel.newTab()
+
+        viewModel.moveTabTo(2, 0)
+
+        assertEquals(listOf("Shell 3", "one", "Shell 2"), viewModel.workspace.tabs.map { it.title })
+        assertEquals(0, viewModel.workspace.activeIndex)
+    }
+
+    @Test
+    fun persistLayoutWritesCurrentWorkspace() {
+        val store = RecordingLayoutStore()
+        val viewModel = ShellViewModel(
+            configSource = FakeConfigSource(),
+            initialWorkspace = TabWorkspace.initial("one"),
+            titleFactory = { index -> "Shell $index" },
+            persister = FakePersister(),
+            layoutStore = store,
+        )
+        viewModel.newTab()
+
+        viewModel.persistLayout()
+
+        assertEquals(viewModel.workspace, store.awaitSaved())
+    }
+
+    @Test
+    fun persistLayoutWithoutStoreIsNoOp() {
+        val viewModel = newViewModel()
+
+        viewModel.persistLayout()
+
+        assertEquals(1, viewModel.workspace.size)
+    }
+
+    @Test
+    fun sessionExitBumpsRevisionAndMarksRecordExited() {
+        val host = newHost()
+        val viewModel = newViewModelWithHost(host)
+        val sessionId = viewModel.workspace.activeTab.focusedLeaf.sessionId
+        assertNotNull(sessionId)
+
+        val before = viewModel.sessionRevision.value
+        host.finish(sessionId!!)
+
+        assertTrue(viewModel.sessionRevision.value > before)
+        val record = viewModel.sessions().records.single()
+        assertEquals(SessionState.EXITED, record.state)
+    }
+
+    @Test
+    fun sessionsCarryDescriptorMetadataFromHost() {
+        val host = newHost()
+        val viewModel = newViewModelWithHost(host)
+        val sessionId = viewModel.workspace.activeTab.focusedLeaf.sessionId
+        assertNotNull(sessionId)
+        val descriptor = host.describe(SessionId.of(sessionId!!))
+        assertNotNull(descriptor)
+
+        val record = viewModel.sessions().records.single()
+
+        assertEquals(SessionState.RUNNING, record.state)
+        assertEquals(descriptor!!.workingDirectory, record.workingDirectory)
+        assertEquals(descriptor.title, record.title)
+    }
 
     @Test
     fun restoredWorkspaceBindsSessionsForEveryLeaf() {

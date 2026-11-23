@@ -4,6 +4,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -70,5 +72,32 @@ public class SettingsSearchIndexTest {
     @Test
     public void testNoMatches() {
         Assert.assertTrue(SettingsSearchIndex.search(ENTRIES, "keyboard").isEmpty());
+    }
+
+    @Test
+    public void testEntriesOfADisabledExtensionAreDropped() {
+        SettingsSearchIndex.Entry shell = entry("Font size", "The size of the text of the terminal");
+        SettingsSearchIndex.Entry backup = new SettingsSearchIndex.Entry("Backup", "BackupFragment", "backup_now",
+            "Back up the environment", null, "backup");
+        List<SettingsSearchIndex.Entry> entries = Arrays.asList(shell, backup);
+
+        // The page of an extension that runs stays searchable, otherwise the feature would be invisible while
+        // the user can still open it through the settings screen.
+        Assert.assertEquals(2,
+            SettingsSearchIndex.withoutDisabledExtensions(entries, Collections.emptySet()).size());
+
+        List<SettingsSearchIndex.Entry> filtered =
+            SettingsSearchIndex.withoutDisabledExtensions(entries, new HashSet<>(Collections.singletonList("backup")));
+        Assert.assertEquals(1, filtered.size());
+        Assert.assertEquals("Font size", filtered.get(0).title.toString());
+    }
+
+    @Test
+    public void testEntriesOfTheShellAreNeverDropped() {
+        List<SettingsSearchIndex.Entry> entries = Collections.singletonList(entry("Bell", null));
+        List<SettingsSearchIndex.Entry> filtered =
+            SettingsSearchIndex.withoutDisabledExtensions(entries, new HashSet<>(Arrays.asList("backup", "statusbar")));
+
+        Assert.assertEquals(1, filtered.size());
     }
 }

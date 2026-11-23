@@ -20,7 +20,7 @@ import androidx.core.content.ContextCompat;
 import androidx.preference.Preference;
 
 import com.termux.R;
-import com.termux.app.statusbar.StatusBarColors;
+import com.termux.app.widget.ColorSchemeColors;
 import com.termux.shared.data.DataUtils;
 
 /**
@@ -211,8 +211,8 @@ public class ColorPreference extends Preference {
             if (!value.isEmpty()) {
                 // A value can be a color of the termux color scheme, like `theme:color4`, so that
                 // the color follows the `colors.properties` file set by Termux:Styling.
-                if (StatusBarColors.isThemeColorReference(value)) {
-                    if (!StatusBarColors.isValidThemeColorReference(value)) {
+                if (ColorSchemeColors.isThemeColorReference(value)) {
+                    if (!ColorSchemeColors.isValidThemeColorReference(value)) {
                         Toast.makeText(context, context.getString(R.string.termux_extra_keys_color_invalid, value), Toast.LENGTH_LONG).show();
                         return;
                     }

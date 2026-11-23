@@ -20,6 +20,7 @@ enum class ShellNotice {
     CONFIG_RELOAD_FAILED,
     SETTINGS_SAVE_FAILED,
     PROFILE_SAVE_FAILED,
+    PROFILE_DELETED,
     PROFILE_DELETE_FAILED,
     SESSION_ACTION_UNAVAILABLE,
 }
@@ -36,6 +37,7 @@ val ShellNotice.stringRes: Int
         ShellNotice.CONFIG_RELOAD_FAILED -> R.string.shell_config_reload_failed
         ShellNotice.SETTINGS_SAVE_FAILED -> R.string.settings_save_failed
         ShellNotice.PROFILE_SAVE_FAILED -> R.string.settings_profile_save_failed
+        ShellNotice.PROFILE_DELETED -> R.string.settings_profile_deleted
         ShellNotice.PROFILE_DELETE_FAILED -> R.string.settings_profile_delete_failed
         ShellNotice.SESSION_ACTION_UNAVAILABLE -> R.string.session_action_unavailable
     }

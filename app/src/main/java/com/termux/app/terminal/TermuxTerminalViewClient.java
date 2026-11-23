@@ -19,6 +19,9 @@ import android.widget.Toast;
 
 import com.termux.R;
 import com.termux.app.TermuxActivity;
+import com.termux.app.ext.host.ExtensionHost;
+import com.termux.app.ext.volumekeys.VolumeKeyActions;
+import com.termux.app.ext.volumekeys.VolumeKeysExtension;
 import com.termux.shared.file.FileUtils;
 import com.termux.shared.interact.MessageDialogUtils;
 import com.termux.shared.interact.ShareUtils;
@@ -312,6 +315,14 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     @SuppressLint("RtlHardcoded")
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent e, TerminalSession currentSession) {
+        // A virtual key in the extra keys row that sends F12 opens the command palette, so that the palette
+        // is reachable without a hardware keyboard. The key is only taken when it was not combined, so that
+        // a program can still bind a modified F12.
+        if (keyCode == KeyEvent.KEYCODE_F12 && !e.isCtrlPressed() && !e.isAltPressed() && !e.isShiftPressed()) {
+            mActivity.showCommandPalette();
+            return true;
+        }
+
         if (handleVirtualKeys(keyCode, e, true)) return true;
 
         if (keyCode == KeyEvent.KEYCODE_ENTER && !currentSession.isRunning()) {
@@ -380,6 +391,10 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
         InputDevice inputDevice = event.getDevice();
         if (mActivity.getProperties().areVirtualVolumeKeysDisabled()) {
             return false;
+        } else if (ExtensionHost.get(mActivity).findRunning(VolumeKeysExtension.class) == null) {
+            // The actions of the volume keys belong to the extension, so a disabled extension leaves the keys to
+            // the system, which changes the volume as on any other app.
+            return false;
         } else if (inputDevice != null && inputDevice.getKeyboardType() == InputDevice.KEYBOARD_TYPE_ALPHABETIC) {
             // Do not steal dedicated buttons from a full external keyboard.
             return false;
@@ -443,60 +458,71 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
             mVirtualControlKeyDown = down;
     }
 
-    /** Perform the action of a volume key defined by the properties. The
-     * {@link TermuxPropertyConstants#IVALUE_VOLUME_KEY_ACTION_DEFAULT} action does not have to do
-     * anything, since the virtual modifier is applied when the key is pressed and released. */
+    /**
+     * Perform the action of a volume key, which is implemented by the volume keys extension.
+     *
+     * <p>{@link TermuxPropertyConstants#IVALUE_VOLUME_KEY_ACTION_DEFAULT} does not have to do anything, since the
+     * virtual modifier is applied by {@link #handleVolumeKey} when the key is pressed and released.</p>
+     */
     private void performVolumeKeyAction(String action, boolean isVolumeUp) {
         if (action == null) return;
 
-        switch (action) {
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_DEFAULT:
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_NONE:
-                break;
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_VOLUME:
-                AudioManager audio = (AudioManager) mActivity.getSystemService(Context.AUDIO_SERVICE);
-                if (audio != null)
-                    audio.adjustSuggestedStreamVolume(isVolumeUp ? AudioManager.ADJUST_RAISE : AudioManager.ADJUST_LOWER,
-                        AudioManager.USE_DEFAULT_STREAM_TYPE, AudioManager.FLAG_SHOW_UI);
-                break;
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_KEYBOARD:
-                onToggleSoftKeyboardRequest();
-                break;
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_TOGGLE_EXTRA_KEYS:
-                mActivity.toggleTerminalToolbar();
-                break;
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_PAGE_UP:
-                sendVolumeKeyHardwareKey(KeyEvent.KEYCODE_PAGE_UP);
-                break;
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_PAGE_DOWN:
-                sendVolumeKeyHardwareKey(KeyEvent.KEYCODE_PAGE_DOWN);
-                break;
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_PREV_COMMAND:
-                mTerminalView.scrollToPreviousCommand();
-                break;
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_NEXT_COMMAND:
-                mTerminalView.scrollToNextCommand();
-                break;
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_PREV_SESSION:
-                mTermuxTerminalSessionActivityClient.switchToSession(false);
-                break;
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_NEXT_SESSION:
-                mTermuxTerminalSessionActivityClient.switchToSession(true);
-                break;
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_NEW_SESSION:
-                mTermuxTerminalSessionActivityClient.addNewSession(false, null);
-                break;
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_PASTE:
-                doPaste();
-                break;
-            case TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_SEND_KEYS:
-                sendVolumeKeySequence(mActivity.getProperties().getVolumeKeySendKeys(isVolumeUp));
-                break;
-            default:
-                Logger.logError(LOG_TAG, "Ignoring unknown volume key action: \"" + action + "\"");
-                break;
-        }
+        VolumeKeysExtension extension = ExtensionHost.get(mActivity).findRunning(VolumeKeysExtension.class);
+        if (extension != null) extension.perform(mActivity, mVolumeKeyActionHost, action, isVolumeUp);
     }
+
+    /** The behaviours that a volume key action may trigger, implemented by this client. */
+    private final VolumeKeyActions.Host mVolumeKeyActionHost = new VolumeKeyActions.Host() {
+        @Override
+        public void toggleSoftKeyboard() {
+            onToggleSoftKeyboardRequest();
+        }
+
+        @Override
+        public void toggleExtraKeys() {
+            mActivity.toggleTerminalToolbar();
+        }
+
+        @Override
+        public void scrollToPreviousCommand() {
+            mTerminalView.scrollToPreviousCommand();
+        }
+
+        @Override
+        public void scrollToNextCommand() {
+            mTerminalView.scrollToNextCommand();
+        }
+
+        @Override
+        public void switchToPreviousSession() {
+            mTermuxTerminalSessionActivityClient.switchToSession(false);
+        }
+
+        @Override
+        public void switchToNextSession() {
+            mTermuxTerminalSessionActivityClient.switchToSession(true);
+        }
+
+        @Override
+        public void addNewSession() {
+            mTermuxTerminalSessionActivityClient.addNewSession(false, null);
+        }
+
+        @Override
+        public void paste() {
+            doPaste();
+        }
+
+        @Override
+        public void sendKeySequence(boolean isVolumeUp) {
+            sendVolumeKeySequence(mActivity.getProperties().getVolumeKeySendKeys(isVolumeUp));
+        }
+
+        @Override
+        public void sendHardwareKey(int keyCode) {
+            sendVolumeKeyHardwareKey(keyCode);
+        }
+    };
 
     /** Send a hardware key to the terminal of the current session, like the virtual FN key combos do. */
     private void sendVolumeKeyHardwareKey(int keyCode) {

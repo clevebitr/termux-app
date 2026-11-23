@@ -39,68 +39,6 @@ public class TerminalKeyboardPreferencesFragment extends PreferenceFragmentCompa
         SettingsSearchNavigation.applyPendingHighlight(this);
 
         PreferenceAccentUtils.applyAccent(this);
-
-        setupVolumeKeyActionPreferences();
-    }
-
-    private void setupVolumeKeyActionPreferences() {
-        setupVolumeKeyActionPreferences("volume-up-action", "volume-up-long-action", "volume-up-send-keys");
-        setupVolumeKeyActionPreferences("volume-down-action", "volume-down-long-action", "volume-down-send-keys");
-
-        Preference resetPreference = findPreference("reset-volume-key-actions");
-        if (resetPreference != null) {
-            resetPreference.setOnPreferenceClickListener(preference -> {
-                resetVolumeKeyActions();
-                return true;
-            });
-        }
-    }
-
-    /**
-     * The key sequence of a volume key is only sent if the action of its single press or long press is
-     * {@link TermuxPropertyConstants#IVALUE_VOLUME_KEY_ACTION_SEND_KEYS}, so its preference is only
-     * shown if that is the case, otherwise the settings screen would be cluttered with two entries that
-     * do not do anything for most users.
-     */
-    private void setupVolumeKeyActionPreferences(String actionKey, String longActionKey, String sendKeysKey) {
-        ListPreference actionPreference = findPreference(actionKey);
-        ListPreference longActionPreference = findPreference(longActionKey);
-        EditTextPreference sendKeysPreference = findPreference(sendKeysKey);
-        if (actionPreference == null || longActionPreference == null || sendKeysPreference == null) return;
-
-        // The listener is called before the new value is persisted, so the current value of the
-        // preference that was not changed is used for the other action.
-        Preference.OnPreferenceChangeListener listener = (preference, newValue) -> {
-            boolean isActionChanged = actionPreference.getKey().equals(preference.getKey());
-            String actionValue = isActionChanged ? (String) newValue : actionPreference.getValue();
-            String longActionValue = isActionChanged ? longActionPreference.getValue() : (String) newValue;
-
-            sendKeysPreference.setVisible(isSendKeysAction(actionValue) || isSendKeysAction(longActionValue));
-            return true;
-        };
-
-        actionPreference.setOnPreferenceChangeListener(listener);
-        longActionPreference.setOnPreferenceChangeListener(listener);
-
-        sendKeysPreference.setVisible(isSendKeysAction(actionPreference.getValue()) || isSendKeysAction(longActionPreference.getValue()));
-    }
-
-    private static boolean isSendKeysAction(String action) {
-        return TermuxPropertyConstants.IVALUE_VOLUME_KEY_ACTION_SEND_KEYS.equals(action);
-    }
-
-    /** Comment out the volume key action properties, so that their default values are used again. */
-    private void resetVolumeKeyActions() {
-        Context context = getContext();
-        if (context == null) return;
-
-        TerminalKeyboardPreferencesDataStore.getInstance(context).resetVolumeKeyActions();
-
-        Toast.makeText(context, R.string.termux_volume_key_actions_reset_done, Toast.LENGTH_SHORT).show();
-
-        // Recreate the preferences, so that the restored default values are shown.
-        setPreferencesFromResource(R.xml.termux_keyboard_preferences, mRootKey);
-        setupVolumeKeyActionPreferences();
     }
 
 }
@@ -127,15 +65,5 @@ class TerminalKeyboardPreferencesDataStore extends TermuxPropertyPreferenceDataS
         return mInstance;
     }
 
-    /** Comment out the volume key action properties from the `termux.properties` file, so that the
-     * default values defined by {@link TermuxPropertyConstants} are used again. */
-    void resetVolumeKeyActions() {
-        setTermuxPropertyValue(TermuxPropertyConstants.KEY_VOLUME_UP_ACTION, null);
-        setTermuxPropertyValue(TermuxPropertyConstants.KEY_VOLUME_UP_LONG_ACTION, null);
-        setTermuxPropertyValue(TermuxPropertyConstants.KEY_VOLUME_UP_SEND_KEYS, null);
-        setTermuxPropertyValue(TermuxPropertyConstants.KEY_VOLUME_DOWN_ACTION, null);
-        setTermuxPropertyValue(TermuxPropertyConstants.KEY_VOLUME_DOWN_LONG_ACTION, null);
-        setTermuxPropertyValue(TermuxPropertyConstants.KEY_VOLUME_DOWN_SEND_KEYS, null);
-    }
 
 }
