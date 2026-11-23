@@ -12,7 +12,6 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.view.WindowInsetsCompat;
 
@@ -292,51 +291,12 @@ public class TermuxActivityRootView extends LinearLayout implements ViewTreeObse
         }
     }
 
-    /**
-     * 目的 — 把系统栏（状态栏、导航栏、手势条）与刘海占用的空间变成根视图的内边距。
-     *
-     * <p>行为 — 底部始终保留导航栏或手势条的 inset，因此终端底行与额外键不会被手势小横条覆盖；顶部与左右在非全屏时
-     * 取系统栏与挖孔 inset 的较大值，在 `fullscreen=true` 时取 0，让终端真正绘制到刘海区域；同时记录状态栏高度供
-     * 键盘弹出时的底部空间校正使用。</p>
-     *
-     * <p>约束 — 该监听器取代布局里的 `fitsSystemWindows`，两者不能同时启用，否则内边距会叠加两次。inset 向下传递，
-     * 子视图仍可自行消费。</p>
-     */
     public static class WindowInsetsListener implements View.OnApplyWindowInsetsListener {
-
-        @NonNull
-        private final TermuxActivity mActivity;
-
-        public WindowInsetsListener(@NonNull TermuxActivity activity) {
-            mActivity = activity;
-        }
-
         @Override
         public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
-            WindowInsetsCompat insetsCompat = WindowInsetsCompat.toWindowInsetsCompat(insets, v);
-            androidx.core.graphics.Insets systemBars =
-                insetsCompat.getInsets(WindowInsetsCompat.Type.systemBars());
-            androidx.core.graphics.Insets cutout =
-                insetsCompat.getInsets(WindowInsetsCompat.Type.displayCutout());
-
-            mStatusBarHeight = systemBars.top;
-
-            boolean fullscreen = mActivity.getProperties() != null
-                && mActivity.getProperties().isUsingFullScreen();
-
-            // In full screen the status bar is hidden, so the cutout is not covered by a system bar and the
-            // terminal is allowed to fill it instead of leaving a black band at the edge of the screen.
-            int left = fullscreen ? 0 : Math.max(systemBars.left, cutout.left);
-            int top = fullscreen ? 0 : Math.max(systemBars.top, cutout.top);
-            int right = fullscreen ? 0 : Math.max(systemBars.right, cutout.right);
-            // The navigation bar or gesture handle keeps its space in any mode, so that the last row of the
-            // terminal and the extra keys stay fully visible and tappable above the gesture bar.
-            int bottom = systemBars.bottom;
-
-            v.setPadding(left, top, right, bottom);
-
-            // Let the children handle the insets as they want.
-            return insets;
+            mStatusBarHeight = WindowInsetsCompat.toWindowInsetsCompat(insets).getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            // Let view window handle insets however it wants
+            return v.onApplyWindowInsets(insets);
         }
     }
 
