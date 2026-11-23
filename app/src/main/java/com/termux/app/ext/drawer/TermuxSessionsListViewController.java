@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
@@ -21,6 +22,7 @@ import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
+import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalSession;
 
 import java.io.File;
@@ -77,8 +79,14 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
         // The background is a state list, so the row of the session that is shown is tinted only when it is
         // activated; without this the tint of the current session would never be drawn.
         sessionRowView.setActivated(isCurrentSession);
-        accentView.setBackgroundColor(isCurrentSession
-            ? mDrawerController.getAccentColor() : Color.TRANSPARENT);
+        // The accent strip marks the session that is shown in the active pane, like the border of the active
+        // pane of the split screen. It is rounded, so that it follows the rounded corner of the row instead of
+        // ending in a square tip inside the tint of the activated row.
+        GradientDrawable accentBackground = new GradientDrawable();
+        accentBackground.setShape(GradientDrawable.RECTANGLE);
+        accentBackground.setCornerRadius(ViewUtils.dpToPx(mActivity, 2));
+        accentBackground.setColor(isCurrentSession ? mDrawerController.getAccentColor() : Color.TRANSPARENT);
+        accentView.setBackground(accentBackground);
 
         final int foregroundColor = mDrawerController.getForegroundColor();
         final int secondaryColor = mDrawerController.getSecondaryTextColor();

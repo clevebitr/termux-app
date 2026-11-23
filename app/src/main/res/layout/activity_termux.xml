@@ -175,7 +175,7 @@
                         android:id="@+id/palette_button"
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:background="@null"
+                        android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="@string/action_command_palette"
                         android:src="@drawable/ic_pref_search"
                         app:tint="?attr/termuxActivityDrawerImageTint" />
@@ -184,7 +184,7 @@
                         android:id="@+id/settings_button"
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:background="@null"
+                        android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="@string/action_open_settings"
                         android:src="@drawable/ic_settings"
                         app:tint="?attr/termuxActivityDrawerImageTint" />
@@ -203,7 +203,7 @@
                             android:ellipsize="end"
                             android:singleLine="true"
                             android:text="@string/application_name"
-                            android:textSize="15sp"
+                            android:textSize="16sp"
                             android:textStyle="bold" />
 
                         <com.google.android.material.textview.MaterialTextView
@@ -212,7 +212,7 @@
                             android:layout_height="wrap_content"
                             android:ellipsize="middle"
                             android:singleLine="true"
-                            android:textSize="11sp"
+                            android:textSize="12sp"
                             android:visibility="gone"
                             tools:text="2 个会话 · nvim · ~/projects/termux" />
                     </LinearLayout>
@@ -232,7 +232,10 @@
                     android:layout_gravity="top"
                     android:layout_weight="1"
                     android:choiceMode="singleChoice"
-                    android:longClickable="true" />
+                    android:clipToPadding="false"
+                    android:longClickable="true"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp" />
 
                 <LinearLayout
                     style="?android:attr/buttonBarStyle"
