@@ -630,3 +630,18 @@ Tab 直通顺带补齐：虚拟 SHIFT 锁定态（额外键栏）与事件自身
 遗留（已记入 `app/todo.md` §2.11）：用 `getActiveView()`/`getActiveSession()` 替代 `getView(getActiveIndex())`；去掉 `mTerminalView` 缓存；布局改为可注入工厂，以便 M2 换成 `TreeTerminalLayout`。
 
 未验证：真机上窗格切换、分屏拖动、活动窗格高亮与键盘/输入法行为是否与重构前一致（本机无 `adb`，行为应完全不变，属于纯重构）。
+
+## 2026-11-23 — 输入法兼容模式覆盖第三方输入法
+
+现象：软键盘可见时，在 node 写的 TUI 程序内无法切换输入语言，只能输入英文。此前修复的 `gboard-cjk-workaround` 未覆盖该场景，需求方现场为 Gboard + 未连接硬件键盘。
+
+根因：视图内部的中日韩判定依赖 `InputMethodManager.getCurrentInputMethodSubtype().getLanguageTag()`，语言变化时依赖 Gboard 调用 `InputConnection.requestCursorUpdates()` 触发重启。第三方输入法常在同一子类型内切换语言，不上报语言标签也不调用该接口；即使使用 Gboard，从英文切到中文时视图上报的是 `VISIBLE_PASSWORD`（该类型下语言切换键被隐藏），无法在终端内完成切换。应用层的 `resolveInputType()` 在无硬件键盘时直接透传视图类型，因此这条路径没有被覆盖。
+
+修改（app 侧，不改只读模块）：
+- `TermuxTerminalViewClient.resolveInputType()` 增加 `imeCompatibilityModeEnabled` 参数。接有硬件键盘时规则不变（软键盘收起为 `TYPE_NULL`，弹出为文本框）；无硬件键盘且兼容模式打开时一律上报 `TYPE_CLASS_TEXT | NO_SUGGESTIONS | NORMAL`，与输入法语言标签无关，也不再依赖软键盘可见性，因此切换语言不需要重启输入连接。
+- 兼容模式复用现有 `gboard-cjk-workaround` 属性（需求方选择「打开现有开关时对所有输入法生效」），设置页标题改为「输入法兼容模式」，中英文案同步更新。
+- 日志 `[ime] getInputType` 增加 `compatibilityMode` 字段。
+
+测试：`TerminalInputTypeTest` 扩至 6 项（无硬件键盘关闭开关时透传、开启时为文本框、变体与标志、硬件键盘收起为 `TYPE_NULL`、可见为文本框、视图类型为 `TYPE_NULL` 时仍为文本框）。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过，`:app:testDebugUnitTest --tests com.termux.app.terminal.TerminalInputTypeTest` 6 项全绿。
+
+未验证：本机无 `adb`。真机上 Gboard 与第三方输入法（搜狗、百度）在 node TUI 内切换语言、英文组合文本是否延迟上屏、硬件键盘弹出软键盘时的行为、兼容模式开关切换后是否即时生效，均未真机确认。
