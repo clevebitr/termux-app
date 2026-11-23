@@ -564,3 +564,28 @@ Tab 直通顺带补齐：虚拟 SHIFT 锁定态（额外键栏）与事件自身
 未采用的其他方案：按输入法子类型语言（CJK/非 CJK）自动切换——需要输入法 UI 才能切换语言，且 Samsung 等输入法的子类型上报不可靠；新增手动切换命令与快捷键——多一个需要记住的操作，而弹出软键盘本身就是「我要输入中文」的既有动作。
 
 测试：`ImeInputTypeTest` 9 项（`hardware` 收起为 `TYPE_NULL`、弹出为文本框、无硬件键盘时透传、其他模式忽略两个状态）。本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 190 项、1 项既有失败（`FileReceiverActivityTest`）。未验证：真机上弹出/收起软键盘时输入类型是否即时切换、重启输入连接是否引起软键盘闪烁、拼音候选与提交是否正常，本机无 `adb`。
+
+## 2026-11-23 — 删除键盘兼容选项，收敛为「软键盘可见性」单一规则
+
+`ime-input-type` 引入后出现「怎么调设置都不管用、lazyvim 里 Tab 仍然无效」。真机日志（`~/.termux/keyboard-compat.log`，20:11–20:15）统计出决定性证据：353 行中 `action=up` 342 条、`action=down` 仅 11 条（只有 `DEL` 与 `ENTER`），`TAB` 一条也没有，`[terminal-view]` 与 `[ime]` 均为 0。即输入法在把终端当作文本编辑器时会取走物理键的**按下事件**（含 Tab），应用只收到抬起事件，文本随后以 `commitText` 回灌。
+
+由此得出的结论：任何在应用层拦截 Tab 的做法（`handleTerminalTab()`）在该状态下都收不到事件，方案必须从「上报的输入类型」入手。上一轮把 `hardware` 与软键盘可见性绑定是对的，错在把它做成选项：5 个取值互相干扰、设置是否生效无法从界面判断，反而掩盖了根因。
+
+本次按需求方确认的三项决定执行：
+1. **全删选项**：删除 `ime-input-type` 属性、`ImeInputType`、设置页列表项、5 个取值的中英文案与数组。
+2. **保留诊断日志**：`keyboard-compat-log` 与 `~/.termux/keyboard-compat.log` 保留，默认关闭，不改变行为。
+3. **删除 Tab 兜底**：删除 `TermuxActivity.handleTerminalTab()` 及其 `isTextInputFocused()`/`describeFocus()`，`dispatchKeyEvent` 只保留命令快捷键分发。
+
+最终只有一条规则，落在 `TermuxTerminalViewClient.resolveInputType(default, hardwareKeyboardAttached, softKeyboardVisible)`：
+
+| 硬件键盘 | 软键盘 | 上报类型 |
+| --- | --- | --- |
+| 有 | 收起 | `TYPE_NULL`（输入法不介入，物理键直达） |
+| 有 | 弹出 | `TYPE_CLASS_TEXT\|NO_SUGGESTIONS\|NORMAL`（悬浮栏与候选词可用，软/硬键盘都能打拼音） |
+| 无 | 任意 | 视图算出的类型（保留 `gboard-cjk-workaround`） |
+
+状态来源：`KeyboardUtils.isHardKeyboardConnected()` 与 `KeyboardUtils.isSoftKeyboardVisible()`；软键盘可见性在既有全局布局回调中读取，变化时与键盘接入/拔出、属性重载一样重启输入连接。Android 5.0/6.0 读不到软键盘可见性，按「可见」处理。同时删除与 `KeyboardUtils` 重复的 `HardwareKeyboard`。
+
+测试：删除 `ImeInputTypeTest`，新增 `TerminalInputTypeTest` 4 项（无硬件键盘透传、收起为 `TYPE_NULL`、可见为文本框、视图类型为 `TYPE_NULL` 时仍上报文本框）。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest` 184 项、1 项既有失败（`FileReceiverActivityTest`）。
+
+未验证：真机上 `cat -v` 按 Tab 是否输出 `^I`、lazyvim 插入模式是否恢复、软键盘弹出/收起时类型是否即时切换、重启输入连接是否引起闪烁。另需注意 LazyVim 默认把插入模式 `<Tab>` 映射给补全，判据应是 `^I` 是否到达程序而不是是否插入空格。

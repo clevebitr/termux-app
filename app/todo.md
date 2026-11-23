@@ -12,7 +12,7 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `a5cba39 feat: 新增 ime-input-type 输入法兼容模式` |
+| 最近提交 | `9b1173c refactor: 键盘兼容层收敛为软键盘可见性单一规则` |
 | 规模 | `TermuxActivity` 2235 行；`commands/` 7 文件 1062 行；`ext/` 9 个扩展 + api/host；`terminal/` 6 文件 |
 | 验证 | 本机 `:terminal-view:compileDebugJavaWithJavac`、`:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 186 项、1 项既有失败 |
 
@@ -123,13 +123,14 @@
 - [x] `ime-input-type`（`auto`/`text`/`password`/`none`）与 `ImeInputType`、键盘页设置项、`ImeInputTypeTest` 6 项（`a5cba39`）
 - [x] 输入法事件日志钩子（`onImeEvent`）与 Tab / Shift+Tab 直通（只读模块 + `app/`）
 - [x] 真机日志定位：字母只出现在 `[activity]`、随后逐字符 `[ime] commitText(...)`，Tab 由 `handleTerminalTab` 直接写入 PTY，字符与按键分属两条通道导致顺序错乱
-- [x] `ime-input-type=hardware`：接有物理键盘且软键盘收起时上报 `TYPE_NULL`，物理按键直通终端；硬件键盘判断复用 `KeyboardUtils.isHardKeyboardConnected()`，键盘接入/拔出时重启输入连接
-- [x] `hardware` 随软键盘可见性切换：弹出时按文本框上报（输入法悬浮栏与拼音候选可用），收起时回到直通；可见性取自既有全局布局回调，变化时重启输入连接
-- [x] Tab 直通并入额外键栏锁定的虚拟 SHIFT，日志补 `imeInputType`、`hardwareKeyboard`、`softKeyboardVisible`
-- [x] `ImeInputTypeTest` 扩至 9 项
-- [ ] 待真机验收：`hardware` 模式下 lazyvim 插入模式 Tab、Ctrl/Alt 组合键、node TUI 输入顺序
-- [ ] 待真机验收：`hardware` 模式下弹出软键盘后中文（拼音）输入、收起后物理键恢复直通；重启输入连接是否引起软键盘闪烁
-- [ ] 待真机验收：`text` 模式下 Gboard 悬浮栏、组合文本残留
+- [x] 根因确认：输入法把终端当文本框时会取走物理键的按下事件（含 Tab），日志中只剩 `action=up` 与 `commitText`，应用层拦截 Tab 不可能生效
+- [x] 删除 `ime-input-type`（5 个取值）、`ImeInputType`、设置项与相关文案；删除活动层 Tab 拦截 `handleTerminalTab()`；删除与 `KeyboardUtils` 重复的 `HardwareKeyboard`
+- [x] 收敛为唯一规则 `TermuxTerminalViewClient.resolveInputType()`：接有硬件键盘且软键盘收起时 `TYPE_NULL`，软键盘可见时文本框类型，无硬件键盘时用视图类型
+- [x] 键盘接入/拔出、软键盘显示/隐藏、属性重载时重启输入连接
+- [x] `TerminalInputTypeTest` 4 项覆盖规则分支
+- [ ] 待真机验收：`cat -v` 下 Tab 输出 `^I`；lazyvim 插入模式、Ctrl/Alt 组合键、node TUI 输入顺序
+- [ ] 待真机验收：弹出软键盘后中文（拼音）输入、收起后恢复直通；重启输入连接是否引起软键盘闪烁
+- [ ] 待真机验收：日志中 `reported=0x0` 与 `[terminal-view]` 按键行是否成对出现
 - [ ] 待验证：`keyboard-compat-log` 日志能否区分三条按键路径；改绑快捷键在硬件键盘下的表现
 
 ---
@@ -202,7 +203,7 @@
 | 项 | 状态 |
 | --- | --- |
 | `:app:compileDebugJavaWithJavac` | 通过（本机） |
-| `:app:testDebugUnitTest` | 190 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现）；`terminal/*` 21 项全部通过 |
+| `:app:testDebugUnitTest` | 184 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现）；`terminal/*` 15 项全部通过 |
 | `:app:assembleDebug` | 未执行，本机 NDK 缺 `libc++_shared` |
 | 设备验证 | 2026-11-23 首次真机试机：启动即崩溃（资源文件中的旧类名，见 `app/DECISIONS.md` #16），已修复并补 `ResourceClassNameTest`；其余行为仍未验证 |
 | CI | 推送后由 PR 触发；本机无 `gh`，状态待确认 |

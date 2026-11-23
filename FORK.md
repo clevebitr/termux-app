@@ -2124,42 +2124,29 @@ mouse-right-click = auto     # auto（默认）| forward | palette
 设置路径：命令面板设置页（原「长按菜单」页）→「鼠标右键」。`forward` 适合接显示器用鼠标操作、
 不希望误触弹出面板的场景。
 
-### 37.3 输入法兼容（`ime-input-type`）
+### 37.3 键盘兼容（无选项）
 
-连接硬件键盘时，Gboard 等输入法只在「看起来是普通文本输入框」的组件上显示悬浮栏。终端默认上报
-`TYPE_NULL` 或 `VISIBLE_PASSWORD`，输入法因此不显示悬浮栏；把取值设为 `text` 后终端按普通文本框上报：
+键盘兼容层不提供任何可调项，只遵循一条规则：**终端上报给输入法的类型由「软键盘是否可见」决定。**
 
-```properties
-ime-input-type = auto     # auto（默认）| text | password | none | hardware
-```
+| 硬件键盘 | 软键盘 | 上报类型 | 结果 |
+| --- | --- | --- | --- |
+| 有 | 收起 | `TYPE_NULL` | 输入法不介入，Tab、Ctrl/Alt 组合键、方向键与字符全部直达终端，与桌面终端一致 |
+| 有 | 弹出 | `TYPE_CLASS_TEXT \| NO_SUGGESTIONS \| NORMAL` | 输入法显示悬浮栏与候选词，软键盘与物理键盘都能打拼音，提交文本经输入连接写入终端 |
+| 无 | 任意 | 上游逻辑（`gboard-cjk-workaround` 等属性算出的类型） | 与上游一致 |
 
-| 取值 | 上报的输入类型 | 用途 |
-| --- | --- | --- |
-| `auto` | 视图按属性与 IME 语言算出的值 | 与上游一致 |
-| `text` | `TYPE_CLASS_TEXT \| NO_SUGGESTIONS \| NORMAL` | 让输入法显示悬浮栏与编辑能力，但不接收联想文本 |
-| `password` | `TYPE_CLASS_TEXT \| NO_SUGGESTIONS \| VISIBLE_PASSWORD` | 旧输入法兼容 |
-| `none` | `TYPE_NULL` | 最纯的终端语义 |
-| `hardware` | 接有硬件键盘且软键盘收起时 `TYPE_NULL`；软键盘弹出时按文本框上报；未接键盘时同 `auto` | 物理按键直通终端，需要中文时弹出软键盘 |
-
-`auto`、`text` 与 `password` 属于文本类输入类型，输入法会把物理按键先收进自己，再以 `commitText` 提交文本。
-字符因此与 Tab、方向键、Enter 走两条通道：按键立即写入终端，字符要等输入法提交，顺序可能错乱，`vim` 插入
-模式与 node 写的 TUI 对顺序敏感，表现为 Tab「没有反应」或文字跑到光标之后。
-
-`hardware` 让输入法不接管物理按键：接有硬件键盘且软键盘收起期间上报 `TYPE_NULL`，Tab、Ctrl/Alt 组合键、
-方向键与字符全部由终端视图处理，行为与桌面终端一致。键盘接入或拔出时应用会自动重启输入连接，无需重启应用。
+这样做的原因：输入法一旦把终端当作文本框，就会先把物理按键的按下事件收进自己，再以 `commitText` 提交文本，
+Tab 也会被一并收走。实测日志（`~/.termux/keyboard-compat.log`）中，Gboard 中文模式下应用只能看到按键的抬起
+事件，字母的按下事件全部缺失，因此任何"在应用层拦截 Tab"的做法都不可能生效。唯一有效的做法是让输入法在
+不需要它的时候不接管物理键盘。
 
 中文输入由软键盘触发，不需要额外开关：
 
 1. 需要输入中文时弹出软键盘（点击终端、`Ctrl+Alt+K` 或额外键的键盘键）；
-2. 软键盘弹出期间终端按文本框上报，输入法显示悬浮栏与候选词，软键盘与物理键盘都可用来打拼音，提交的
-   文本经输入连接写入终端；
+2. 软键盘弹出期间终端按文本框上报，输入法显示悬浮栏与候选词，软键盘与物理键盘都可用来打拼音；
 3. 收起软键盘后自动回到直通状态，物理按键重新直达终端。
 
-因此「物理键直通」与「输入法组合」共用同一个状态：软键盘可见即由输入法接管，不可见即直通。Android 5.0 与
-6.0 读不到软键盘可见性，这两个版本上 `hardware` 始终按文本框上报（等同 `text`）。
-
-设置路径：终端键盘页 →「硬件键盘与输入法」。切换后输入法会重新读取类型（`restartInputConnection`）。
-完整设计见 `docs/KEYBOARD_COMPAT.md`。
+键盘接入或拔出、软键盘显示或隐藏时，应用都会重启输入连接，输入法因此重新读取类型，无需重启应用。Android 5.0
+与 6.0 读不到软键盘可见性，这两个版本上始终按文本框上报。完整设计见 `docs/KEYBOARD_COMPAT.md`。
 
 ### 37.4 键盘诊断日志（`keyboard-compat-log`）
 
@@ -2173,14 +2160,12 @@ keyboard-compat-log = true   # 默认 false
 
 | 日志前缀 | 来源 |
 | --- | --- |
-| `[activity]` | 窗口级按键分发、Tab 直通、命令快捷键命中 |
+| `[activity]` | 窗口级按键分发与命令快捷键命中 |
 | `[terminal-view]` | 终端视图收到的按键 |
-| `[ime]` | 上报的输入类型与输入法提交的文本 |
+| `[ime]` | 上报的输入类型（`hardwareKeyboard`、`softKeyboardVisible`、`reported`）与输入法提交的文本 |
 
-Tab 直通：未修饰的 Tab 与 Shift+Tab 由活动直接交给终端（Shift+Tab 发送反向制表符），额外键栏锁定的虚拟
-SHIFT 同样计入；避免被窗口的焦点切换吞掉。只有当搜索栏或工具栏文本框获得焦点时，Tab 才留给文本框自己处理。
-日志中的 `sent Tab` / `sent Shift+Tab` 行同时记录 `imeInputType` 与 `hardwareKeyboard`，用来判断当时的输入类型
-是否让输入法接管了物理按键。
+排障判据：直通状态下每个按键都应有一条 `[terminal-view]`；若只有 `[activity]` 的 `action=up` 而没有按下事件、
+也没有 `[terminal-view]`，说明输入法正在接管物理键盘，此时 `[ime] getInputType` 的 `reported` 必然不是 `0x0`。
 日志除了 logcat 之外还写入 `~/.termux/keyboard-compat.log`（超过 128KB 自动重建），可直接在 Termux 里查看：
 
 ```sh
