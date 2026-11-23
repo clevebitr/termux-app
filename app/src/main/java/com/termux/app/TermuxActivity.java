@@ -1513,14 +1513,23 @@ public final class TermuxActivity extends AppCompatActivity
         }
 
         TerminalView terminalView = focusedTerminalView();
-        if (terminalView == null) return false;
+        if (terminalView == null || terminalView.getCurrentSession() == null) return false;
 
-        int keyMod = event.isShiftPressed() ? KeyHandler.KEYMOD_SHIFT : 0;
+        // The extra keys row can latch SHIFT as a virtual key, which the key event itself does not report, so
+        // the same source is used as in `TerminalView.onKeyDown()`.
+        TermuxTerminalViewClient viewClient =
+            mTermuxTerminalViewClients[terminalView == mTerminalViews[1] ? 1 : 0];
+        boolean shiftDown = event.isShiftPressed() || (viewClient != null && viewClient.readShiftKey());
+
+        int keyMod = shiftDown ? KeyHandler.KEYMOD_SHIFT : 0;
         if (terminalView.handleKeyCode(KeyEvent.KEYCODE_TAB, keyMod)) {
             if (mKeyboardCompatLog) {
-                KeyboardCompatLog.log("activity", "sent Tab to the terminal, focus on " + describeFocus()
+                KeyboardCompatLog.log("activity", "sent " + (shiftDown ? "Shift+Tab" : "Tab")
+                    + " to the terminal, focus on " + describeFocus()
                     + ", pane=" + (terminalView == mTerminalViews[1] ? 1 : 0)
                     + ", activePane=" + (terminalView == mTerminalView)
+                    + ", imeInputType=" + mImeInputType.getValue()
+                    + ", hardwareKeyboard=" + mHardwareKeyboardAttached
                     + ", pid=" + (terminalView.getCurrentSession() != null
                         ? terminalView.getCurrentSession().getPid() : -1));
             }
