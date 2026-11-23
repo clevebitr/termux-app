@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The shape tokens of the fork. They follow the corner sizes of Material 3, so that every surface of the app
+      uses the same rounding language: the large radius of a dialog or a floating window, the medium radius of the
+      rows, cards and chips inside it.
+    -->
+
+    <!-- The corner radius of the dialogs and floating windows, like the command palette and the terminal menu. -->
+    <dimen name="termux_dialog_corner_radius">16dp</dimen>
+    <!-- The corner radius of rows, cards and chips that are drawn inside a dialog or over the terminal. -->
+    <dimen name="termux_row_corner_radius">12dp</dimen>
+    <!-- The corner radius of a small chip, like the shortcut of a command. -->
+    <dimen name="termux_chip_corner_radius">8dp</dimen>
+
+    <!-- The horizontal margin between a floating window and the edge of the screen. -->
+    <dimen name="termux_dialog_margin">16dp</dimen>
+    <!-- The maximum width of a dialog, so that it does not stretch over a tablet in landscape. -->
+    <dimen name="termux_dialog_max_width">360dp</dimen>
+
+    <!-- The padding of the content of a dialog, which follows the 24dp of the Material 3 dialog. -->
+    <dimen name="termux_dialog_padding">24dp</dimen>
+    <!-- The min height and the padding of the text buttons in the footer of a dialog. -->
+    <dimen name="termux_dialog_button_height">48dp</dimen>
+</resources>

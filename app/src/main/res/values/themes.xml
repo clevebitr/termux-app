@@ -61,9 +61,9 @@
     </style>
 
     <!--
-      The dialogs of the fork are square tui windows instead of the Material 3 pill shaped sheets, so the
-      overlay only provides the color roles that the platform and the shared library dialogs need, and the
-      shape is applied by the dialogs that the fork draws itself.
+      The platform and the shared library dialogs are drawn by the fork on a Material 3 surface and rounded by
+      the same corner token that the dialogs of the fork use for their own windows, so that a dialog looks the
+      same whichever layer creates it.
     -->
     <style name="ThemeOverlay.Termux.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Termux.Dialog</item>
@@ -71,7 +71,7 @@
 
     <style name="ShapeAppearance.Termux.Dialog" parent="">
         <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">0dp</item>
+        <item name="cornerSize">@dimen/termux_dialog_corner_radius</item>
     </style>
 
 

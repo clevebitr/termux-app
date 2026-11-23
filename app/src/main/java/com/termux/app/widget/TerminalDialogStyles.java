@@ -14,18 +14,54 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.app.widget.ColorSchemeColors;
+import com.termux.R;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalColorScheme;
 
 /**
- * The colors and the drawables that the dialogs of the fork share, like the terminal context menu and the
- * recent notifications dialog, so that they all look like a tui window with square corners, a 1dp accent
- * border and the colors of the termux color scheme.
+ * The colors, the shapes and the drawables that the dialogs of the fork share, like the terminal context menu,
+ * the recent notifications dialog and the window of the Material 3 dialogs, so that they all use the same
+ * color scheme colors and the same rounded corner tokens.
  */
 public final class TerminalDialogStyles {
 
+    /** The rounding of a dialog window, which is the large corner size of Material 3. */
+    public static final int DIALOG_CORNER_DP = 16;
+    /** The rounding of a row, a card or a chip inside a dialog, which is the medium corner size of Material 3. */
+    public static final int ROW_CORNER_DP = 12;
+
     private TerminalDialogStyles() {
+    }
+
+    /** @return The corner radius of a dialog window in pixels, from the shape tokens of the app. */
+    public static int dialogCornerRadiusPx(@NonNull Context context) {
+        return context.getResources().getDimensionPixelSize(R.dimen.termux_dialog_corner_radius);
+    }
+
+    /** @return The corner radius of a row, a card or a chip in pixels, from the shape tokens of the app. */
+    public static int rowCornerRadiusPx(@NonNull Context context) {
+        return context.getResources().getDimensionPixelSize(R.dimen.termux_row_corner_radius);
+    }
+
+    /** @return The horizontal margin between a dialog and the edge of the screen in pixels. */
+    public static int dialogMarginPx(@NonNull Context context) {
+        return context.getResources().getDimensionPixelSize(R.dimen.termux_dialog_margin);
+    }
+
+    /** @return The maximum width of a dialog in pixels. */
+    public static int dialogMaxWidthPx(@NonNull Context context) {
+        return context.getResources().getDimensionPixelSize(R.dimen.termux_dialog_max_width);
+    }
+
+    /** @return The padding of the content of a dialog in pixels. */
+    public static int dialogPaddingPx(@NonNull Context context) {
+        return context.getResources().getDimensionPixelSize(R.dimen.termux_dialog_padding);
+    }
+
+    /** @return The minimum height of a text button of a dialog in pixels. */
+    public static int dialogButtonHeightPx(@NonNull Context context) {
+        return context.getResources().getDimensionPixelSize(R.dimen.termux_dialog_button_height);
     }
 
     /** @return The background color of a dialog, which is derived from the color scheme if not set. */
@@ -48,6 +84,27 @@ public final class TerminalDialogStyles {
         return accent | 0xFF000000;
     }
 
+    /** @return The background of a dialog, with the rounded corners and the accent border of a dialog window. */
+    @NonNull
+    public static GradientDrawable createDialogWindowBackground(@NonNull Context context, int backgroundColor,
+                                                                int accentColor) {
+        return createDialogBackgroundPx(context, backgroundColor, accentColor, dialogCornerRadiusPx(context),
+            dp(context, 1));
+    }
+
+    /** @return The background of a dialog, with the given corner radius and border width in pixels. */
+    @NonNull
+    public static GradientDrawable createDialogBackgroundPx(@NonNull Context context, int backgroundColor,
+                                                            int accentColor, int cornerRadiusPx, int borderWidthPx) {
+        GradientDrawable background = new GradientDrawable();
+        background.setShape(GradientDrawable.RECTANGLE);
+        background.setCornerRadius(cornerRadiusPx);
+        background.setColor(backgroundColor);
+        if (borderWidthPx > 0)
+            background.setStroke(borderWidthPx, accentColor);
+        return background;
+    }
+
     /** @return The background of a dialog, with square corners and a 1dp accent border by default. */
     @NonNull
     public static GradientDrawable createDialogBackground(@NonNull Context context, int backgroundColor,
@@ -63,7 +120,16 @@ public final class TerminalDialogStyles {
 
     /**
      * @return The background of a row of a dialog, which highlights it with the accent color while it is
-     *         pressed, instead of a ripple, so that the rows look like part of a tui window.
+     *         pressed, instead of a ripple, so that the rows look like part of a rounded dialog.
+     */
+    @NonNull
+    public static StateListDrawable createRowBackground(@NonNull Context context, int accentColor) {
+        return createRowBackground(context, accentColor, ROW_CORNER_DP);
+    }
+
+    /**
+     * @return The background of a row of a dialog, which highlights it with the accent color while it is
+     *         pressed, instead of a ripple, so that the rows look like part of a rounded dialog.
      */
     @NonNull
     public static StateListDrawable createRowBackground(@NonNull Context context, int accentColor, int cornerRadiusDp) {
