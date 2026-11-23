@@ -229,3 +229,20 @@
 结果：扩展增至 7 个（statusbar/menu/notifications/volumekeys/search/drawer/backup）；`TermuxActivity` 2084 → 2089 行（搜索与抽屉的转发方法略多于被删除的创建代码，但功能实现已全部离开终端包）。
 
 未验证：搜索条与抽屉在真机上的显示、把手位置、列表绑定时机（服务连接后）与禁用后的行为未验证；本机 `:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest --rerun-tasks` 169 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。
+
+## 2026-11-23 — 迁移分屏扩展，扩展查询收敛为类型化查找
+
+本轮两件事：扩展查询 API 收敛（767c575），分屏迁移（596e946）。
+
+一、`ExtensionHost.find/findRunning`
+- 新增 `find(Class<T>)` 与 `findRunning(Class<T>)`：前者只按类型取实例，后者同时判断「可运行」，宿主调用点一律用后者，避免忘记状态检查而运行已禁用的功能。
+- 替换 6 处 `instanceof` 强转（Activity 的 search/drawer/notifications/statusbar/menu 查询、会话客户端的通知查询、视图客户端的音量键查询、通知扩展的状态栏配置查询）。
+- 约束写入 `docs/API_INDEX.md`：取扩展实例只用 `findRunning`，不再写 `instanceof` 强转。
+
+二、`ext.split`
+- `TerminalSplitScreenController` 迁入 `ext/split/`，构造参数由 `TermuxActivity` 改为 `Context`（它只用 `getDrawable` 与 `dpToPx`），测试同步迁移。
+- 新增 `SplitScreenExtension`：id=split，默认启用，槽位 `terminal_panes_container` 与 `terminal_split_divider`；onEnable 创建控制器并装配分隔条拖拽；onDisable 关闭分屏、恢复单窗格布局并清除活动窗格边框；对外提供 isEnabled/setEnabled/getOrientation/setOrientation/getPaneRatio/setPaneRatio/updateLayout/updatePaneActiveStates。
+- 归属划分（迁移前必须先定的设计点）：扩展拥有几何与状态（排列、比例、分隔条、边框），宿主拥有会话与视图（副窗格会话的查找与创建、`mTerminalViews` 的挂载）。因此 `TermuxActivity.setSplitScreen()` 保留为编排入口，分屏请求在扩展缺失时直接忽略；`saveInstanceState`/恢复同样经由扩展读写方向与比例。
+- 效果：`ext/` 现含 8 个扩展（statusbar/menu/notifications/volumekeys/search/drawer/split/backup），`terminal/` 包只剩 6 个文件。
+
+未验证：分屏的排列、拖拽比例、活动窗格边框、状态保存与恢复、禁用后回到单窗格，均未在真机验证；本机 `:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest --rerun-tasks` 169 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。
