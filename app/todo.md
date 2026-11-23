@@ -12,8 +12,8 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `53079b2 feat: 新增扩展视图槽位与通用布局请求` |
-| 规模 | `TermuxActivity` 2194 行；`commands/` 5 文件 491 行；`ext/` 34 文件 4700 行（`statusbar` 7、`menu` 7、`volumekeys` 4、`backup` 3） |
+| 最近提交 | `db99dc9 refactor: 将通知体系提取为 notifications 扩展` |
+| 规模 | `TermuxActivity` 2084 行；`commands/` 5 文件 491 行；`ext/` 49 文件 7600 行（`notifications` 15、`statusbar` 7、`menu` 7、`volumekeys` 4、`backup` 3、`api` 6、`host` 7） |
 | 验证 | 本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 164 项、1 项既有失败 |
 
 ---
@@ -50,6 +50,7 @@
 - [x] `ext.menu` 迁移：动作枚举、规则、配置、对话框与设置页迁入扩展包；新增 `TerminalMenuExtension`（默认启用、页面闸门、属性重载、`showMenu()`/`getConfig()`）；宿主 `showTerminalMenu()` 与 `getTerminalMenuConfig()` 改为转发（`2a623ce`、`#9`）
 - [x] `ext.volumekeys` 迁移：动作派发迁入 `VolumeKeyActions`（`Host` 接口），音量键设置从键盘页拆出为独立页，新增 `VolumeKeysExtension` 与闸门；状态机仍由视图客户端持有（`d418a90`、`#10`）
 - [x] 视图槽位贡献点：`ExtensionViewSlot` + `Extension.slots()`、`ExtensionContext.view()`、`ExtensionContext.requestExtensionLayout()` + `ExtensionLayoutHost`、`ExtensionHost.slotOwner()`，2 项守卫测试（`53079b2`、`#11`）
+- [x] `ext.notifications` 迁移：管理器、三个事件适配器、叠层、历史、测试通知与设置页迁入扩展包；宿主改为转发命令结束/标题/会话结束/响铃/OSC 事件（`db99dc9`、`#12`）
 
 ### 2.5 文档与治理
 
@@ -82,13 +83,12 @@
 - [x] 页面闸门：禁用后停止刷新并清空视图
 - [ ] 待验证：位置（上/下）、overlay、内边距、分段点击、禁用后留白消失
 
-### 4.3 `ext.notifications`（13 文件 2704 行）
+### 4.3 `ext.notifications`（已迁移，待真机验证）
 
-- [x] 视图槽位贡献点（`notification_overlay` 可声明）
-- [ ] 事件源贡献点（命令结束、应用事件）
-- [ ] 依赖 `ext.statusbar`（可选依赖）与事件源贡献点
-- [ ] 迁移卡片、后台通知、历史列表与设置页
-- [ ] 验收：禁用后卡片、后台通知与历史全部停止
+- [x] 视图槽位（`notification_overlay`）与状态栏内距查询
+- [x] 迁移卡片、后台通知、历史、测试通知与设置页
+- [x] 事件转发：命令结束、标题变化、会话结束、响铃、OSC 99 由宿主转给扩展
+- [ ] 待验证：禁用后卡片与历史停止、测试通知四种样式、OSC 图标开关
 
 ### 4.4 其他扩展
 

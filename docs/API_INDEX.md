@@ -74,7 +74,7 @@
 | `ForkProperties` | `properties/ForkProperties.java` | 读取 `termux.properties` 中**不在共享库列表内**的 fork 属性 | 不要各自 `Properties.load` |
 | `TermuxAppSharedProperties` | `termux-shared`（只读） | 共享库已解析的属性（终端边距、内边距等） | 不要重复解析共享库已覆盖的键 |
 | `StatusBarConfig` | `ext/statusbar/StatusBarConfig.java` | `status-bar-*` 解析结果（含 `Segment` 与动作常量） | 不要另解析 `status-bar-*` |
-| `NotificationConfig` | `notifications/NotificationConfig.java` | `notification-*` 解析结果 | 不要另解析 `notification-*` |
+| `NotificationConfig` | `ext/notifications/NotificationConfig.java` | `notification-*` 解析结果 | 不要另解析 `notification-*` |
 
 ---
 
@@ -91,15 +91,15 @@
 
 ---
 
-## 6. 通知与事件（`com.termux.app.notifications`）
+## 6. 通知与事件（`com.termux.app.ext.notifications`）
 
 | 类 | 路径 | 职责 | 不要重复实现 |
 | --- | --- | --- | --- |
-| `TerminalNotificationManager` | `notifications/TerminalNotificationManager.java` | 卡片、后台通知与历史的总调度；`Listener` 回调 | 不要在别处直接展示通知卡片 |
-| `NotificationOverlayView` | `notifications/NotificationOverlayView.java` | 卡片叠层与布局（含状态栏内距） | 不要另算卡片位置 |
-| `RecentNotifications` / `RecentNotificationsDialog` | `notifications/` | 最近通知列表与对话框 | 不要另写历史列表 |
-| `OscNotificationHandler` / `OscRateLimiter` | `notifications/` | OSC 9/99/777 解析与限流 | 不要另写 OSC 通知解析 |
-| `ExitCodeNotifier` / `AppEventNotifier` / `BackgroundNotifier` | `notifications/` | 失败命令、应用事件、后台通知 | 不要另写通知触发通道 |
+| `TerminalNotificationManager` | `ext/notifications/TerminalNotificationManager.java` | 卡片、后台通知与历史的总调度；`Listener` 回调 | 不要在别处直接展示通知卡片 |
+| `NotificationOverlayView` | `ext/notifications/NotificationOverlayView.java` | 卡片叠层与布局（含状态栏内距） | 不要另算卡片位置 |
+| `RecentNotifications` / `RecentNotificationsDialog` | `ext/notifications/` | 最近通知列表与对话框 | 不要另写历史列表 |
+| `OscNotificationHandler` / `OscRateLimiter` | `ext/notifications/` | OSC 9/99/777 解析与限流 | 不要另写 OSC 通知解析 |
+| `ExitCodeNotifier` / `AppEventNotifier` / `BackgroundNotifier` | `ext/notifications/` | 失败命令、应用事件、后台通知 | 不要另写通知触发通道 |
 
 ---
 
@@ -108,6 +108,7 @@
 | 扩展 | 路径 | 提供的能力 | 宿主接口 |
 | --- | --- | --- | --- |
 | `statusbar` | `ext/statusbar/` | `StatusBarConfig`/`StatusBarView`/`StatusBarController`/`StatusBarMetrics`/`SparklineView`/`StatusBarPreferencesFragment`，`StatusBarExtension.getConfig()` 供宿主查询 | 槽位 `status_bar_view`；`ExtensionLayoutHost.requestExtensionLayout()` |
+| `notifications` | `ext/notifications/` | `TerminalNotificationManager`（卡片/后台通知/历史）、三个事件适配器、叠层视图与设置页；`NotificationsExtension` 提供事件转发与 `getManager()` | `TermuxActivity.getTerminalNotificationManager()`、`onCommandFinished`/`onBell`/`onOscNotification` 等转发方法 |
 | `volume-keys` | `ext/volumekeys/` | `VolumeKeyActions`（动作派发，`Host` 接口）、`VolumeKeysExtension.perform(...)`、`VolumeKeysPreferencesFragment`；宿主侧状态机留在 `TermuxTerminalViewClient` | `ExtensionHost.isRunning()` 闸门 + `VolumeKeyActions.Host` |
 | `menu` | `ext/menu/` | `TerminalMenuAction`/`TerminalMenuItems`/`TerminalMenuConfig`/`TerminalMenuDialog`/`TerminalMenuExtension`/`TerminalMenuPreferencesFragment` 与两个有序列表偏好项；`getConfig()` 供宿主查询选择工具条动作 | `TermuxActivity.showTerminalMenu()`、`getTerminalMenuConfig()` |
 | `backup` | `ext/backup/` | `TermuxBackupUtils`（脚本解压与执行）、`BackupPreferencesFragment` | 无 |
