@@ -1,6 +1,6 @@
 package com.termux.app.commands;
 
-import com.termux.app.terminal.menu.TerminalMenuAction;
+import com.termux.app.ext.menu.TerminalMenuAction;
 
 import org.junit.Assert;
 import org.junit.Test;

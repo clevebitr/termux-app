@@ -5,8 +5,8 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 
 import com.termux.R;
-import com.termux.app.terminal.menu.TerminalMenuAction;
-import com.termux.app.terminal.menu.TerminalMenuItems;
+import com.termux.app.ext.menu.TerminalMenuAction;
+import com.termux.app.ext.menu.TerminalMenuItems;
 
 import java.util.ArrayList;
 import java.util.List;

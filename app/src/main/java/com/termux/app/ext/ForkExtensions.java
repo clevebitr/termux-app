@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 
 import com.termux.app.ext.api.Extension;
 import com.termux.app.ext.backup.BackupExtension;
+import com.termux.app.ext.menu.TerminalMenuExtension;
 import com.termux.app.ext.statusbar.StatusBarExtension;
 
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ public final class ForkExtensions {
         // The status bar is started first, since the other extensions draw around the terminal and may need to
         // know whether it takes space from it.
         extensions.add(new StatusBarExtension());
+        extensions.add(new TerminalMenuExtension());
         extensions.add(new BackupExtension());
         return Collections.unmodifiableList(extensions);
     }

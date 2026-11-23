@@ -1,4 +1,4 @@
-package com.termux.app.terminal.menu;
+package com.termux.app.ext.menu;
 
 import com.termux.shared.logger.Logger;
 

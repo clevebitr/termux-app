@@ -1,4 +1,4 @@
-package com.termux.app.fragments.settings.termux;
+package com.termux.app.ext.menu;
 
 import android.content.Context;
 import android.util.AttributeSet;
@@ -7,11 +7,12 @@ import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.termux.app.terminal.menu.TerminalMenuAction;
-import com.termux.app.terminal.menu.TerminalMenuConfig;
+import com.termux.app.ext.menu.TerminalMenuAction;
+import com.termux.app.ext.menu.TerminalMenuConfig;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.termux.app.fragments.settings.termux.OrderedItemsPreference;
 
 /**
  * A {@link OrderedItemsPreference} that edits the actions of the terminal context menu, which are

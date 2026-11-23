@@ -48,10 +48,11 @@
             app:fragment="com.termux.app.ext.statusbar.StatusBarPreferencesFragment"/>
 
         <Preference
+            app:key="terminal-menu"
             app:icon="@drawable/ic_pref_menu"
             app:title="@string/termux_terminal_menu_preferences_title"
             app:summary="@string/termux_terminal_menu_preferences_summary"
-            app:fragment="com.termux.app.fragments.settings.termux.TerminalMenuPreferencesFragment"/>
+            app:fragment="com.termux.app.ext.menu.TerminalMenuPreferencesFragment"/>
 
     </PreferenceCategory>
 

@@ -4,7 +4,7 @@ import androidx.annotation.NonNull;
 
 import com.termux.R;
 import com.termux.app.TermuxActivity;
-import com.termux.app.terminal.menu.TerminalMenuAction;
+import com.termux.app.ext.menu.TerminalMenuAction;
 import com.termux.shared.termux.interact.TextInputDialogUtils;
 
 /**

@@ -1,4 +1,4 @@
-package com.termux.app.fragments.settings.termux;
+package com.termux.app.ext.menu;
 
 import android.content.Context;
 import android.util.AttributeSet;
@@ -8,10 +8,11 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.R;
-import com.termux.app.terminal.menu.TerminalMenuConfig;
+import com.termux.app.ext.menu.TerminalMenuConfig;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.termux.app.fragments.settings.termux.OrderedItemsPreference;
 
 /**
  * A {@link OrderedItemsPreference} that edits the actions of the floating text selection toolbar,

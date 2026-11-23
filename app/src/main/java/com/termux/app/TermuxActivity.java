@@ -32,15 +32,15 @@ import android.widget.Toast;
 import com.termux.R;
 import com.termux.app.api.file.FileReceiverActivity;
 import com.termux.app.notifications.NotificationConfig;
-import com.termux.app.properties.ForkProperties;
 import com.termux.app.notifications.NotificationOverlayView;
 import com.termux.app.notifications.RecentNotifications;
 import com.termux.app.notifications.RecentNotificationsDialog;
-import com.termux.app.terminal.menu.TerminalMenuAction;
-import com.termux.app.terminal.menu.TerminalMenuConfig;
-import com.termux.app.terminal.menu.TerminalMenuDialog;
-import com.termux.app.terminal.menu.TerminalMenuItems;
+import com.termux.app.ext.menu.TerminalMenuAction;
+import com.termux.app.ext.menu.TerminalMenuConfig;
+import com.termux.app.ext.menu.TerminalMenuItems;
 import com.termux.app.notifications.TerminalNotificationManager;
+import com.termux.app.ext.menu.TerminalMenuConfig;
+import com.termux.app.ext.menu.TerminalMenuExtension;
 import com.termux.app.ext.statusbar.StatusBarConfig;
 import com.termux.app.terminal.TerminalDrawerController;
 import com.termux.app.terminal.TerminalSearchController;
@@ -212,7 +212,7 @@ public final class TermuxActivity extends AppCompatActivity
     private int mTestNotificationCount;
 
     /** The configuration of the terminal context menu and of the text selection toolbar. */
-    private TerminalMenuConfig mTerminalMenuConfig = new TerminalMenuConfig();
+
 
     /**
      * The terminal extra keys view.
@@ -380,7 +380,6 @@ public final class TermuxActivity extends AppCompatActivity
         setMargins();
         setTerminalPadding();
         setUpNotificationOverlay();
-        reloadTerminalMenuConfig();
 
         mTermuxActivityRootView = findViewById(R.id.activity_termux_root_view);
         mTermuxActivityRootView.setActivity(this);
@@ -1299,44 +1298,32 @@ public final class TermuxActivity extends AppCompatActivity
         return false;
     }
 
-    /** Reload the configuration of the terminal context menu and of the text selection toolbar. */
-    private void reloadTerminalMenuConfig() {
-        mTerminalMenuConfig = TerminalMenuConfig.parse(ForkProperties.readTermuxProperties());
-    }
-
-    /** @return The configuration of the terminal context menu and of the text selection toolbar. */
+    /**
+     * @return The configuration of the terminal context menu and of the text selection toolbar, read from the
+     *         terminal menu extension, or an empty configuration while the extension is disabled.
+     */
     @NonNull
     public TerminalMenuConfig getTerminalMenuConfig() {
-        return mTerminalMenuConfig;
+        Extension extension = ExtensionHost.get(this).extension(TerminalMenuExtension.ID);
+        return extension instanceof TerminalMenuExtension
+            ? ((TerminalMenuExtension) extension).getConfig() : new TerminalMenuConfig();
     }
 
     /**
-     * Show the terminal context menu, which is a styled dialog instead of the system context menu, with
-     * the actions and the order that the `terminal-menu-items` property defines.
+     * Show the terminal context menu, which is implemented by the terminal menu extension.
      *
-     * The actions that cannot be used are not shown, like the action that shares the selected text when
-     * no text is selected, so that the menu only shows what the user can actually do.
+     * <p>A disabled extension shows nothing, since the menu belongs to it; the long press, the right click and the
+     * hardware menu key then fall back to the default behaviour of the terminal view.</p>
      */
     public void showTerminalMenu() {
-        TerminalSession session = getCurrentSession();
-        if (session == null || mTerminalView == null) return;
+        Extension extension = ExtensionHost.get(this).extension(TerminalMenuExtension.ID);
+        if (extension instanceof TerminalMenuExtension) ((TerminalMenuExtension) extension).showMenu();
+    }
 
-        TerminalMenuItems.State state = new TerminalMenuItems.State(
-            isSplitScreenEnabled(),
-            !DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText()),
-            mTerminalView.isAutoFillEnabled(),
-            mNotificationManager != null && mNotificationManager.isEnabled(),
-            // The list is only useful when a notification was shown since the app was started.
-            mNotificationManager != null && !mNotificationManager.getRecentNotifications().isEmpty(),
-            session.isRunning());
-
-        List<TerminalMenuDialog.Item> items = TerminalMenuItems.build(
-            mTerminalMenuConfig.menuItems, state, action -> action.getTitle(this, session));
-
-        if (items.isEmpty()) return;
-
-        TerminalMenuDialog.show(this, mTerminalMenuConfig, items, mShellCommandHost::runTerminalMenuAction,
-            () -> mTerminalView.unsetStoredSelectedText());
+    /** @return The manager of the notification cards and of the recent notifications, or {@code null}. */
+    @Nullable
+    public TerminalNotificationManager getNotificationManager() {
+        return mNotificationManager;
     }
 
     /** Run the action of an item of the terminal context menu, or of a command of the palette. */
@@ -2166,7 +2153,6 @@ public final class TermuxActivity extends AppCompatActivity
         }
 
         // Reload the `terminal-menu-*` and `selection-toolbar-items` properties.
-        reloadTerminalMenuConfig();
 
         // Update the terminal toolbar visibility in case the `hide-extra-keys-when-soft-keyboard-hidden`
         // property was changed or disabled while the soft keyboard was hidden, since the layout may not

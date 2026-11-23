@@ -2,7 +2,7 @@ package com.termux.app.commands;
 
 import androidx.annotation.NonNull;
 
-import com.termux.app.terminal.menu.TerminalMenuAction;
+import com.termux.app.ext.menu.TerminalMenuAction;
 import com.termux.shared.logger.Logger;
 
 import java.util.Collections;
