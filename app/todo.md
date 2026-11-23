@@ -139,6 +139,18 @@
 
 ---
 
+### 2.12 M1 标签页（进行中）
+
+- [x] `terminal/tabs/TerminalTab`：一个标签页 = 每个窗格的会话 + 活动窗格 + 可选自定义标题；`getTitle()` 优先自定义标题、其次活动会话标题、最后默认标题
+- [x] `terminal/tabs/TerminalTabs`：标签顺序与活动标签；新建即激活，移除活动标签后激活右邻（无右邻取左邻），越界忽略，id 单调递增
+- [x] `TerminalTabsTest` 7 项
+- [ ] `terminal/tabs/TerminalTabBar`：横向滚动标签栏，标签项（标题 + 关闭按钮）、末尾「+」、长按重命名；回调接口 `onTabSelected/onNewTab/onCloseTab/onRenameTab`
+- [ ] 布局：标签栏作为根 `TermuxActivityRootView`（垂直 LinearLayout）的第一个子视图，位于状态栏与终端之上；高度 `wrap_content`，随标签数量显示/隐藏
+- [ ] 活动接线：`mTabs` 持有标签；服务连接后把当前会话收进首个标签；`activateTab()` 先把当前会话写回活动标签，再把目标标签的会话 attach 到窗格（窗格 1 仅在分屏启用时）
+- [ ] 会话客户端：`setCurrentSession()` 改为「找到所属标签则激活，否则放入活动标签的非活动窗格或新建标签」；`onTitleChanged()` 刷新标签栏；会话结束时关闭其标签
+- [ ] 持久化：`onSaveInstanceState` 保存标签的 session handle 与活动标签，服务连接后恢复
+- [ ] 抽屉：会话列表按标签分组（M1 可后置）
+
 ### 2.11 窗格抽象（会话树前置）
 
 - [x] 新增 `terminal/layout/TerminalPaneHost` 接口与 `TwoPaneTerminalLayout` 实现：窗格数量、视图与视图客户端、活动窗格、按会话查窗格
