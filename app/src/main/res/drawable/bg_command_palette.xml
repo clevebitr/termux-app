@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The window background of the command palette, a Material 3 surface instead of the platform dialog frame. -->
+<!-- The window background of the command palette, a Material 3 surface rounded with the dialog corner token. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <solid android:color="?attr/colorSurface" />
-    <corners android:radius="16dp" />
+    <corners android:radius="@dimen/termux_dialog_corner_radius" />
 </shape>

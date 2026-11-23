@@ -58,6 +58,13 @@ public final class ShellCommandPalette {
         final CommandAdapter adapter = new CommandAdapter(activity, filtered);
         list.setAdapter(adapter);
 
+        // The list has a fixed height of 360dp in the layout, which is taller than the space that is left on a
+        // small screen once the soft keyboard is shown, so the height is capped to the space that is actually
+        // available instead of pushing the search field off the screen.
+        ViewGroup.LayoutParams listParams = list.getLayoutParams();
+        listParams.height = Math.min(listParams.height, maxListHeight(activity));
+        list.setLayoutParams(listParams);
+
         final androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(activity)
             .setView(content)
             .create();
@@ -132,6 +139,15 @@ public final class ShellCommandPalette {
 
         empty.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
         dialog.show();
+    }
+
+    /** @return The height that the list of the palette may take on the screen of {@code context}. */
+    private static int maxListHeight(@NonNull Context context) {
+        float density = context.getResources().getDisplayMetrics().density;
+        int screenHeight = context.getResources().getDisplayMetrics().heightPixels;
+        // The search field, the buttons of the dialog and the soft keyboard take the rest of the screen.
+        int reserved = Math.round(240 * density);
+        return Math.max(Math.round(160 * density), screenHeight - reserved);
     }
 
     /** Filter a candidate list into {@code out}. Pure, so that the matching rule can be reused and tested. */
