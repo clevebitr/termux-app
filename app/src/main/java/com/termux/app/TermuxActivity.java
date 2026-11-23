@@ -344,6 +344,10 @@ public final class TermuxActivity extends AppCompatActivity
 
         super.onCreate(savedInstanceState);
 
+        // The cutout mode and the fullscreen flag are window attributes, so they must be set before the content
+        // view is created and the layout is measured.
+        setDisplayCutoutMode();
+
         setContentView(R.layout.activity_termux);
 
         // Load termux shared preferences
@@ -361,7 +365,8 @@ public final class TermuxActivity extends AppCompatActivity
         mTermuxActivityRootView = findViewById(R.id.activity_termux_root_view);
         mTermuxActivityRootView.setActivity(this);
         mTermuxActivityBottomSpaceView = findViewById(R.id.activity_termux_bottom_space_view);
-        mTermuxActivityRootView.setOnApplyWindowInsetsListener(new TermuxActivityRootView.WindowInsetsListener());
+        mTermuxActivityRootView.setOnApplyWindowInsetsListener(
+            new TermuxActivityRootView.WindowInsetsListener(this));
 
         View content = findViewById(android.R.id.content);
         content.setOnApplyWindowInsetsListener((v, insets) -> {
@@ -765,6 +770,25 @@ public final class TermuxActivity extends AppCompatActivity
     }
 
 
+
+    /**
+     * 目的 — 让窗口在配置允许时使用刘海（display cutout）区域，避免全屏时顶部留下一条黑带。
+     *
+     * <p>行为 — `fullscreen=true` 时使用 {@code LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES}，终端可以绘制到位于
+     * 屏幕短边（顶部或底部）的挖孔区域；否则使用默认模式，内容避开挖孔，状态栏图标不被摄像头遮挡。</p>
+     *
+     * <p>约束 — 只能在 {@code onCreate()} 里、{@code setContentView()} 之前调用；属性变更需要重建 Activity
+     * 才生效，与 `fullscreen` 标志的现有行为一致。API 28 以下没有该属性，直接返回。</p>
+     */
+    private void setDisplayCutoutMode() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || mProperties == null) return;
+
+        WindowManager.LayoutParams attributes = getWindow().getAttributes();
+        attributes.layoutInDisplayCutoutMode = mProperties.isUsingFullScreen()
+            ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
+        getWindow().setAttributes(attributes);
+    }
 
     private void setActivityTheme() {
         // Update NightMode.APP_NIGHT_MODE. If the `night-mode` property is set to `color-scheme`,
