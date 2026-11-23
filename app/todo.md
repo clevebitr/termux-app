@@ -12,9 +12,9 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `6d203ab fix: 修正资源文件中迁移后失效的类名` |
+| 最近提交 | `6d1ee61 fix: 修正共用对话框未绘制窗口背景` |
 | 规模 | `TermuxActivity` 2100 行；`commands/` 5 文件 491 行；`ext/` 8 个扩展 + api/host；`terminal/` 仅剩 6 文件 |
-| 验证 | 本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 164 项、1 项既有失败 |
+| 验证 | 本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 177 项、1 项既有失败 |
 
 ---
 
@@ -66,9 +66,25 @@
 
 ---
 
+### 2.6 UI 层优化（2026-11-23）
+
+- [x] 形状令牌：`dimens.xml` 新增 `termux_dialog_corner_radius`（16dp）、`termux_row_corner_radius`（12dp）、`termux_chip_corner_radius`（8dp）与宽度/边距/内距；`ShapeTokenTest` 守卫 Java 常量与资源一致（`1f0d811`）
+- [x] 对话框主题修正：`ThemeOverlay.Termux.Dialog` 改为覆盖 `alertDialogStyle`（`shapeAppearanceOverlay` 对对话框无效），删除未使用的旧 `TermuxAlertDialogStyle`（`c43fe8b`）
+- [x] 共用构建器：`widget/TerminalDialogBuilder` 统一窗口背景、标题、自动滚动正文、按钮栏与尺寸；终端菜单、命名对话框、通知历史迁入（`c10a35c`、`6d1ee61`）
+- [x] 默认圆角：终端菜单 0 → 16dp、通知卡片 0 → 12dp（`c10a35c`）
+- [x] 设置搜索：`dialog_settings_search.xml` + `item_settings_search.xml`，Material 3 输入框、行布局与空状态（`c43fe8b`）
+- [x] 应用级对话框改 `MaterialAlertDialogBuilder`：终止会话、URL 选择、会话数上限、风格未安装、备份恢复、扩展停用、长按复位（`a2345f5`、`e39607c`）
+- [x] 偏好控件：`ColorPreference` 色板圆角与主题色描边、自定义颜色输入框；`OrderedItemsPreference` 行按下态、文字与分区标题取主题色（`e39607c`）
+- [x] 抽屉：会话行 12dp 圆角涟漪、选中底色圆角、强调条圆头、列表 8dp 内距、头部按钮涟漪、底部按钮 Material 3（`70010a1`、`e39607c`）
+- [x] 状态栏：分段 4dp 内距、可点击分段 8dp 圆角按下态（`70010a1`）
+- [x] 命令面板：圆角改用令牌、chip 8dp、行高 12dp、列表高度随屏幕收缩（`3db4815`）
+- [ ] 待评估：设置页的 `preferenceTheme`（androidx 未提供 Material 3 变体）；MD3 表面色跟随 `colors.properties`（需运行期 theme overlay，见第 6 节待决策）
+
+---
+
 ## 3. 进行中
 
-无。下一项为第 4.1 节剩余的检查项，之后进入 `ext.statusbar`。
+无。UI 层优化第一批已提交，下一步是出包做真机观感验证（第 4.6 节新增项），之后回到 4.1 的 `TerminalStylingController` 评估。
 
 ---
 
@@ -112,6 +128,10 @@
 
 ### 4.6 设备验证（无 `adb`，需出包后手工确认）
 
+- [ ] UI 层：终端菜单/命名对话框/通知历史的圆角、边框与标题层级
+- [ ] UI 层：抽屉会话行圆角涟漪与选中底色、强调条圆头、头部与底部按钮
+- [ ] UI 层：状态栏分段间距与按下态；命令面板在键盘弹出后的列表高度
+- [ ] UI 层：设置搜索的输入框、空状态与行布局；色板圆角；有序列表对话框行按下态
 - [ ] 禁用扩展后设置搜索不再出现其条目
 - [ ] 禁用后经其他路径进入功能页只显示停用说明
 - [ ] 命令面板四个入口（`Ctrl+Shift+P`、抽屉按钮、`command-palette` 菜单项、虚拟键 `F12`）
@@ -127,7 +147,7 @@
 | 项 | 状态 |
 | --- | --- |
 | `:app:compileDebugJavaWithJavac` | 通过（本机） |
-| `:app:testDebugUnitTest` | 170 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现） |
+| `:app:testDebugUnitTest` | 177 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现） |
 | `:app:assembleDebug` | 未执行，本机 NDK 缺 `libc++_shared` |
 | 设备验证 | 2026-11-23 首次真机试机：启动即崩溃（资源文件中的旧类名，见 `app/DECISIONS.md` #16），已修复并补 `ResourceClassNameTest`；其余行为仍未验证 |
 | CI | 推送后由 PR 触发；本机无 `gh`，状态待确认 |
