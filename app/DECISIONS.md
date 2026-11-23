@@ -304,3 +304,27 @@
 4. `DrawerExtension.onDisable()` 现在还清空会话列表的适配器，避免禁用后列表仍持有指向已释放控制器的适配器。
 
 未验证：抽屉选中行的底色、切换会话后强调条跟随、以及各扩展设置改动后的即时生效，均未在真机确认；本机 `:app:compileDebugJavaWithJavac` 通过、`:app:testDebugUnitTest --rerun-tasks` 170 项中 1 项既有失败；CI（PR #2）lint/单测/双 ABI 构建全部通过，Fork Build 已产出 `termux-app_fork-20261123-0426-testkey_arm64-v8a.apk`。
+
+## 2026-11-23 — 修正抽屉高亮与命名对话框，主题迁移 Material 3
+
+真机反馈四项，前三项为缺陷、第四项为主题改造，均已提交并通过 CI（b5e8de0、0e5854a）。
+
+一、抽屉「多个会话一起高亮」
+根因：`TerminalDrawerController` 只持有一个 `Drawable` 实例，所有行 `setBackground` 同一实例。Drawable 的状态保存在实例上，因此一行的 activated/ripple 状态会画到所有行上。修正为 `newSessionRowBackground()`：用 `getConstantState().newDrawable().mutate()` 为每行生成独立副本。同一处修复同时解决了长按多个行一起亮的问题（ripple 状态共享）。
+
+二、抽屉「只有侧边蓝条正常」
+根因：行背景是 `StateListDrawable`，只在 `state_activated` 时叠加强调色，但适配器从未调用 `setActivated`。现在 `getView` 按「是否当前会话」设置 `setActivated`，强调底色与 3dp 侧条同时生效；`setCurrentSession` 成功后立即刷新列表。
+
+三、设置会话名称对话框黑字
+根因：`renameSession` 走只读模块的 `TextInputDialogUtils`，它用裸 `AlertDialog` + `EditText`，不设置任何颜色，深色配色下文字与背景同色。新增 `app/widget/TerminalTextInputDialog`：文字色取当前会话的前景色、背景取背景色、提示色为前景的半透明、窗口背景用 `TerminalDialogStyles` 的方角 1dp 描边；替换会话重命名与新建命名会话两处调用，不再使用只读模块的对话框。附带移除了新建命名会话里未使用的「failsafe」按钮分支。
+
+四、Material 3 主题
+只读模块 `termux-shared` 的主题基类仍是 Material 2，因此 app 自己声明父主题，保持主题名不变：
+- `Theme.TermuxApp.Light/DagNight.DarkActionBar` → `Theme.Material3.Light` / `Theme.Material3.DayNight`（Material 1.12 没有 `DarkActionBar` 变体，非 `NoActionBar` 即带 ActionBar）；
+- 定义 MD3 颜色角色：`colorPrimary/OnPrimary/PrimaryContainer/OnPrimaryContainer`、`colorSecondary` 系列、`colorOutline`、链接色；
+- 新增 `ThemeOverlay.Termux.Dialog`（父 `ThemeOverlay.Material3.MaterialAlertDialog` + 0dp 圆角的 shape overlay），使平台与只读库的对话框也遵循 MD3 表面色，同时保留方角 tui 风格；
+- 终端活动主题保留原有窗口/抽屉/虚拟键属性。
+
+边界：`values-night` 中 app 只覆盖了 `Theme.TermuxActivity`，其余 DayNight 主题由 Material 3 自动切换；「全局跟随当前配色方案」目前只做到「按配色方案的明暗选择 DayNight 变体」，抽屉、对话框、状态栏等自分叉表面仍用配色方案的具体颜色。若要连 MD3 表面色也映射到配色方案，需要按配色方案生成 theme overlay（运行期 `applyStyle` 只能引用静态资源），属后续设计。
+
+未验证：行高亮是否只作用于当前会话、长按只亮一行、命名对话框在深色配色下的可读性、MD3 主题在设置页与各对话框中的观感，均需真机确认。CI：PR #2 的 lint/单测/双 ABI 构建全部通过；Fork Build 已产出 `termux-app_fork-20261123-0453-testkey_arm64-v8a.apk`。
