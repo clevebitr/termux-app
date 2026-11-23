@@ -98,6 +98,26 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        app:key="ime_compatibility"
+        app:title="@string/termux_ime_compatibility_header">
+
+        <ListPreference
+            app:defaultValue="auto"
+            app:entries="@array/termux_ime_input_type_entries"
+            app:entryValues="@array/termux_ime_input_type_values"
+            app:key="ime-input-type"
+            app:summary="@string/termux_ime_input_type_summary"
+            app:title="@string/termux_ime_input_type_title" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:key="keyboard-compat-log"
+            app:summary="@string/termux_keyboard_compat_log_summary"
+            app:title="@string/termux_keyboard_compat_log_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
         app:key="command_shortcuts"
         app:title="@string/termux_command_shortcuts_header">
 

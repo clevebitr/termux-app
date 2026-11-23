@@ -47,6 +47,7 @@ import com.termux.app.ext.search.SearchExtension;
 import com.termux.app.ext.split.SplitScreenExtension;
 import com.termux.app.properties.ForkProperties;
 import com.termux.app.properties.ForkPropertyKeys;
+import com.termux.app.terminal.ImeInputType;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalFrame;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
@@ -259,6 +260,10 @@ public final class TermuxActivity extends AppCompatActivity
 
     /** Whether the key events that the activity sees are logged, from `keyboard-compat-log`. */
     private boolean mKeyboardCompatLog;
+
+    /** The input type that the terminal view reports to the IME, from `ime-input-type`. */
+    @NonNull
+    private ImeInputType mImeInputType = ImeInputType.AUTO;
 
     /**
      * If between onResume() and onStop(). Note that only one session is in the foreground of the terminal view at the
@@ -784,6 +789,8 @@ public final class TermuxActivity extends AppCompatActivity
         mCommandShortcuts = CommandShortcuts.parse(forkProperties);
         mSecondaryButtonBehaviour = parseSecondaryButtonBehaviour(forkProperties);
         mKeyboardCompatLog = ForkProperties.getBoolean(forkProperties, ForkPropertyKeys.KEYBOARD_COMPAT_LOG, false);
+        mImeInputType = ImeInputType.parse(ForkProperties.getString(forkProperties,
+            ForkPropertyKeys.IME_INPUT_TYPE, ImeInputType.AUTO.getValue()));
         applySecondaryButtonBehaviour();
 
         for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
@@ -1466,6 +1473,12 @@ public final class TermuxActivity extends AppCompatActivity
     /** @return Whether key events are logged, as the `keyboard-compat-log` property configures it. */
     public boolean isKeyboardCompatLogEnabled() {
         return mKeyboardCompatLog;
+    }
+
+    /** @return The input type that the terminal view reports to the IME, from `ime-input-type`. */
+    @NonNull
+    public ImeInputType getImeInputType() {
+        return mImeInputType;
     }
 
     /** @return The fields of {@code event} for the keyboard log, like the key code and the modifiers. */

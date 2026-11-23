@@ -23,6 +23,14 @@ public final class ForkPropertyKeys {
     public static final String COMMAND_SHORTCUTS = "command-shortcuts";
 
     /**
+     * The input type that the terminal view reports to the IME: `auto` keeps the type that the view computes,
+     * `text` presents the terminal as a normal text editor so that an IME toolbar appears with a hardware
+     * keyboard, `password` uses the legacy visible password variation and `none` reports `TYPE_NULL`.
+     * See {@code ImeInputType}.
+     */
+    public static final String IME_INPUT_TYPE = "ime-input-type";
+
+    /**
      * Whether every hardware key event that the activity, the terminal view and the input connection see is
      * logged at info level, so that a keyboard that does not deliver the expected events can be diagnosed from
      * the log. The keys are only logged while this is `true`.

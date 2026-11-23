@@ -267,6 +267,17 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     }
 
     @Override
+    public int getInputType(int defaultInputType) {
+        int inputType = mActivity.getImeInputType().inputType(defaultInputType);
+        if (mActivity.isKeyboardCompatLogEnabled()) {
+            Logger.logInfo(LOG_TAG, "getInputType: mode=" + mActivity.getImeInputType().getValue()
+                + ", default=0x" + Integer.toHexString(defaultInputType)
+                + ", reported=0x" + Integer.toHexString(inputType));
+        }
+        return inputType;
+    }
+
+    @Override
     public boolean shouldTouchDragSendMouseDrag() {
         return mActivity.getProperties().shouldTouchDragSendMouseDrag();
     }

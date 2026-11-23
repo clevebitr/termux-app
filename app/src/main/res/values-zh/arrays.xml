@@ -107,4 +107,18 @@
         <item>forward</item>
         <item>palette</item>
     </string-array>
+
+    <string-array name="termux_ime_input_type_entries">
+        <item>自动（终端）</item>
+        <item>文本编辑器（输入法悬浮栏）</item>
+        <item>密码框（旧兼容方案）</item>
+        <item>无输入类型（TYPE_NULL）</item>
+    </string-array>
+
+    <string-array name="termux_ime_input_type_values">
+        <item>auto</item>
+        <item>text</item>
+        <item>password</item>
+        <item>none</item>
+    </string-array>
 </resources>
