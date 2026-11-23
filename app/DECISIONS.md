@@ -246,3 +246,23 @@
 - 效果：`ext/` 现含 8 个扩展（statusbar/menu/notifications/volumekeys/search/drawer/split/backup），`terminal/` 包只剩 6 个文件。
 
 未验证：分屏的排列、拖拽比例、活动窗格边框、状态保存与恢复、禁用后回到单窗格，均未在真机验证；本机 `:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest --rerun-tasks` 169 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。
+
+## 2026-11-23 — 交付 builtin.vt 核心行为页并修正该里程碑设想
+
+交付 `builtin.vt` 核心行为设置页（4053e59），并修正该里程碑的原始设想。
+
+一、事实核对
+原计划写「仅属性开关（OSC 52/133、1004、悬停、滚动保持、内边距）」，实际检查发现：
+- 已有属性的：`terminal-osc52-clipboard`、`mouse-hover-sends-mouse-motion`、`keep-scroll-position-on-output`、四个 `terminal-padding-*`；
+- **没有属性开关的**：OSC 133 与焦点上报 1004，二者行为固定在只读模块与宿主代码里，要提供开关必须先改只读模块（需书面豁免）。因此本轮不实现这两项，已在文档标注。
+
+二、实现
+1. 新页面 `termux_builtin_vt_preferences.xml`：顶部不可选中的说明项「核心能力，仅可关闭行为」，随后两个分类——行为（滚动保持、鼠标悬停、OSC 52）与内边距（上/下/左/右）。上述 6 项从 `termux_terminal_view_preferences.xml`（5 项）与 `termux_keyboard_preferences.xml`（悬停）迁出，原页面相应分类清空后删除。
+2. 新增 `BuiltinVtExtension`（`ext/builtin/`）：id=`builtin.vt`，`isUserDisableable()` 返回 false（宿主永远视为启用），`isEnabledByDefault()` true，`preferenceKeys=["builtin-vt"]`，`settingsPages` 声明新页；无视图与事件。
+3. `BuiltinVtPreferencesFragment`：使用 `TermuxPropertyPreferenceDataStore` 子类写属性，安装长按复位与搜索高亮；首行仍做 `isRunning` 检查并显示停用说明——今天不可达，但把该页与可禁用扩展的页面统一，避免将来把 `builtin.vt` 改成可禁用后留下过时页面。
+4. 根设置页新增 `app:key="builtin-vt"` 条目（沿用终端视图图标）；`PreferenceResetSourceTest` 登记新页；搜索索引无需改动，新页由扩展声明后自动进入索引。
+
+三、边界
+`builtin.vt` 只收纳「实现位于只读模块、只能关闭行为」的开关；可关闭的 fork 功能一律属于各自扩展。这条边界已写入 `BuiltinVtExtension` 的 KDoc 与 `docs/API_INDEX.md`。
+
+未验证：迁移后的四个内边距项与两个开关在真机上的读写、搜索能否在新页找到这些条目、长按复位是否正常，均未验证；本机 `:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest --rerun-tasks` 169 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。
