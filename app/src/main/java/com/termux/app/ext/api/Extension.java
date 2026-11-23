@@ -88,6 +88,27 @@ public interface Extension {
     /** Called when the extension becomes enabled. */
     void onEnable(@NonNull ExtensionContext context);
 
+    /**
+     * Called when the activity that hosts the extension becomes visible.
+     *
+     * <p>An extension that refreshes something periodically starts its timer here instead of in
+     * {@link #onEnable}, which runs before the first frame, so that the work does not delay the frame and
+     * does not run while the activity is not visible.</p>
+     */
+    default void onStart() {
+    }
+
+    /** Called when the activity that hosts the extension is no longer visible. Must stop periodic work. */
+    default void onStop() {
+    }
+
+    /**
+     * Called when the configuration that the extension reads may have changed, like after the properties of
+     * the app were reloaded or the colors of the terminal changed.
+     */
+    default void onReload() {
+    }
+
     /** Called when the extension is disabled or the host is destroyed. Must release every resource. */
     void onDisable();
 }

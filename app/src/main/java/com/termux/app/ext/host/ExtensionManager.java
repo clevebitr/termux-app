@@ -149,6 +149,44 @@ public final class ExtensionManager {
         properties = null;
     }
 
+    /** Tell the running extensions that the activity became visible, so that periodic work may start. */
+    public void onStart() {
+        for (Extension extension : new ArrayList<>(running.values())) {
+            try {
+                extension.onStart();
+            } catch (Throwable throwable) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Failed to start the extension: " + extension.id(), throwable);
+            }
+        }
+    }
+
+    /** Tell the running extensions that the activity is no longer visible, so that periodic work must stop. */
+    public void onStop() {
+        for (Extension extension : new ArrayList<>(running.values())) {
+            try {
+                extension.onStop();
+            } catch (Throwable throwable) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Failed to stop the extension: " + extension.id(), throwable);
+            }
+        }
+    }
+
+    /**
+     * Tell the running extensions that the configuration they read may have changed.
+     *
+     * <p>The properties are re-read first, so that an extension which parses them sees the new values.</p>
+     */
+    public void onReload() {
+        properties = ForkProperties.readTermuxProperties();
+        for (Extension extension : new ArrayList<>(running.values())) {
+            try {
+                extension.onReload();
+            } catch (Throwable throwable) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Failed to reload the extension: " + extension.id(), throwable);
+            }
+        }
+    }
+
     private void start(@NonNull Extension extension) {
         if (running.containsKey(extension.id())) return;
         try {

@@ -479,6 +479,8 @@ public final class TermuxActivity extends AppCompatActivity
             updateStatusBarLayout();
         }
 
+        if (mExtensionManager != null) mExtensionManager.onStart();
+
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onStart();
 
@@ -562,6 +564,8 @@ public final class TermuxActivity extends AppCompatActivity
         mIsVisible = false;
 
         if (mStatusBarController != null) mStatusBarController.stop();
+
+        if (mExtensionManager != null) mExtensionManager.onStop();
 
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onStop();
@@ -1960,8 +1964,9 @@ public final class TermuxActivity extends AppCompatActivity
      * changed.
      */
     public void updateExtraKeysViewColors() {
-        // The status bar follows the colors of the color scheme as well.
-        if (mStatusBarController != null) mStatusBarController.reloadColors();
+        // The status bar follows the colors of the color scheme as well, which is why the extensions are told
+        // that the configuration changed.
+        if (mExtensionManager != null) mExtensionManager.onReload();
 
         for (ExtraKeysView extraKeysView : mExtraKeysViews) {
             setExtraKeysViewColors(extraKeysView);
@@ -2222,10 +2227,7 @@ public final class TermuxActivity extends AppCompatActivity
 
         // Rebuild the status bar, since the `status-bar-*` properties may have changed, and apply the
         // new position and overlay rules.
-        if (mStatusBarController != null) {
-            mStatusBarController.reload();
-            updateStatusBarLayout();
-        }
+        if (mExtensionManager != null) mExtensionManager.onReload();
 
         // Reload the `notification-*` properties, which apply the new position, width and colors to
         // the cards that are currently shown.
