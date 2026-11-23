@@ -206,3 +206,26 @@
 5. 效果：`TermuxActivity` 2194 → 2084 行；`ext/` 现有 5 个扩展（statusbar/menu/notifications/volumekeys/backup）。
 
 未验证：卡片位置与内距、四种测试通知、OSC 图标开关、后台通知与历史在禁用后的停止行为，均未在真机验证；本机 `:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest --rerun-tasks` 169 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。注意：增量执行该测试任务时会漏跑部分迁移后的测试类，需加 `--rerun-tasks` 才能得到真实数量，已记录在此避免误判。
+
+## 2026-11-23 — 迁移搜索与抽屉扩展，分屏不按小步处理
+
+本轮把剩余的小功能扩展一次做完：`ext.search` 与 `ext.drawer`；`ext.split` 经检查不属于小步，单独说明。
+
+一、`ext.search`（7a47843）
+- `TerminalSearchController`、`TerminalSearchPreferences` 从 `terminal/` 迁到 `ext/search/`，`TerminalSearchPreferencesTest` 同步迁移。
+- 新增 `SearchExtension`：id=search，默认启用，slot=`terminal_search_bar`，无设置页（选项与历史存于 `TerminalSearchPreferences`，不写 `termux.properties`）；onEnable 创建控制器并 `setUp()`，onDisable 隐藏并释放。
+- 宿主：删除 `mTerminalSearchController` 字段与创建代码，`showTerminalSearch()`/`hideTerminalSearch()`/`isTerminalSearchBarVisible()`/`refreshTerminalSearch()` 改为查询扩展后转发。
+
+二、`ext.drawer`（08f64b7）
+- 迁入 `ext/drawer/`：`TerminalDrawerController`、`TermuxSessionsListViewController`、`DrawerConfig`、`DrawerHandleView`、`DrawerColorUtils`、`SessionDetails`；4 个测试同步迁移。
+- 新增 `DrawerExtension`：id=drawer，默认启用，槽位 `left_drawer` 与 `drawer_handle`；onEnable 创建控制器、装配、按属性解析并绑定会话列表适配器；onReload 重新解析配置与配色；onDisable 解绑适配器并关闭抽屉。
+- `TerminalDrawerController` 新增 `getSessionsListView()`、`closeDrawer()`、`isOpen()`、`setLockMode()`，使扩展不必直接操作 `DrawerLayout`。
+- 宿主：删除 `mDrawerController` 与 `mTermuxSessionListViewController` 字段、`setTermuxSessionsListView()`；`updateDrawerColors()`/`openSessionsDrawer()`/`termuxSessionListNotifyUpdated()` 改为转发；服务连接后调用 `DrawerExtension.onSessionsAvailable()` 绑列表（扩展在服务连接前启用，此时会话列表尚不可用，这是迁移中发现的顺序约束）。
+- 保留 `TermuxActivity.getDrawer()` 作为布局访问器，因为视图客户端、虚拟键与抽屉按钮仍有 16 处需要开合或锁模式。
+
+三、`ext.split` 不按小步处理
+经检查，分屏不是「一个控制器」：副窗格 `mTerminalViews[1]` 的创建、副窗格会话的查找与创建、`ARG_SPLIT_SCREEN_*` 的状态保存与恢复、活动窗格切换与 `ON_*` 常量分散在 Activity 约 200 行内，且与会话生命周期耦合。要迁移必须先决定「副窗格视图归扩展还是归宿主」，属设计决策而非机械搬迁，因此留待设备验证后再评估。
+
+结果：扩展增至 7 个（statusbar/menu/notifications/volumekeys/search/drawer/backup）；`TermuxActivity` 2084 → 2089 行（搜索与抽屉的转发方法略多于被删除的创建代码，但功能实现已全部离开终端包）。
+
+未验证：搜索条与抽屉在真机上的显示、把手位置、列表绑定时机（服务连接后）与禁用后的行为未验证；本机 `:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest --rerun-tasks` 169 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。
