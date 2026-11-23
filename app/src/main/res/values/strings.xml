@@ -290,7 +290,12 @@
 
 
         <!-- Terminal Keyboard Preferences -->
-        <string name="termux_split_extension_title">Split screen</string>
+        <string name="termux_builtin_vt_preferences_title">Terminal behaviour (core)</string>
+    <string name="termux_builtin_vt_preferences_summary">Clipboard, scrolling, mouse and padding</string>
+    <string name="termux_builtin_vt_notice_title">Core capability</string>
+    <string name="termux_builtin_vt_notice_summary">These behaviours are implemented inside the terminal itself, so they can only be switched off, not removed.</string>
+    <string name="termux_builtin_vt_behaviour_header">Behaviour</string>
+    <string name="termux_split_extension_title">Split screen</string>
     <string name="termux_split_extension_summary">Two panes with a draggable divider</string>
     <string name="termux_drawer_extension_title">Sessions drawer</string>
     <string name="termux_drawer_extension_summary">The drawer that lists the sessions and the header summary</string>

@@ -24,6 +24,13 @@
             app:fragment="com.termux.app.fragments.settings.termux.TerminalKeyboardPreferencesFragment"/>
 
         <Preference
+            app:key="builtin-vt"
+            app:icon="@drawable/ic_pref_terminal_view"
+            app:title="@string/termux_builtin_vt_preferences_title"
+            app:summary="@string/termux_builtin_vt_preferences_summary"
+            app:fragment="com.termux.app.ext.builtin.BuiltinVtPreferencesFragment"/>
+
+        <Preference
             app:key="volume-key-actions"
             app:icon="@drawable/ic_pref_keyboard"
             app:title="@string/termux_volume_keys_preferences_title"

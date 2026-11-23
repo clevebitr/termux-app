@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 
 import com.termux.app.ext.api.Extension;
 import com.termux.app.ext.backup.BackupExtension;
+import com.termux.app.ext.builtin.BuiltinVtExtension;
 import com.termux.app.ext.drawer.DrawerExtension;
 import com.termux.app.ext.menu.TerminalMenuExtension;
 import com.termux.app.ext.notifications.NotificationsExtension;
@@ -46,6 +47,7 @@ public final class ForkExtensions {
         extensions.add(new SplitScreenExtension());
         extensions.add(new VolumeKeysExtension());
         extensions.add(new BackupExtension());
+        extensions.add(new BuiltinVtExtension());
         return Collections.unmodifiableList(extensions);
     }
 }
