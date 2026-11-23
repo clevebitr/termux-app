@@ -33,6 +33,11 @@ import java.util.List;
  */
 public final class SettingsSearchDialog {
 
+    /** The height of a row in dp, which is the height of the row layout with its padding. */
+    private static final int ROW_HEIGHT_DP = 60;
+    /** The number of rows that the list shows before it scrolls. */
+    private static final int MAX_VISIBLE_ROWS = 6;
+
     private SettingsSearchDialog() {
     }
 
@@ -93,6 +98,7 @@ public final class SettingsSearchDialog {
                 adapter.addAll(matches);
                 adapter.notifyDataSetChanged();
                 empty.setVisibility(matches.isEmpty() ? View.VISIBLE : View.GONE);
+                updateListHeight(context, listView, matches.size());
             }
         });
 
@@ -114,6 +120,26 @@ public final class SettingsSearchDialog {
         List<SettingsSearchIndex.Entry> all = SettingsSearchIndex.search(entries, null);
         adapter.addAll(all);
         empty.setVisibility(all.isEmpty() ? View.VISIBLE : View.GONE);
+        updateListHeight(context, listView, all.size());
         input.requestFocus();
+    }
+
+    /**
+     * Set the height of the list to the number of rows it shows, so that the dialog is not mostly empty when a
+     * query matches one setting, but never taller than the screen allows on a small device.
+     */
+    private static void updateListHeight(@NonNull Context context, @NonNull ListView listView, int rowCount) {
+        float density = context.getResources().getDisplayMetrics().density;
+        int rowHeight = Math.round(ROW_HEIGHT_DP * density);
+        int desired = rowCount > 0 ? rowHeight * Math.min(MAX_VISIBLE_ROWS, rowCount) : rowHeight;
+        int available = context.getResources().getDisplayMetrics().heightPixels
+            - Math.round(280 * density);
+        int height = Math.max(Math.round(160 * density),
+            Math.min(desired, Math.min(Math.round(360 * density), available)));
+
+        ViewGroup.LayoutParams params = listView.getLayoutParams();
+        if (params.height == height) return;
+        params.height = height;
+        listView.setLayoutParams(params);
     }
 }

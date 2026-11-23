@@ -41,6 +41,11 @@ import java.util.Locale;
  */
 public final class ShellCommandPalette {
 
+    /** The height of a row of the palette in dp, which is the height of the row layout with its padding. */
+    private static final int ROW_HEIGHT_DP = 62;
+    /** The number of rows that the list shows before it scrolls. */
+    private static final int MAX_VISIBLE_ROWS = 8;
+
     private ShellCommandPalette() {
     }
 
@@ -58,12 +63,7 @@ public final class ShellCommandPalette {
         final CommandAdapter adapter = new CommandAdapter(activity, filtered);
         list.setAdapter(adapter);
 
-        // The list has a fixed height of 360dp in the layout, which is taller than the space that is left on a
-        // small screen once the soft keyboard is shown, so the height is capped to the space that is actually
-        // available instead of pushing the search field off the screen.
-        ViewGroup.LayoutParams listParams = list.getLayoutParams();
-        listParams.height = Math.min(listParams.height, maxListHeight(activity));
-        list.setLayoutParams(listParams);
+        updateListHeight(activity, list, filtered.size());
 
         final androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(activity)
             .setView(content)
@@ -96,6 +96,7 @@ public final class ShellCommandPalette {
                 filter(commands, filtered, s == null ? "" : s.toString());
                 adapter.notifyDataSetChanged();
                 empty.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
+                updateListHeight(activity, list, filtered.size());
             }
 
             @Override
@@ -141,13 +142,32 @@ public final class ShellCommandPalette {
         dialog.show();
     }
 
+    /**
+     * Set the height of the list to the number of rows it shows, so that the dialog is not mostly empty when a
+     * query matches one or two commands, but never taller than the screen allows once the soft keyboard is
+     * shown.
+     */
+    private static void updateListHeight(@NonNull Activity activity, @NonNull ListView list, int rowCount) {
+        float density = activity.getResources().getDisplayMetrics().density;
+        int rowHeight = Math.round(ROW_HEIGHT_DP * density);
+        int desired = rowCount > 0 ? rowHeight * Math.min(MAX_VISIBLE_ROWS, rowCount) : rowHeight;
+        int height = Math.min(desired, maxListHeight(activity));
+
+        ViewGroup.LayoutParams params = list.getLayoutParams();
+        if (params.height == height) return;
+        params.height = height;
+        list.setLayoutParams(params);
+    }
+
     /** @return The height that the list of the palette may take on the screen of {@code context}. */
     private static int maxListHeight(@NonNull Context context) {
         float density = context.getResources().getDisplayMetrics().density;
         int screenHeight = context.getResources().getDisplayMetrics().heightPixels;
-        // The search field, the buttons of the dialog and the soft keyboard take the rest of the screen.
-        int reserved = Math.round(240 * density);
-        return Math.max(Math.round(160 * density), screenHeight - reserved);
+        // The dialog keeps the 360dp of the layout on a normal screen, but shrinks on a short screen once the
+        // search field, the dialog buttons and the soft keyboard take their share of it.
+        int layoutMax = Math.round(360 * density);
+        int available = screenHeight - Math.round(280 * density);
+        return Math.max(Math.round(160 * density), Math.min(layoutMax, available));
     }
 
     /** Filter a candidate list into {@code out}. Pure, so that the matching rule can be reused and tested. */
