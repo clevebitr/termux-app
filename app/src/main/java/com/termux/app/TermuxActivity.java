@@ -40,7 +40,7 @@ import com.termux.app.ext.menu.TerminalMenuConfig;
 import com.termux.app.ext.menu.TerminalMenuExtension;
 import com.termux.app.ext.statusbar.StatusBarConfig;
 import com.termux.app.terminal.TerminalDrawerController;
-import com.termux.app.terminal.TerminalSearchController;
+import com.termux.app.ext.search.SearchExtension;
 import com.termux.app.terminal.TerminalSplitScreenController;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
@@ -160,7 +160,6 @@ public final class TermuxActivity extends AppCompatActivity
     View mTermuxActivityBottomSpaceView;
 
     /** The search bar of the terminal, which is overlayed on top of the terminal view. */
-    private TerminalSearchController mTerminalSearchController;
 
     /** The layout of the split screen, which owns the sizes and the orientation of the panes. */
     private TerminalSplitScreenController mTerminalSplitScreenController;
@@ -383,9 +382,6 @@ public final class TermuxActivity extends AppCompatActivity
 
         mShellCommandHost = new ShellCommandHost(this);
         mTerminalActionRunner = new TerminalActionRunner(this);
-
-        mTerminalSearchController = new TerminalSearchController(this);
-        mTerminalSearchController.setUp();
 
         setTerminalToolbarView(savedInstanceState);
 
@@ -1035,20 +1031,30 @@ public final class TermuxActivity extends AppCompatActivity
     }
 
     /** Update the layout params of the panes and the divider for the current orientation and split state. */
+    /** @return The extension that owns the search bar, or {@code null} while it is disabled. */
+    @Nullable
+    private SearchExtension searchExtension() {
+        Extension extension = ExtensionHost.get(this).extension(SearchExtension.ID);
+        return extension instanceof SearchExtension ? (SearchExtension) extension : null;
+    }
+
     /** Show the terminal search bar and focus its text input, so that the user can type a query. */
     @Override
     public void showTerminalSearch() {
-        mTerminalSearchController.show();
+        SearchExtension extension = searchExtension();
+        if (extension != null) extension.show();
     }
 
     /** Hide the terminal search bar and clear the search highlights. */
     public void hideTerminalSearch() {
-        mTerminalSearchController.hide();
+        SearchExtension extension = searchExtension();
+        if (extension != null) extension.hide();
     }
 
     /** @return Whether the search bar of the terminal is shown. */
     public boolean isTerminalSearchBarVisible() {
-        return mTerminalSearchController.isVisible();
+        SearchExtension extension = searchExtension();
+        return extension != null && extension.isVisible();
     }
 
     /**
@@ -1056,7 +1062,8 @@ public final class TermuxActivity extends AppCompatActivity
      * session switch since the search matches of the previous session's buffer are then invalid.
      */
     public void refreshTerminalSearch() {
-        mTerminalSearchController.refresh();
+        SearchExtension extension = searchExtension();
+        if (extension != null) extension.refresh();
     }
 
     private void setMargins() {

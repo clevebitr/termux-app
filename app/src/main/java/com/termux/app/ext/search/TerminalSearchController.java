@@ -1,4 +1,4 @@
-package com.termux.app.terminal;
+package com.termux.app.ext.search;
 
 import android.graphics.Typeface;
 import android.text.Editable;

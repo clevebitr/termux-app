@@ -1,4 +1,4 @@
-package com.termux.app.terminal;
+package com.termux.app.ext.search;
 
 import android.content.Context;
 import android.content.SharedPreferences;
