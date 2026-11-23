@@ -118,7 +118,7 @@ ime-input-type = auto     # auto | text | password | none | hardware
 | `text` | `TYPE_CLASS_TEXT | TYPE_TEXT_FLAG_NO_SUGGESTIONS | TYPE_TEXT_VARIATION_NORMAL` | 让 Gboard 视为普通文本框，显示悬浮栏；仍不发组合文本给终端 |
 | `password` | `TYPE_CLASS_TEXT | TYPE_TEXT_FLAG_NO_SUGGESTIONS | TYPE_TEXT_VARIATION_VISIBLE_PASSWORD` | 旧输入法兼容 |
 | `none` | `TYPE_NULL` | 最纯的终端语义 |
-| `hardware` | 接有物理键盘时 `TYPE_NULL`，否则同 `auto` | 物理按键直通终端，不被输入法接管（TUI、`vim` 插入模式） |
+| `hardware` | 接有物理键盘且软键盘收起时 `TYPE_NULL`；软键盘弹出时文本框类型；未接键盘时同 `auto` | 物理按键直通终端（TUI、`vim` 插入模式），需要中文时弹出软键盘 |
 
 `auto`/`text`/`password` 都是文本类类型，输入法会把物理按键收进自己再以 `commitText` 提交文本，于是字符与
 Tab、方向键、Enter 走两条通道。2026-11-23 的真机日志（`~/.termux/keyboard-compat.log`）即为此形态：字母只
@@ -126,9 +126,20 @@ Tab、方向键、Enter 走两条通道。2026-11-23 的真机日志（`~/.termu
 提交，顺序被打乱，`vim` 插入模式与 node 写的 TUI 因此表现为「Tab 没有反应」。
 
 `hardware` 通过 `TYPE_NULL` 让输入法不接管物理按键，字符、Tab、Ctrl/Alt 组合键与方向键回到与桌面终端一致的
-单通道。判断依据是 `Configuration.keyboard` 与 `InputDevice.KEYBOARD_TYPE_ALPHABETIC`（`HardwareKeyboard`）；
-键盘接入或拔出时活动重启输入连接，使新的输入类型立即生效。代价是物理键盘上的 CJK 组合输入不可用，中文需
-改用软键盘。
+单通道。硬件键盘的判断复用 `KeyboardUtils.isHardKeyboardConnected()`（`Configuration.keyboard` 与
+`hardKeyboardHidden`），键盘接入或拔出时活动重启输入连接，使新的输入类型立即生效。
+
+中文输入不另设开关，而是复用「软键盘是否可见」这一既有状态：
+
+| 软键盘 | 上报类型 | 效果 |
+| --- | --- | --- |
+| 收起 | `TYPE_NULL` | 物理键全部直达终端，输入法不介入 |
+| 弹出 | `TYPE_CLASS_TEXT \| NO_SUGGESTIONS \| NORMAL` | 输入法显示悬浮栏与候选词，软键盘与物理键盘都能打拼音，提交文本经输入连接写入终端 |
+
+可见性取自 `KeyboardUtils.isSoftKeyboardVisible()`，在既有的全局布局回调
+`updateTerminalToolbarVisibilityForSoftKeyboardVisibility()` 中读取；状态变化时活动重启两个窗格的输入连接，
+输入法因此重新读取类型。这样「谁接管输入」只有一个直觉规则：**看得见软键盘就是输入法在打字，看不见就是
+终端在收键**。Android 5.0 与 6.0 读不到软键盘可见性，这两个版本上 `hardware` 始终按文本框上报。
 
 实现要点：
 
@@ -196,7 +207,8 @@ keyboard-compat-log = false
 | --- | --- | --- |
 | `TerminalViewClient.getInputType/getImeOptions` 钩子（只读模块，需求方已书面豁免） | `terminal-view/` | `8a1fc86` |
 | `ime-input-type` 属性（`auto` 默认 / `text` / `password` / `none`）与 `ImeInputType` | `app/terminal/` | `a5cba39` |
-| `ime-input-type=hardware`（接有物理键盘时 `TYPE_NULL`）、`HardwareKeyboard` 与键盘接入/拔出时重启输入连接 | `app/terminal/`、`TermuxActivity` | 本次 |
+| `ime-input-type=hardware`（接有物理键盘时 `TYPE_NULL`）与键盘接入/拔出时重启输入连接 | `app/terminal/`、`TermuxActivity` | 本次 |
+| `hardware` 随软键盘可见性切换：收起时直通、弹出时文本框，可见性变化时重启输入连接 | `TermuxActivity`、`ImeInputType` | 本次 |
 | Tab / Shift+Tab 直通并入额外键栏锁定的虚拟 SHIFT，日志补充 `imeInputType`、`hardwareKeyboard` | `TermuxActivity.handleTerminalTab` | 本次 |
 | 设置页「硬件键盘与输入法」分类（`ime-input-type`、`keyboard-compat-log`） | `res/xml/termux_keyboard_preferences.xml` | `a5cba39` |
 | 快捷键匹配回退物理键码 + `keyboard-compat-log` 日志 | `commands/`、`terminal/` | `a1b589e` |
@@ -225,7 +237,9 @@ keyboard-compat-log = false
 2. `restartInput` 会短暂关闭输入法窗口，切换属性时可见闪烁；仅在属性变化时调用。
 3. 硬件键盘的 `Ctrl+Alt+*` 与命令快捷键可能重叠，路由顺序固定为「命令快捷键优先」，
    用户若把某个动作绑到 `Ctrl+Alt+F`，搜索命令将不再执行——这是预期行为，需在设置摘要中说明。
-4. `hardware` 模式下输入法不接管物理按键，Gboard 等不再显示悬浮栏，物理键盘上的拼音候选也不可用；
-   需要悬浮栏或硬件键盘直接输入中文时，仍应使用 `text`/`auto`。
-5. `HardwareKeyboard` 以系统配置与输入设备类型为依据，个别 ROM 在蓝牙键盘刚连接时两者都尚未更新，
-   此时输入类型要等下一次配置变更或设备回调才会切换；应用会在回调到达时自动重启输入连接。
+4. `hardware` 模式下软键盘收起时输入法不接管物理按键，Gboard 等不显示悬浮栏；弹出软键盘后才会显示。
+   中文输入依赖软键盘可见这一条件，因此在软键盘收起状态下无法用物理键盘打拼音，这是该模式的取舍。
+5. 重启输入连接可能让输入法短暂重建窗口；`hardware` 只在软键盘可见性真正变化时重启，避免每次布局都触发。
+   若某个输入法在重启时把软键盘收起，会退化为直通状态，不会形成循环。
+6. 个别 ROM 在蓝牙键盘刚连接时 `Configuration` 与输入设备回调都尚未更新，输入类型要等下一次配置变更或
+   设备回调才会切换；应用会在回调到达时自动重启输入连接。

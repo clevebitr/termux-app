@@ -542,3 +542,25 @@ Tab 直通顺带补齐：虚拟 SHIFT 锁定态（额外键栏）与事件自身
 代价与边界：`hardware` 模式下输入法不显示悬浮栏，物理键盘上的拼音候选不可用，中文需改用软键盘（仍经 `commitText` 送达）；需要悬浮栏或硬件键盘直接输入中文时仍用 `text`/`auto`。不改只读模块。
 
 测试：`ImeInputTypeTest` 扩至 8 项（新增 `hardware` 解析、按键接入与否的映射、其他模式忽略键盘状态），新增 `HardwareKeyboardTest` 2 项。本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 190 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。未验证：真机 Tab 在 lazyvim 插入模式的表现、`hardware` 模式下软键盘中文提交、键盘接入/拔出的自动切换，本机无 `adb`。
+
+## 2026-11-23 — 硬件键盘直通改为随软键盘切换，中文由软键盘触发
+
+`ime-input-type=hardware` 的初版在接有物理键盘时一律上报 `TYPE_NULL`，中文因此只能改用软键盘，且软键盘弹出后终端仍是 `TYPE_NULL`，Gboard 不会显示候选词与悬浮栏，实际无法输入中文。本次把「谁接管输入」收敛为一个直觉规则：**软键盘可见就是输入法在打字，不可见就是终端在收键**。
+
+映射（`ImeInputType.inputType(default, hardwareKeyboardAttached, softKeyboardVisible)`）：
+
+| 硬件键盘 | 软键盘 | 上报类型 | 效果 |
+| --- | --- | --- | --- |
+| 已连接 | 收起 | `TYPE_NULL` | 物理键直达终端，Tab/方向键/字符单通道，TUI 与 `vim` 正常 |
+| 已连接 | 弹出 | `TYPE_CLASS_TEXT\|NO_SUGGESTIONS\|NORMAL` | 输入法显示悬浮栏与候选词，软键盘与物理键盘都能打拼音，提交文本经输入连接写入终端 |
+| 未连接 | 任意 | 视图算出的类型（同 `auto`） | 只有软键盘可用，保留 CJK workaround |
+
+实现要点：
+- 软键盘可见性复用既有全局布局回调 `updateTerminalToolbarVisibilityForSoftKeyboardVisibility()`，在其中用 `KeyboardUtils.isSoftKeyboardVisible()` 读取（API 23+），与 `hide-extra-keys-when-soft-keyboard-hidden` 的工具栏逻辑互不影响；状态写入 `TermuxActivity.mIsSoftKeyboardVisible`，由 `TermuxTerminalViewClient.getInputType()` 读取。
+- 可见性变化且模式为 `hardware` 时，对两个窗格调用 `restartInputConnection()`，输入法重新读取编辑器信息。只在真正变化时重启，避免每次布局都触发；若某个输入法在重启时收起软键盘，会退化为直通状态，不构成循环。
+- Android 5.0/6.0 读不到软键盘可见性，这两个版本上 `hardware` 始终按文本框上报（等同 `text`），在 `TermuxTerminalViewClient` 中以 `Build.VERSION_CODES.M` 判断。
+- 同时修正上一轮引入的重复实现：删除 `terminal/HardwareKeyboard` 与其测试，改用只读模块已有的 `KeyboardUtils.isHardKeyboardConnected()`（`Configuration.keyboard` + `hardKeyboardHidden`），符合「已登记能力一律复用」的约束；`docs/API_INDEX.md` 记录复用关系。
+
+未采用的其他方案：按输入法子类型语言（CJK/非 CJK）自动切换——需要输入法 UI 才能切换语言，且 Samsung 等输入法的子类型上报不可靠；新增手动切换命令与快捷键——多一个需要记住的操作，而弹出软键盘本身就是「我要输入中文」的既有动作。
+
+测试：`ImeInputTypeTest` 9 项（`hardware` 收起为 `TYPE_NULL`、弹出为文本框、无硬件键盘时透传、其他模式忽略两个状态）。本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 190 项、1 项既有失败（`FileReceiverActivityTest`）。未验证：真机上弹出/收起软键盘时输入类型是否即时切换、重启输入连接是否引起软键盘闪烁、拼音候选与提交是否正常，本机无 `adb`。

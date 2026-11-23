@@ -43,8 +43,8 @@
 | `ShellCommandCatalog` | `commands/ShellCommandCatalog.java` | 按 `terminal-menu-items` 的顺序与 `TerminalMenuItems` 规则生成命令；追加 `new-session`/`new-named-session`/`toggle-keyboard` 并保证设置/帮助可达；快捷键标签来自 `CommandShortcuts` | 不要在面板里手写动作列表或快捷键 |
 | `CommandShortcuts` | `commands/CommandShortcuts.java` | `command-shortcuts` 属性 → 命令 id 到快捷键的映射；`shortcutFor` 供面板标签、`matches` 供按键分发 | 不要在别处再解析快捷键或另维护一份默认值 |
 | `describeKeyEvent` / `isKeyboardCompatLogEnabled` | `TermuxActivity.java` | `keyboard-compat-log` 开启时输出按键字段，供硬件键盘问题定位 | 不要另外加一份按键日志格式 |
-| `ImeInputType` | `terminal/ImeInputType.java` | `ime-input-type` 属性 → 上报给 IME 的输入类型（`auto`/`text`/`password`/`none`/`hardware`；`inputType(default, hardwareKeyboardAttached)` 供 `hardware` 使用） | 不要在其他地方拼 `InputType` 常量；改值或键盘接入状态变化后需 `restartInputConnection()` |
-| `HardwareKeyboard` | `terminal/HardwareKeyboard.java` | 判断是否接有物理键盘（`Configuration.keyboard` + `InputDevice.KEYBOARD_TYPE_ALPHABETIC`） | 结果不缓存，每次重新查询；需要响应接入/拔出时用 `InputManager.InputDeviceListener` 或 `onConfigurationChanged` |
+| `ImeInputType` | `terminal/ImeInputType.java` | `ime-input-type` 属性 → 上报给 IME 的输入类型（`auto`/`text`/`password`/`none`/`hardware`；`inputType(default, hardwareKeyboardAttached, softKeyboardVisible)` 供 `hardware` 使用） | 不要在其他地方拼 `InputType` 常量；改值、键盘接入状态或软键盘可见性变化后需 `restartInputConnection()` |
+| `KeyboardUtils.isHardKeyboardConnected` / `isSoftKeyboardVisible` | `termux-shared`（只读，可直接调用） | 硬件键盘是否连接、软键盘是否可见 | 不要另写 `Configuration.keyboard` 判断或 insets 读取；软键盘可见性需 API 23+ |
 | `ShellCommandHost` | `commands/ShellCommandHost.java` | 窗口级动作唯一入口：面板、抽屉按钮、会话新建共用 | 不要在抽屉按钮里另写 `Intent`/`addNewSession` |
 | `ShellCommandShortcut` | `commands/ShellCommandShortcut.java` | 把 `Ctrl+Alt+F` 这类显示文本解析为修饰键 + 主键，`matches`/`normalize`；字符匹配失败时回退到物理键码 | 不要另写快捷键解析；标签必须指向真实存在的处理 |
 | `ShellCommandPalette` | `commands/ShellCommandPalette.java` | 跟随终端配色方案的命令面板（自绘视图，无 XML 布局）；过滤为纯函数；面板内可用快捷键触发 | 不要再写一个「命令列表对话框」；面板配色必须取自当前会话的配色方案 |

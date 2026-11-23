@@ -123,11 +123,13 @@
 - [x] `ime-input-type`（`auto`/`text`/`password`/`none`）与 `ImeInputType`、键盘页设置项、`ImeInputTypeTest` 6 项（`a5cba39`）
 - [x] 输入法事件日志钩子（`onImeEvent`）与 Tab / Shift+Tab 直通（只读模块 + `app/`）
 - [x] 真机日志定位：字母只出现在 `[activity]`、随后逐字符 `[ime] commitText(...)`，Tab 由 `handleTerminalTab` 直接写入 PTY，字符与按键分属两条通道导致顺序错乱
-- [x] `ime-input-type=hardware`：接有物理键盘时上报 `TYPE_NULL`，物理按键直通终端；`HardwareKeyboard` 依据 `Configuration.keyboard` 与 `InputDevice.KEYBOARD_TYPE_ALPHABETIC`，键盘接入/拔出时重启输入连接
-- [x] Tab 直通并入额外键栏锁定的虚拟 SHIFT，日志补 `imeInputType`、`hardwareKeyboard`
-- [x] `ImeInputTypeTest` 扩至 8 项、新增 `HardwareKeyboardTest` 2 项
+- [x] `ime-input-type=hardware`：接有物理键盘且软键盘收起时上报 `TYPE_NULL`，物理按键直通终端；硬件键盘判断复用 `KeyboardUtils.isHardKeyboardConnected()`，键盘接入/拔出时重启输入连接
+- [x] `hardware` 随软键盘可见性切换：弹出时按文本框上报（输入法悬浮栏与拼音候选可用），收起时回到直通；可见性取自既有全局布局回调，变化时重启输入连接
+- [x] Tab 直通并入额外键栏锁定的虚拟 SHIFT，日志补 `imeInputType`、`hardwareKeyboard`、`softKeyboardVisible`
+- [x] `ImeInputTypeTest` 扩至 9 项
 - [ ] 待真机验收：`hardware` 模式下 lazyvim 插入模式 Tab、Ctrl/Alt 组合键、node TUI 输入顺序
-- [ ] 待真机验收：`hardware` 模式下软键盘 CJK 提交仍可用；`text` 模式下 Gboard 悬浮栏、组合文本残留
+- [ ] 待真机验收：`hardware` 模式下弹出软键盘后中文（拼音）输入、收起后物理键恢复直通；重启输入连接是否引起软键盘闪烁
+- [ ] 待真机验收：`text` 模式下 Gboard 悬浮栏、组合文本残留
 - [ ] 待验证：`keyboard-compat-log` 日志能否区分三条按键路径；改绑快捷键在硬件键盘下的表现
 
 ---
