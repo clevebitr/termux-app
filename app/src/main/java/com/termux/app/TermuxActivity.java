@@ -1384,7 +1384,7 @@ public final class TermuxActivity extends AppCompatActivity
 
         List<com.termux.app.commands.ShellCommand> commands = ShellCommandCatalog.build(
             this, state, action -> action.getTitle(this, session), mShellCommandHost);
-        ShellCommandPalette.show(this, commands);
+        ShellCommandPalette.show(this, commands, session);
     }
 
     /**

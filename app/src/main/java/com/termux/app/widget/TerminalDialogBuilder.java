@@ -76,6 +76,9 @@ public final class TerminalDialogBuilder {
     @Nullable
     private android.app.Dialog mDialog;
 
+    /** Whether the content is wrapped in a scroll container, which a caller with its own list turns off. */
+    private boolean mScrollable = true;
+
     private boolean mShown;
 
     private TerminalDialogBuilder(@NonNull Context context, @NonNull Style style) {
@@ -113,6 +116,17 @@ public final class TerminalDialogBuilder {
         return this;
     }
 
+    /**
+     * Set whether the content is wrapped in a scroll container. A caller that shows its own scrollable list, like
+     * the command palette, turns this off, so that the list keeps its own scrolling and recycling instead of being
+     * measured at its full height inside another scroll container.
+     */
+    @NonNull
+    public TerminalDialogBuilder setScrollable(boolean scrollable) {
+        mScrollable = scrollable;
+        return this;
+    }
+
     /** Set the runnable that is run when the dialog is dismissed, like to clear a cached selection. */
     @NonNull
     public TerminalDialogBuilder setOnDismissed(@Nullable Runnable onDismissed) {
@@ -137,13 +151,16 @@ public final class TerminalDialogBuilder {
         if (mTitle != null) root.addView(createTitleView(mTitle));
 
         View body = mContent;
-        if (body != null) {
+        if (body != null && mScrollable) {
             ScrollView scrollView = new ScrollView(mContext);
             scrollView.addView(body, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             scrollView.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, bodyHeight(body, width)));
             root.addView(scrollView);
+        } else if (body != null) {
+            root.addView(body, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
 
         if (!mButtons.isEmpty()) root.addView(createFooter());
