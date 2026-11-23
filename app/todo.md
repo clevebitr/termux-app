@@ -12,7 +12,7 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `4053e59 feat: 新增核心终端行为设置页 builtin.vt` |
+| 最近提交 | `6d203ab fix: 修正资源文件中迁移后失效的类名` |
 | 规模 | `TermuxActivity` 2100 行；`commands/` 5 文件 491 行；`ext/` 8 个扩展 + api/host；`terminal/` 仅剩 6 文件 |
 | 验证 | 本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 164 项、1 项既有失败 |
 
@@ -127,9 +127,9 @@
 | 项 | 状态 |
 | --- | --- |
 | `:app:compileDebugJavaWithJavac` | 通过（本机） |
-| `:app:testDebugUnitTest` | 167 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现） |
+| `:app:testDebugUnitTest` | 170 项，1 项失败：`FileReceiverActivityTest > testIsSharedTextAnUrl`（既有，Robolectric 4.10 + JDK 21，CI 不复现） |
 | `:app:assembleDebug` | 未执行，本机 NDK 缺 `libc++_shared` |
-| 设备验证 | 未执行，无 `adb` |
+| 设备验证 | 2026-11-23 首次真机试机：启动即崩溃（资源文件中的旧类名，见 `app/DECISIONS.md` #16），已修复并补 `ResourceClassNameTest`；其余行为仍未验证 |
 | CI | 推送后由 PR 触发；本机无 `gh`，状态待确认 |
 
 ---

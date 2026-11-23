@@ -266,3 +266,25 @@
 `builtin.vt` 只收纳「实现位于只读模块、只能关闭行为」的开关；可关闭的 fork 功能一律属于各自扩展。这条边界已写入 `BuiltinVtExtension` 的 KDoc 与 `docs/API_INDEX.md`。
 
 未验证：迁移后的四个内边距项与两个开关在真机上的读写、搜索能否在新页找到这些条目、长按复位是否正常，均未验证；本机 `:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest --rerun-tasks` 169 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。
+
+## 2026-11-23 — 真机启动崩溃：资源文件中的旧类名；补资源级守卫测试
+
+真机试机时启动即崩溃，无弹窗；崩溃日志从系统「分享」导出到 Download/OnePlus Share/crash_log.md 后定位。
+
+根因：资源文件里的类名是字符串，编译器不检查，包迁移后失效。
+- `activity_termux.xml` 第 34 行仍写 `com.termux.app.terminal.DrawerHandleView`，实际类已迁到 `com.termux.app.ext.drawer`；
+- 同一文件仍写 `com.termux.app.statusbar.StatusBarView`，实际已迁到 `com.termux.app.ext.statusbar`；
+- `termux_preferences.xml` 的通知页仍写 `com.termux.app.fragments.settings.termux.NotificationPreferencesFragment`，实际已迁到 `com.termux.app.ext.notifications`。
+
+崩溃栈：`setContentView(activity_termux)` → `InflateException` → `ClassNotFoundException: com.termux.app.terminal.DrawerHandleView`。前两处是启动崩溃，第三处是打开通知设置页时崩溃，后者的隐患被前者的崩溃掩盖了。
+
+迁移脚本的漏洞：批量改引用时只扫了 `**/*.java`，没有扫 `src/main/res/**/*.xml`；XML 里的自定义控件标签与 `app:fragment` 值同样是类名。
+
+修复与防线：
+1. 修正三处失效类名（6d203ab）。
+2. 新增守卫测试 `ResourceClassNameTest`：扫描 `src/main/res/layout`、`res/xml`、`res/menu` 下所有 XML，抽取 `com.termux.*` 形式的类名（末段首字母大写者），逐个 `Class.forName`，缺失即失败并列出文件。该测试在修复前的三条失效类名上确实失败，修复后通过。
+3. 约束：以后迁移包时，必须同时更新 `res/**/*.xml` 中的自定义控件标签与 `app:fragment`；`ResourceClassNameTest` 是这条约束的机器检查。
+
+代价与教训：此类错误编译与 169 项单测全绿也发现不了，只有真机 inflate 时才暴露，因此必须有资源级守卫。
+
+未验证：修复后的布局 inflate、通知设置页打开均未在真机上确认；本机 `:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest --rerun-tasks` 170 项（新增 1 项）中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。

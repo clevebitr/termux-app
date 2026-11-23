@@ -131,6 +131,7 @@
 | `SettingsSearchIndexTest` | `fragments/settings/` | 搜索排序与禁用扩展过滤 |
 | `PreferenceResetSourceTest` | `fragments/settings/termux/` | 每个设置页都安装长按复位监听（页面清单是「类名 → 路径」映射，移动页面必须同步） |
 | `TerminalActionRunnerTest` / `ShellCommandPaletteTest` | `commands/` | 注意 `ShellCommandCatalog` 需要 `Context`，当前无单测 |
+| `ResourceClassNameTest` | `app/src/test/java/com/termux/app/ext/` | 资源文件里写的 `com.termux.*` 类名必须存在（自定义控件标签、`app:fragment`）；移动类后忘记改 XML 会在此失败，而不是真机崩溃 |
 
 ---
 

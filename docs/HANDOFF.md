@@ -118,7 +118,9 @@ ext/backup/   BackupExtension、TermuxBackupUtils、BackupPreferencesFragment（
    `SettingsSearchIndex.CORE_PAGES`。
 7. **守卫测试**：`PreferenceResetSourceTest` 校验每个设置页安装长按复位监听，页面清单是「类名 → 路径」映射，
    移动页面时要同步更新；`ExtensionRegistrySourceTest` 校验扩展声明的 key 存在于 `termux_preferences.xml`、
-   声明的页面源码调用 `isRunning(`、页面声明不重复。
+   声明的页面源码调用 `isRunning(`、页面声明不重复；`ResourceClassNameTest` 校验资源文件中的 `com.termux.*`
+   类名仍然存在——移动类后忘记改 `res/**/*.xml` 的自定义控件标签或 `app:fragment` 会在真机 inflate 时崩溃，
+   编译器与其它单测都发现不了。
 
 ---
 
