@@ -346,7 +346,7 @@ public final class TermuxActivity extends AppCompatActivity
 
         // The cutout mode and the fullscreen flag are window attributes, so they must be set before the content
         // view is created and the layout is measured.
-        setDisplayCutoutMode();
+        applyWindowFlags();
 
         setContentView(R.layout.activity_termux);
 
@@ -373,10 +373,6 @@ public final class TermuxActivity extends AppCompatActivity
             mNavBarHeight = insets.getSystemWindowInsetBottom();
             return insets;
         });
-
-        if (mProperties.isUsingFullScreen()) {
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        }
 
         setTermuxTerminalViewAndClients();
 
@@ -772,13 +768,32 @@ public final class TermuxActivity extends AppCompatActivity
 
 
     /**
+     * 目的 — 在创建内容视图之前设置与系统界面相关的窗口属性：全屏标志与刘海（display cutout）的使用方式。
+     *
+     * <p>行为 — `fullscreen=true` 时添加 {@code FLAG_FULLSCREEN} 隐藏状态栏，并使用
+     * {@code LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES} 让终端绘制到屏幕短边的挖孔区域；否则使用默认模式，
+     * 内容避开挖孔，状态栏图标不被摄像头遮挡。</p>
+     *
+     * <p>约束 — 只能在 {@code onCreate()} 里、{@code setContentView()} 之前调用；属性变更需要重建 Activity
+     * 才生效。API 28 以下没有挖孔模式属性，只设置全屏标志。</p>
+     */
+    private void applyWindowFlags() {
+        if (mProperties == null) return;
+
+        if (mProperties.isUsingFullScreen()) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        }
+
+        setDisplayCutoutMode();
+    }
+
+    /**
      * 目的 — 让窗口在配置允许时使用刘海（display cutout）区域，避免全屏时顶部留下一条黑带。
      *
      * <p>行为 — `fullscreen=true` 时使用 {@code LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES}，终端可以绘制到位于
      * 屏幕短边（顶部或底部）的挖孔区域；否则使用默认模式，内容避开挖孔，状态栏图标不被摄像头遮挡。</p>
      *
-     * <p>约束 — 只能在 {@code onCreate()} 里、{@code setContentView()} 之前调用；属性变更需要重建 Activity
-     * 才生效，与 `fullscreen` 标志的现有行为一致。API 28 以下没有该属性，直接返回。</p>
+     * <p>约束 — 由 {@link #applyWindowFlags()} 在 {@code onCreate()} 里调用。API 28 以下没有该属性，直接返回。</p>
      */
     private void setDisplayCutoutMode() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || mProperties == null) return;

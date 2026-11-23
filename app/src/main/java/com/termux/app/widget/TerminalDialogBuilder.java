@@ -171,7 +171,10 @@ public final class TerminalDialogBuilder {
     private int dialogWidth() {
         int screenWidth = mContext.getResources().getDisplayMetrics().widthPixels;
         int margins = 2 * TerminalDialogStyles.dialogMarginPx(mContext);
-        return Math.min(screenWidth - margins, TerminalDialogStyles.dialogMaxWidthPx(mContext));
+        int maxWidth = TerminalDialogStyles.dialogMaxWidthPx(mContext);
+        // The minimum keeps the measure of the body from using a negative width on a screen that is narrower
+        // than the margins of the dialog, like in a split screen of a desktop window manager.
+        return Math.max(TerminalDialogStyles.dp(mContext, 200), Math.min(screenWidth - margins, maxWidth));
     }
 
     /**
