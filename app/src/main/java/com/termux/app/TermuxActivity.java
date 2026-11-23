@@ -1490,23 +1490,39 @@ public final class TermuxActivity extends AppCompatActivity
         if (event.getKeyCode() != KeyEvent.KEYCODE_TAB) return false;
         if (event.isCtrlPressed() || event.isAltPressed()) return false;
 
-        TerminalView terminalView = mTerminalView;
-        if (terminalView == null) return false;
-
         if (isTextInputFocused()) {
             if (mKeyboardCompatLog) KeyboardCompatLog.log("activity", "Tab left to the focused text field");
             return false;
         }
 
+        TerminalView terminalView = focusedTerminalView();
+        if (terminalView == null) return false;
+
         int keyMod = event.isShiftPressed() ? KeyHandler.KEYMOD_SHIFT : 0;
         if (terminalView.handleKeyCode(KeyEvent.KEYCODE_TAB, keyMod)) {
             if (mKeyboardCompatLog) {
-                KeyboardCompatLog.log("activity", "sent Tab to the terminal, focus on "
-                    + describeFocus());
+                KeyboardCompatLog.log("activity", "sent Tab to the terminal, focus on " + describeFocus()
+                    + ", pane=" + (terminalView == mTerminalViews[1] ? 1 : 0)
+                    + ", activePane=" + (terminalView == mTerminalView)
+                    + ", pid=" + (terminalView.getCurrentSession() != null
+                        ? terminalView.getCurrentSession().getPid() : -1));
             }
             return true;
         }
         return false;
+    }
+
+    /**
+     * @return The terminal view that receives the key, which is the focused pane when it has the focus, since the
+     *         active pane is only updated by a touch and a hardware keyboard may have been used to move the focus
+     *         to another pane. Falls back to the active pane, so that a Tab still reaches the terminal while the
+     *         focus is on a toolbar button.
+     */
+    @Nullable
+    private TerminalView focusedTerminalView() {
+        View focus = getCurrentFocus();
+        if (focus instanceof TerminalView) return (TerminalView) focus;
+        return mTerminalView;
     }
 
     /** @return Whether a text field has the focus, so that the Tab belongs to it instead of the terminal. */
