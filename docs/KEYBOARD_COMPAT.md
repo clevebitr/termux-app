@@ -45,7 +45,7 @@
 | 属性 | 作用 |
 | --- | --- |
 | `enforce-char-based-input` | `TYPE_TEXT_VARIATION_VISIBLE_PASSWORD`，绕开部分输入法在 `TYPE_NULL` 下的异常 |
-| `gboard-cjk-workaround` | IME 语言为 CJK 时用 `TYPE_CLASS_TEXT + NORMAL` 并重启输入；否则 `VISIBLE_PASSWORD` |
+| `gboard-cjk-workaround` | 未接硬件键盘时把终端上报为普通文本框，适用于 Gboard 与第三方输入法；接有硬件键盘时只影响软键盘可见的分支 |
 | `disable-hardware-keyboard-shortcuts` | 关闭 `Ctrl+Alt+*` 组合 |
 | `back-key-the-escape-key` | 返回键映射为 Esc |
 | `ctrl-space-workaround` | 部分 ROM 的 `Ctrl+Space` 修正 |
@@ -55,15 +55,24 @@
 
 ## 2. 唯一规则
 
-终端上报给输入法的类型只由「软键盘是否可见」决定，不设任何用户选项：
+终端上报给输入法的类型只由「是否有硬件键盘」「软键盘是否可见」与「输入法兼容模式（`gboard-cjk-workaround`）」
+决定，不设其他用户选项：
 
-| 硬件键盘 | 软键盘 | 上报类型 | 结果 |
-| --- | --- | --- | --- |
-| 有 | 收起 | `TYPE_NULL` | 输入法不介入，`Tab`、`Ctrl`/`Alt` 组合键、方向键与字符全部直达终端 |
-| 有 | 弹出 | `TYPE_CLASS_TEXT \| NO_SUGGESTIONS \| NORMAL` | 输入法显示悬浮栏与候选词，软键盘与物理键盘都能打拼音 |
-| 无 | 任意 | 视图算出的类型（含 `gboard-cjk-workaround`） | 与上游一致 |
+| 硬件键盘 | 软键盘 | 兼容模式 | 上报类型 | 结果 |
+| --- | --- | --- | --- | --- |
+| 有 | 收起 | 任意 | `TYPE_NULL` | 输入法不介入，`Tab`、`Ctrl`/`Alt` 组合键、方向键与字符全部直达终端 |
+| 有 | 弹出 | 任意 | `TYPE_CLASS_TEXT \| NO_SUGGESTIONS \| NORMAL` | 输入法显示悬浮栏与候选词，软键盘与物理键盘都能打拼音 |
+| 无 | 任意 | 开 | `TYPE_CLASS_TEXT \| NO_SUGGESTIONS \| NORMAL` | 所有输入法按普通文本框处理，语言切换键与候选词可用 |
+| 无 | 任意 | 关 | 视图算出的类型 | 与上游一致，依赖视图按输入法语言标签自行判断 |
 
-规则的含义：**看得见软键盘就是输入法在打字，看不见就是终端在收键**。
+规则的含义：**看得见软键盘就是输入法在打字，看不见就是终端在收键**；这条规则用于有物理按键需要保护的情形。
+没有物理键盘时不存在需要保护的按键，因此由兼容模式决定是否把终端当作文本框。
+
+为什么兼容模式不按输入法语言标签分流：视图的 `gboard-cjk-workaround` 通过
+`InputMethodManager.getCurrentInputMethodSubtype().getLanguageTag()` 判断中日韩，语言变化时依赖 Gboard 调用
+`requestCursorUpdates()` 触发重启。第三方输入法（搜狗、百度、讯飞等）常常在同一子类型内切换语言，不上报语言标签，
+也不调用该接口，于是终端一直停在 `VISIBLE_PASSWORD` 或 `TYPE_NULL`，语言切换键被隐藏，只能输入英文。
+兼容模式下应用层直接覆盖为文本框类型，与语言标签无关，因此对所有输入法一致生效。
 
 ---
 
@@ -71,19 +80,20 @@
 
 ### 3.1 输入类型解析
 
-`TermuxTerminalViewClient.resolveInputType(defaultInputType, hardwareKeyboardAttached, softKeyboardVisible)`
-是唯一的判定点，`getInputType()` 只负责取状态并记录日志：
+`TermuxTerminalViewClient.resolveInputType(defaultInputType, hardwareKeyboardAttached, softKeyboardVisible,
+imeCompatibilityModeEnabled)` 是唯一的判定点，`getInputType()` 只负责取状态并记录日志：
 
 ```java
-if (!hardwareKeyboardAttached) return defaultInputType;
-return softKeyboardVisible
-    ? TYPE_CLASS_TEXT | NO_SUGGESTIONS | NORMAL
-    : TYPE_NULL;
+if (hardwareKeyboardAttached) {
+    return softKeyboardVisible ? TEXT_EDITOR_INPUT_TYPE : InputType.TYPE_NULL;
+}
+return imeCompatibilityModeEnabled ? TEXT_EDITOR_INPUT_TYPE : defaultInputType;
 ```
 
-`TerminalView` 在算完自己的 `inputType` 之后调用客户端的 `getInputType()`，因此这里的返回值覆盖
-`enforce-char-based-input` 与 `gboard-cjk-workaround` 的结果。这两个属性仍然保留，只在「没有硬件键盘」或
-「软键盘可见」的分支里间接生效。
+`TEXT_EDITOR_INPUT_TYPE` 为 `TYPE_CLASS_TEXT | NO_SUGGESTIONS | NORMAL`。`TerminalView` 在算完自己的
+`inputType` 之后调用客户端的 `getInputType()`，因此这里的返回值覆盖 `enforce-char-based-input` 与
+`gboard-cjk-workaround` 在视图内部算出的结果。这两个属性仍然保留：`enforce-char-based-input` 只在兼容模式关闭
+且没有硬件键盘时生效；`gboard-cjk-workaround` 在应用层作为兼容模式开关使用。
 
 ### 3.2 状态的来源
 
@@ -107,7 +117,9 @@ Android 5.0 与 6.0 读不到软键盘可见性，这两个版本上 `TermuxTerm
 | --- | --- |
 | 硬件键盘接入或拔出 | `TermuxActivity` 的 `InputManager.InputDeviceListener` 与 `onConfigurationChanged` |
 | 软键盘显示或隐藏 | `updateTerminalToolbarVisibilityForSoftKeyboardVisibility()` 中的可见性比较 |
-| 属性重载 | `TermuxTerminalViewClient.onReloadProperties()` |
+| 属性重载（含兼容模式开关） | `TermuxTerminalViewClient.onReloadProperties()` |
+
+没有硬件键盘时上报类型与软键盘可见性无关，因此可见性变化不会重启连接；兼容模式的开关变化由属性重载重启。
 
 重启通过 `TerminalView.restartInputConnection()` 完成，两个窗格都会重启。`onStop()` 会清空
 `mPendingKeyDowns`：应用在按住某键时被切走，那条 down 的 up 永远不会到达，否则会长期抑制同一按键的兜底重启。
@@ -132,6 +144,8 @@ Android 5.0 与 6.0 读不到软键盘可见性，这两个版本上 `TermuxTerm
 2. 软键盘弹出期间终端按文本框上报，输入法显示悬浮栏与候选词，软键盘与物理键盘都可用来打拼音，提交文本经
    输入连接写入终端；
 3. 收起软键盘后自动回到 `TYPE_NULL`，物理按键重新直达终端。
+4. 兼容模式（`gboard-cjk-workaround`）打开且没有硬件键盘时，终端从创建输入连接起就按文本框上报，因此在任何
+   输入法中都可以直接切换语言；不需要先切换到中日韩语言再回到终端。
 
 ---
 
@@ -164,6 +178,7 @@ keyboard-compat-log = true   # 默认 false
 排障判据：
 
 - 直通生效时，每个按键都应有一条 `[terminal-view]`，且 `[ime] getInputType` 的 `reported=0x0`；
+- 兼容模式下的 `[ime] getInputType` 行带有 `compatibilityMode=true`，且 `reported` 为文本类；
 - 若只有 `[activity]` 的 `action=up`、没有按下事件、也没有 `[terminal-view]`，说明输入法仍在接管物理键盘，
   此时 `reported` 必然不是 `0x0`，需要检查软键盘是否被判定为可见；
 - `Tab` 若在日志中完全没有记录，说明事件被输入法取走，问题在输入类型而不在应用层处理。
@@ -201,3 +216,5 @@ keyboard-compat-log = true   # 默认 false
 3. 个别 ROM 在蓝牙键盘刚连接时 `Configuration` 与输入设备回调都尚未更新，输入类型要等下一次配置变更或设备
    回调才会切换。
 4. 软键盘可见性依赖窗口 inset，Android 5.0 与 6.0 不可用，见 §3.2。
+5. 兼容模式打开时输入法使用文本框语义，部分输入法在英文下会保留组合文本，字符在提交后才到达程序；
+   需要逐字符立即到达时关闭该开关。

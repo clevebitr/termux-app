@@ -15,7 +15,7 @@
 
 | § | 特性 | 配置 | 默认 |
 | --- | --- | --- | --- |
-| 1 | Gboard 等输入法可直接用中日韩键盘 | `gboard-cjk-workaround` | 关 |
+| 1 | 输入法兼容模式：Gboard 等所有输入法可用中日韩键盘并切换语言 | `gboard-cjk-workaround` | 关 |
 | 2 | extra keys 行配色跟随 Termux:Styling 主题 | `extra-keys-foreground/background/…`（设置页有 22 色色板） | 跟随配色方案 |
 | 3 | 整个 App 跟随配色方案（含状态栏/导航栏图标明暗） | `night-mode=color-scheme` | `system` |
 | 4 | 输入法 / 虚拟键盘配色的图形化设置页 | 设置 → Termux → 终端键盘 | — |
@@ -66,12 +66,11 @@
 `~/.termux/termux.properties`（改完执行 `termux-reload-settings`）：
 
 ```properties
-# 允许 Gboard 在终端视图里直接使用中文/日文/韩文键盘（本 fork 新增）
-# 原理：终端视图默认用 InputType.TYPE_NULL，Gboard 会把键盘强制成英文 QWERTY 并隐藏语言切换键；
-# 打开后改用 text class inputType，并监听 IME 语言切换（requestCursorUpdates）重启输入，
-# 同时用 TYPE_TEXT_VARIATION_NORMAL 让 Gboard 显示候选词。
-# 副作用：非 CJK 语言会退化为 visible-password 风格输入（无联想/候选），与
-# enforce-char-based-input=true 类似；依赖 Gboard 的行为，其他输入法表现未充分验证。
+# 打开「输入法兼容模式」，让所有输入法都能在终端视图里切换语言并使用中文/日文/韩文键盘（本 fork 新增）
+# 原理：终端视图默认用 InputType.TYPE_NULL，输入法会把键盘强制成英文 QWERTY 并隐藏语言切换键；
+# 打开后无论输入法上报什么语言标签，都把终端上报为普通文本框（text class + NO_SUGGESTIONS + NORMAL），
+# 语言切换键与候选词因此保持可用。接有硬件键盘且软键盘收起时仍上报 TYPE_NULL，物理按键保持直达。
+# 副作用：输入法使用文本框语义，部分输入法在英文下会保留组合文本，字符在提交后才到达终端。
 gboard-cjk-workaround=true
 
 # 部分三星键盘等需要字符级输入时打开
@@ -205,7 +204,7 @@ night-mode=color-scheme
 设置 → Termux → **Terminal Keyboard**（新页面）里现在可以直接调：
 
 * **Input Method** 分类
-  * `Gboard CJK Keyboards` = `gboard-cjk-workaround`
+  * `IME Compatibility Mode`（输入法兼容模式）= `gboard-cjk-workaround`
   * `Enforce Character Based Input` = `enforce-char-based-input`
   * `Ctrl+Space Workaround` = `ctrl-space-workaround`
 * **Extra Keys Colors** 分类（4 项，点进去是色板）
