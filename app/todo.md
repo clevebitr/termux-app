@@ -12,7 +12,7 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `d418a90 refactor: 将音量键动作提取为 volume-keys 扩展` |
+| 最近提交 | `53079b2 feat: 新增扩展视图槽位与通用布局请求` |
 | 规模 | `TermuxActivity` 2194 行；`commands/` 5 文件 491 行；`ext/` 34 文件 4700 行（`statusbar` 7、`menu` 7、`volumekeys` 4、`backup` 3） |
 | 验证 | 本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 164 项、1 项既有失败 |
 
@@ -49,6 +49,7 @@
 - [x] `docs/API_INDEX.md`：已有 API 索引与重复实现清单，`AGENTS.md` 增加「新增前先查」约束
 - [x] `ext.menu` 迁移：动作枚举、规则、配置、对话框与设置页迁入扩展包；新增 `TerminalMenuExtension`（默认启用、页面闸门、属性重载、`showMenu()`/`getConfig()`）；宿主 `showTerminalMenu()` 与 `getTerminalMenuConfig()` 改为转发（`2a623ce`、`#9`）
 - [x] `ext.volumekeys` 迁移：动作派发迁入 `VolumeKeyActions`（`Host` 接口），音量键设置从键盘页拆出为独立页，新增 `VolumeKeysExtension` 与闸门；状态机仍由视图客户端持有（`d418a90`、`#10`）
+- [x] 视图槽位贡献点：`ExtensionViewSlot` + `Extension.slots()`、`ExtensionContext.view()`、`ExtensionContext.requestExtensionLayout()` + `ExtensionLayoutHost`、`ExtensionHost.slotOwner()`，2 项守卫测试（`53079b2`、`#11`）
 
 ### 2.5 文档与治理
 
@@ -83,6 +84,8 @@
 
 ### 4.3 `ext.notifications`（13 文件 2704 行）
 
+- [x] 视图槽位贡献点（`notification_overlay` 可声明）
+- [ ] 事件源贡献点（命令结束、应用事件）
 - [ ] 依赖 `ext.statusbar`（可选依赖）与事件源贡献点
 - [ ] 迁移卡片、后台通知、历史列表与设置页
 - [ ] 验收：禁用后卡片、后台通知与历史全部停止

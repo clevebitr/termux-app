@@ -133,13 +133,13 @@ X1 控制器拆分已完成第一轮：动作分发改为 `TerminalActionRunner`
 `ext.statusbar` 已迁移（生命周期回调 + 包迁移 + 页面闸门 + 宿主单向查询），并新增 `docs/API_INDEX.md`，
 记录见 `app/DECISIONS.md` #8；`ext.menu` 已迁移（动作/规则/配置/对话框/设置页整体迁入，宿主转发），
 记录见 `app/DECISIONS.md` #9；`ext.volumekeys` 已迁移（动作派发与设置页迁入，状态机留在视图客户端），
-记录见 `app/DECISIONS.md` #10；迁移评估与后续顺序见 `docs/EXTENSION_API.md` §10。
+记录见 `app/DECISIONS.md` #10；视图槽位贡献点已就绪（`ExtensionViewSlot`、`ExtensionContext.view()`、
+`requestExtensionLayout()`），记录见 `app/DECISIONS.md` #11；迁移评估与后续顺序见 `docs/EXTENSION_API.md` §10。
 
 | 序 | 任务 | 要点 | 验收 |
 | --- | --- | --- | --- |
-| 2 | `ext.notifications` | 13 文件 2704 行；需先定义「事件源/卡片槽位」贡献点，依赖 `StatusBarExtension.getConfig()` | 禁用后卡片、后台通知、历史全部停止 |
-| 3 | 视图槽位贡献点 | 先汇总分屏容器、搜索条、通知叠层三处用途，再设计 | 一个接口服务三处，不是为单特性造接口 |
-| 4 | `ext.split` / `ext.search` / `ext.drawer` | 依赖上一项 | 逐项可禁用 |
+| 1 | `ext.notifications` | 13 文件 2704 行；槽位已就绪（`notification_overlay`），还需「事件源」贡献点；依赖 `StatusBarExtension.getConfig()` | 禁用后卡片、后台通知、历史全部停止 |
+| 2 | `ext.split` / `ext.search` / `ext.drawer` | 槽位已就绪（`terminal_panes_container`、`terminal_search_bar`） | 逐项可禁用 |
 | 5 | `builtin.vt` 开关页 | 仅属性开关（OSC52/133、1004、悬停、滚动保持、内边距） | 设置页明确标注「核心能力，仅可关闭行为」 |
 | 6 | 设备验证 | 无 `adb`，需出包后按 `FORK.md` §33 与验收矩阵逐项确认 | 记录到 PR 或 `FORK.md` |
 

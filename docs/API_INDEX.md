@@ -19,6 +19,8 @@
 | `Extension` | `ext/api/Extension.java` | 扩展契约：`id`/`titleRes`/`summaryRes`/`requires`/`isUserDisableable`/`isEnabledByDefault`/`preferenceKeys`/`settingsPages`/`onEnable`/`onStart`/`onStop`/`onReload`/`onDisable` | 不要再给扩展加「启用状态存储」「依赖解析」等成员，这些属于宿主 |
 | `ExtensionContext` | `ext/api/ExtensionContext.java` | 扩展可见的宿主能力：`activity()`、`properties()`、`extensionSettings()`、`logInfo`/`logWarn` | 不要在扩展里直接访问 `TermuxActivity` 字段 |
 | `ExtensionSettingsPage` | `ext/api/ExtensionSettingsPage.java` | 设置页声明：`titleRes`、`xmlRes`、`fragmentClassName` | 不要在 `SettingsSearchIndex` 里手写扩展页面 |
+| `ExtensionViewSlot` | `ext/api/ExtensionViewSlot.java` | 布局区域声明：`viewId`、`viewName`、`description`；配合 `Extension.slots()` | 不要在宿主里另行接管同一视图，也不要接管终端视图与抽屉结构 |
+| `ExtensionLayoutHost` | `ext/api/ExtensionLayoutHost.java` | 宿主实现 `requestExtensionLayout()`，供扩展请求重排 | 不要再加 `onXxxLayoutChanged()` 之类按特性命名的钩子 |
 | `ExtensionHost` | `ext/host/ExtensionHost.java` | **扩展状态唯一来源**：`installed`/`statuses`/`stateOf`/`isRunning`/`disabledIds`/`extension`/`dependentsOf`/`setEnabled` | 不要再写「读 SharedPreferences 判断扩展是否启用」的代码 |
 | `ExtensionManager` | `ext/host/ExtensionManager.java` | 扩展生命周期：`apply`/`onStart`/`onStop`/`onReload`/`destroy`，异常隔离 | 不要在 Activity 里逐个调用扩展的 `onEnable`/`onStart` |
 | `ExtensionGraph` | `ext/host/ExtensionGraph.java` | 纯函数依赖解析：拓扑顺序、缺依赖、依赖环、级联 | 不要另写依赖排序 |
@@ -105,7 +107,7 @@
 
 | 扩展 | 路径 | 提供的能力 | 宿主接口 |
 | --- | --- | --- | --- |
-| `statusbar` | `ext/statusbar/` | `StatusBarConfig`/`StatusBarView`/`StatusBarController`/`StatusBarMetrics`/`SparklineView`/`StatusBarPreferencesFragment`，`StatusBarExtension.getConfig()` 供宿主查询 | `TermuxActivity.onStatusBarLayoutChanged()` |
+| `statusbar` | `ext/statusbar/` | `StatusBarConfig`/`StatusBarView`/`StatusBarController`/`StatusBarMetrics`/`SparklineView`/`StatusBarPreferencesFragment`，`StatusBarExtension.getConfig()` 供宿主查询 | 槽位 `status_bar_view`；`ExtensionLayoutHost.requestExtensionLayout()` |
 | `volume-keys` | `ext/volumekeys/` | `VolumeKeyActions`（动作派发，`Host` 接口）、`VolumeKeysExtension.perform(...)`、`VolumeKeysPreferencesFragment`；宿主侧状态机留在 `TermuxTerminalViewClient` | `ExtensionHost.isRunning()` 闸门 + `VolumeKeyActions.Host` |
 | `menu` | `ext/menu/` | `TerminalMenuAction`/`TerminalMenuItems`/`TerminalMenuConfig`/`TerminalMenuDialog`/`TerminalMenuExtension`/`TerminalMenuPreferencesFragment` 与两个有序列表偏好项；`getConfig()` 供宿主查询选择工具条动作 | `TermuxActivity.showTerminalMenu()`、`getTerminalMenuConfig()` |
 | `backup` | `ext/backup/` | `TermuxBackupUtils`（脚本解压与执行）、`BackupPreferencesFragment` | 无 |

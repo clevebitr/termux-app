@@ -281,6 +281,8 @@ public final class ExtensionHost {
 | `Extension.onStart()` / `onStop()` | `ext/api/Extension.java` | 定时刷新类扩展在活动可见时才工作（状态栏的 tick） |
 | `Extension.onReload()` | 同上 | 属性或配色变化后重新读取配置 |
 | `ExtensionManager.onStart/onStop/onReload` | `ext/host/ExtensionManager.java` | 宿主转发上述回调，逐个扩展做异常隔离 |
+| `Extension.slots()` / `ExtensionViewSlot` | `ext/api/` | 扩展声明接管的布局区域，见 §10.5 |
+| `ExtensionContext.view()` / `requestExtensionLayout()` | `ext/api/ExtensionContext.java` | 取槽位视图、请求宿主重排 |
 
 ### 10.3 状态栏迁移要点
 
@@ -292,16 +294,30 @@ public final class ExtensionHost {
 4. 宿主与扩展的单向查询：`TermuxActivity.getStatusBarConfig()` 通过 `ExtensionHost.get(this).extension(ID)` 取实例再读
    `getConfig()`；扩展禁用时返回 `null`，终端不再为状态栏留白，行为自然正确。宿主只允许调用扩展的**配置查询**方法，
    不得调用其界面方法。
-5. 扩展每次改变视图可见性或高度后调用 `TermuxActivity.onStatusBarLayoutChanged()`，由宿主重算窗格内边距与通知卡片内距。
+5. 扩展每次改变视图可见性或高度后调用 `ExtensionContext.requestExtensionLayout()`，由宿主重算窗格内边距与通知卡片内距。
 
 ### 10.4 下一批的进入条件
 
-- **通知体系**：需要先定义「事件源」贡献点（命令结束、应用事件）与「卡片容器槽位」，否则迁移后仍要从 Activity 取视图；
-  状态栏已提供 `StatusBarExtension.getConfig()`，卡片内距可直接查询。
-- **分屏与搜索**：需要「视图装饰器/槽位」贡献点，让扩展接管 `activity_termux.xml` 中的一段布局，禁用时该段回到宿主默认
-  （隐藏或不占空间）。设计前先确认三处用途（分屏容器、搜索条、通知叠层），避免为单个特性造接口。
+- **通知体系**：视图槽位已就绪（`notification_overlay`），还需定义「事件源」贡献点（命令结束、应用事件），
+  否则迁移后仍要从 Activity 取事件；状态栏已提供 `StatusBarExtension.getConfig()`，卡片内距可直接查询。
+- **分屏与搜索**：视图槽位已就绪（`terminal_panes_container`、`terminal_search_bar`），下一步确认「禁用后该段如何回到宿主默认」
+  （隐藏 / 不占空间 / 宿主保留最小结构）后即可迁移。
 - **终端菜单与会话抽屉**：菜单规则已是纯函数，可先做 `ext.menu`（属性开关 + 设置页），抽屉随后。
 - **音量键**：Activity 中独立，无依赖，可作为「小步验证迁移流程」的候选。
+
+### 10.5 视图槽位贡献点（2026-11-24）
+
+| 贡献点 | 位置 | 用途 |
+| --- | --- | --- |
+| `ExtensionViewSlot`（`viewId`/`viewName`/`description`）与 `Extension.slots()` | `ext/api/ExtensionViewSlot.java`、`Extension.java` | 扩展声明自己接管的布局区域，可登记、可校验 |
+| `ExtensionContext.view(int)` | `ext/api/ExtensionContext.java` | 扩展从宿主取槽位视图，不必自行搜索 Activity |
+| `ExtensionContext.requestExtensionLayout()` + `ExtensionLayoutHost` | `ext/api/ExtensionLayoutHost.java` | 扩展改变槽位高度或可见性后，请求宿主重算窗格内边距与叠层位置 |
+| `ExtensionHost.slotOwner(int)` | `ext/host/ExtensionHost.java` | 判断某个视图属于扩展还是宿主核心 |
+| `ExtensionRegistrySourceTest` 新增 2 项 | `app/src/test/java/com/termux/app/ext/` | 槽位必须存在于 `activity_termux.xml`；槽位 id 与名字不得重复、必须有描述 |
+
+克制点：不引入「扩展自己 inflate 布局」与「宿主预留空容器」两种更重的机制。当前三处候选（通知叠层 `notification_overlay`、
+分屏窗格容器 `terminal_panes_container`、搜索条 `terminal_search_bar`）都由宿主布局提供视图，扩展只接管行为与显示，
+因此槽位只需要「声明归属 + 取视图 + 请求重排」三项能力。
 
 ## 11. 未验证声明
 
