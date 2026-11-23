@@ -804,8 +804,6 @@
 
     <!-- Terminal Menu Preferences -->
     <string name="termux_ime_compatibility_header">Hardware keyboard and IME</string>
-    <string name="termux_ime_input_type_title">IME input type</string>
-    <string name="termux_ime_input_type_summary">Text reports the terminal as a normal text field, so that an IME like Gboard shows its toolbar with a hardware keyboard. Hardware reports an untyped editor while a hardware keyboard is attached, so that its keys reach the terminal directly and are not taken by the IME; CJK text then has to be typed with the software keyboard.</string>
     <string name="termux_keyboard_compat_log_title">Key event log</string>
     <string name="termux_keyboard_compat_log_summary">Log the key events that the app, the terminal view and the command shortcuts see, for diagnosing a keyboard that does not work. The log is written to ~/.termux/keyboard-compat.log.</string>
     <string name="termux_command_shortcuts_header">Command shortcuts</string>

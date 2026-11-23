@@ -49,9 +49,7 @@ import com.termux.app.ext.search.SearchExtension;
 import com.termux.app.ext.split.SplitScreenExtension;
 import com.termux.app.properties.ForkProperties;
 import com.termux.app.properties.ForkPropertyKeys;
-import com.termux.app.terminal.ImeInputType;
 import com.termux.app.terminal.KeyboardCompatLog;
-import com.termux.terminal.KeyHandler;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalFrame;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
@@ -265,21 +263,17 @@ public final class TermuxActivity extends AppCompatActivity
     /** Whether the key events that the activity sees are logged, from `keyboard-compat-log`. */
     private boolean mKeyboardCompatLog;
 
-    /** The input type that the terminal view reports to the IME, from `ime-input-type`. */
-    @NonNull
-    private ImeInputType mImeInputType = ImeInputType.AUTO;
-
     /**
-     * Whether a hardware keyboard was attached when the current input connections were created, which
-     * `ime-input-type=hardware` turns into {@code TYPE_NULL`. The input connections are restarted when it
-     * changes, since the IME only reads the input type when it creates them.
+     * Whether a hardware keyboard was attached when the current input connections were created.
+     * The input connections are restarted when it changes, since the IME only reads the input type
+     * when it creates them.
      */
     private boolean mHardwareKeyboardAttached;
 
     /**
-     * Whether the soft keyboard is visible as of the last layout pass. `ime-input-type=hardware` presents the
-     * terminal as a text editor while it is visible, so that the IME can compose CJK text, and as an untyped
-     * editor while it is hidden, so that the physical keys reach the terminal directly.
+     * Whether the soft keyboard is visible as of the last layout pass, which decides whether the terminal is
+     * presented to the IME as a text editor or as an untyped editor. See
+     * {@link TermuxTerminalViewClient#getInputType(int)}.
      */
     private boolean mIsSoftKeyboardVisible;
 
@@ -814,8 +808,6 @@ public final class TermuxActivity extends AppCompatActivity
         mCommandShortcuts = CommandShortcuts.parse(forkProperties);
         mSecondaryButtonBehaviour = parseSecondaryButtonBehaviour(forkProperties);
         mKeyboardCompatLog = ForkProperties.getBoolean(forkProperties, ForkPropertyKeys.KEYBOARD_COMPAT_LOG, false);
-        mImeInputType = ImeInputType.parse(ForkProperties.getString(forkProperties,
-            ForkPropertyKeys.IME_INPUT_TYPE, ImeInputType.AUTO.getValue()));
         applySecondaryButtonBehaviour();
 
         for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
@@ -1491,91 +1483,12 @@ public final class TermuxActivity extends AppCompatActivity
      */
     @Override
     public boolean dispatchKeyEvent(@NonNull KeyEvent event) {
-        if (handleTerminalTab(event)) return true;
         if (handleCommandShortcut(event)) return true;
         return super.dispatchKeyEvent(event);
     }
 
     /**
-     * Send Tab to the terminal before the window performs its focus navigation.
-     *
-     * <p>An unhandled Tab moves the focus to the next view, which in the terminal would mean that the key
-     * never reaches the shell or a TUI like Neovim. The terminal view handles Tab itself, but the focus may be
-     * on another view, like an extra key button that was tapped before, in which case the window uses the Tab
-     * for focus navigation before the terminal sees it. Handling it here keeps Tab working whenever a text
-     * field does not have the focus; a text field, like the search bar or the alternate text input view, keeps
-     * the Tab for its own navigation.</p>
-     *
-     * <p>Shift+Tab is sent as the back-tab escape sequence by the key handler, like the hardware keyboard.</p>
-     */
-    private boolean handleTerminalTab(@NonNull KeyEvent event) {
-        if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
-        if (event.getKeyCode() != KeyEvent.KEYCODE_TAB) return false;
-        if (event.isCtrlPressed() || event.isAltPressed()) return false;
-
-        if (isTextInputFocused()) {
-            if (mKeyboardCompatLog) KeyboardCompatLog.log("activity", "Tab left to the focused text field");
-            return false;
-        }
-
-        TerminalView terminalView = focusedTerminalView();
-        if (terminalView == null || terminalView.getCurrentSession() == null) return false;
-
-        // The extra keys row can latch SHIFT as a virtual key, which the key event itself does not report, so
-        // the same source is used as in `TerminalView.onKeyDown()`.
-        TermuxTerminalViewClient viewClient =
-            mTermuxTerminalViewClients[terminalView == mTerminalViews[1] ? 1 : 0];
-        boolean shiftDown = event.isShiftPressed() || (viewClient != null && viewClient.readShiftKey());
-
-        int keyMod = shiftDown ? KeyHandler.KEYMOD_SHIFT : 0;
-        if (terminalView.handleKeyCode(KeyEvent.KEYCODE_TAB, keyMod)) {
-            if (mKeyboardCompatLog) {
-                KeyboardCompatLog.log("activity", "sent " + (shiftDown ? "Shift+Tab" : "Tab")
-                    + " to the terminal, focus on " + describeFocus()
-                    + ", pane=" + (terminalView == mTerminalViews[1] ? 1 : 0)
-                    + ", activePane=" + (terminalView == mTerminalView)
-                    + ", imeInputType=" + mImeInputType.getValue()
-                    + ", hardwareKeyboard=" + mHardwareKeyboardAttached
-                    + ", softKeyboardVisible=" + mIsSoftKeyboardVisible
-                    + ", pid=" + (terminalView.getCurrentSession() != null
-                        ? terminalView.getCurrentSession().getPid() : -1));
-            }
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * @return The terminal view that receives the key, which is the focused pane when it has the focus, since the
-     *         active pane is only updated by a touch and a hardware keyboard may have been used to move the focus
-     *         to another pane. Falls back to the active pane, so that a Tab still reaches the terminal while the
-     *         focus is on a toolbar button.
-     */
-    @Nullable
-    private TerminalView focusedTerminalView() {
-        View focus = getCurrentFocus();
-        if (focus instanceof TerminalView) return (TerminalView) focus;
-        return mTerminalView;
-    }
-
-    /** @return Whether a text field has the focus, so that the Tab belongs to it instead of the terminal. */
-    private boolean isTextInputFocused() {
-        View focus = getCurrentFocus();
-        // The search bar and the alternate text input view are text fields, so a Tab there is used for their own
-        // navigation; every other focused view, like an extra key button or the terminal view itself, leaves the
-        // Tab to the terminal.
-        return focus instanceof android.widget.EditText;
-    }
-
-    /** @return The class of the focused view, for the keyboard log. */
-    @NonNull
-    private String describeFocus() {
-        View focus = getCurrentFocus();
-        return focus == null ? "none" : focus.getClass().getSimpleName();
-    }
-
-    /**
-     * Recompute the state that `ime-input-type=hardware` depends on after the configuration changed.
+     * Recompute the input type state after the configuration changed.
      *
      * <p>The activity declares `keyboard` and `keyboardHidden` in its `configChanges`, so it survives a hardware
      * keyboard being attached or detached and must update the input type itself.</p>
@@ -1630,8 +1543,7 @@ public final class TermuxActivity extends AppCompatActivity
      * Restart the input connections when the hardware keyboard was attached or detached.
      *
      * <p>An IME only reads the editor information when it creates the input connection, so a change of the state
-     * that `ime-input-type=hardware` turns into {@code TYPE_NULL} is only applied after the connection is
-     * restarted.</p>
+     * that decides the input type is only applied after the connection is restarted.</p>
      */
     private void updateHardwareKeyboardState() {
         boolean attached = KeyboardUtils.isHardKeyboardConnected(this);
@@ -1651,17 +1563,17 @@ public final class TermuxActivity extends AppCompatActivity
     /**
      * Switch the input type of the terminal when the soft keyboard is shown or hidden.
      *
-     * <p>With `ime-input-type=hardware` the terminal is an untyped editor while the soft keyboard is hidden, so
-     * that the physical keys reach the program directly, and a text editor while it is visible, so that the IME
-     * can show its toolbar and candidate view and compose CJK text. An IME only reads the editor information when
-     * it creates the input connection, so the connections are restarted when the visibility changes.</p>
+     * <p>The terminal is an untyped editor while the soft keyboard is hidden, so that the physical keys reach
+     * the program directly, and a text editor while it is visible, so that the IME can show its toolbar and
+     * candidate view and compose CJK text. An IME only reads the editor information when it creates the input
+     * connection, so the connections are restarted when the visibility changes.</p>
      */
     private void updateImePassthroughForSoftKeyboardVisibility(boolean softKeyboardVisible) {
         if (softKeyboardVisible == mIsSoftKeyboardVisible) return;
         mIsSoftKeyboardVisible = softKeyboardVisible;
 
-        // Only the passthrough mode switches the input type, the other modes keep the type that the view computed.
-        if (mImeInputType != ImeInputType.HARDWARE) return;
+        // The type only depends on the soft keyboard while a hardware keyboard is attached.
+        if (!mHardwareKeyboardAttached) return;
 
         if (mKeyboardCompatLog) {
             KeyboardCompatLog.log("ime", "soft keyboard " + (softKeyboardVisible ? "shown" : "hidden")
@@ -1674,8 +1586,8 @@ public final class TermuxActivity extends AppCompatActivity
     }
 
     /**
-     * @return Whether the soft keyboard is visible as of the last layout pass, which `ime-input-type=hardware`
-     *         uses to decide whether the IME takes over the input.
+     * @return Whether the soft keyboard is visible as of the last layout pass, which decides whether the IME
+     *         takes over the input.
      */
     public boolean isSoftKeyboardVisibleForIme() {
         return mIsSoftKeyboardVisible;
@@ -1684,12 +1596,6 @@ public final class TermuxActivity extends AppCompatActivity
     /** @return Whether key events are logged, as the `keyboard-compat-log` property configures it. */
     public boolean isKeyboardCompatLogEnabled() {
         return mKeyboardCompatLog;
-    }
-
-    /** @return The input type that the terminal view reports to the IME, from `ime-input-type`. */
-    @NonNull
-    public ImeInputType getImeInputType() {
-        return mImeInputType;
     }
 
     /** @return The fields of {@code event} for the keyboard log, like the key code and the modifiers. */

@@ -7,6 +7,7 @@ import android.content.Context;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Environment;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.InputDevice;
@@ -166,15 +167,14 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
         setSessionShortcuts();
 
         // Restart the input connection so that the IME reloads the input attributes returned by
-        // TerminalView.onCreateInputConnection(), since properties like gboard-cjk-workaround or
-        // ime-input-type may have changed.
+        // TerminalView.onCreateInputConnection(), since properties like gboard-cjk-workaround may have changed.
         TerminalView terminalView = mTerminalView;
         if (terminalView != null) terminalView.restartInputConnection();
     }
 
     /**
      * Restart the input connection of the terminal view so that the IME reads the input type again, which is
-     * needed after a hardware keyboard was attached or detached while `ime-input-type=hardware` is selected.
+     * needed after a hardware keyboard was attached or detached or the soft keyboard was shown or hidden.
      */
     public void restartInputConnection() {
         TerminalView terminalView = mTerminalView;
@@ -285,19 +285,43 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     public int getInputType(int defaultInputType) {
         boolean hardwareKeyboardAttached = KeyboardUtils.isHardKeyboardConnected(mActivity);
         // The soft keyboard visibility is read from the window insets, which android 5.0 and 6.0 do not report, so
-        // the terminal is presented as a text editor there, which keeps the IME usable but gives up the passthrough.
+        // the terminal is presented as a text editor there, which keeps the IME usable.
         boolean softKeyboardVisible = Build.VERSION.SDK_INT < Build.VERSION_CODES.M
             || mActivity.isSoftKeyboardVisibleForIme();
-        int inputType = mActivity.getImeInputType().inputType(defaultInputType,
-            hardwareKeyboardAttached, softKeyboardVisible);
+        int inputType = resolveInputType(defaultInputType, hardwareKeyboardAttached, softKeyboardVisible);
+
         if (mActivity.isKeyboardCompatLogEnabled()) {
-            KeyboardCompatLog.log("ime", "getInputType mode=" + mActivity.getImeInputType().getValue()
-                + ", hardwareKeyboard=" + hardwareKeyboardAttached
+            KeyboardCompatLog.log("ime", "getInputType hardwareKeyboard=" + hardwareKeyboardAttached
                 + ", softKeyboardVisible=" + softKeyboardVisible
                 + ", default=0x" + Integer.toHexString(defaultInputType)
                 + ", reported=0x" + Integer.toHexString(inputType));
         }
         return inputType;
+    }
+
+    /**
+     * Resolve the input type that the terminal reports to the IME.
+     *
+     * <p>Purpose - keep the IME out of the way of the physical keys, since an IME that treats the terminal as a
+     * text editor takes the key down events of the physical keyboard, including Tab, and returns them later as
+     * committed text. That breaks the key order that programs like `vim` and node TUIs depend on.</p>
+     *
+     * <p>Behavior - without a hardware keyboard the type that the terminal view computed is kept, which keeps the
+     * CJK workaround of the view working for the software keyboard. With a hardware keyboard the terminal is an
+     * untyped editor while the soft keyboard is hidden, so that the IME cannot take the physical keys, and a plain
+     * text editor while the soft keyboard is visible, so that the IME shows its toolbar and candidate view and can
+     * compose CJK text from the software and the physical keyboard.</p>
+     *
+     * <p>Constraint - the IME only reads the editor information when it creates the input connection, so the
+     * connections must be restarted when the state changes. See
+     * {@code TermuxActivity.updateImePassthroughForSoftKeyboardVisibility()}.</p>
+     */
+    static int resolveInputType(int defaultInputType, boolean hardwareKeyboardAttached, boolean softKeyboardVisible) {
+        if (!hardwareKeyboardAttached) return defaultInputType;
+
+        return softKeyboardVisible
+            ? InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_NORMAL
+            : InputType.TYPE_NULL;
     }
 
     @Override
