@@ -12,7 +12,7 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `272248d refactor: 移除对话框对抽屉扩展的颜色依赖` |
+| 最近提交 | `a1b589e feat: 加固命令快捷键匹配并新增键盘诊断日志` |
 | 规模 | `TermuxActivity` 2235 行；`commands/` 7 文件 1062 行；`ext/` 9 个扩展 + api/host；`terminal/` 6 文件 |
 | 验证 | 本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 180 项、1 项既有失败 |
 
@@ -113,6 +113,15 @@
 - [x] 架构复盘：`docs/APP_ARCHITECTURE_REVIEW.md` §9（分层、度量、剩余问题与优先级）
 - [ ] 待验证：右键三种模式、快捷键改绑、额外键宏按键、面板接管「更多」、通知胶囊观感
 - [ ] 待决策：`TerminalHost` 窄接口与源码导入守卫（架构复盘 P0/P1）
+
+### 2.10 键盘兼容层（2026-11-23）
+
+- [x] `ShellCommandShortcut`：字符匹配失败时回退到物理键码（覆盖键盘在修饰键下不报字符的情况）（`a1b589e`）
+- [x] `keyboard-compat-log` 属性：`dispatchKeyEvent`、命令快捷键分发、视图客户端统一输出按键字段（`a1b589e`）
+- [x] 设计方案 `docs/KEYBOARD_COMPAT.md`：三层（采集/路由/IME）与只读模块钩子（`docs` 提交）
+- [ ] 待批准：`terminal-view` 新增 `getInputType`/`getImeOptions` 客户端钩子与 `ime-input-type` 属性（`auto|text|password|none`）
+- [ ] 待实现（批准后）：设置页「输入法兼容」项、`restartInputConnection()` 联动、Gboard 悬浮栏真机验收
+- [ ] 待验证：`keyboard-compat-log` 日志能否区分三条按键路径；改绑快捷键在硬件键盘下的表现
 
 ---
 

@@ -2123,3 +2123,13 @@ mouse-right-click = auto     # auto（默认）| forward | palette
 
 设置路径：命令面板设置页（原「长按菜单」页）→「鼠标右键」。`forward` 适合接显示器用鼠标操作、
 不希望误触弹出面板的场景。
+
+### 37.3 键盘诊断日志（`keyboard-compat-log`）
+
+```properties
+keyboard-compat-log = true   # 默认 false
+```
+
+打开后，`TermuxActivity.dispatchKeyEvent`、命令快捷键分发与 `TerminalViewClient.onKeyDown` 会把按键的
+`action/code/unicode/ctrl/alt/shift/source/device` 字段写入日志，用于判断硬件键盘的事件走的是哪条路径。
+硬件键盘兼容层的完整设计见 `docs/KEYBOARD_COMPAT.md`。

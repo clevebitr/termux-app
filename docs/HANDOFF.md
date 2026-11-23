@@ -34,6 +34,7 @@
 | 交互与系统界面提交 | `c917360` `32d7c52` `5b85fb5` `8db2e1b` `0a45190` `91f9f0b` |
 | 真机反馈修复提交 | `55b3012`（闪烁）`f817e06`（面板配色）`3877f33`（抽屉间隙） |
 | 面板接管提交 | `71708e0`（搜索框）`4d39d05`（通知胶囊）`7c0ed84`（接管/快捷键/右键）`272248d`（分层修正） |
+| 键盘兼容提交 | `a1b589e`（快捷键匹配加固 + `keyboard-compat-log`） |
 
 新会话的第一条命令：
 
@@ -173,7 +174,9 @@ ext/ForkExtensions  本构建的扩展登记表
    需要恢复 `MaterialAlertDialogBuilder` 版本（`DECISIONS.md` #22 记录了原因与差异）。
 5. **扩展禁用后的额外键**：`extra-keys` 属性里的 `SEARCH`/`DRAWER`/`SPLIT_*` 等特殊键在扩展禁用后仍显示但无动作，
    是否随扩展可用性过滤需需求方决定（涉及改写用户自定义布局）。
-6. **设置页顶栏配色**：设置/帮助/报告页的 Toolbar 取自 `?attr/colorPrimaryDark`（Material 3 下等于 `colorPrimary`），
+6. **`ime-input-type` 与只读模块钩子**：Gboard 悬浮栏需要把终端上报为普通文本框，只能在 `terminal-view` 的
+   `onCreateInputConnection` 末尾加两个客户端回调（见 `docs/KEYBOARD_COMPAT.md` §3.3），需需求方书面豁免。
+7. **设置页顶栏配色**：设置/帮助/报告页的 Toolbar 取自 `?attr/colorPrimaryDark`（Material 3 下等于 `colorPrimary`），
    是否改为 `colorSurface` 需先确定标题与图标的取色。
 
 ---
@@ -217,4 +220,5 @@ gh release download fork-latest -p '*arm64-v8a.apk' -D ~/storage/downloads
 | `docs/EXTENSION_API.md` | 扩展化方案、实施记录（§9.1 M-E1）、迁移评估（§10） |
 | `docs/APP_ARCHITECTURE_REVIEW.md` | `app/` 架构现状与发现（早期评估） |
 | `FORK.md` §33/§34 | 命令面板、右键转发、扩展管理与禁用语义的用户文档 |
+| `docs/KEYBOARD_COMPAT.md` | 硬件键盘与 IME 兼容层设计（含待批准的只读模块钩子） |
 | `docs/UI_REVIEW.md`、`docs/ARCHITECTURE_REVIEW.md`、`docs/UPGRADE.md` | 面向 `app_new` 原型，不作 `app/` 依据 |
