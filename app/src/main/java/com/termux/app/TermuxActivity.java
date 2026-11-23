@@ -297,6 +297,13 @@ public final class TermuxActivity extends AppCompatActivity
      */
     private final Set<Integer> mPendingKeyDowns = new HashSet<>();
 
+    /**
+     * Whether the physical keys are the input path as of the last restart of the input connections. The IME only
+     * reads the editor information when it creates the connection, so the connections are restarted when this
+     * decision changes, and not on every keyboard state change.
+     */
+    private boolean mPhysicalKeyPassthroughForIme;
+
     /** When the input connections were last restarted because a key down was missing, to limit the restarts. */
     private long mLastMissingKeyDownRestartMs;
 
@@ -597,6 +604,10 @@ public final class TermuxActivity extends AppCompatActivity
         super.onStop();
 
         Logger.logDebug(LOG_TAG, "onStop");
+
+        // A key that was still held when the activity stopped never reports its up event, so the set would keep
+        // the stale down and suppress the recovery restart for the same key later.
+        mPendingKeyDowns.clear();
 
         if (mIsInvalidState) return;
 
@@ -1607,10 +1618,9 @@ public final class TermuxActivity extends AppCompatActivity
     }
 
     /**
-     * Restart the input connections when the hardware keyboard was attached or detached.
+     * Record the hardware keyboard state after it was attached or detached and apply the resulting input type.
      *
-     * <p>An IME only reads the editor information when it creates the input connection, so a change of the state
-     * that decides the input type is only applied after the connection is restarted.</p>
+     * <p>See {@link #updateImePassthroughState()} for when the input connections have to be restarted.</p>
      */
     private void updateHardwareKeyboardState() {
         boolean attached = KeyboardUtils.isHardKeyboardConnected(this);
@@ -1618,39 +1628,60 @@ public final class TermuxActivity extends AppCompatActivity
 
         mHardwareKeyboardAttached = attached;
         if (mKeyboardCompatLog) {
-            KeyboardCompatLog.log("ime", "hardware keyboard " + (attached ? "attached" : "detached")
-                + ", restarting the input connections");
+            KeyboardCompatLog.log("ime", "hardware keyboard " + (attached ? "attached" : "detached"));
         }
 
-        restartTerminalInputConnections();
+        updateImePassthroughState();
     }
 
     /**
-     * Switch the input type of the terminal when the soft keyboard is shown or hidden.
+     * Record the soft keyboard visibility and apply the resulting input type.
      *
-     * <p>The terminal is an untyped editor while the soft keyboard is hidden, so that the physical keys reach
-     * the program directly, and a text editor while it is visible, so that the IME can show its toolbar and
-     * candidate view and compose CJK text. An IME only reads the editor information when it creates the input
-     * connection, so the connections are restarted when the visibility changes.</p>
+     * <p>The terminal is an untyped editor while the soft keyboard is hidden, so that the physical keys reach the
+     * program directly, and a text editor while it is visible, so that the IME can show its toolbar and candidate
+     * view and compose CJK text. See {@link #updateImePassthroughState()}.</p>
      */
     private void updateImePassthroughForSoftKeyboardVisibility(boolean softKeyboardVisible) {
         if (softKeyboardVisible == mIsSoftKeyboardVisible) return;
         mIsSoftKeyboardVisible = softKeyboardVisible;
 
-        // The type only depends on the soft keyboard while a hardware keyboard is attached.
-        if (!mHardwareKeyboardAttached) return;
+        if (mKeyboardCompatLog) {
+            KeyboardCompatLog.log("ime", "soft keyboard " + (softKeyboardVisible ? "shown" : "hidden"));
+        }
+
+        updateImePassthroughState();
+    }
+
+    /**
+     * Restart the input connections when the decision about which of the terminal and the IME owns the physical
+     * keys changed.
+     *
+     * <p>The decision is {@link TermuxTerminalViewClient#resolveInputType(int, boolean, boolean)}: the physical keys
+     * belong to the terminal while a hardware keyboard is attached and the soft keyboard is hidden. Only a change
+     * of that decision needs a new input connection, since the IME reads the editor information only when it
+     * creates the connection, so a hardware keyboard that is attached while the soft keyboard is visible is a
+     * no-op. Android 5.0 and 6.0 do not report the soft keyboard visibility, so the terminal keeps the type that the
+     * view computed there, which is what {@code TermuxTerminalViewClient.getInputType()} does.</p>
+     */
+    private void updateImePassthroughState() {
+        boolean passthrough = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+            && mHardwareKeyboardAttached && !mIsSoftKeyboardVisible;
+        if (passthrough == mPhysicalKeyPassthroughForIme) return;
+        mPhysicalKeyPassthroughForIme = passthrough;
 
         if (mKeyboardCompatLog) {
-            KeyboardCompatLog.log("ime", "soft keyboard " + (softKeyboardVisible ? "shown" : "hidden")
+            KeyboardCompatLog.log("ime", "physical keys " + (passthrough ? "owned by the terminal" : "owned by the IME")
                 + ", restarting the input connections");
         }
 
         restartTerminalInputConnections();
 
+        // The IME may ignore the restart while its window is still animating in, so the type is applied again once
+        // the soft keyboard is ready.
         View rootView = getTermuxActivityRootView();
         if (rootView == null) return;
         rootView.removeCallbacks(mDelayedImeRestart);
-        if (softKeyboardVisible)
+        if (!passthrough)
             rootView.postDelayed(mDelayedImeRestart, IME_RESTART_AFTER_SOFT_KEYBOARD_SHOWN_DELAY_MS);
     }
 

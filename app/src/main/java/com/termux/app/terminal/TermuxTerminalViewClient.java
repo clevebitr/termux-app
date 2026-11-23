@@ -283,11 +283,12 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
 
     @Override
     public int getInputType(int defaultInputType) {
-        boolean hardwareKeyboardAttached = KeyboardUtils.isHardKeyboardConnected(mActivity);
         // The soft keyboard visibility is read from the window insets, which android 5.0 and 6.0 do not report, so
-        // the terminal is presented as a text editor there, which keeps the IME usable.
-        boolean softKeyboardVisible = Build.VERSION.SDK_INT < Build.VERSION_CODES.M
-            || mActivity.isSoftKeyboardVisibleForIme();
+        // the type that the view computed is kept there, which is the upstream behaviour.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return defaultInputType;
+
+        boolean hardwareKeyboardAttached = KeyboardUtils.isHardKeyboardConnected(mActivity);
+        boolean softKeyboardVisible = mActivity.isSoftKeyboardVisibleForIme();
         int inputType = resolveInputType(defaultInputType, hardwareKeyboardAttached, softKeyboardVisible);
 
         if (mActivity.isKeyboardCompatLogEnabled()) {
