@@ -2000,7 +2000,7 @@ terminal-emulator 236 个
 - `ShellCommand`：标题、分组、快捷键、可用性与执行闭包；
 - `ShellCommandCatalog`：复用终端菜单的可见性/可用性规则（`TerminalMenuItems`）生成命令，包含搜索、会话列表、上/下一条命令、左右/上下分屏、关闭分屏、重置终端、结束进程、新建会话、新建命名会话、切换键盘、设置、帮助、最近通知；
 - `ShellCommandHost`：窗口级动作的唯一执行入口，命令面板、会话抽屉按钮与会话新建按钮均调用它，因此同一动作只有一份实现；
-- `ShellCommandPalette`：Material 3 对话框，`TextInputLayout` 作为搜索头部，每行显示标题、分组与快捷键 chip；按标题、分组或快捷键匹配，不区分大小写，回车执行首个可用项；面板打开期间按下列出的快捷键可直接执行该命令。
+- `ShellCommandPalette`：跟随终端配色方案的自绘对话框（与抽屉、终端菜单同源），搜索框作为头部，每行显示标题、分组与快捷键 chip；按标题、分组或快捷键匹配，不区分大小写，回车执行首个可用项；面板打开期间按下列出的快捷键可直接执行该命令。
 
 入口：
 
@@ -2070,7 +2070,8 @@ terminal-emulator 236 个
 | 终端菜单 | 默认圆角由 0 改为 16dp；`terminal-menu-corner-radius` 仍可覆盖 |
 | 抽屉 | 会话行、选中底色与涟漪改为 12dp 圆角；当前会话的强调条改为 3dp 内缩胶囊（距左 6dp、上下各 8dp），列表左右各留 8dp 并去掉平台选择高亮；头部按钮补涟漪，底部两个按钮改为 Material 3 文字按钮 |
 | 状态栏 | 分段之间留 4dp 内距；可点击分段按下时有 8dp 圆角高亮 |
-| 命令面板、设置搜索 | 窗口圆角改用令牌，尺寸随屏幕高度收缩；设置搜索改为 Material 3 输入框与行布局 |
+| 命令面板 | 改为跟随终端配色方案的自绘对话框（背景、文字、强调色与 terminal menu 同源），窗口圆角使用令牌，列表高度随结果数收缩 |
+| 设置搜索 | 窗口圆角改用令牌，尺寸随屏幕高度收缩；输入框与行布局为 Material 3 |
 | 平台提示对话框 | 改用 `MaterialAlertDialogBuilder`（终止会话、URL 选择、会话数上限、风格未安装、备份恢复、扩展停用确认、长按复位等） |
 
 表面色仍取自终端配色方案，不随 Material 3 表面色映射：只有日夜模式跟随系统（终端内）或配色方案明暗
@@ -2084,13 +2085,13 @@ terminal-emulator 236 个
 
 | 区域 | 行为 |
 | --- | --- |
-| 手势导航的小横条（导航栏） | 底部始终保留系统栏 inset，终端最后一行与额外键都在小横条上方，不会被覆盖；小横条区域显示终端背景色 |
+| 手势导航的小横条（导航栏） | 底部由根布局的 `fitsSystemWindows` 保留系统栏 inset，终端最后一行与额外键都在小横条上方，不会被覆盖；小横条区域显示终端背景色 |
 | 刘海 / 挖孔 | 仅全屏（`fullscreen=true`，状态栏隐藏）时使用 `shortEdges`，终端绘制到挖孔区域，顶部不再有黑带；非全屏时内容仍避开挖孔，状态栏图标不被摄像头遮挡 |
 
 实现要点：
 
-- 根布局不再使用 `android:fitsSystemWindows`，改由 `TermuxActivityRootView.WindowInsetsListener` 显式设置内边距，两者同时启用会叠加两次。
-- 窗口属性（`FLAG_FULLSCREEN` 与 `layoutInDisplayCutoutMode`）在 `setContentView()` 之前设置，避免首帧状态栏闪烁。
+- 内边距仍由根布局的 `android:fitsSystemWindows` 处理。曾在 inset 监听器里显式 `setPadding`，但该方法每次调用都会 `requestLayout`，与键盘出现时的底部 margin 校正、`FullScreenWorkAround` 的高度补偿互相触发，导致额外键持续闪烁，已回退（详见 `app/DECISIONS.md` #22）。
+- `layoutInDisplayCutoutMode` 在 `setContentView()` 之前设置；`FLAG_FULLSCREEN` 保持原有调用时机。
 - `fullscreen` 是启动期属性，修改后需要重启应用（与既有的 `fullscreen`、主题等属性一致）。
 
 未真机验证：刘海填充、非全屏避让、键盘弹起时额外键与小横条的关系、`fullscreen=false` 时的状态栏图标。

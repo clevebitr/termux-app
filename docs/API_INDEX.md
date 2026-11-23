@@ -43,7 +43,7 @@
 | `ShellCommandCatalog` | `commands/ShellCommandCatalog.java` | 由 `TerminalMenuItems` 规则生成命令；含 `new-session`/`new-named-session`/`toggle-keyboard` | 不要在面板里手写动作列表 |
 | `ShellCommandHost` | `commands/ShellCommandHost.java` | 窗口级动作唯一入口：面板、抽屉按钮、会话新建共用 | 不要在抽屉按钮里另写 `Intent`/`addNewSession` |
 | `ShellCommandShortcut` | `commands/ShellCommandShortcut.java` | 把 `Ctrl+Alt+F` 这类显示文本解析为修饰键 + 主键，`matches`/`normalize` | 不要另写快捷键解析；标签必须指向真实存在的处理 |
-| `ShellCommandPalette` | `commands/ShellCommandPalette.java` | Material 3 命令面板（`dialog_command_palette.xml` + `item_command_palette.xml`）；过滤为纯函数；面板内可用快捷键触发 | 不要再写一个「命令列表对话框」，也不要在面板外用裸 `AlertDialog` + `EditText` |
+| `ShellCommandPalette` | `commands/ShellCommandPalette.java` | 跟随终端配色方案的命令面板（自绘视图，无 XML 布局）；过滤为纯函数；面板内可用快捷键触发 | 不要再写一个「命令列表对话框」；面板配色必须取自当前会话的配色方案 |
 | `TerminalMenuAction` | `ext/menu/TerminalMenuAction.java` | 终端菜单动作枚举与默认列表（只读模块定义默认值） | 不要修改既有 id，只允许新增 |
 | `TerminalMenuItems` | `ext/menu/TerminalMenuItems.java` | 动作可见性/可用性的纯函数 + `State` 快照 | 不要在 UI 代码里判断「没有选中文本就隐藏」 |
 | `TerminalMenuConfig` / `TerminalMenuDialog` | `ext/menu/` | `terminal-menu-items` 等属性解析与菜单对话框 | 不要另写菜单对话框；由 `ext.menu` 扩展拥有 |
@@ -166,7 +166,7 @@
 | 类 | 路径 | 职责 | 不要重复实现 |
 | --- | --- | --- | --- |
 | `TerminalDialogStyles` | `widget/TerminalDialogStyles.java` | 形状令牌（`DIALOG_CORNER_DP`/`ROW_CORNER_DP`）、dp 换算、主题色读取（`themeColor`）、对话框背景与行按下态 | 不要在别处写 `GradientDrawable` 圆角或 `obtainStyledAttributes` |
-| `TerminalDialogBuilder` | `widget/TerminalDialogBuilder.java` | 终端内对话框的窗口、标题、自动滚动正文、按钮栏与尺寸限制（`Style` 描述配色与半径） | 不要新写 `Dialog` + `setLayout` + 透明窗口背景的组合 |
+| `TerminalDialogBuilder` | `widget/TerminalDialogBuilder.java` | 终端内对话框的窗口、标题、自动滚动正文（`setScrollable(false)` 供自带列表的调用方关闭）、按钮栏与尺寸限制（`Style` 描述配色与半径） | 不要新写 `Dialog` + `setLayout` + 透明窗口背景的组合 |
 | `TerminalTextInputDialog` | `widget/TerminalTextInputDialog.java` | 跟随终端配色的单行文本输入（重命名/新建命名会话） | 不要回到只读模块的 `TextInputDialogUtils` |
 | `ThemeOverlay.Termux.Dialog` / `TermuxAlertDialogStyle` | `res/values/themes.xml` | 平台与 Material 3 对话框的圆角与按钮样式 | 不要再设 `shapeAppearanceOverlay` 试图改对话框圆角（对话框读 `alertDialogStyle` 的 `shapeAppearance`） |
-| `TermuxActivityRootView.WindowInsetsListener` | `terminal/TermuxActivityRootView.java` | 系统栏与挖孔 inset → 根视图内边距；底部始终保留手势条 inset，全屏时顶部/左右为 0 | 不要在布局里再加 `fitsSystemWindows`，会叠加两次；窗口属性见 `TermuxActivity.applyWindowFlags()` |
+| `TermuxActivityRootView.WindowInsetsListener` | `terminal/TermuxActivityRootView.java` | 记录状态栏高度，其余 inset 交给根布局的 `fitsSystemWindows` | 不要在 inset 监听器里 `setPadding`：每次调用都会 `requestLayout`，键盘弹起时会与底部 margin 校正互相触发而闪烁（DECISIONS #22）；刘海模式见 `TermuxActivity.setDisplayCutoutMode()` |

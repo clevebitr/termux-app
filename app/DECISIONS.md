@@ -416,3 +416,25 @@
 4. `TermuxInstaller` 的引导失败对话框仍是平台 `AlertDialog`：该路径在应用初始化失败时执行，不宜再依赖 Material 组件。
 
 未验证：本机无 `adb`，胶囊条观感、手势条留白、全屏刘海填充、非全屏避让、键盘弹起时额外键与手势条的关系、动态列表高度均未在真机确认。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 179 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。
+
+## 2026-11-23 — 回退显式 inset 内边距以修额外键闪烁，命令面板改为跟随配色方案
+
+真机反馈三项，均已处理。**本条修正 #21 中「根布局移除 fitsSystemWindows」的做法。**
+
+一、额外键闪烁（bug）
+- 现象：系统输入法未弹出时正常；输入法弹出、额外键向上让位后持续闪烁。
+- 根因：#21 在 `TermuxActivityRootView.WindowInsetsListener` 里对根视图调用 `setPadding()`。`View.setPadding()` 无论值是否变化都会 `requestLayout()`，而键盘弹出时 inset 在动画期间每帧都会重新分发，于是每帧都触发一次布局。根视图的布局又会推动两条既有机制重新计算：`TermuxActivityRootView.onGlobalLayout()` 的底部 margin 校正（按底部空间视图与可见窗口矩形之差设 margin）与 `FullScreenWorkAround` 的全屏高度补偿（按可见高度差设根视图 height）。三者互相触发，结果就是额外键在正确位置与偏移位置之间反复跳动。
+- 修法：回退为 `android:fitsSystemWindows="true"` 由框架应用内边距，`WindowInsetsListener` 恢复为只记录状态栏高度并调用 `v.onApplyWindowInsets(insets)`；`FLAG_FULLSCREEN` 也回到 `setContentView()` 之后的原调用位置，减少变量。刘海适配保留：`setDisplayCutoutMode()` 仍在 `setContentView()` 之前按 `fullscreen` 设置 `SHORT_EDGES`/`DEFAULT`。
+- 结论：手势条留白与刘海占满并不需要显式 inset 处理——`fitsSystemWindows` 已覆盖底部系统栏，全屏时状态栏 inset 为 0 且 `shortEdges` 允许窗口进入挖孔。这条经验写入 `docs/API_INDEX.md`：不要在 inset 监听器里 `setPadding`。
+
+二、命令面板跟随终端配色方案
+- 原实现是 `MaterialAlertDialogBuilder` + `TextInputLayout`，颜色来自 Material 3 主题，与抽屉、终端菜单的配色方案不同源。
+- 现改为与终端菜单同一套自绘路径：`TerminalDialogBuilder`（窗口背景取自配色方案、16dp 圆角、1dp 强调色描边）+ 程序化视图（搜索框、1dp 分隔线、标题/分组/快捷键 chip 的行、空状态），配色统一来自当前会话的 `mCurrentColors`（前景、背景、`color4` 强调色），强调色为 chip 底色与行按下态。
+- 行为不变：过滤规则仍是纯函数 `filter()`，回车执行首个可用项，面板内快捷键仍可触发；不可用命令降透明度而不隐藏。列表高度按结果数收缩（最多 8 行、上限 360dp）。
+- `TerminalDialogBuilder` 新增 `setScrollable(false)`：面板自带 `ListView`，不能再被外层 `ScrollView` 包一层，否则列表会被按全高测量并失去回收。
+- 删除因此失效的 `dialog_command_palette.xml`、`item_command_palette.xml`、`bg_command_palette.xml`、`bg_command_shortcut.xml`。
+
+三、抽屉会话卡片与上边界的间隙
+- 会话列表改为上下各 6dp 内距（`clipToPadding=false`），首行不再紧贴头部 1dp 分隔线，末行与底部按钮之间也留出同样的间隙。
+
+未验证：本机无 `adb`，闪烁是否消失、命令面板在深浅配色与彩色强调色下的可读性、chip 与按下态观感、抽屉首末行的间隙均未在真机确认。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 179 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。

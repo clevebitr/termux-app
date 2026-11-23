@@ -12,7 +12,8 @@
 三个控制器（抽屉/搜索/分屏）与通知体系全部迁出 `TermuxActivity`。**UI 层第一批统一已完成**：形状令牌、
 共用对话框构建器、应用级对话框改 Material 3、抽屉/状态栏/命令面板/设置搜索的观感修正。
 第二批交互与系统界面打磨也已提交：扩展可用性门禁（分屏/搜索/抽屉）、抽屉胶囊强调条、
-手势小横条留白与全屏刘海适配。目前仍处在「真机试机 → 定位 → 修复 → 加守卫」的迭代阶段。
+全屏刘海适配；真机反馈的额外键闪烁已回退修复，命令面板改为跟随终端配色方案。
+目前仍处在「真机试机 → 定位 → 修复 → 加守卫」的迭代阶段。
 
 ---
 
@@ -30,6 +31,7 @@
 | 未提交 | `app_new/PLAN.md`（历史改动）、`app/PLAN.md`（plan 工具按 cwd 生成的空文件，需求方已明确不需要） |
 | UI 层优化提交 | `1f0d811` `c10a35c` `c43fe8b` `a2345f5` `e39607c` `70010a1` `3db4815` `12324f6` `6d1ee61` |
 | 交互与系统界面提交 | `c917360` `32d7c52` `5b85fb5` `8db2e1b` `0a45190` `91f9f0b` |
+| 真机反馈修复提交 | `55b3012`（闪烁）`f817e06`（面板配色）`3877f33`（抽屉间隙） |
 
 新会话的第一条命令：
 
@@ -80,7 +82,7 @@ ext/ForkExtensions  本构建的扩展登记表
 | --- | --- |
 | `ShellCommand` | 面板条目（id、标题、分组、快捷键、可用性、执行闭包） |
 | `ShellCommandCatalog` | 由 `TerminalMenuItems` 规则生成命令；`SHORTCUT_*` 常量与视图客户端一致 |
-| `ShellCommandPalette` | **Material 3 面板**（`dialog_command_palette.xml` + `item_command_palette.xml`），面板内可用快捷键触发命令 |
+| `ShellCommandPalette` | **跟随终端配色方案的自绘面板**（`TerminalDialogBuilder` + 程序化视图），面板内可用快捷键触发命令 |
 | `ShellCommandShortcut` | `Ctrl+Alt+F` → 修饰键 + 主键，`matches`/`normalize`，无法解析永不匹配 |
 | `ShellCommandHost` | 窗口级动作唯一入口（面板、抽屉按钮、会话新建共用） |
 | `TerminalActionRunner` | 22 个 `TerminalMenuAction` → 宿主方法的映射表，`runTerminalActionRunnerTest` 3 项 |
@@ -145,8 +147,9 @@ ext/ForkExtensions  本构建的扩展登记表
 - 抽屉选中行底色是否只作用于当前会话、长按是否只亮一行；
 - UI 层第一批的观感：终端菜单/命名对话框/通知历史的圆角与标题层级、抽屉会话行圆角涟漪与强调条、
   状态栏分段间距与按下态、命令面板在输入法弹出后的列表高度、设置搜索与色板、有序列表对话框；
-- 系统界面：手势小横条的留白（终端底行与额外键是否被覆盖）、全屏刘海是否真正填满、
-  `fullscreen=false` 时状态栏与挖孔是否避让正确、键盘弹起时额外键与小横条的关系；
+- 系统界面：额外键闪烁是否消失（键盘弹起/收起、切换输入法、`fullscreen` 开关各一次）、
+  手势小横条留白、全屏刘海是否真正填满、`fullscreen=false` 时状态栏与挖孔是否避让；
+- 命令面板在深色/浅色与彩色强调色配色下的可读性、chip 与行按下态、抽屉首末行间隙；
 - 扩展禁用门禁：分屏/搜索/抽屉动作从终端菜单与命令面板消失；
 - 命令面板内快捷键（`Ctrl+Alt+F/K/C`）在真机上的触发；
 - 分屏排列/拖拽/活动窗格边框/状态恢复；搜索条；右键转发在 `vim`/`tmux` 与分屏下的坐标；
@@ -162,9 +165,11 @@ ext/ForkExtensions  本构建的扩展登记表
    状态栏等自绘表面直接用配色方案颜色。若要 MD3 表面色也跟随 `colors.properties`，需要设计运行期
    theme overlay 方案（`applyStyle` 只能引用静态资源）。
 3. **OSC 133 / 焦点上报 1004 开关**：目前没有对应属性，需修改只读模块才能提供，属需求方豁免范围。
-4. **扩展禁用后的额外键**：`extra-keys` 属性里的 `SEARCH`/`DRAWER`/`SPLIT_*` 等特殊键在扩展禁用后仍显示但无动作，
+4. **命令面板配色来源**：面板已改为跟随当前会话的配色方案（`f817e06`），若希望它跟随应用主题而非终端配色，
+   需要恢复 `MaterialAlertDialogBuilder` 版本（`DECISIONS.md` #22 记录了原因与差异）。
+5. **扩展禁用后的额外键**：`extra-keys` 属性里的 `SEARCH`/`DRAWER`/`SPLIT_*` 等特殊键在扩展禁用后仍显示但无动作，
    是否随扩展可用性过滤需需求方决定（涉及改写用户自定义布局）。
-5. **设置页顶栏配色**：设置/帮助/报告页的 Toolbar 取自 `?attr/colorPrimaryDark`（Material 3 下等于 `colorPrimary`），
+6. **设置页顶栏配色**：设置/帮助/报告页的 Toolbar 取自 `?attr/colorPrimaryDark`（Material 3 下等于 `colorPrimary`），
    是否改为 `colorSurface` 需先确定标题与图标的取色。
 
 ---
