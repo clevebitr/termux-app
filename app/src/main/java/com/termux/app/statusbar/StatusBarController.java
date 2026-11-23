@@ -1,5 +1,6 @@
 package com.termux.app.statusbar;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
@@ -7,7 +8,6 @@ import android.os.SystemClock;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.termux.app.TermuxActivity;
 import com.termux.shared.logger.Logger;
 import com.termux.app.properties.ForkProperties;
 
@@ -34,13 +34,18 @@ public class StatusBarController {
 
     private static final String LOG_TAG = "StatusBarController";
 
+    /** The receiver of the click of a segment, which runs the action that the properties configure. */
+    public interface SegmentListener {
+        void onStatusBarSegmentClicked(@NonNull StatusBarConfig.Segment segment);
+    }
+
     /** The minimum interval of the handler that refreshes the segments that are due. */
     private static final long MIN_TICK_INTERVAL_MS = 100;
     /** The maximum interval of the handler, so that a change of the system clock is picked up. */
     private static final long MAX_TICK_INTERVAL_MS = 5000;
 
-    @NonNull private final TermuxActivity mActivity;
     @NonNull private final StatusBarView mView;
+    @NonNull private final SegmentListener mListener;
     @NonNull private final StatusBarMetrics mMetrics;
     @NonNull private final Handler mHandler = new Handler(Looper.getMainLooper());
 
@@ -84,10 +89,11 @@ public class StatusBarController {
         }
     };
 
-    public StatusBarController(@NonNull TermuxActivity activity, @NonNull StatusBarView view) {
-        mActivity = activity;
+    public StatusBarController(@NonNull Context context, @NonNull StatusBarView view,
+                               @NonNull SegmentListener listener) {
         mView = view;
-        mMetrics = new StatusBarMetrics(activity);
+        mListener = listener;
+        mMetrics = new StatusBarMetrics(context);
     }
 
     /** @return The current configuration of the status bar, or {@code null} if it was not reloaded yet. */
@@ -119,7 +125,7 @@ public class StatusBarController {
         mClockFormatPattern = null;
 
         mView.setConfig(mConfig, mForegroundColor, mBackgroundColor, segment -> {
-            if (mActivity != null) mActivity.onStatusBarSegmentClicked(segment);
+            mListener.onStatusBarSegmentClicked(segment);
         });
 
         mNextRefreshTimes.clear();

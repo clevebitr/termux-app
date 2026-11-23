@@ -1152,7 +1152,8 @@ public final class TermuxActivity extends AppCompatActivity
         mStatusBarView = findViewById(R.id.status_bar_view);
         if (mStatusBarView == null) return;
 
-        mStatusBarController = new StatusBarController(this, mStatusBarView);
+        mStatusBarController = new StatusBarController(this, mStatusBarView,
+            this::onStatusBarSegmentClicked);
         mStatusBarController.reload();
         updateStatusBarLayout();
     }
