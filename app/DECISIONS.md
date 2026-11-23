@@ -170,3 +170,24 @@
 效果：音量键动作（约 150 行 switch）离开视图客户端；`ext/` 现有 4 个扩展（statusbar/menu/volumekeys/backup）；`TermuxActivity` 行数不变（该切片不涉及 Activity）。
 
 未验证：音量键的单按/长按动作、虚拟修饰键、禁用后的字面音量行为、设置页复位与 `send-keys` 条件显示均未在真机验证；本机 :app:compileDebugJavaWithJavac 通过，:app:testDebugUnitTest 167 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。`VolumeKeyActions` 无单测（依赖 AudioManager 与 Host 实现）。
+
+## 2026-11-23 — 视图槽位贡献点：ExtensionViewSlot 与通用布局请求
+
+按建议顺序先做「视图槽位」贡献点，为通知叠层、分屏容器与搜索条三处迁移解锁，避免为单个特性造接口。
+
+新增 API：
+- `ext/api/ExtensionViewSlot`：`viewId`、`viewName`、`description`。`viewName` 与 id 冗余，因为单元测试无法把资源 id 反查为名字，而守卫测试只能靠名字核对布局；KDoc 已写明理由。
+- `Extension.slots()`：默认空列表，声明扩展接管的布局区域。
+- `ExtensionContext.view(int)`：扩展从宿主取槽位视图，泛型返回，避免扩展自行搜索 Activity。
+- `ExtensionContext.requestExtensionLayout()` + `ext/api/ExtensionLayoutHost`：扩展改变槽位高度或可见性后请求宿主重排；由 Activity 实现，Context 在宿主未实现时静默跳过，因此 ext.host 不需要依赖 TermuxActivity。
+- `ExtensionHost.slotOwner(int)`：判断某视图属于扩展还是宿主核心，供宿主与后续迁移使用。
+
+宿主侧：
+- `TermuxActivity` 实现 `ExtensionLayoutHost`，新增 `requestExtensionLayout()`（= setTerminalPadding + updateNotificationOverlayLayout），删除按特性命名的 `onStatusBarLayoutChanged()`。
+- `StatusBarExtension` 声明槽位 `status_bar_view`，改用 `context.view(...)` 取视图、`context.requestExtensionLayout()` 请求重排，并保存 `ExtensionContext` 以脱离对 Activity 类型的布局依赖。
+
+守卫测试（新增 2 项）：槽位必须存在于 `activity_termux.xml`（改名不会静默失效）；槽位 id 与名字不得重复、必须有描述。
+
+克制点（写入文档）：不引入「扩展自行 inflate 布局」与「宿主预留空容器」两种更重机制。三处候选视图都由宿主布局提供，扩展只接管行为与显示，因此槽位只需「声明归属 + 取视图 + 请求重排」。
+
+未验证：真机上状态栏布局与内边距在改回通用钩子后是否与之前一致未验证；本机 :app:compileDebugJavaWithJavac 通过，:app:testDebugUnitTest 169 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。
