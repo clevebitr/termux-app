@@ -140,3 +140,18 @@
 效果：TermuxActivity 2275 → 2209 行；状态栏成为第一个带视图、定时器与设置页的可禁用扩展。
 
 未验证：状态栏在真机上的显示、位置（上/下）、overlay 与内边距、分段点击、禁用后停止刷新与留白消失均未验证；本机 :app:compileDebugJavaWithJavac 通过，:app:testDebugUnitTest 167 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。
+
+## 2026-11-23 — 小步迁移：终端菜单提取为 menu 扩展
+
+按评估结论执行第一个小步迁移：终端菜单（`ext.menu`）。
+
+实施：
+1. 包整体迁移：`app/terminal/menu/*`（TerminalMenuAction/TerminalMenuConfig/TerminalMenuDialog/TerminalMenuItems）→ `ext/menu/`；设置页 `TerminalMenuPreferencesFragment` 与两个有序列表偏好项 `TerminalMenuItemsPreference`、`SelectionToolbarItemsPreference` 一并迁入；三个测试同步迁到 `app/src/test/java/com/termux/app/ext/menu/`。包声明与全仓引用、XML 中的自定义控件类名同步更新。
+2. 新增 `TerminalMenuExtension`：id=menu，默认启用，preferenceKeys=["terminal-menu"]（根设置页 XML 补该 key），settingsPages 声明菜单页；onEnable/onReload 解析配置，onDisable 清空；`showMenu()` 用宿主公开方法（getCurrentSession、getTerminalView、isSplitScreenEnabled、getNotificationManager、runTerminalMenuAction）组装状态并弹菜单；`getConfig()` 在禁用时返回空配置，供文本选择工具条查询。
+3. 宿主：删除 `mTerminalMenuConfig`、`reloadTerminalMenuConfig()` 与 `showTerminalMenu()` 的 25 行实现，改为向 `ExtensionHost` 取实例后转发；`getTerminalMenuConfig()` 同样转发（禁用时返回空配置，选择工具条不再显示本分支动作）；新增公开访问器 `getNotificationManager()`。
+4. 设置页闸门：`TerminalMenuPreferencesFragment` 首行检查 `isRunning`，未启用显示停用说明。
+5. `SettingsSearchIndex` 删除手写的菜单页，改由扩展声明；`PreferenceResetSourceTest` 的路径映射同步更新。
+
+效果：`TermuxActivity` 2209 → 2194 行；菜单成为第二个带设置页与宿主查询的可禁用扩展；禁用手语义为「长按/右键/菜单键不再打开该菜单，选择工具条退回默认」。
+
+未验证：菜品项顺序与样式、长按与右键触发、硬件菜单键、文本选择工具条动作在真机上的表现未验证；本机 :app:compileDebugJavaWithJavac 通过，:app:testDebugUnitTest 167 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。`TerminalMenuExtension` 无单测（直接依赖 Activity 视图）。
