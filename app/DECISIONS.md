@@ -328,3 +328,29 @@
 边界：`values-night` 中 app 只覆盖了 `Theme.TermuxActivity`，其余 DayNight 主题由 Material 3 自动切换；「全局跟随当前配色方案」目前只做到「按配色方案的明暗选择 DayNight 变体」，抽屉、对话框、状态栏等自分叉表面仍用配色方案的具体颜色。若要连 MD3 表面色也映射到配色方案，需要按配色方案生成 theme overlay（运行期 `applyStyle` 只能引用静态资源），属后续设计。
 
 未验证：行高亮是否只作用于当前会话、长按只亮一行、命名对话框在深色配色下的可读性、MD3 主题在设置页与各对话框中的观感，均需真机确认。CI：PR #2 的 lint/单测/双 ABI 构建全部通过；Fork Build 已产出 `termux-app_fork-20261123-0453-testkey_arm64-v8a.apk`。
+
+## 2026-11-23 — 命令面板 Material 3 重做与快捷键触发
+
+命令面板重做（886e940）：样式改为 Material 3，快捷键可真正触发命令，并修正了错误的快捷键标签。
+
+一、样式
+- 原实现是 `AlertDialog` + 裸 `EditText` + `android.R.layout.simple_list_item_1`，没有任何主题适配。
+- 新增 `res/layout/dialog_command_palette.xml`：`TextInputLayout`（FilledBox.Dense + clear_text 图标）作为头部，`ListView` 显示结果，空结果用独立提示文本。
+- 新增 `res/layout/item_command_palette.xml`：标题 + 分组两行，右侧快捷键 chip；新增 `bg_command_shortcut.xml`（`colorSurfaceVariant` 圆角）与 `bg_command_palette.xml`（`colorSurface` 16dp 圆角窗口背景）。
+- 全部颜色使用 MD3 主题属性（`colorOnSurface`/`colorOnSurfaceVariant`/`colorSurfaceVariant`/`colorSurface`），因此跟随 Material 3 的日/夜与配色方案明暗。
+- 不可用的命令不再隐藏而是降低不透明度到 0.45，避免列表在状态变化时跳动。
+
+二、快捷键
+- 新增 `commands/ShellCommandShortcut`：把 `Ctrl+Alt+F` 这类显示文本解析为修饰键 + 主键，提供 `matches(KeyEvent)` 与 `normalize`；无法解析的标签永不匹配，避免错误标签抢走终端的按键。
+- 面板打开期间按命令声明的快捷键即执行该命令（监听器装在输入框与列表上，因为焦点在输入框）。
+- 过滤按快捷键归一化后精确命中的命令排在最前。
+
+三、修正错误的快捷键标签
+原 `ShellCommandCatalog` 给「上/下一条命令」标注 `Ctrl+Alt+Up/Down`，但视图客户端里这两个组合实际是**切换会话**，标签是错的。现改为：
+- 搜索 `Ctrl+Alt+F`、切换键盘 `Ctrl+Alt+K`、新建会话 `Ctrl+Alt+C`（与视图客户端已有处理一致）；
+- 上/下一条命令不再标注快捷键。
+常量集中在 `ShellCommandCatalog.SHORTCUT_*` 并注明来源，避免标签与实现再次漂移。
+
+测试：新增 `ShellCommandShortcutTest` 5 项（修饰键精确匹配、按字符而非物理键匹配、命名单键、无法解析不匹配、归一化顺序），总测试数 170 → 175。
+
+未验证：面板在真机上的观感（圆角、chip、空状态、输入法弹出与列表高度）、快捷键在面板内触发、MD3 深色下的可读性，均未确认。CI：PR #2 lint/单测/双 ABI 构建全部通过；Fork Build 产出 `termux-app_fork-20261123-0521-testkey_arm64-v8a.apk`。

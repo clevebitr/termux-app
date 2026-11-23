@@ -42,7 +42,8 @@
 | `ShellCommand` | `commands/ShellCommand.java` | 面板条目：id、标题、分组、快捷键、可用性、执行闭包 | — |
 | `ShellCommandCatalog` | `commands/ShellCommandCatalog.java` | 由 `TerminalMenuItems` 规则生成命令；含 `new-session`/`new-named-session`/`toggle-keyboard` | 不要在面板里手写动作列表 |
 | `ShellCommandHost` | `commands/ShellCommandHost.java` | 窗口级动作唯一入口：面板、抽屉按钮、会话新建共用 | 不要在抽屉按钮里另写 `Intent`/`addNewSession` |
-| `ShellCommandPalette` | `commands/ShellCommandPalette.java` | 可搜索命令面板；过滤为纯函数 | 不要再写一个「命令列表对话框」 |
+| `ShellCommandShortcut` | `commands/ShellCommandShortcut.java` | 把 `Ctrl+Alt+F` 这类显示文本解析为修饰键 + 主键，`matches`/`normalize` | 不要另写快捷键解析；标签必须指向真实存在的处理 |
+| `ShellCommandPalette` | `commands/ShellCommandPalette.java` | Material 3 命令面板（`dialog_command_palette.xml` + `item_command_palette.xml`）；过滤为纯函数；面板内可用快捷键触发 | 不要再写一个「命令列表对话框」，也不要在面板外用裸 `AlertDialog` + `EditText` |
 | `TerminalMenuAction` | `ext/menu/TerminalMenuAction.java` | 终端菜单动作枚举与默认列表（只读模块定义默认值） | 不要修改既有 id，只允许新增 |
 | `TerminalMenuItems` | `ext/menu/TerminalMenuItems.java` | 动作可见性/可用性的纯函数 + `State` 快照 | 不要在 UI 代码里判断「没有选中文本就隐藏」 |
 | `TerminalMenuConfig` / `TerminalMenuDialog` | `ext/menu/` | `terminal-menu-items` 等属性解析与菜单对话框 | 不要另写菜单对话框；由 `ext.menu` 扩展拥有 |
