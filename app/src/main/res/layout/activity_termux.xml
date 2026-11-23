@@ -238,7 +238,9 @@
                     android:listSelector="@android:color/transparent"
                     android:longClickable="true"
                     android:paddingStart="8dp"
-                    android:paddingEnd="8dp" />
+                    android:paddingTop="6dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="6dp" />
 
                 <LinearLayout
                     style="?android:attr/buttonBarStyle"
