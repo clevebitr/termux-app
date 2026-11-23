@@ -12,7 +12,7 @@
 | --- | --- |
 | 分支 | `refactor/app-extensions`（已推送，远端 `601cc22`） |
 | 阶段 | 动工（骨架与规划已完成） |
-| 最近提交 | `9b1173c refactor: 键盘兼容层收敛为软键盘可见性单一规则` |
+| 最近提交 | `refactor: 抽出窗格宿主抽象 TerminalPaneHost` |
 | 规模 | `TermuxActivity` 2235 行；`commands/` 7 文件 1062 行；`ext/` 9 个扩展 + api/host；`terminal/` 6 文件 |
 | 验证 | 本机 `:terminal-view:compileDebugJavaWithJavac`、`:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 186 项、1 项既有失败 |
 
@@ -136,6 +136,15 @@
 - [ ] 待真机验收：弹出软键盘后中文（拼音）输入、收起后恢复直通；重启输入连接是否引起软键盘闪烁
 - [ ] 待真机验收：日志中 `reported=0x0` 与 `[terminal-view]` 按键行是否成对出现
 - [ ] 待验证：`keyboard-compat-log` 日志能否区分三条按键路径；改绑快捷键在硬件键盘下的表现
+
+---
+
+### 2.11 窗格抽象（会话树前置）
+
+- [x] 新增 `terminal/layout/TerminalPaneHost` 接口与 `TwoPaneTerminalLayout` 实现：窗格数量、视图与视图客户端、活动窗格、按会话查窗格
+- [x] `TermuxActivity` 的两个 `TerminalView[]`／客户端数组／活动索引收敛为 `mPanes`，`getTerminalViews()` 改为委托；`mTerminalView`／`mTermuxTerminalViewClient` 保留为活动窗格缓存
+- [x] `TwoPaneTerminalLayoutTest` 4 项（索引、越界忽略、缺视图时的空安全）
+- [ ] 后续（M1 标签页前置）：`getActiveView()`／`getActiveSession()` 替代 `getView(getActiveIndex())`；去掉 `mTerminalView` 缓存；布局改为可注入工厂（`TwoPaneTerminalLayout` → `TreeTerminalLayout`）
 
 ---
 

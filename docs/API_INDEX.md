@@ -65,7 +65,8 @@
 | `TerminalViewClient` 输入法钩子 | `terminal-view/TerminalViewClient.java`（只读模块，需求方已豁免） | `getInputType`/`getImeOptions` 默认返回入参，`TerminalView` 用它覆盖 `EditorInfo` | 不要在 `app/` 里另做 EditorInfo 注入；默认实现必须保持透传 |
 | `TermuxTerminalFrame` | `terminal/TermuxTerminalFrame.java` | 包装 `TerminalView`；按 `SecondaryButtonBehaviour`（`mouse-right-click` 属性）决定右键转发还是打开面板 | 不要去改只读模块的 `TerminalView`；行为由 `TermuxActivity.applySecondaryButtonBehaviour()` 注入 |
 | `TermuxSessionsListViewController` | `ext/drawer/TermuxSessionsListViewController.java` | 抽屉会话列表适配器（依赖 `TerminalDrawerController`） | 不要另写会话列表行布局逻辑 |
-| `TermuxTerminalViewClient` | `terminal/TermuxTerminalViewClient.java` | 终端视图事件（按键、软键盘、颜色、属性重载） | 不要另写「切换软键盘」实现，用 `onToggleSoftKeyboardRequest()` |
+| `TermuxTerminalViewClient` | `terminal/TermuxTerminalViewClient.java` | 终端视图事件（按键、软键盘、颜色、属性重载）与 `resolveInputType()` 输入类型判定 | 不要另写「切换软键盘」实现，用 `onToggleSoftKeyboardRequest()`；不要另拼 `InputType` 常量 |
+| `TerminalPaneHost` / `TwoPaneTerminalLayout` | `terminal/layout/` | 窗格宿主抽象：窗格数量、每个窗格的视图与客户端、活动窗格、按会话查窗格 | 不要直接持有 `TerminalView[]` 与活动索引；会话 attach/detach 与视图创建仍由活动负责 |
 | `TermuxTerminalSessionActivityClient` | `terminal/TermuxTerminalSessionActivityClient.java` | 会话增删与切换（`addNewSession`、`renameSession`） | 不要直接操作 `TermuxService` 的会话列表 |
 | `SessionDetails` | `ext/drawer/SessionDetails.java` | 前台进程名、工作目录、短详情 | 不要另写 `/proc` 解析 |
 | `DrawerConfig` / `DrawerHandleView` / `DrawerColorUtils` | `ext/drawer/` | `drawer-*` 属性与把手视图 | 不要另解析 `drawer-*` |

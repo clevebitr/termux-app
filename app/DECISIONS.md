@@ -606,3 +606,27 @@ Tab 直通顺带补齐：虚拟 SHIFT 锁定态（额外键栏）与事件自身
 修法：`updateImePassthroughForSoftKeyboardVisibility()` 在软键盘变为可见时先立即重启一次，再在 200ms 后（`IME_RESTART_AFTER_SOFT_KEYBOARD_SHOWN_DELAY_MS`）重启第二次，并记录 `restarting the input connections after the soft keyboard was shown`；收起时只重启一次并取消待执行的二次重启，`onDestroy()` 里也取消。重启循环收敛为 `restartTerminalInputConnections()`，供硬件键盘变化与可见性变化共用。
 
 未验证：二次重启是否让悬浮栏与候选词在 pi 中出现、是否会与输入法的弹出动画互相干扰（个别输入法在重启时可能收起键盘）、`mouse-tap-shows-keyboard=true` 在 TUI 中的实际手感。本机无 `adb`；`:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest` 184 项、1 项既有失败（`FileReceiverActivityTest`）。
+
+## 2026-11-23 — 键盘 P0 修复与窗格宿主抽象（标签页前置）
+
+键盘层复审后按需求方确认的顺序执行：先做键盘 P0 三项，再做窗格宿主抽象，作为标签页（M1）与递归分屏（M2）的前置。
+
+一、键盘 P0（提交 b43e778）
+1. `mPendingKeyDowns` 在 `onStop()` 清空：应用在按住某键时被切走，那条 down 的 up 永远不会到达，否则会长期抑制同一按键的兜底重启。
+2. 重启收敛为「判定翻转才触发」：新增 `mPhysicalKeyPassthroughForIme` 与 `updateImePassthroughState()`，判定为 `SDK >= M && 接有硬件键盘 && 软键盘收起`。硬件键盘接入/拔出、软键盘显示/隐藏只更新各自状态并调用该方法，因此「软键盘可见时接入键盘」这类不改变类型的事件不再重启两个窗格的输入连接。200ms 的二次重启只在判定变为「输入法接管」时排队。
+3. Android 5.0/6.0 读不到软键盘可见性，`TermuxTerminalViewClient.getInputType()` 改为直接返回视图算出的类型（上游行为），不再强制文本类。
+
+二、窗格宿主抽象（提交 07a5579）
+动机：`TermuxActivity` 2473 行中有 46 处直接引用 `mTerminalView`／`mTerminalViews[]`／`mActiveTerminalViewIndex`，布局 XML 硬编码两个 `TerminalView`，`ext.split` 只支持两窗格。标签页（tab = 1~2 窗格分组）与递归分屏都需要先把「哪个窗格显示哪个会话、哪个窗格是活动窗格」变成可替换的实现。
+
+新增 `terminal/layout/`：
+- `TerminalPaneHost`：`getPaneCount()`、`getViews()`、`getView(i)`/`setView(i, view)`、`getViewClient(i)`/`setViewClient(i, client)`、`getViewClients()`、`getActiveIndex()`/`setActiveIndex(i)`、`getInactiveIndex()`、`getInactiveView()`、`getSession(i)`、`findViewForSession(session)`。
+- `TwoPaneTerminalLayout`：当前实现，两个窗格、越界索引忽略、缺视图时返回 null。
+
+`TermuxActivity`：删除 `mTerminalViews`、`mTermuxTerminalViewClients`、`mActiveTerminalViewIndex`，改为 `mPanes`；`getTerminalViews()` 委托 `mPanes.getViews()`；`mTerminalView`／`mTermuxTerminalViewClient` 保留为活动窗格缓存，使单视图时代的调用点不用改。
+
+测试：`TwoPaneTerminalLayoutTest` 4 项（窗格数与默认活动项、活动项切换后的非活动索引、越界忽略、缺视图时空安全）。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest` 188 项、1 项既有失败（`FileReceiverActivityTest`）。
+
+遗留（已记入 `app/todo.md` §2.11）：用 `getActiveView()`/`getActiveSession()` 替代 `getView(getActiveIndex())`；去掉 `mTerminalView` 缓存；布局改为可注入工厂，以便 M2 换成 `TreeTerminalLayout`。
+
+未验证：真机上窗格切换、分屏拖动、活动窗格高亮与键盘/输入法行为是否与重构前一致（本机无 `adb`，行为应完全不变，属于纯重构）。
