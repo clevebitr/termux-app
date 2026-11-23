@@ -40,13 +40,14 @@
 | `TerminalActionRunner` | `commands/TerminalActionRunner.java` | `TerminalMenuAction` → 宿主方法的唯一映射（22 个动作），`run`/`handles` | 不要新增第二个 `switch (action)` 分发 |
 | `TerminalActionRunner.Host` | 同上 | 动作的宿主实现（`showTerminalSearch`、`splitScreenVertically`…） | 不要在别处定义同名动作方法 |
 | `ShellCommand` | `commands/ShellCommand.java` | 面板条目：id、标题、分组、快捷键、可用性、执行闭包 | — |
-| `ShellCommandCatalog` | `commands/ShellCommandCatalog.java` | 由 `TerminalMenuItems` 规则生成命令；含 `new-session`/`new-named-session`/`toggle-keyboard` | 不要在面板里手写动作列表 |
+| `ShellCommandCatalog` | `commands/ShellCommandCatalog.java` | 按 `terminal-menu-items` 的顺序与 `TerminalMenuItems` 规则生成命令；追加 `new-session`/`new-named-session`/`toggle-keyboard` 并保证设置/帮助可达；快捷键标签来自 `CommandShortcuts` | 不要在面板里手写动作列表或快捷键 |
+| `CommandShortcuts` | `commands/CommandShortcuts.java` | `command-shortcuts` 属性 → 命令 id 到快捷键的映射；`shortcutFor` 供面板标签、`matches` 供按键分发 | 不要在别处再解析快捷键或另维护一份默认值 |
 | `ShellCommandHost` | `commands/ShellCommandHost.java` | 窗口级动作唯一入口：面板、抽屉按钮、会话新建共用 | 不要在抽屉按钮里另写 `Intent`/`addNewSession` |
 | `ShellCommandShortcut` | `commands/ShellCommandShortcut.java` | 把 `Ctrl+Alt+F` 这类显示文本解析为修饰键 + 主键，`matches`/`normalize` | 不要另写快捷键解析；标签必须指向真实存在的处理 |
 | `ShellCommandPalette` | `commands/ShellCommandPalette.java` | 跟随终端配色方案的命令面板（自绘视图，无 XML 布局）；过滤为纯函数；面板内可用快捷键触发 | 不要再写一个「命令列表对话框」；面板配色必须取自当前会话的配色方案 |
 | `TerminalMenuAction` | `ext/menu/TerminalMenuAction.java` | 终端菜单动作枚举与默认列表（只读模块定义默认值） | 不要修改既有 id，只允许新增 |
 | `TerminalMenuItems` | `ext/menu/TerminalMenuItems.java` | 动作可见性/可用性的纯函数 + `State` 快照 | 不要在 UI 代码里判断「没有选中文本就隐藏」 |
-| `TerminalMenuConfig` / `TerminalMenuDialog` | `ext/menu/` | `terminal-menu-items` 等属性解析与菜单对话框 | 不要另写菜单对话框；由 `ext.menu` 扩展拥有 |
+| `TerminalMenuConfig` | `ext/menu/TerminalMenuConfig.java` | `terminal-menu-items`/`selection-toolbar-items` 解析；`defaults()` 供扩展禁用时回退 | 不要另解析这两个属性；外观属性已废弃，不要再加参考 |
 | `TerminalMenuItems.State` | 同 `TerminalMenuItems` | 构造一次快照后复用（面板与菜单共用），含扩展可用性 `splitScreenAvailable`/`searchAvailable`/`sessionsDrawerAvailable` | 不要各入口各自拼装状态，也不要为某个入口单独写扩展可用性判断 |
 
 ---
@@ -58,7 +59,7 @@
 | `TerminalDrawerController` | `ext/drawer/TerminalDrawerController.java` | 抽屉配色、把手、开合模式、头部概要；`setUp`/`reloadConfig`/`openDrawer`/`updateColors`/`updateSummary`/`setSessionsListAdapter` | 不要在 Activity 或适配器里另算抽屉颜色与把手位置 |
 | `TerminalSearchController` | `ext/search/TerminalSearchController.java` | 终端内搜索栏与搜索历史 | 不要另写搜索栏 |
 | `TerminalSplitScreenController` | `ext/split/TerminalSplitScreenController.java` | 分屏状态与两窗格布局 | 不要在 Activity 里直接算分屏布局参数 |
-| `TermuxTerminalFrame` | `terminal/TermuxTerminalFrame.java` | 包装 `TerminalView`，转发鼠标右键 | 不要去改只读模块的 `TerminalView` |
+| `TermuxTerminalFrame` | `terminal/TermuxTerminalFrame.java` | 包装 `TerminalView`；按 `SecondaryButtonBehaviour`（`mouse-right-click` 属性）决定右键转发还是打开面板 | 不要去改只读模块的 `TerminalView`；行为由 `TermuxActivity.applySecondaryButtonBehaviour()` 注入 |
 | `TermuxSessionsListViewController` | `ext/drawer/TermuxSessionsListViewController.java` | 抽屉会话列表适配器（依赖 `TerminalDrawerController`） | 不要另写会话列表行布局逻辑 |
 | `TermuxTerminalViewClient` | `terminal/TermuxTerminalViewClient.java` | 终端视图事件（按键、软键盘、颜色、属性重载） | 不要另写「切换软键盘」实现，用 `onToggleSoftKeyboardRequest()` |
 | `TermuxTerminalSessionActivityClient` | `terminal/TermuxTerminalSessionActivityClient.java` | 会话增删与切换（`addNewSession`、`renameSession`） | 不要直接操作 `TermuxService` 的会话列表 |
@@ -115,7 +116,7 @@
 | `drawer` | `ext/drawer/` | `TerminalDrawerController`、`TermuxSessionsListViewController`、`DrawerConfig`/`DrawerHandleView`/`DrawerColorUtils`、`SessionDetails`、`DrawerExtension`；槽位 `left_drawer`/`drawer_handle` | `TermuxActivity.getDrawer()`（布局访问）、`openSessionsDrawer()` |
 | `notifications` | `ext/notifications/` | `TerminalNotificationManager`（卡片/后台通知/历史）、三个事件适配器、叠层视图与设置页；`NotificationsExtension` 提供事件转发与 `getManager()` | `TermuxActivity.getTerminalNotificationManager()`、`onCommandFinished`/`onBell`/`onOscNotification` 等转发方法 |
 | `volume-keys` | `ext/volumekeys/` | `VolumeKeyActions`（动作派发，`Host` 接口）、`VolumeKeysExtension.perform(...)`、`VolumeKeysPreferencesFragment`；宿主侧状态机留在 `TermuxTerminalViewClient` | `ExtensionHost.isRunning()` 闸门 + `VolumeKeyActions.Host` |
-| `menu` | `ext/menu/` | `TerminalMenuAction`/`TerminalMenuItems`/`TerminalMenuConfig`/`TerminalMenuDialog`/`TerminalMenuExtension`/`TerminalMenuPreferencesFragment` 与两个有序列表偏好项；`getConfig()` 供宿主查询选择工具条动作 | `TermuxActivity.showTerminalMenu()`、`getTerminalMenuConfig()` |
+| `menu` | `ext/menu/` | `TerminalMenuAction`/`TerminalMenuItems`/`TerminalMenuConfig`/`TerminalMenuExtension`/`TerminalMenuPreferencesFragment` 与两个有序列表偏好项；`getConfig()` 供宿主查询面板动作与选择工具条动作 | `TermuxActivity.showCommandPalette()`、`getTerminalMenuConfig()` |
 | `backup` | `ext/backup/` | `TermuxBackupUtils`（脚本解压与执行）、`BackupPreferencesFragment` | 无 |
 
 ---
@@ -128,10 +129,10 @@
 | `ForkExtensionsTest` | 同上 | 扩展 id 唯一、依赖存在、`preferenceKeys` 唯一非空 |
 | `ExtensionGraphTest` / `ExtensionHost` 相关 | `ext/host/` | 依赖拓扑、级联、缺依赖、依赖环 |
 | `TerminalActionRunnerTest` | `commands/` | 22 个动作全部有映射且映射到唯一宿主方法 |
-| `TerminalMenuItemsTest` / `TerminalMenuConfigTest` / `TerminalMenuActionTest` | `ext/menu/`（测试） | 菜单可见性、可用性与属性解析 |
+| `TerminalMenuItemsTest` / `TerminalMenuConfigTest` / `TerminalMenuActionTest` | `ext/menu/`（测试） | 动作可见性（含扩展可用性）、可用性与属性解析、动作顺序 |
 | `SettingsSearchIndexTest` | `fragments/settings/` | 搜索排序与禁用扩展过滤 |
 | `PreferenceResetSourceTest` | `fragments/settings/termux/` | 每个设置页都安装长按复位监听（页面清单是「类名 → 路径」映射，移动页面必须同步） |
-| `TerminalActionRunnerTest` / `ShellCommandPaletteTest` | `commands/` | 注意 `ShellCommandCatalog` 需要 `Context`，当前无单测 |
+| `TerminalActionRunnerTest` / `ShellCommandPaletteTest` / `CommandShortcutsTest` / `ShellCommandShortcutTest` | `commands/` | 动作映射、过滤、快捷键解析与覆盖/取消；`ShellCommandCatalog` 需要 `Context`，当前无单测 |
 | `ResourceClassNameTest` | `app/src/test/java/com/termux/app/ext/` | 资源文件里写的 `com.termux.*` 类名必须存在（自定义控件标签、`app:fragment`）；移动类后忘记改 XML 会在此失败，而不是真机崩溃 |
 | `ShapeTokenTest` | `app/src/test/java/com/termux/app/widget/` | `dimens.xml` 的形状令牌必须等于 `TerminalDialogStyles` 的 Java 常量（配置默认值在无 `Context` 时只能读常量，两侧不一致会让终端菜单与 MD3 对话框圆角漂移） |
 
@@ -146,7 +147,7 @@
 | 搜索里过滤禁用扩展 | `SettingsSearchIndex.build` | 已按扩展状态过滤 |
 | 打开命令面板 | `TermuxActivity.showCommandPalette()` | 四个入口共用 |
 | 执行终端菜单动作 | `TerminalActionRunner.run(action)` | 不要新增 switch |
-| 显示终端上下文菜单 | `TermuxActivity.showTerminalMenu()`（转交 `ext.menu`） | 不要在别处再建菜单对话框 |
+| 显示终端动作列表 | `TermuxActivity.showCommandPalette()` | 右键、菜单键、多选「更多」、快捷键、`F12` 全部走它；旧 `TerminalMenuDialog` 已删除 |
 | 切换软键盘 | `ShellCommandHost.toggleSoftKeyboard()` → `onToggleSoftKeyboardRequest()` | 直接调 Activity 的私有同名方法会递归 |
 | 实现音量键动作 | `ext.volumekeys.VolumeKeyActions.perform(...)` | 不要在 `TermuxTerminalViewClient` 里再写 `switch (action)` |
 | 解析颜色 / 主题引用 | `ColorSchemeColors.resolve` | dialogs、通知、设置页共用 |

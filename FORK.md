@@ -1239,52 +1239,45 @@ notification-accent-width = 4
 
 ## 21. 可配置的长按菜单 / 文本选择浮条 / `SEARCH`·`SPLIT_*` 虚拟键
 
-### 21.1 长按菜单改成可配置的自定义对话框（`terminal-menu-items`）
+### 21.1 终端动作可配并集成进命令面板（`terminal-menu-items`）
 
 上游长按文字 → 选字 → 系统 `ActionMode` 浮条（复制/粘贴/更多…）→ 点「更多…」才弹系统 context
-menu（一长串）。本 fork 把「更多…」那个菜单换成**自己画的对话框**：
+menu（一长串）。本 fork 曾把「更多」换成自绘对话框，现已**并入命令面板**：面板是终端动作的唯一列表，
+`terminal-menu-items` 决定其中**哪些终端动作、什么顺序**。
 
-* **样式**：直角、1dp 强调色描边、等宽字体、右侧小图标，背景/文字色默认取 `colors.properties`
-  （`theme:background` / `theme:foreground` / `theme:color4`），换 Termux:Styling 主题自动跟随。
-* **项与顺序可配**：`terminal-menu-items` 一条逗号列表，**顺序就是显示顺序**，不写就不显示。
-* **不可用的项自动隐藏**：`split-close` 只在已分屏时出现；`share-selected-text` 只在有选中文本时
-  出现；`autofill-*` 只在终端视图开启 autofill 时出现；`test-notification` 只在通知卡片开启时出现。
+* **项与顺序可配**：`terminal-menu-items` 一条逗号列表，顺序就是面板中的顺序；不在列表里的动作不显示。
+* **不可用的项自动隐藏**：`split-close` 只在已分屏时出现；`share-selected-text` 只在有选中文本时出现；
+  `autofill-*` 只在终端视图开启 autofill 时出现；`test-notification` 只在通知卡片开启时出现。
 * **`kill-process`** 的标题带会话 PID，会话已结束时置灰。
+* 面板在配置的动作之后追加「新建会话」「新建命名会话」「切换键盘」，并保证「设置」「帮助」始终可达。
+* 外观不再单独配置：面板跟随终端配色方案，使用与其它对话框相同的圆角令牌。
+  `terminal-menu-font-size`、`terminal-menu-corner-radius`、`terminal-menu-border-width`、
+  `terminal-menu-monospace`、`terminal-menu-show-icons` 与三个 `terminal-menu-*-color` 属性已废弃，设置页对应项已移除。
 
 ```properties
 # 默认值（13 项）
 terminal-menu-items = search,sessions,previous-command,next-command,split-vertical,split-horizontal,select-url,share-transcript,reset-terminal,kill-process,recent-notifications,settings,report
 
-# 全部可用 id（新增的靠后，默认不显示，需要就自己加）：
-#   search / sessions（打开会话抽屉）
+# 全部可用 id：
+#   search / sessions（打开会话抽屉）/ command-palette（在面板内无意义，会被跳过）
 #   previous-command / next-command
 #   split-vertical / split-horizontal / split-close
 #   select-url / share-transcript / share-selected-text
 #   autofill-username / autofill-password
 #   reset-terminal / kill-process / styling / keep-screen-on
 #   help / settings / report / test-notification
-
-# 样式
-terminal-menu-font-size = 13        # sp，8–24
-terminal-menu-corner-radius = 0     # dp，0 = 直角
-terminal-menu-border-width = 1      # dp，0 = 不描边
-terminal-menu-monospace = true      # 等宽字体
-terminal-menu-show-icons = true     # 每项右侧的符号
-terminal-menu-background-color =    # 空 = 配色 background 混 10% foreground
-terminal-menu-foreground-color =    # 空 = 配色 foreground
-terminal-menu-accent-color =        # 空 = theme:color4（描边 + 按下高亮）
+#   recent-notifications
 ```
 
-实现：`app/.../terminal/menu/TerminalMenuAction.java`（id ↔ 文案 ↔ 图标）、`TerminalMenuConfig.java`
-（解析）、`TerminalMenuDialog.java`（对话框）。入口统一到 `TermuxActivity.showTerminalMenu()`，
-由 `TerminalView.showTerminalContextMenu()` → `TerminalViewClient.onShowContextMenu()` 钩子触发，
-所以鼠标右键、菜单键、`Ctrl+Alt+M`、浮条「更多…」全都走同一套。**旧的系统 context menu
-（`onCreateContextMenu`）已删除。**
+实现：`ext/menu/TerminalMenuAction`（id ↔ 文案 ↔ 图标）、`TerminalMenuItems`（可见性/可用性纯函数）、
+`TerminalMenuConfig`（解析）、`commands/ShellCommandCatalog`（组装面板命令）。旧的自绘菜单对话框
+`TerminalMenuDialog` 已删除；右键「更多」、菜单键、`Ctrl+Alt+M`、多选浮条「更多…」、`F12` 与
+`Ctrl+Shift+P` 全部打开命令面板。
 
 ### 21.2 文本选择浮条可配（`selection-toolbar-items`）
 
 浮条仍然是系统的 `ActionMode`（位置、选择手柄、滚动都由系统管），但**显示哪些项、什么顺序**由属性
-决定，并且样式在主题里改成了直角 + 1dp 描边：
+决定，背景使用与行一致的圆角令牌 + 1dp 描边：
 
 ```properties
 selection-toolbar-items = copy,paste,more     # 默认；可用 id: copy / paste / more
@@ -1522,7 +1515,8 @@ notification-background-enabled = true
 * `app/.../notifications/RecentNotifications.java`：环形列表（容量裁剪、最新在前、可选点击动作）
 * `app/.../notifications/RecentNotificationsDialog.java`：列表对话框（跳命令 / 复制 / 清空）
 * `app/.../widget/TerminalDialogStyles.java`：菜单对话框与最近通知对话框共用的配色/描边/行背景/等宽文字
-  （M8.3 的 `TerminalMenuDialog` 已改为复用它，去掉了三份重复代码）
+  （M8.3 的 `TerminalMenuDialog` 已改为复用它，去掉了三份重复代码）。注：该对话框已于 2026-11-23 删除，
+  相关能力并入命令面板，见 §21.1；`TerminalDialogStyles` 仍服务于其它对话框
 * `TerminalNotificationManager`：`notify()` 里记录历史；不可见 + 后台开关 → 改发系统通知
 * `TermuxTerminalSessionActivityClient`：`onSessionFinished` / `onTitleChanged` / `onBell` 挂钩（卡片优先，未开启回退 toast）
 * 设置页：`termux_notification_preferences.xml` 新增「App 事件」「后台与历史」两个分类；
@@ -1538,7 +1532,7 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 | 包 / 类 | 职责 |
 | --- | --- |
 | `app/.../notifications/` | 通知卡片全链路：`NotificationConfig`（属性）、`TerminalNotificationManager`（通道开关/历史/后台切换）、`ExitCodeNotifier`（失败命令）、`OscNotificationHandler`（OSC 9/99/777 + 限流 + 回报）、`AppEventNotifier`（App 事件）、`NotificationOverlayView` + `NotificationCardView`（渲染）、`RecentNotifications` + `RecentNotificationsDialog`（历史）、`BackgroundNotifier`（系统通知） |
-| `app/.../terminal/menu/` | `TerminalMenuConfig`（`terminal-menu-*` 属性）、`TerminalMenuAction`（id ↔ 文案 ↔ 图标）、`TerminalMenuDialog`（自定义样式的长按菜单） |
+| `app/.../ext/menu/` | `TerminalMenuConfig`（`terminal-menu-items` 等属性）、`TerminalMenuAction`（id ↔ 文案 ↔ 图标）；`TerminalMenuDialog` 已于 2026-11-23 删除，动作列表并入命令面板（§21.1） |
 | `app/.../terminal/` | `TerminalSearchController`（搜索栏）、`TerminalSplitScreenController`（分屏布局）、`TermuxShellIntegration`、四个 session/view client |
 | `app/.../statusbar/` | `StatusBarConfig` + `StatusBarMetrics` + `StatusBarView` + `SparklineView` + `StatusBarColors` + `StatusBarController` |
 | `app/.../properties/ForkProperties.java` | fork 自有属性的统一读取入口（`termux.properties` 直读 + 类型化 getter + 越界回退） |
@@ -2011,15 +2005,17 @@ terminal-emulator 236 个
 | 终端长按/右键菜单 | 把 `command-palette` 加入 `terminal-menu-items`（默认列表由只读的共享库定义，因此需显式加入） |
 | 虚拟按键 | 在 `extra-keys` 中加入 `F12`（未按修饰键时打开面板） |
 
-面板内可直接使用的命令快捷键（与终端视图客户端的按键处理一致）：
+面板内可直接使用的命令快捷键由 `command-shortcuts` 属性决定（见 §37.1），默认值：
 
 | 命令 | 快捷键 |
 | --- | --- |
+| 命令面板 | `Ctrl+Shift+P` |
 | 搜索 | `Ctrl+Alt+F` |
 | 切换软键盘 | `Ctrl+Alt+K` |
 | 新建会话 | `Ctrl+Alt+C` |
 
-`Ctrl+Alt+Up` / `Ctrl+Alt+Down` 是切换会话，不是滚动到上/下一条命令，面板不再把它们标为命令快捷键。
+`Ctrl+Alt+Up` / `Ctrl+Alt+Down` 是切换会话，不是滚动到上/下一条命令，默认不把它们标为命令快捷键；
+`Ctrl+Alt+M` 仍作为打开命令面板的固定组合保留。
 
 会话抽屉按钮与命令面板的一致性：抽屉的「设置」「新建会话」「切换键盘」按钮不再各自实现，而是与面板调用同一个
 `ShellCommandHost`；「新建会话」长按的命名会话也是面板里的 `new-named-session` 命令。会话列表项的长按（重命名）
@@ -2095,3 +2091,35 @@ terminal-emulator 236 个
 - `fullscreen` 是启动期属性，修改后需要重启应用（与既有的 `fullscreen`、主题等属性一致）。
 
 未真机验证：刘海填充、非全屏避让、键盘弹起时额外键与小横条的关系、`fullscreen=false` 时的状态栏图标。
+
+## 37. 命令快捷键与鼠标右键（2026-11-23）
+
+### 37.1 可自定义的命令快捷键（`command-shortcuts`）
+
+面板里显示的快捷键与终端实际处理的按键来自同一份配置，标签与行为不会再漂移：
+
+```properties
+# 默认值
+command-shortcuts = command-palette=Ctrl+Shift+P,search=Ctrl+Alt+F,toggle-keyboard=Ctrl+Alt+K,new-session=Ctrl+Alt+C
+```
+
+* 写成 `id=快捷键` 的逗号列表；未列出的命令保留默认值，写成 `id=` 则取消该命令的快捷键。
+* 可用 id 与 `terminal-menu-items` 的动作一致，另外加上 `new-session`、`new-named-session`、`toggle-keyboard`。
+* 快捷键在活动层拦截，因此终端视图、额外键与任何子视图有焦点时都生效；额外键的宏按键同样会被识别。
+* 快捷键建议带修饰键：`Ctrl`/`Alt`/`Shift` + 主键，主键可以是字母、`Up`/`Down`/`Enter`/`Tab`/`Space`/`Esc`/`PgUp`/`PgDn`/`Home`/`End`。
+* 设置路径：终端键盘页 →「命令快捷键」。
+
+### 37.2 鼠标右键（`mouse-right-click`）
+
+```properties
+mouse-right-click = auto     # auto（默认）| forward | palette
+```
+
+| 取值 | 行为 |
+| --- | --- |
+| `auto` | 程序开启鼠标跟踪（`DECSET 1000/1002/1003`）时转发给程序；否则打开命令面板 |
+| `forward` | 从不打开面板：程序跟踪时转发，未跟踪时这次点击被吞掉，不会向程序写入鼠标序列 |
+| `palette` | 始终打开命令面板，即使程序在跟踪鼠标 |
+
+设置路径：命令面板设置页（原「长按菜单」页）→「鼠标右键」。`forward` 适合接显示器用鼠标操作、
+不希望误触弹出面板的场景。

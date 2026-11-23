@@ -438,3 +438,39 @@
 - 会话列表改为上下各 6dp 内距（`clipToPadding=false`），首行不再紧贴头部 1dp 分隔线，末行与底部按钮之间也留出同样的间隙。
 
 未验证：本机无 `adb`，闪烁是否消失、命令面板在深浅配色与彩色强调色下的可读性、chip 与按下态观感、抽屉首末行的间隙均未在真机确认。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 179 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。
+
+## 2026-11-23 — 命令面板接管终端动作，新增可配置快捷键与右键行为
+
+按需求方四项要求实施（提交 71708e0、4d39d05、7c0ed84、272248d），并附「面板即唯一入口」的取舍说明。
+
+一、命令面板搜索框加高
+- 内距由 16/12/16/8 改为四边 16dp，最小高度 56dp。原先底部只有 8dp，输入区域看起来像一条细条。
+
+二、通知卡片强调条改为内缩胶囊
+- `NotificationCardView` 之前用 `drawRect` 画一条贴边整高的横条。现改为 `drawRoundRect`：距卡片左缘 6dp、上下各内缩 8dp、圆角取宽度一半（3dp 宽的胶囊），内容起点同步右移。
+- 圆角与内缩量在卡片高度不足时按 `min(8dp, (height-width)/2)` 收缩，避免小尺寸卡片画出畸形圆角。
+
+三、命令面板接管「更多」菜单，旧对话框删除
+- 连上游行为：长按选字 → 浮条「更多」、硬件菜单键、鼠标右键都走 `TerminalView.showTerminalContextMenu()` → `TerminalViewClient.onShowContextMenu()`。此前它打开自绘的 `TerminalMenuDialog`；现在统一打开命令面板。
+- 删除 `TerminalMenuDialog`、`TerminalMenuItems.build()`/`TitleResolver`、`TerminalMenuExtension.showMenu()`，以及 8 个外观属性（`terminal-menu-font-size/-corner-radius/-border-width/-monospace/-show-icons/-background-color/-foreground-color/-accent-color`）与设置页对应项。`terminal-menu-items` 保留为新职责：决定面板里的**终端动作集合与顺序**。
+- 面板命令组装改为：按 `terminal-menu-items` 顺序加入可见动作（跳过 `command-palette` 自身），再追加新建会话/新建命名会话/切换键盘，最后保证「设置」「帮助」可达（否则用户把这两项从列表删掉后就没有入口）。
+- 扩展禁用时的回退：新增 `TerminalMenuConfig.defaults()`，`getTerminalMenuConfig()` 与 `TerminalMenuExtension` 的兜底配置改用它。此前兜底是空对象，扩展禁用会让选择浮条一个动作都没有，面板也丢光终端动作。
+
+四、快捷键自定义（`command-shortcuts`）
+- 新增 `CommandShortcuts`：解析 `id=快捷键` 逗号列表，未列出的命令保留默认，`id=` 取消快捷键，未知 id 记警告后忽略。默认 `command-palette=Ctrl+Shift+P,search=Ctrl+Alt+F,toggle-keyboard=Ctrl+Alt+K,new-session=Ctrl+Alt+C`。
+- 面板标签（`shortcutFor`）与按键分发（`matches`）读同一映射；`TermuxActivity.dispatchKeyEvent()` 先取快捷键再交给视图树，`TermuxTerminalViewClient.onKeyDown()` 也调用同一个 `handleCommandShortcut()`，因为额外键的宏按键直接调视图的 `onKeyDown`、绕过 Activity。
+- 视图客户端里原先硬编码的 `Ctrl+Alt+F/K/C` 分支已删除：用户把它们改绑后旧组合不能再生效。`Ctrl+Alt+M` 与未修饰的 `F12` 保留为打开面板的固定入口。
+- 设置项：终端键盘页新增「命令快捷键」文本框（写入 `command-shortcuts` 属性）。
+
+五、鼠标右键可配置（`mouse-right-click`）
+- 新增 `TermuxTerminalFrame.SecondaryButtonBehaviour`：`AUTO`（默认，程序跟踪鼠标时转发，否则开面板）、`FORWARD`（从不弹面板，未跟踪时吞掉点击）、`PALETTE`（始终弹面板）。
+- 之所以不让 `FORWARD` 在未跟踪时也调用 `sendMouseEvent`：`TerminalEmulator.sendMouseEvent()` 在 x10 模式下会直接向会话写 `ESC [ M` 序列，程序没请求鼠标时会收到乱码输入，因此未跟踪时选择吞掉而不是注入。
+- 值由 `TermuxActivity.reloadProperties()` 读取并注入两个窗格的 Frame，视图不在事件里读文件。设置项在命令面板页（原「长按菜单」页）。
+
+六、新增键与常量
+- 新增 `properties/ForkPropertyKeys`：`command-shortcuts`、`mouse-right-click`。只读模块没有这两个键，且共享库加载会过滤掉不在其列表内的键，所以只能经 `ForkProperties` 从文件读。已有 fork 键（`drawer-*`、`status-bar-*` 等）继续使用只读模块常量，不重复定义。
+- 顺带修复：`widget/TerminalTextInputDialog` 依赖 `ext/drawer/DrawerColorUtils` 的反向依赖已移除，改用 `TerminalDialogStyles.withAlpha`；选择浮条背景改为 12dp 圆角。
+
+测试：`TerminalMenuItemsTest` 8 项（删除已随对话框移除的 build 用例）、`TerminalMenuConfigTest` 12 项（删除外观用例，新增动作顺序与去重用例）、新增 `CommandShortcutsTest` 5 项（默认值、单项覆盖、空值取消、未知 id、动作改绑）。总测试 180 项。
+
+未验证：本机无 `adb`，以下均未真机确认——面板接管后「更多」浮条与菜单键是否都能打开、右键三种模式的实际表现（尤其 `FORWARD` 在 `vim`/`tmux` 与普通 shell 下）、`command-shortcuts` 改绑后面板标签与按键是否一致、额外键宏按键是否被正确识别、搜索框高度与通知卡片胶囊观感。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 180 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。
