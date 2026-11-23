@@ -482,6 +482,12 @@ public final class TerminalView extends View {
         // keyboard on Android TV (see https://github.com/termux/termux-app/issues/221).
         outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_FULLSCREEN;
 
+        // Let the client override the editor information, so that an application can present the terminal to the
+        // IME as a normal text editor, which is what makes the floating toolbar of an IME like Gboard appear
+        // while a hardware keyboard is connected. The defaults keep the values computed above.
+        outAttrs.inputType = mClient.getInputType(outAttrs.inputType);
+        outAttrs.imeOptions = mClient.getImeOptions(outAttrs.imeOptions);
+
         return new BaseInputConnection(this, true) {
 
             @Override

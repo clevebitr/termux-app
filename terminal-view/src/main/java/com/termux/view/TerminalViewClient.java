@@ -68,6 +68,30 @@ public interface TerminalViewClient {
     boolean shouldEnforceCharBasedInput();
 
     /**
+     * The input type that the terminal view reports to the IME, or {@code defaultInputType} to keep the
+     * type that the view computed from the properties and the IME language.
+     *
+     * <p>An application can return a text class input type so that an IME treats the terminal as a normal
+     * text editor, which is what makes the floating toolbar of an IME like Gboard appear while a hardware
+     * keyboard is connected. The terminal still receives the characters through the input connection, so
+     * the value only changes how the IME presents itself.</p>
+     *
+     * <p>The default implementation keeps the value of the view, so that an application that does not need
+     * the compatibility mode does not change the behaviour of the view.</p>
+     */
+    default int getInputType(int defaultInputType) {
+        return defaultInputType;
+    }
+
+    /**
+     * The {@link android.view.inputmethod.EditorInfo#imeOptions} that the terminal view reports to the IME,
+     * or {@code defaultImeOptions} to keep the value of the view.
+     */
+    default int getImeOptions(int defaultImeOptions) {
+        return defaultImeOptions;
+    }
+
+    /**
      * If the workaround to be able to use CJK keyboards of IMEs like Gboard in the terminal view
      * should be enabled. If enabled, the terminal view will use a text class input type for the IME
      * and restart the input whenever the IME language is changed.
