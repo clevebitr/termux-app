@@ -92,12 +92,16 @@ return softKeyboardVisible
 | 是否接有硬件键盘 | `KeyboardUtils.isHardKeyboardConnected()`（`Configuration.keyboard` 与 `hardKeyboardHidden`） |
 | 软键盘是否可见 | `KeyboardUtils.isSoftKeyboardVisible()`（窗口 inset 的 IME 可见性），在既有的全局布局回调中读取 |
 
-Android 5.0 与 6.0 读不到软键盘可见性，这两个版本上 `TermuxTerminalViewClient.getInputType()` 按「可见」处理，
-即始终上报文本类类型：保持输入法可用，放弃直通。
+Android 5.0 与 6.0 读不到软键盘可见性，这两个版本上 `TermuxTerminalViewClient.getInputType()` 直接返回视图算出的
+类型，即与上游一致（是否文本类取决于 `gboard-cjk-workaround` 等既有属性），不强制改变行为。
 
 ### 3.3 重启时机
 
 输入法只在**创建输入连接**时读取编辑器信息，所以下列变化必须重启连接：
+
+重启只在**判定本身翻转**时发生：`updateImePassthroughState()` 缓存「物理键归终端」这一布尔值
+（`SDK >= M && 接有硬件键盘 && 软键盘收起`），只有它变化才重启。因此「软键盘可见时接入硬件键盘」这类不会改变
+类型的事件不再触发重启。
 
 | 变化 | 处理 |
 | --- | --- |
@@ -105,8 +109,8 @@ Android 5.0 与 6.0 读不到软键盘可见性，这两个版本上 `TermuxTerm
 | 软键盘显示或隐藏 | `updateTerminalToolbarVisibilityForSoftKeyboardVisibility()` 中的可见性比较 |
 | 属性重载 | `TermuxTerminalViewClient.onReloadProperties()` |
 
-重启通过 `TerminalView.restartInputConnection()` 完成，两个窗格都会重启。只在状态真正变化时重启，避免每次布局
-都触发。
+重启通过 `TerminalView.restartInputConnection()` 完成，两个窗格都会重启。`onStop()` 会清空
+`mPendingKeyDowns`：应用在按住某键时被切走，那条 down 的 up 永远不会到达，否则会长期抑制同一按键的兜底重启。
 
 软键盘**弹出**时还会在 200ms 后再重启一次（`IME_RESTART_AFTER_SOFT_KEYBOARD_SHOWN_DELAY_MS`）：输入法在自己
 的窗口播放弹出动画期间可能忽略 `restartInput()`，随后继续使用弹出前读取的类型，终端因此停留在 `TYPE_NULL`，
