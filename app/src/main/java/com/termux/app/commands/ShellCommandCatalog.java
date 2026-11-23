@@ -39,6 +39,20 @@ public final class ShellCommandCatalog {
     /** The id of the command that toggles the soft keyboard. */
     public static final String ID_TOGGLE_KEYBOARD = "toggle-keyboard";
 
+    /**
+     * The shortcuts that the palette shows.
+     *
+     * <p>They are the combinations that the terminal view client already takes, so the label of a command and the
+     * key that runs it cannot drift apart: `Ctrl+Alt+F` opens the search, `Ctrl+Alt+K` toggles the soft keyboard
+     * and `Ctrl+Alt+C` creates a session. The previous and next command have no shortcut, since `Ctrl+Alt+Up` and
+     * `Ctrl+Alt+Down` switch sessions in the view client.</p>
+     */
+    public static final String SHORTCUT_SEARCH = "Ctrl+Alt+F";
+    /** See {@link #SHORTCUT_SEARCH}. */
+    public static final String SHORTCUT_TOGGLE_KEYBOARD = "Ctrl+Alt+K";
+    /** See {@link #SHORTCUT_SEARCH}. */
+    public static final String SHORTCUT_NEW_SESSION = "Ctrl+Alt+C";
+
     private ShellCommandCatalog() {
     }
 
@@ -63,10 +77,10 @@ public final class ShellCommandCatalog {
         String app = context.getString(R.string.command_category_app);
         List<ShellCommand> commands = new ArrayList<>();
 
-        addMenuCommand(commands, TerminalMenuAction.SEARCH, terminal, null, state, titles, host);
+        addMenuCommand(commands, TerminalMenuAction.SEARCH, terminal, SHORTCUT_SEARCH, state, titles, host);
         addMenuCommand(commands, TerminalMenuAction.SESSIONS, terminal, null, state, titles, host);
-        addMenuCommand(commands, TerminalMenuAction.PREVIOUS_COMMAND, terminal, "Ctrl+Alt+Up", state, titles, host);
-        addMenuCommand(commands, TerminalMenuAction.NEXT_COMMAND, terminal, "Ctrl+Alt+Down", state, titles, host);
+        addMenuCommand(commands, TerminalMenuAction.PREVIOUS_COMMAND, terminal, null, state, titles, host);
+        addMenuCommand(commands, TerminalMenuAction.NEXT_COMMAND, terminal, null, state, titles, host);
         addMenuCommand(commands, TerminalMenuAction.SPLIT_VERTICAL, terminal, null, state, titles, host);
         addMenuCommand(commands, TerminalMenuAction.SPLIT_HORIZONTAL, terminal, null, state, titles, host);
         addMenuCommand(commands, TerminalMenuAction.SPLIT_CLOSE, terminal, null, state, titles, host);
@@ -74,12 +88,12 @@ public final class ShellCommandCatalog {
         addMenuCommand(commands, TerminalMenuAction.KILL_PROCESS, terminal, null, state, titles, host);
 
         commands.add(new ShellCommand(ID_NEW_SESSION, context.getString(R.string.action_new_session),
-            terminal, null, true, host::addNewSession));
+            terminal, SHORTCUT_NEW_SESSION, true, host::addNewSession));
         commands.add(new ShellCommand(ID_NEW_NAMED_SESSION,
             context.getString(R.string.command_new_named_session), terminal, null, true,
             host::addNamedSession));
         commands.add(new ShellCommand(ID_TOGGLE_KEYBOARD,
-            context.getString(R.string.action_toggle_soft_keyboard), terminal, null, true,
+            context.getString(R.string.action_toggle_soft_keyboard), terminal, SHORTCUT_TOGGLE_KEYBOARD, true,
             host::toggleSoftKeyboard));
 
         addMenuCommand(commands, TerminalMenuAction.SETTINGS, app, null, state, titles, host);

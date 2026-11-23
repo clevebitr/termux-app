@@ -4,18 +4,21 @@ import android.app.Activity;
 import android.content.Context;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
-import android.widget.EditText;
-import android.widget.LinearLayout;
+import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
+import androidx.annotation.Nullable;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
 import com.termux.R;
 
 import java.util.ArrayList;
@@ -30,9 +33,11 @@ import java.util.Locale;
  * {@link ShellCommandCatalog} and filters them by a case insensitive substring of the title, the category
  * or the shortcut, so that the same list can be searched by command name or by the keys the user knows.</p>
  *
- * <p>The dialog is built in code instead of a layout so that it follows the theme of the app without a new
- * resource, and it is dismissed before a command runs, so that a command that opens another screen does not
- * race with the dismissal.</p>
+ * <p>The dialog is a Material 3 surface instead of the platform dialog frame: the search field is the header,
+ * the rows show the title, the category and the shortcut of a command, and a disabled command is dimmed instead
+ * of hidden, so that the user can tell why nothing happens when it is picked. While the dialog is open it also
+ * takes the shortcut of a command and runs it, which makes the shortcuts that are shown in the list usable
+ * without closing the palette.</p>
  */
 public final class ShellCommandPalette {
 
@@ -43,37 +48,17 @@ public final class ShellCommandPalette {
     public static void show(@NonNull Activity activity, @NonNull List<ShellCommand> commands) {
         if (activity.isFinishing() || commands.isEmpty()) return;
 
-        Context context = activity;
-        LinearLayout content = new LinearLayout(context);
-        content.setOrientation(LinearLayout.VERTICAL);
-        int padding = dp(context, 8);
-        content.setPadding(padding, padding, padding, 0);
+        View content = LayoutInflater.from(activity).inflate(R.layout.dialog_command_palette, null, false);
+        TextInputEditText input = content.findViewById(R.id.command_palette_input);
+        ListView list = content.findViewById(R.id.command_palette_list);
+        TextView empty = content.findViewById(R.id.command_palette_empty);
+        if (input == null || list == null || empty == null) return;
 
-        EditText input = new EditText(context);
-        input.setHint(R.string.command_palette_hint);
-        input.setSingleLine(true);
-        content.addView(input);
-
-        TextView empty = new TextView(context);
-        empty.setText(R.string.command_palette_empty);
-        empty.setVisibility(View.GONE);
-        content.addView(empty);
-
-        ListView list = new ListView(context);
-        content.addView(list, new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(context, 360)));
-
-        List<ShellCommand> filtered = new ArrayList<>(commands);
-        ArrayAdapter<ShellCommand> adapter = new ArrayAdapter<ShellCommand>(context,
-            android.R.layout.simple_list_item_1, filtered) {
-            @Override
-            public boolean isEnabled(int position) {
-                return getItem(position) != null && getItem(position).enabled;
-            }
-        };
+        final List<ShellCommand> filtered = new ArrayList<>(commands);
+        final CommandAdapter adapter = new CommandAdapter(activity, filtered);
         list.setAdapter(adapter);
 
-        AlertDialog dialog = new AlertDialog.Builder(context)
+        final androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(activity)
             .setView(content)
             .create();
 
@@ -116,15 +101,36 @@ public final class ShellCommandPalette {
             return true;
         });
 
+        // The shortcut of a command can be used while the palette is open, which is the only place where taking
+        // the key from the terminal is harmless. The search field holds the focus, so the listener is installed on
+        // it and on the list instead of on the dialog.
+        View.OnKeyListener shortcutListener = (view, keyCode, event) -> {
+            for (ShellCommand command : filtered) {
+                if (!command.enabled) continue;
+                if (!ShellCommandShortcut.matches(command.shortcut, event)) continue;
+                dialog.dismiss();
+                command.execute();
+                return true;
+            }
+            return false;
+        };
+        input.setOnKeyListener(shortcutListener);
+        list.setOnKeyListener(shortcutListener);
+
         dialog.setOnShowListener(it -> {
             input.requestFocus();
-            InputMethodManager imm =
-                (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (imm != null) imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT);
+            android.view.inputmethod.InputMethodManager imm =
+                (android.view.inputmethod.InputMethodManager) activity.getSystemService(
+                    Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
         });
+
         if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(R.drawable.bg_command_palette);
             dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         }
+
+        empty.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
         dialog.show();
     }
 
@@ -137,12 +143,82 @@ public final class ShellCommandPalette {
             out.addAll(commands);
             return;
         }
+
+        // A command whose shortcut is exactly what was typed is the most likely one, so it is listed first.
+        String normalizedNeedle = ShellCommandShortcut.normalize(needle);
         for (ShellCommand command : commands) {
+            if (command.shortcut != null
+                && ShellCommandShortcut.normalize(command.shortcut).equals(normalizedNeedle)) {
+                out.add(command);
+            }
+        }
+        for (ShellCommand command : commands) {
+            if (out.contains(command)) continue;
             if (command.toString().toLowerCase(Locale.ROOT).contains(needle)) out.add(command);
         }
     }
 
-    private static int dp(@NonNull Context context, int value) {
-        return Math.round(value * context.getResources().getDisplayMetrics().density);
+    /** Renders one command of the palette with the row layout of the dialog. */
+    private static final class CommandAdapter extends BaseAdapter {
+
+        @NonNull
+        private final LayoutInflater mInflater;
+        @NonNull
+        private final List<ShellCommand> mCommands;
+
+        CommandAdapter(@NonNull Context context, @NonNull List<ShellCommand> commands) {
+            mInflater = LayoutInflater.from(context);
+            mCommands = commands;
+        }
+
+        @Override
+        public int getCount() {
+            return mCommands.size();
+        }
+
+        @Override
+        public ShellCommand getItem(int position) {
+            return mCommands.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public boolean isEnabled(int position) {
+            ShellCommand command = getItem(position);
+            return command != null && command.enabled;
+        }
+
+        @NonNull
+        @Override
+        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            View row = convertView;
+            if (row == null) row = mInflater.inflate(R.layout.item_command_palette, parent, false);
+
+            ShellCommand command = getItem(position);
+            if (command == null) return row;
+
+            TextView titleView = row.findViewById(R.id.command_title);
+            TextView categoryView = row.findViewById(R.id.command_category);
+            TextView shortcutView = row.findViewById(R.id.command_shortcut);
+
+            titleView.setText(command.title);
+            categoryView.setText(command.category);
+
+            if (command.shortcut == null || command.shortcut.isEmpty()) {
+                shortcutView.setVisibility(View.GONE);
+            } else {
+                shortcutView.setVisibility(View.VISIBLE);
+                shortcutView.setText(command.shortcut);
+            }
+
+            // A command that cannot run is dimmed instead of hidden, so that the list does not move under the
+            // finger of the user while the state of the terminal changes.
+            row.setAlpha(command.enabled ? 1f : 0.45f);
+            return row;
+        }
     }
 }
