@@ -25,8 +25,9 @@ public final class ForkPropertyKeys {
     /**
      * The input type that the terminal view reports to the IME: `auto` keeps the type that the view computes,
      * `text` presents the terminal as a normal text editor so that an IME toolbar appears with a hardware
-     * keyboard, `password` uses the legacy visible password variation and `none` reports `TYPE_NULL`.
-     * See {@code ImeInputType}.
+     * keyboard, `password` uses the legacy visible password variation, `none` reports `TYPE_NULL` and
+     * `hardware` reports `TYPE_NULL` only while a hardware keyboard is attached, so that its keys bypass the
+     * IME. See {@code ImeInputType}.
      */
     public static final String IME_INPUT_TYPE = "ime-input-type";
 

@@ -113,6 +113,7 @@
         <item>文本编辑器（输入法悬浮栏）</item>
         <item>密码框（旧兼容方案）</item>
         <item>无输入类型（TYPE_NULL）</item>
+        <item>硬件键盘直通</item>
     </string-array>
 
     <string-array name="termux_ime_input_type_values">
@@ -120,5 +121,6 @@
         <item>text</item>
         <item>password</item>
         <item>none</item>
+        <item>hardware</item>
     </string-array>
 </resources>

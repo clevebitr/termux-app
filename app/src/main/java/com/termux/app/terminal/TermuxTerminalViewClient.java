@@ -165,8 +165,17 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
         setSessionShortcuts();
 
         // Restart the input connection so that the IME reloads the input attributes returned by
-        // TerminalView.onCreateInputConnection(), since properties like gboard-cjk-workaround may
-        // have changed.
+        // TerminalView.onCreateInputConnection(), since properties like gboard-cjk-workaround or
+        // ime-input-type may have changed.
+        TerminalView terminalView = mTerminalView;
+        if (terminalView != null) terminalView.restartInputConnection();
+    }
+
+    /**
+     * Restart the input connection of the terminal view so that the IME reads the input type again, which is
+     * needed after a hardware keyboard was attached or detached while `ime-input-type=hardware` is selected.
+     */
+    public void restartInputConnection() {
         TerminalView terminalView = mTerminalView;
         if (terminalView != null) terminalView.restartInputConnection();
     }
@@ -273,9 +282,11 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
 
     @Override
     public int getInputType(int defaultInputType) {
-        int inputType = mActivity.getImeInputType().inputType(defaultInputType);
+        boolean hardwareKeyboardAttached = HardwareKeyboard.isAttached(mActivity);
+        int inputType = mActivity.getImeInputType().inputType(defaultInputType, hardwareKeyboardAttached);
         if (mActivity.isKeyboardCompatLogEnabled()) {
             KeyboardCompatLog.log("ime", "getInputType mode=" + mActivity.getImeInputType().getValue()
+                + ", hardwareKeyboard=" + hardwareKeyboardAttached
                 + ", default=0x" + Integer.toHexString(defaultInputType)
                 + ", reported=0x" + Integer.toHexString(inputType));
         }

@@ -747,7 +747,7 @@
     <!-- Terminal Menu Preferences -->
     <string name="termux_ime_compatibility_header">硬件键盘与输入法</string>
     <string name="termux_ime_input_type_title">输入法输入类型</string>
-    <string name="termux_ime_input_type_summary">选择「文本」时终端按普通文本框上报，连接硬件键盘时输入法（如 Gboard）会显示悬浮栏。</string>
+    <string name="termux_ime_input_type_summary">选择「文本」时终端按普通文本框上报，连接硬件键盘时输入法（如 Gboard）会显示悬浮栏。选择「硬件键盘直通」时，接有硬件键盘期间终端按无类型编辑器上报，物理按键直接到达终端而不被输入法接管，中文请改用软键盘输入。</string>
     <string name="termux_keyboard_compat_log_title">按键事件日志</string>
     <string name="termux_keyboard_compat_log_summary">记录应用、终端视图与命令快捷键看到的按键事件，用于排查键盘不工作的问题。日志写入 ~/.termux/keyboard-compat.log。</string>
     <string name="termux_command_shortcuts_header">命令快捷键</string>

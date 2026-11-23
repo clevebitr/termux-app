@@ -28,6 +28,7 @@ public class ImeInputTypeTest {
         Assert.assertEquals(ImeInputType.TEXT, ImeInputType.parse("text"));
         Assert.assertEquals(ImeInputType.PASSWORD, ImeInputType.parse("Password"));
         Assert.assertEquals(ImeInputType.NONE, ImeInputType.parse("none"));
+        Assert.assertEquals(ImeInputType.HARDWARE, ImeInputType.parse("Hardware"));
     }
 
     @Test
@@ -61,5 +62,25 @@ public class ImeInputTypeTest {
     public void testNoneReportsTypeNull() {
         Assert.assertEquals(InputType.TYPE_NULL,
             ImeInputType.NONE.inputType(InputType.TYPE_CLASS_TEXT));
+    }
+
+    @Test
+    public void testHardwareReportsTypeNullOnlyWhileAKeyboardIsAttached() {
+        int viewType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL;
+
+        Assert.assertEquals(InputType.TYPE_NULL, ImeInputType.HARDWARE.inputType(viewType, true));
+        Assert.assertEquals(viewType, ImeInputType.HARDWARE.inputType(viewType, false));
+        // Without the state of the keyboard the mode must not change the reported type.
+        Assert.assertEquals(viewType, ImeInputType.HARDWARE.inputType(viewType));
+    }
+
+    @Test
+    public void testOtherModesIgnoreTheHardwareKeyboardState() {
+        int viewType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD;
+
+        Assert.assertEquals(viewType, ImeInputType.AUTO.inputType(viewType, true));
+        Assert.assertEquals(InputType.TYPE_NULL, ImeInputType.NONE.inputType(viewType, false));
+        Assert.assertEquals(ImeInputType.TEXT.inputType(viewType),
+            ImeInputType.TEXT.inputType(viewType, true));
     }
 }

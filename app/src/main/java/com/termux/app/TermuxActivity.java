@@ -9,7 +9,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.res.Configuration;
 import android.graphics.Color;
+import android.hardware.input.InputManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -47,6 +49,7 @@ import com.termux.app.ext.search.SearchExtension;
 import com.termux.app.ext.split.SplitScreenExtension;
 import com.termux.app.properties.ForkProperties;
 import com.termux.app.properties.ForkPropertyKeys;
+import com.termux.app.terminal.HardwareKeyboard;
 import com.termux.app.terminal.ImeInputType;
 import com.termux.app.terminal.KeyboardCompatLog;
 import com.termux.terminal.KeyHandler;
@@ -268,6 +271,16 @@ public final class TermuxActivity extends AppCompatActivity
     private ImeInputType mImeInputType = ImeInputType.AUTO;
 
     /**
+     * Whether a hardware keyboard was attached when the current input connections were created, which
+     * `ime-input-type=hardware` turns into {@code TYPE_NULL}. The input connections are restarted when it
+     * changes, since the IME only reads the input type when it creates them.
+     */
+    private boolean mHardwareKeyboardAttached;
+
+    /** Notified when an input device is added or removed, which is when a hardware keyboard may have changed. */
+    private InputManager.InputDeviceListener mInputDeviceListener;
+
+    /**
      * If between onResume() and onStop(). Note that only one session is in the foreground of the terminal view at the
      * time, so if the session causing a change is not in the foreground it should probably be treated as background.
      */
@@ -375,6 +388,8 @@ public final class TermuxActivity extends AppCompatActivity
         setDisplayCutoutMode();
 
         setContentView(R.layout.activity_termux);
+
+        registerHardwareKeyboardWatcher();
 
         // Load termux shared preferences
         // This will also fail if TermuxConstants.TERMUX_PACKAGE_NAME does not equal applicationId
@@ -575,6 +590,8 @@ public final class TermuxActivity extends AppCompatActivity
         super.onDestroy();
 
         Logger.logDebug(LOG_TAG, "onDestroy");
+
+        unregisterHardwareKeyboardWatcher();
 
         if (mIsInvalidState) return;
 
@@ -1539,6 +1556,80 @@ public final class TermuxActivity extends AppCompatActivity
     private String describeFocus() {
         View focus = getCurrentFocus();
         return focus == null ? "none" : focus.getClass().getSimpleName();
+    }
+
+    /**
+     * Recompute the state that `ime-input-type=hardware` depends on after the configuration changed.
+     *
+     * <p>The activity declares `keyboard` and `keyboardHidden` in its `configChanges`, so it survives a hardware
+     * keyboard being attached or detached and must update the input type itself.</p>
+     */
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        updateHardwareKeyboardState();
+    }
+
+    /**
+     * Record the current hardware keyboard state and listen for input devices being added or removed.
+     *
+     * <p>The configuration change covers most keyboards, but a keyboard that only the input service reports, like
+     * one that is still being paired, does not always change it.</p>
+     */
+    private void registerHardwareKeyboardWatcher() {
+        mHardwareKeyboardAttached = HardwareKeyboard.isAttached(this);
+
+        InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
+        if (inputManager == null) return;
+
+        mInputDeviceListener = new InputManager.InputDeviceListener() {
+            @Override
+            public void onInputDeviceAdded(int deviceId) {
+                updateHardwareKeyboardState();
+            }
+
+            @Override
+            public void onInputDeviceRemoved(int deviceId) {
+                updateHardwareKeyboardState();
+            }
+
+            @Override
+            public void onInputDeviceChanged(int deviceId) {
+                updateHardwareKeyboardState();
+            }
+        };
+        inputManager.registerInputDeviceListener(mInputDeviceListener, null);
+    }
+
+    /** Stop listening for input devices, since the listener holds a reference to this activity. */
+    private void unregisterHardwareKeyboardWatcher() {
+        if (mInputDeviceListener == null) return;
+
+        InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
+        if (inputManager != null) inputManager.unregisterInputDeviceListener(mInputDeviceListener);
+        mInputDeviceListener = null;
+    }
+
+    /**
+     * Restart the input connections when the hardware keyboard was attached or detached.
+     *
+     * <p>An IME only reads the editor information when it creates the input connection, so a change of the state
+     * that `ime-input-type=hardware` turns into {@code TYPE_NULL} is only applied after the connection is
+     * restarted.</p>
+     */
+    private void updateHardwareKeyboardState() {
+        boolean attached = HardwareKeyboard.isAttached(this);
+        if (attached == mHardwareKeyboardAttached) return;
+
+        mHardwareKeyboardAttached = attached;
+        if (mKeyboardCompatLog) {
+            KeyboardCompatLog.log("ime", "hardware keyboard " + (attached ? "attached" : "detached")
+                + ", restarting the input connections");
+        }
+
+        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+            if (viewClient != null) viewClient.restartInputConnection();
+        }
     }
 
     /** @return Whether key events are logged, as the `keyboard-compat-log` property configures it. */

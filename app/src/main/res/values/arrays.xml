@@ -264,6 +264,7 @@
         <item>Text editor (IME toolbar)</item>
         <item>Password field (legacy workaround)</item>
         <item>No input type (TYPE_NULL)</item>
+        <item>Hardware keyboard passthrough</item>
     </string-array>
 
     <string-array name="termux_ime_input_type_values">
@@ -271,5 +272,6 @@
         <item>text</item>
         <item>password</item>
         <item>none</item>
+        <item>hardware</item>
     </string-array>
 </resources>

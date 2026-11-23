@@ -13,7 +13,12 @@ import java.util.Locale;
  *
  * <p>行为 — `auto` 使用 `TerminalView` 结合属性与输入法语言算出的类型，与上游完全一致；`text` 上报
  * `TYPE_CLASS_TEXT | NO_SUGGESTIONS | NORMAL`，输入法会按文本框处理，但不会把联想文本提交给终端；
- * `password` 上报旧的 `VISIBLE_PASSWORD` 变体；`none` 上报 `TYPE_NULL`。解析失败回退到 `auto`。</p>
+ * `password` 上报旧的 `VISIBLE_PASSWORD` 变体；`none` 上报 `TYPE_NULL`；`hardware` 在接有物理
+ * 键盘时上报 `TYPE_NULL`，其余情况等同 `auto`。解析失败回退到 `auto`。</p>
+ *
+ * <p>输入法在 `text`、`password` 与 `auto` 的文本类类型下会把物理按键先收进自己再以文本提交，字符与
+ * Tab、方向键因此走两条通道，顺序可能错乱；`hardware` 通过 `TYPE_NULL` 让输入法不接管物理按键，
+ * 代价是物理键盘上的 CJK 组合输入（拼音候选）不可用，中文需改用软键盘，软键盘提交仍会经输入连接送达。</p>
  *
  * <p>约束 — 只影响 {@code EditorInfo}，不改变输入连接、按键或终端渲染；切换取值后必须调用
  * {@code TerminalView.restartInputConnection()} 才会让输入法重新读取类型，这一调用由
@@ -28,7 +33,9 @@ public enum ImeInputType {
     /** Present the terminal as a password field, the legacy workaround for some IMEs. */
     PASSWORD("password"),
     /** Report {@code TYPE_NULL}, the plainest terminal input type. */
-    NONE("none");
+    NONE("none"),
+    /** Report {@code TYPE_NULL} while a hardware keyboard is attached, so that its keys bypass the IME. */
+    HARDWARE("hardware");
 
     @NonNull
     private final String mValue;
@@ -55,6 +62,8 @@ public enum ImeInputType {
                 return PASSWORD;
             case "none":
                 return NONE;
+            case "hardware":
+                return HARDWARE;
             case "auto":
             default:
                 return AUTO;
@@ -66,7 +75,21 @@ public enum ImeInputType {
      * @return The input type that is reported to the IME.
      */
     public int inputType(int defaultInputType) {
+        // Without the state of the hardware keyboard the `hardware` mode is the same as `auto`.
+        return inputType(defaultInputType, false);
+    }
+
+    /**
+     * @param defaultInputType The input type that the terminal view computed, which `auto` and an unattached
+     *                         hardware keyboard use.
+     * @param hardwareKeyboardAttached Whether a hardware keyboard is attached, which `hardware` turns into
+     *                                 {@code TYPE_NULL} so that the IME does not take the physical keys.
+     * @return The input type that is reported to the IME.
+     */
+    public int inputType(int defaultInputType, boolean hardwareKeyboardAttached) {
         switch (this) {
+            case HARDWARE:
+                return hardwareKeyboardAttached ? InputType.TYPE_NULL : defaultInputType;
             case TEXT:
                 // A normal text field without suggestions: the IME shows its editor affordances, like the
                 // floating toolbar for a hardware keyboard, but does not offer completions for a terminal.
