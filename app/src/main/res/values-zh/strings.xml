@@ -837,4 +837,23 @@
     <string name="termux_notification_history_size_summary">只保存在内存里；列表为空时长按菜单里的「最近通知」项会自动隐藏。</string>
     <string name="notification_channel_name">终端通知</string>
     <string name="notification_channel_description">失败命令与终端程序发出的通知</string>
+
+    <!-- 扩展与命令 -->
+    <string name="command_new_named_session">新建命名会话…</string>
+    <string name="termux_extensions_page_disabled_title">该功能已停用</string>
+    <string name="termux_extensions_page_disabled_summary">在「扩展」页启用该扩展后即可使用。已安装到 $PREFIX/bin 的命令会保留，需自行删除。</string>
+    <string name="termux_search_extension_title">终端内搜索</string>
+    <string name="termux_search_extension_summary">在屏幕与回滚记录中查找文本</string>
+    <string name="termux_drawer_extension_title">会话抽屉</string>
+    <string name="termux_drawer_extension_summary">列出会话的抽屉与头部概要</string>
+    <string name="termux_split_extension_title">分屏</string>
+    <string name="termux_split_extension_summary">两个窗格与可拖拽的分隔条</string>
+    <string name="termux_builtin_vt_preferences_title">终端行为（核心）</string>
+    <string name="termux_builtin_vt_preferences_summary">剪贴板、滚动、鼠标与内边距</string>
+    <string name="termux_builtin_vt_notice_title">核心能力</string>
+    <string name="termux_builtin_vt_notice_summary">这些行为实现在终端内部，只能关闭，不能移除。</string>
+    <string name="termux_builtin_vt_behaviour_header">行为</string>
+    <string name="termux_volume_keys_preferences_title">音量键</string>
+    <string name="termux_volume_keys_preferences_summary">虚拟键 · 单按与长按动作</string>
+    <string name="termux_volume_key_actions_header">动作</string>
 </resources>
