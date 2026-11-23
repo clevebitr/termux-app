@@ -2159,8 +2159,8 @@ keyboard-compat-log = true   # 默认 false
 | `[terminal-view]` | 终端视图收到的按键 |
 | `[ime]` | 上报的输入类型与输入法提交的文本 |
 
-Tab 直通：未修饰的 Tab 与 Shift+Tab 在终端视图获得焦点时由活动直接交给终端（Shift+Tab 发送反向制表符），
-避免被窗口的焦点切换吞掉。
+Tab 直通：未修饰的 Tab 与 Shift+Tab 由活动直接交给终端（Shift+Tab 发送反向制表符），避免被窗口的焦点切换
+吞掉。只有当搜索栏或工具栏文本框获得焦点时，Tab 才留给文本框自己处理。
 日志除了 logcat 之外还写入 `~/.termux/keyboard-compat.log`（超过 128KB 自动重建），可直接在 Termux 里查看：
 
 ```sh

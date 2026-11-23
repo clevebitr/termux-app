@@ -1477,11 +1477,11 @@ public final class TermuxActivity extends AppCompatActivity
      * Send Tab to the terminal before the window performs its focus navigation.
      *
      * <p>An unhandled Tab moves the focus to the next view, which in the terminal would mean that the key
-     * never reaches the shell or a TUI like Neovim. The terminal view handles Tab itself, but a keyboard or
-     * the framework may take it before the view sees it, especially while the terminal is presented to the
-     * IME as a text field for the floating toolbar. Handling it here keeps Tab working in every mode, while
-     * a terminal view that does not have the focus, like while the search bar or the extra keys are used, is
-     * left alone.</p>
+     * never reaches the shell or a TUI like Neovim. The terminal view handles Tab itself, but the focus may be
+     * on another view, like an extra key button that was tapped before, in which case the window uses the Tab
+     * for focus navigation before the terminal sees it. Handling it here keeps Tab working whenever a text
+     * field does not have the focus; a text field, like the search bar or the alternate text input view, keeps
+     * the Tab for its own navigation.</p>
      *
      * <p>Shift+Tab is sent as the back-tab escape sequence by the key handler, like the hardware keyboard.</p>
      */
@@ -1491,14 +1491,38 @@ public final class TermuxActivity extends AppCompatActivity
         if (event.isCtrlPressed() || event.isAltPressed()) return false;
 
         TerminalView terminalView = mTerminalView;
-        if (terminalView == null || !terminalView.hasFocus()) return false;
+        if (terminalView == null) return false;
+
+        if (isTextInputFocused()) {
+            if (mKeyboardCompatLog) KeyboardCompatLog.log("activity", "Tab left to the focused text field");
+            return false;
+        }
 
         int keyMod = event.isShiftPressed() ? KeyHandler.KEYMOD_SHIFT : 0;
         if (terminalView.handleKeyCode(KeyEvent.KEYCODE_TAB, keyMod)) {
-            if (mKeyboardCompatLog) KeyboardCompatLog.log("activity", "sent Tab to the terminal");
+            if (mKeyboardCompatLog) {
+                KeyboardCompatLog.log("activity", "sent Tab to the terminal, focus on "
+                    + describeFocus());
+            }
             return true;
         }
         return false;
+    }
+
+    /** @return Whether a text field has the focus, so that the Tab belongs to it instead of the terminal. */
+    private boolean isTextInputFocused() {
+        View focus = getCurrentFocus();
+        // The search bar and the alternate text input view are text fields, so a Tab there is used for their own
+        // navigation; every other focused view, like an extra key button or the terminal view itself, leaves the
+        // Tab to the terminal.
+        return focus instanceof android.widget.EditText;
+    }
+
+    /** @return The class of the focused view, for the keyboard log. */
+    @NonNull
+    private String describeFocus() {
+        View focus = getCurrentFocus();
+        return focus == null ? "none" : focus.getClass().getSimpleName();
     }
 
     /** @return Whether key events are logged, as the `keyboard-compat-log` property configures it. */

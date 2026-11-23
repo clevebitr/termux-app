@@ -189,7 +189,7 @@ keyboard-compat-log = false
 | 快捷键匹配回退物理键码 + `keyboard-compat-log` 日志 | `commands/`、`terminal/` | `a1b589e` |
 | 诊断日志写入 `~/.termux/keyboard-compat.log`（128KB 重建） | `terminal/KeyboardCompatLog.java` | `0a16a59` |
 | 输入法事件日志钩子（`onImeEvent`，只读模块） | `terminal-view/` | 本次 |
-| Tab / Shift+Tab 直通（避免被窗口焦点切换吞掉） | `TermuxActivity.handleTerminalTab` | 本次 |
+| Tab / Shift+Tab 直通（不要求终端视图持有焦点，仅跳过文本框焦点） | `TermuxActivity.handleTerminalTab` | 本次 |
 | `command-shortcuts` 属性与设置项、右键行为、面板标签同源 | 见 `FORK.md` §37 | `7c0ed84` |
 
 仍待真机验收（`text` 模式与日志）：
