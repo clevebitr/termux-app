@@ -62,7 +62,6 @@ import com.termux.app.commands.ShellCommandCatalog;
 import com.termux.app.commands.ShellCommandHost;
 import com.termux.app.commands.ShellCommandPalette;
 import com.termux.app.commands.TerminalActionRunner;
-import com.termux.app.ext.api.Extension;
 import com.termux.app.ext.api.ExtensionContext;
 import com.termux.app.ext.api.ExtensionLayoutHost;
 import com.termux.app.ext.host.ExtensionHost;
@@ -1033,8 +1032,7 @@ public final class TermuxActivity extends AppCompatActivity
     /** @return The extension that owns the search bar, or {@code null} while it is disabled. */
     @Nullable
     private SearchExtension searchExtension() {
-        Extension extension = ExtensionHost.get(this).extension(SearchExtension.ID);
-        return extension instanceof SearchExtension ? (SearchExtension) extension : null;
+        return ExtensionHost.get(this).findRunning(SearchExtension.class);
     }
 
     /** Show the terminal search bar and focus its text input, so that the user can type a query. */
@@ -1118,8 +1116,8 @@ public final class TermuxActivity extends AppCompatActivity
      */
     @Nullable
     private StatusBarConfig getStatusBarConfig() {
-        Extension extension = ExtensionHost.get(this).extension(StatusBarExtension.ID);
-        return extension instanceof StatusBarExtension ? ((StatusBarExtension) extension).getConfig() : null;
+        StatusBarExtension extension = ExtensionHost.get(this).findRunning(StatusBarExtension.class);
+        return extension != null ? extension.getConfig() : null;
     }
 
     private int dpToPx(int dp) {
@@ -1129,8 +1127,7 @@ public final class TermuxActivity extends AppCompatActivity
     /** @return The extension that owns the notification cards, or {@code null} while it is disabled. */
     @Nullable
     private NotificationsExtension notificationsExtension() {
-        Extension extension = ExtensionHost.get(this).extension(NotificationsExtension.ID);
-        return extension instanceof NotificationsExtension ? (NotificationsExtension) extension : null;
+        return ExtensionHost.get(this).findRunning(NotificationsExtension.class);
     }
 
     /** @return The manager of the notification cards, or {@code null} while the extension is disabled. */
@@ -1205,9 +1202,8 @@ public final class TermuxActivity extends AppCompatActivity
      */
     @NonNull
     public TerminalMenuConfig getTerminalMenuConfig() {
-        Extension extension = ExtensionHost.get(this).extension(TerminalMenuExtension.ID);
-        return extension instanceof TerminalMenuExtension
-            ? ((TerminalMenuExtension) extension).getConfig() : new TerminalMenuConfig();
+        TerminalMenuExtension extension = ExtensionHost.get(this).findRunning(TerminalMenuExtension.class);
+        return extension != null ? extension.getConfig() : new TerminalMenuConfig();
     }
 
     /**
@@ -1217,8 +1213,8 @@ public final class TermuxActivity extends AppCompatActivity
      * hardware menu key then fall back to the default behaviour of the terminal view.</p>
      */
     public void showTerminalMenu() {
-        Extension extension = ExtensionHost.get(this).extension(TerminalMenuExtension.ID);
-        if (extension instanceof TerminalMenuExtension) ((TerminalMenuExtension) extension).showMenu();
+        TerminalMenuExtension extension = ExtensionHost.get(this).findRunning(TerminalMenuExtension.class);
+        if (extension != null) extension.showMenu();
     }
 
     /** @return The manager of the notification cards and of the recent notifications, or {@code null}. */
@@ -1425,8 +1421,7 @@ public final class TermuxActivity extends AppCompatActivity
     /** @return The extension that owns the sessions drawer, or {@code null} while it is disabled. */
     @Nullable
     private DrawerExtension drawerExtension() {
-        Extension extension = ExtensionHost.get(this).extension(DrawerExtension.ID);
-        return extension instanceof DrawerExtension ? (DrawerExtension) extension : null;
+        return ExtensionHost.get(this).findRunning(DrawerExtension.class);
     }
 
 

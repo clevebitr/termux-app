@@ -76,8 +76,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
      */
     @Nullable
     private NotificationsExtension notifications() {
-        Extension extension = ExtensionHost.get(mActivity).extension(NotificationsExtension.ID);
-        return extension instanceof NotificationsExtension ? (NotificationsExtension) extension : null;
+        return ExtensionHost.get(mActivity).findRunning(NotificationsExtension.class);
     }
 
     /**

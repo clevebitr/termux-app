@@ -87,6 +87,33 @@ public final class ExtensionHost {
         return state != null && state.isRunning();
     }
 
+    /**
+     * @return The installed extension of the given type, or {@code null} if it is not installed.
+     *
+     * <p>The host needs the concrete extension to read its configuration or to run one of its actions, and this
+     * lookup is the only place that has to know the type. Extensions themselves must never cast a host object,
+     * they only receive {@link com.termux.app.ext.api.ExtensionContext}.</p>
+     */
+    @Nullable
+    public <T extends Extension> T find(@NonNull Class<T> type) {
+        for (Extension extension : installed) {
+            if (type.isInstance(extension)) return type.cast(extension);
+        }
+        return null;
+    }
+
+    /**
+     * @return The installed extension of the given type if it may run, or {@code null} if it is disabled.
+     *
+     * <p>Every host call site has to fail closed when a feature is turned off, so the check and the lookup are
+     * offered together to keep a caller from running a disabled feature by forgetting the check.</p>
+     */
+    @Nullable
+    public <T extends Extension> T findRunning(@NonNull Class<T> type) {
+        T extension = find(type);
+        return extension != null && isRunning(extension.id()) ? extension : null;
+    }
+
     /** @return The extension with {@code id}, or {@code null} if it is not installed. */
     @Nullable
     public Extension extension(@NonNull String id) {

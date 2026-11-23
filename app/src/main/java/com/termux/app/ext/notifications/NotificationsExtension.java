@@ -230,9 +230,9 @@ public final class NotificationsExtension implements Extension {
         if (mOverlay == null) return;
 
         TermuxActivity activity = mActivity;
-        Extension extension = activity != null ? ExtensionHost.get(activity).extension(StatusBarExtension.ID) : null;
-        StatusBarConfig statusBarConfig = extension instanceof StatusBarExtension
-            ? ((StatusBarExtension) extension).getConfig() : null;
+        StatusBarExtension statusBarExtension = activity != null
+            ? ExtensionHost.get(activity).findRunning(StatusBarExtension.class) : null;
+        StatusBarConfig statusBarConfig = statusBarExtension != null ? statusBarExtension.getConfig() : null;
 
         int insetPx = 0;
         if (activity != null && statusBarConfig != null && statusBarConfig.enabled

@@ -19,7 +19,6 @@ import android.widget.Toast;
 
 import com.termux.R;
 import com.termux.app.TermuxActivity;
-import com.termux.app.ext.api.Extension;
 import com.termux.app.ext.host.ExtensionHost;
 import com.termux.app.ext.volumekeys.VolumeKeyActions;
 import com.termux.app.ext.volumekeys.VolumeKeysExtension;
@@ -392,7 +391,7 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
         InputDevice inputDevice = event.getDevice();
         if (mActivity.getProperties().areVirtualVolumeKeysDisabled()) {
             return false;
-        } else if (!ExtensionHost.get(mActivity).isRunning(VolumeKeysExtension.ID)) {
+        } else if (ExtensionHost.get(mActivity).findRunning(VolumeKeysExtension.class) == null) {
             // The actions of the volume keys belong to the extension, so a disabled extension leaves the keys to
             // the system, which changes the volume as on any other app.
             return false;
@@ -468,10 +467,8 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     private void performVolumeKeyAction(String action, boolean isVolumeUp) {
         if (action == null) return;
 
-        Extension extension = ExtensionHost.get(mActivity).extension(VolumeKeysExtension.ID);
-        if (extension instanceof VolumeKeysExtension) {
-            ((VolumeKeysExtension) extension).perform(mActivity, mVolumeKeyActionHost, action, isVolumeUp);
-        }
+        VolumeKeysExtension extension = ExtensionHost.get(mActivity).findRunning(VolumeKeysExtension.class);
+        if (extension != null) extension.perform(mActivity, mVolumeKeyActionHost, action, isVolumeUp);
     }
 
     /** The behaviours that a volume key action may trigger, implemented by this client. */
