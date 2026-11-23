@@ -1,6 +1,5 @@
 package com.termux.app.ext.backup;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.os.Bundle;
 import android.widget.Toast;
@@ -11,6 +10,7 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceScreen;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.R;
 import com.termux.app.ext.host.ExtensionHost;
 import com.termux.app.fragments.settings.PreferenceAccentUtils;
@@ -133,7 +133,7 @@ public class BackupPreferencesFragment extends PreferenceFragmentCompat {
     }
 
     private void showRestoreConfirmationDialog(Context context) {
-        new AlertDialog.Builder(context)
+        new MaterialAlertDialogBuilder(context)
             .setTitle(R.string.termux_restore_confirm_title)
             .setMessage(R.string.termux_restore_confirm_message)
             .setPositiveButton(R.string.termux_restore_confirm_positive, (dialog, which) -> startRestore(context))

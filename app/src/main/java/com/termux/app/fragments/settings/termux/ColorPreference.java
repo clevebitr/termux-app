@@ -1,6 +1,5 @@
 package com.termux.app.fragments.settings.termux;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -16,11 +15,15 @@ import android.widget.Toast;
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 import androidx.preference.Preference;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputLayout;
 import com.termux.R;
 import com.termux.app.widget.ColorSchemeColors;
+import com.termux.app.widget.TerminalDialogStyles;
 import com.termux.shared.data.DataUtils;
 
 /**
@@ -121,7 +124,7 @@ public class ColorPreference extends Preference {
         final Context context = getContext();
         if (context == null) return;
 
-        AlertDialog dialog = new AlertDialog.Builder(context)
+        AlertDialog dialog = new MaterialAlertDialogBuilder(context)
             .setTitle(getTitle())
             .setView(createColorPaletteView(context))
             .setPositiveButton(R.string.termux_extra_keys_color_custom, null)
@@ -149,8 +152,12 @@ public class ColorPreference extends Preference {
         int selectedBorderWidth = Math.round(3 * density);
         int padding = Math.round(16 * density);
 
-        int selectedBorderColor = ContextCompat.getColor(context, R.color.color_preference_swatch_border_selected);
-        int borderColor = ContextCompat.getColor(context, R.color.color_preference_swatch_border);
+        int selectedBorderColor = TerminalDialogStyles.themeColor(context,
+            com.google.android.material.R.attr.colorPrimary,
+            ContextCompat.getColor(context, R.color.color_preference_swatch_border_selected));
+        int borderColor = TerminalDialogStyles.themeColor(context,
+            com.google.android.material.R.attr.colorOutline,
+            ContextCompat.getColor(context, R.color.color_preference_swatch_border));
 
         GridLayout gridLayout = new GridLayout(context);
         gridLayout.setColumnCount(6);
@@ -161,6 +168,7 @@ public class ColorPreference extends Preference {
 
             GradientDrawable swatchDrawable = new GradientDrawable();
             swatchDrawable.setShape(GradientDrawable.RECTANGLE);
+            swatchDrawable.setCornerRadius(TerminalDialogStyles.dp(context, TerminalDialogStyles.ROW_CORNER_DP));
             swatchDrawable.setColor(Color.parseColor(colorValue));
             swatchDrawable.setStroke(isSelected ? selectedBorderWidth : borderWidth,
                 isSelected ? selectedBorderColor : borderColor);
@@ -194,13 +202,20 @@ public class ColorPreference extends Preference {
 
         final EditText editText = new EditText(context);
         editText.setSingleLine(true);
-        editText.setHint(R.string.termux_color_preference_hint);
         if (currentValue != null) editText.setText(currentValue);
         editText.setSelection(editText.getText().length());
 
-        final AlertDialog customDialog = new AlertDialog.Builder(context)
+        // The input is wrapped in a Material 3 text field, so that the custom color dialog has the same type scale
+        // and the same outline as the other text fields of the settings instead of a bare platform edit text.
+        final TextInputLayout inputLayout = new TextInputLayout(context);
+        inputLayout.setHintEnabled(true);
+        inputLayout.setHint(context.getString(R.string.termux_color_preference_hint));
+        inputLayout.addView(editText, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        final AlertDialog customDialog = new MaterialAlertDialogBuilder(context)
             .setTitle(R.string.termux_extra_keys_color_custom)
-            .setView(editText)
+            .setView(inputLayout)
             .setPositiveButton(android.R.string.ok, null)
             .setNegativeButton(android.R.string.cancel, null)
             .create();

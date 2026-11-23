@@ -1,12 +1,7 @@
 package com.termux.app.fragments.settings.termux;
 
-import android.app.AlertDialog;
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.Typeface;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.StateListDrawable;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.TypedValue;
@@ -20,9 +15,12 @@ import android.widget.TextView;
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceViewHolder;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.termux.app.widget.TerminalDialogStyles;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.view.ViewUtils;
 
@@ -63,7 +61,7 @@ public abstract class OrderedItemsPreference extends Preference {
 
     private static final float ROW_PADDING_HORIZONTAL_DP = 8;
     private static final float ROW_PADDING_VERTICAL_DP = 6;
-    private static final float BUTTON_MIN_SIZE_DP = 32;
+    private static final float BUTTON_MIN_SIZE_DP = 40;
 
     /** The value of the preference that was read last, so that the summary does not read the file for every bind. */
     @Nullable
@@ -170,7 +168,7 @@ public abstract class OrderedItemsPreference extends Preference {
         container.setPadding(dp(context, 16), dp(context, 8), dp(context, 16), dp(context, 8));
         scrollView.addView(container, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        AlertDialog.Builder builder = new MaterialAlertDialogBuilder(context);
         if (getTitle() != null) builder.setTitle(getTitle());
         builder.setView(scrollView);
         builder.setNegativeButton(android.R.string.cancel, null);
@@ -192,7 +190,8 @@ public abstract class OrderedItemsPreference extends Preference {
                 addSectionTitle(context, container, com.termux.R.string.termux_ordered_items_shown_header);
                 if (selectedIds.isEmpty()) {
                     TextView empty = createLabel(context, context.getString(com.termux.R.string.termux_ordered_items_shown_empty));
-                    empty.setTextColor(0x80808080);
+                    empty.setTextColor(TerminalDialogStyles.themeColor(context,
+                        com.google.android.material.R.attr.colorOnSurfaceVariant, 0x80808080));
                     container.addView(empty);
                 }
 
@@ -213,7 +212,8 @@ public abstract class OrderedItemsPreference extends Preference {
 
                 if (!hasHiddenItems) {
                     TextView empty = createLabel(context, context.getString(com.termux.R.string.termux_ordered_items_hidden_empty));
-                    empty.setTextColor(0x80808080);
+                    empty.setTextColor(TerminalDialogStyles.themeColor(context,
+                        com.google.android.material.R.attr.colorOnSurfaceVariant, 0x80808080));
                     container.addView(empty);
                 }
             }
@@ -273,12 +273,8 @@ public abstract class OrderedItemsPreference extends Preference {
         row.setPadding(dp(context, ROW_PADDING_HORIZONTAL_DP), dp(context, ROW_PADDING_VERTICAL_DP),
             dp(context, ROW_PADDING_HORIZONTAL_DP), dp(context, ROW_PADDING_VERTICAL_DP));
 
-        StateListDrawable background = new StateListDrawable();
-        GradientDrawable pressed = new GradientDrawable();
-        pressed.setColor(0x20808080);
-        background.addState(new int[]{android.R.attr.state_pressed}, pressed);
-        background.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
-        row.setBackground(background);
+        row.setBackground(TerminalDialogStyles.createRowBackground(context,
+            TerminalDialogStyles.themeColor(context, com.google.android.material.R.attr.colorPrimary, 0xFF808080)));
         row.setClickable(true);
 
         TextView label = createLabel(context, item.label);
@@ -310,6 +306,8 @@ public abstract class OrderedItemsPreference extends Preference {
         TextView label = new TextView(context);
         label.setText(text);
         label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        label.setTextColor(TerminalDialogStyles.themeColor(context,
+            com.google.android.material.R.attr.colorOnSurface, 0xFF000000));
         label.setSingleLine(true);
         label.setEllipsize(TextUtils.TruncateAt.END);
         label.setGravity(Gravity.CENTER_VERTICAL);
@@ -322,6 +320,8 @@ public abstract class OrderedItemsPreference extends Preference {
         title.setText(titleRes);
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTextColor(TerminalDialogStyles.themeColor(context,
+            com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF808080));
         title.setPadding(dp(context, ROW_PADDING_HORIZONTAL_DP), dp(context, 12),
             dp(context, ROW_PADDING_HORIZONTAL_DP), dp(context, 4));
         container.addView(title);

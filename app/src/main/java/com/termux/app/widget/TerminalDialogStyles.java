@@ -2,6 +2,7 @@ package com.termux.app.widget;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
@@ -12,6 +13,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 
 import com.termux.app.widget.ColorSchemeColors;
 import com.termux.R;
@@ -82,6 +84,22 @@ public final class TerminalDialogStyles {
         // case the border would not be visible, so fall back to the foreground color.
         if (Color.alpha(accent) == 0) accent = foregroundColor;
         return accent | 0xFF000000;
+    }
+
+    /** @return The color of the theme attribute {@code attr}, or {@code fallback} if the theme does not set it. */
+    public static int themeColor(@NonNull Context context, int attr, int fallback) {
+        TypedValue value = new TypedValue();
+        if (!context.getTheme().resolveAttribute(attr, value, true)) return fallback;
+        if (value.type >= TypedValue.TYPE_FIRST_COLOR_INT && value.type <= TypedValue.TYPE_LAST_COLOR_INT)
+            return value.data;
+        if (value.resourceId != 0) {
+            try {
+                return ContextCompat.getColor(context, value.resourceId);
+            } catch (Resources.NotFoundException e) {
+                return fallback;
+            }
+        }
+        return fallback;
     }
 
     /** @return The background of a dialog, with the rounded corners and the accent border of a dialog window. */
