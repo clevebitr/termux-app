@@ -128,7 +128,9 @@
 - [x] 收敛为唯一规则 `TermuxTerminalViewClient.resolveInputType()`：接有硬件键盘且软键盘收起时 `TYPE_NULL`，软键盘可见时文本框类型，无硬件键盘时用视图类型
 - [x] 键盘接入/拔出、软键盘显示/隐藏、属性重载时重启输入连接
 - [x] `TerminalInputTypeTest` 4 项覆盖规则分支
-- [ ] 待真机验收：`cat -v` 下 Tab 输出 `^I`；lazyvim 插入模式、Ctrl/Alt 组合键、node TUI 输入顺序
+- [x] 真机确认：`od -c`/`nvim --clean` 下 Tab 正常，LazyVim 内不缩进源于补全映射（`super-tab`/nvim-cmp 把 `<Tab>` 用于补全），非终端问题
+- [x] 软键盘弹出后 200ms 二次重启输入连接，修复输入法在弹出动画期间忽略重启导致的「有键盘无悬浮栏」
+- [ ] 待真机验收：`od -c` 下 Tab 输出 `\t`；lazyvim 里改用补全快捷键后 Tab 缩进是否恢复；node TUI 输入顺序
 - [ ] 待真机验收：弹出软键盘后中文（拼音）输入、收起后恢复直通；重启输入连接是否引起软键盘闪烁
 - [ ] 待真机验收：日志中 `reported=0x0` 与 `[terminal-view]` 按键行是否成对出现
 - [ ] 待验证：`keyboard-compat-log` 日志能否区分三条按键路径；改绑快捷键在硬件键盘下的表现

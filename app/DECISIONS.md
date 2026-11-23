@@ -589,3 +589,20 @@ Tab 直通顺带补齐：虚拟 SHIFT 锁定态（额外键栏）与事件自身
 测试：删除 `ImeInputTypeTest`，新增 `TerminalInputTypeTest` 4 项（无硬件键盘透传、收起为 `TYPE_NULL`、可见为文本框、视图类型为 `TYPE_NULL` 时仍上报文本框）。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest` 184 项、1 项既有失败（`FileReceiverActivityTest`）。
 
 未验证：真机上 `cat -v` 按 Tab 是否输出 `^I`、lazyvim 插入模式是否恢复、软键盘弹出/收起时类型是否即时切换、重启输入连接是否引起闪烁。另需注意 LazyVim 默认把插入模式 `<Tab>` 映射给补全，判据应是 `^I` 是否到达程序而不是是否插入空格。
+
+## 2026-11-23 — Tab 属 LazyVim 补全映射；软键盘弹出后二次重启输入连接
+
+真机复核两项。
+
+一、Tab 在 lazyvim 不缩进与终端无关
+- `nvim --clean` 下 Tab 正常缩进，说明 `0x09` 已经完整到达程序；日志同时显示 27 次 `[terminal-view] action=down, code=KEYCODE_TAB` 与 `[ime] getInputType ... reported=0x0`。
+- LazyVim 的补全映射接管了插入模式的 `<Tab>`：nvim-cmp 的默认映射在补全菜单可见或有词在前时执行 `select_next_item`/`complete`，blink.cmp 若用 `super-tab` 预设则只做展开与选择，不会插入缩进。判据是 `:verbose imap <Tab>`。
+- 终端侧不再改动。用户侧两种改法：nvim-cmp 删除 `["<Tab>"]` 映射改用 `<C-n>`/`<C-p>`；blink.cmp 改用 `preset = "enter"` 或给 `<Tab>` 追加 `"fallback"`。
+- 记录为误判，已写入 `docs/KEYBOARD_COMPAT.md` §7.1。
+
+二、TUI 里拉不起 Gboard 悬浮窗，发现两个独立闸门
+1. 点击不弹软键盘：`TermuxTerminalViewClient.onSingleTapUp()` 在程序开启鼠标跟踪时把点击当作鼠标事件转发，不调用 `showSoftInput()`，除非 `mouse-tap-shows-keyboard=true`。node 写的 TUI 基本都开鼠标跟踪，因此点击拉不起键盘属于上游行为，不是本次回归。可用 `Ctrl+Alt+K`、额外键或命令面板「切换键盘」拉起，或显式打开该属性（代价是点击不再作为鼠标事件送达程序）。
+2. 输入类型没跟上（真实缺陷）：输入法在自己的窗口播放弹出动画期间可能忽略 `restartInput()`，随后继续使用弹出前读取的 `TYPE_NULL`，于是软键盘出来了但没有悬浮栏与候选词。证据：20:41:41 日志打出 `[ime] soft keyboard shown, restarting the input connections`，但该会话此后**没有**新的 `getInputType` 行，说明连接没有被重建。
+修法：`updateImePassthroughForSoftKeyboardVisibility()` 在软键盘变为可见时先立即重启一次，再在 200ms 后（`IME_RESTART_AFTER_SOFT_KEYBOARD_SHOWN_DELAY_MS`）重启第二次，并记录 `restarting the input connections after the soft keyboard was shown`；收起时只重启一次并取消待执行的二次重启，`onDestroy()` 里也取消。重启循环收敛为 `restartTerminalInputConnections()`，供硬件键盘变化与可见性变化共用。
+
+未验证：二次重启是否让悬浮栏与候选词在 pi 中出现、是否会与输入法的弹出动画互相干扰（个别输入法在重启时可能收起键盘）、`mouse-tap-shows-keyboard=true` 在 TUI 中的实际手感。本机无 `adb`；`:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest` 184 项、1 项既有失败（`FileReceiverActivityTest`）。
