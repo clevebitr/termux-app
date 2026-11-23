@@ -19,7 +19,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 
-import com.termux.app.statusbar.StatusBarColors;
+import com.termux.app.widget.ColorSchemeColors;
 import com.termux.app.widget.TerminalDialogStyles;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.view.ViewUtils;
@@ -91,7 +91,7 @@ public final class TerminalMenuDialog {
                             @NonNull Runnable onDismissed) {
         if (items.isEmpty()) return;
 
-        int foreground = StatusBarColors.resolve(config.foregroundColor, StatusBarColors.THEME_FOREGROUND);
+        int foreground = ColorSchemeColors.resolve(config.foregroundColor, ColorSchemeColors.THEME_FOREGROUND);
         int accent = TerminalDialogStyles.getAccentColor(config.accentColor, foreground);
         int background = TerminalDialogStyles.getBackgroundColor(config.backgroundColor, foreground);
 

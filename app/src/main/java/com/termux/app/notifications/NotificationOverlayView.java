@@ -13,7 +13,7 @@ import android.widget.LinearLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.termux.app.statusbar.StatusBarColors;
+import com.termux.app.widget.ColorSchemeColors;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalColorScheme;
@@ -343,7 +343,7 @@ public class NotificationOverlayView extends FrameLayout {
     /** @return The style that the card of {@code notification} is drawn with. */
     @NonNull
     private NotificationCardView.Style getCardStyle(@NonNull TerminalNotification notification) {
-        int foreground = StatusBarColors.resolve(mConfig.foregroundColor, StatusBarColors.THEME_FOREGROUND);
+        int foreground = ColorSchemeColors.resolve(mConfig.foregroundColor, ColorSchemeColors.THEME_FOREGROUND);
         int background = getBackgroundColor(foreground);
         int accent = getAccentColor(notification.getKind());
 
@@ -365,9 +365,9 @@ public class NotificationOverlayView extends FrameLayout {
      */
     private int getBackgroundColor(int foregroundColor) {
         if (!DataUtils.isNullOrEmpty(mConfig.backgroundColor))
-            return StatusBarColors.resolve(mConfig.backgroundColor, StatusBarColors.THEME_BACKGROUND);
+            return ColorSchemeColors.resolve(mConfig.backgroundColor, ColorSchemeColors.THEME_BACKGROUND);
 
-        int backgroundColor = StatusBarColors.getThemeColor(StatusBarColors.THEME_BACKGROUND);
+        int backgroundColor = ColorSchemeColors.getThemeColor(ColorSchemeColors.THEME_BACKGROUND);
         // Blend the background towards the foreground color, so that the cards are visible when the
         // terminal background and the cards would otherwise have the same color.
         return TerminalColorScheme.blendColors(backgroundColor, foregroundColor, 0.08);
@@ -397,10 +397,10 @@ public class NotificationOverlayView extends FrameLayout {
                 break;
         }
 
-        int accent = StatusBarColors.resolve(value, defaultThemeColorName);
+        int accent = ColorSchemeColors.resolve(value, defaultThemeColorName);
         // An accent color of a color scheme without a color set for it can be fully transparent, in
         // which case the card would have no visible accent bar, so fall back to an opaque color.
-        if (Color.alpha(accent) == 0) accent = StatusBarColors.getThemeColor(StatusBarColors.THEME_FOREGROUND);
+        if (Color.alpha(accent) == 0) accent = ColorSchemeColors.getThemeColor(ColorSchemeColors.THEME_FOREGROUND);
         return accent | 0xFF000000;
     }
 }

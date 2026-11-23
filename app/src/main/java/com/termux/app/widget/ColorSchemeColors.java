@@ -1,4 +1,4 @@
-package com.termux.app.statusbar;
+package com.termux.app.widget;
 
 import android.graphics.Color;
 
@@ -14,17 +14,19 @@ import com.termux.terminal.TextStyle;
 import java.util.Locale;
 
 /**
- * Resolves the color values of the `status-bar-*` properties, which can either be a literal
- * `#rgb`, `#argb`, `#rrggbb` or `#aarrggbb` color or a reference to a color of the termux color
- * scheme, so that the status bar follows the colors of the terminal set by the `colors.properties`
- * file, like by Termux:Styling.
+ * Resolves a color value that may be a literal or a reference to a color of the termux color scheme.
  *
- * A color scheme reference has the form `theme:<name>`, where {@code <name>} is one of
- * `background`, `foreground`, `cursor` or `color0` to `color255`.
+ * <p>The value is either a literal `#rgb`, `#argb`, `#rrggbb` or `#aarrggbb` color, or a reference of the form
+ * `theme:<name>`, where {@code <name>} is one of `background`, `foreground`, `cursor` or `color0` to
+ * `color255`. A reference lets a surface follow the colors of the terminal set in `colors.properties`, like by
+ * Termux:Styling, instead of hard coding a color of the app theme.</p>
+ *
+ * <p>Shared by the status bar, the notification cards, the dialogs and the color picker of the settings, so
+ * that one parser serves every surface instead of each of them having its own.</p>
  */
-public final class StatusBarColors {
+public final class ColorSchemeColors {
 
-    private static final String LOG_TAG = "StatusBarColors";
+    private static final String LOG_TAG = "ColorSchemeColors";
 
     /** The prefix of a value that references a color of the termux color scheme. */
     public static final String THEME_COLOR_PREFIX = "theme:";
@@ -34,7 +36,7 @@ public final class StatusBarColors {
     /** The name of the color scheme color that is used for the status bar text by default. */
     public static final String THEME_FOREGROUND = "foreground";
 
-    private StatusBarColors() {
+    private ColorSchemeColors() {
     }
 
     /**

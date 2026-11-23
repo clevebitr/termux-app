@@ -9,6 +9,7 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import com.termux.app.widget.ColorSchemeColors;
 
 /**
  * A minimal sparkline chart that draws the history of a value between {@link #setMinValue(float)}
@@ -78,8 +79,8 @@ public class SparklineView extends View {
     public void setColor(int color) {
         mColor = color;
         mLinePaint.setColor(color);
-        mFillPaint.setColor(StatusBarColors.withAlpha(color, 0.22f));
-        mBaselinePaint.setColor(StatusBarColors.withAlpha(color, 0.25f));
+        mFillPaint.setColor(ColorSchemeColors.withAlpha(color, 0.22f));
+        mBaselinePaint.setColor(ColorSchemeColors.withAlpha(color, 0.25f));
         invalidate();
     }
 

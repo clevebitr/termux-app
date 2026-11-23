@@ -21,6 +21,7 @@ import com.termux.shared.view.ViewUtils;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import com.termux.app.widget.ColorSchemeColors;
 
 /**
  * The view of the status bar, which shows a row of segments like the time, the battery level, the
@@ -216,9 +217,9 @@ public class StatusBarView extends LinearLayout {
      */
     public int getSegmentColor(@NonNull StatusBarConfig.Segment segment, int defaultColor, boolean isWarning) {
         if (isWarning && !segment.warnColor.isEmpty())
-            return StatusBarColors.resolve(segment.warnColor, StatusBarColors.THEME_FOREGROUND);
+            return ColorSchemeColors.resolve(segment.warnColor, ColorSchemeColors.THEME_FOREGROUND);
         if (!segment.color.isEmpty())
-            return StatusBarColors.resolve(segment.color, StatusBarColors.THEME_FOREGROUND);
+            return ColorSchemeColors.resolve(segment.color, ColorSchemeColors.THEME_FOREGROUND);
         return defaultColor;
     }
 
@@ -243,7 +244,7 @@ public class StatusBarView extends LinearLayout {
         TextView separator = new TextView(getContext());
         separator.setText(config.separator);
         separator.setTextSize(TypedValue.COMPLEX_UNIT_SP, config.fontSizeSp);
-        separator.setTextColor(StatusBarColors.withAlpha(mForegroundColor, 0.55f));
+        separator.setTextColor(ColorSchemeColors.withAlpha(mForegroundColor, 0.55f));
         separator.setGravity(Gravity.CENTER_VERTICAL);
         separator.setIncludeFontPadding(false);
         separator.setSingleLine(true);

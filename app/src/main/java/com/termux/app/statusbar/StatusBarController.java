@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import com.termux.app.widget.ColorSchemeColors;
 
 /**
  * Drives the status bar: it parses the configuration from the `termux.properties` file, creates the
@@ -111,8 +112,8 @@ public class StatusBarController {
 
         mConfig = StatusBarConfig.parse(properties);
 
-        mBackgroundColor = StatusBarColors.resolve(mConfig.backgroundColor, StatusBarColors.THEME_BACKGROUND);
-        mForegroundColor = StatusBarColors.resolve(mConfig.foregroundColor, StatusBarColors.THEME_FOREGROUND);
+        mBackgroundColor = ColorSchemeColors.resolve(mConfig.backgroundColor, ColorSchemeColors.THEME_BACKGROUND);
+        mForegroundColor = ColorSchemeColors.resolve(mConfig.foregroundColor, ColorSchemeColors.THEME_FOREGROUND);
 
         mClockFormat = null;
         mClockFormatPattern = null;
@@ -142,8 +143,8 @@ public class StatusBarController {
     public void reloadColors() {
         if (mConfig == null) return;
 
-        mBackgroundColor = StatusBarColors.resolve(mConfig.backgroundColor, StatusBarColors.THEME_BACKGROUND);
-        mForegroundColor = StatusBarColors.resolve(mConfig.foregroundColor, StatusBarColors.THEME_FOREGROUND);
+        mBackgroundColor = ColorSchemeColors.resolve(mConfig.backgroundColor, ColorSchemeColors.THEME_BACKGROUND);
+        mForegroundColor = ColorSchemeColors.resolve(mConfig.foregroundColor, ColorSchemeColors.THEME_FOREGROUND);
 
         mView.setStatusBarBackgroundColor(mBackgroundColor);
         mView.setStatusBarForegroundColor(mForegroundColor, mConfig);

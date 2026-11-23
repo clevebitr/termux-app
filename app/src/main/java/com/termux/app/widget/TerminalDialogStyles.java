@@ -13,7 +13,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.termux.app.statusbar.StatusBarColors;
+import com.termux.app.widget.ColorSchemeColors;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalColorScheme;
@@ -31,9 +31,9 @@ public final class TerminalDialogStyles {
     /** @return The background color of a dialog, which is derived from the color scheme if not set. */
     public static int getBackgroundColor(@Nullable String value, int foregroundColor) {
         if (!DataUtils.isNullOrEmpty(value))
-            return StatusBarColors.resolve(value, StatusBarColors.THEME_BACKGROUND);
+            return ColorSchemeColors.resolve(value, ColorSchemeColors.THEME_BACKGROUND);
 
-        int backgroundColor = StatusBarColors.getThemeColor(StatusBarColors.THEME_BACKGROUND);
+        int backgroundColor = ColorSchemeColors.getThemeColor(ColorSchemeColors.THEME_BACKGROUND);
         // Blend the background towards the foreground color, so that the dialog is visible when it would
         // otherwise have the same color as the terminal background behind it.
         return TerminalColorScheme.blendColors(backgroundColor, foregroundColor, 0.10);
@@ -41,7 +41,7 @@ public final class TerminalDialogStyles {
 
     /** @return The accent color of a dialog, which is the `color4` of the color scheme by default. */
     public static int getAccentColor(@Nullable String value, int foregroundColor) {
-        int accent = StatusBarColors.resolve(value, "color4");
+        int accent = ColorSchemeColors.resolve(value, "color4");
         // An accent color of a color scheme without a color set for it can be fully transparent, in which
         // case the border would not be visible, so fall back to the foreground color.
         if (Color.alpha(accent) == 0) accent = foregroundColor;

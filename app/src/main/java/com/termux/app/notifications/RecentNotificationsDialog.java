@@ -18,7 +18,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 
 import com.termux.R;
-import com.termux.app.statusbar.StatusBarColors;
+import com.termux.app.widget.ColorSchemeColors;
 import com.termux.app.widget.TerminalDialogStyles;
 import com.termux.terminal.TerminalNotification;
 
@@ -62,7 +62,7 @@ public final class RecentNotificationsDialog {
     public static void show(@NonNull Context context, @NonNull NotificationConfig config,
                             @NonNull List<RecentNotifications.Entry> entries,
                             @NonNull OnEntrySelectedListener listener, @NonNull Runnable onCleared) {
-        int foreground = StatusBarColors.resolve(config.foregroundColor, StatusBarColors.THEME_FOREGROUND);
+        int foreground = ColorSchemeColors.resolve(config.foregroundColor, ColorSchemeColors.THEME_FOREGROUND);
         // The dialog is drawn with the accent color of informational notifications, while the entries
         // that are a failure or a warning are marked with their own accent color.
         int accent = TerminalDialogStyles.getAccentColor(config.accentInfoColor, foreground);
