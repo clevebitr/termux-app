@@ -174,6 +174,7 @@
     <string name="action_search_settings">Search settings</string>
     <string name="settings_search_summary">Find a setting of the app by its name or summary</string>
     <string name="settings_search_hint">Search settings…</string>
+    <string name="settings_search_empty">No matching setting</string>
     <string name="action_reset_preference">Reset</string>
     <string name="msg_reset_preference_to_default">Reset this setting to its default value? Its line is commented out in the termux.properties file, so the app uses the default again.</string>
 
@@ -311,12 +312,14 @@
             <string name="termux_keyboard_input_method_header">Input Method</string>
 
                 <!-- Gboard CJK Workaround -->
-                <string name="termux_gboard_cjk_workaround_title">Gboard CJK Keyboards</string>
-                <string name="termux_gboard_cjk_workaround_off">IMEs like Gboard may only show an ASCII QWERTY keyboard in
-                    the terminal view, so CJK keyboards like Chinese Pinyin cannot be used directly.</string>
-                <string name="termux_gboard_cjk_workaround_on">IMEs like Gboard can use CJK keyboards like Chinese Pinyin
-                    in the terminal view. Suggestions are disabled for other languages and the keyboard may
-                    restart when the input language is changed.</string>
+                <string name="termux_gboard_cjk_workaround_title">IME Compatibility Mode</string>
+                <string name="termux_gboard_cjk_workaround_off">The terminal does not report a text editor type by
+                    default, so IMEs like Gboard may show only an ASCII QWERTY keyboard, hide the language switch and
+                    make Chinese, Japanese or Korean unavailable.</string>
+                <string name="termux_gboard_cjk_workaround_on">Every IME, including Gboard, Sogou and Baidu, is
+                    presented with a plain text editor, so the language switch and the candidate view stay available
+                    and committed text is written to the session as it arrives. Some IMEs keep a composing region for
+                    English, so characters appear after they are committed.</string>
 
                 <!-- Enforce Char Based Input -->
                 <string name="termux_enforce_char_based_input_title">Enforce Character Based Input</string>
@@ -801,33 +804,31 @@
     <string name="termux_notification_exit_code_ignore_commands_summary">Commands that return a non-zero exit code by design, separated by commas.</string>
     <string name="termux_notification_exit_code_ignore_commands_dialog_message">Enter the command names separated by commas, like grep,test,diff. An empty value shows a card for every command.</string>
 
+    <!-- Terminal tabs -->
+    <string name="termux_tab_close_label">&#215;</string>
+    <string name="termux_tab_close_description">Close tab</string>
+    <string name="termux_tab_new_description">New tab</string>
+    <string name="termux_tab_rename_title">Rename tab</string>
+
     <!-- Terminal Menu Preferences -->
-    <string name="termux_terminal_menu_preferences_title">Long press menu</string>
-    <string name="termux_terminal_menu_preferences_summary">Menu items · selection toolbar</string>
+    <string name="termux_ime_compatibility_header">Hardware keyboard and IME</string>
+    <string name="termux_keyboard_compat_log_title">Key event log</string>
+    <string name="termux_keyboard_compat_log_summary">Log the key events that the app, the terminal view and the command shortcuts see, for diagnosing a keyboard that does not work. The log is written to ~/.termux/keyboard-compat.log.</string>
+    <string name="termux_command_shortcuts_header">Command shortcuts</string>
+    <string name="termux_command_shortcuts_title">Palette command shortcuts</string>
+    <string name="termux_command_shortcuts_summary">Entries like search=Ctrl+Alt+F,palette=Ctrl+Shift+P; an empty shortcut removes it.</string>
+    <string name="termux_mouse_right_click_title">Right click of a mouse</string>
+    <string name="termux_mouse_right_click_summary">Automatic opens the palette when the program does not track the mouse.</string>
+    <string name="termux_terminal_menu_preferences_title">Command palette</string>
+    <string name="termux_terminal_menu_preferences_summary">Terminal actions · selection toolbar · right click</string>
 
     <string name="termux_terminal_menu_items_header">Actions</string>
-    <string name="termux_terminal_menu_items_title">Context menu actions</string>
-    <string name="termux_terminal_menu_items_summary">The actions that are shown with a long press, in the order they are shown.</string>
+    <string name="termux_terminal_menu_items_title">Terminal actions in the palette</string>
+    <string name="termux_terminal_menu_items_summary">The terminal actions that the palette shows, in the order they are shown.</string>
     <string name="termux_terminal_menu_selection_items_title">Text selection toolbar actions</string>
     <string name="termux_terminal_menu_selection_items_summary">The buttons that are shown above the selection handles. At least one is kept.</string>
     <string name="termux_terminal_menu_kill_process_label">Kill process</string>
 
-    <string name="termux_terminal_menu_appearance_header">Appearance</string>
-    <string name="termux_terminal_menu_font_size_title">Font size in sp</string>
-    <string name="termux_terminal_menu_font_size_summary">The size of the items of the menu dialog.</string>
-    <string name="termux_terminal_menu_corner_radius_title">Corner radius in dp (0 = square)</string>
-    <string name="termux_terminal_menu_corner_radius_summary">0 gives the square corners of a tui window, 8 gives a material design dialog.</string>
-    <string name="termux_terminal_menu_border_width_title">Border width in dp (0 = no border)</string>
-    <string name="termux_terminal_menu_border_width_summary">The border is drawn in the accent color of the menu.</string>
-    <string name="termux_terminal_menu_monospace_title">Monospace font</string>
-    <string name="termux_terminal_menu_monospace_off">The menu uses the default font of the system.</string>
-    <string name="termux_terminal_menu_monospace_on">The menu uses the monospace font of the terminal.</string>
-    <string name="termux_terminal_menu_show_icons_title">Show icons</string>
-    <string name="termux_terminal_menu_show_icons_off">The items only show their label.</string>
-    <string name="termux_terminal_menu_show_icons_on">The items show a small symbol on their right edge.</string>
-    <string name="termux_terminal_menu_background_color_title">Background color</string>
-    <string name="termux_terminal_menu_foreground_color_title">Text color</string>
-    <string name="termux_terminal_menu_accent_color_title">Accent color</string>
 
     <!-- Ordered items preference (shared by the menu and the selection toolbar) -->
     <string name="termux_ordered_items_none">None</string>

@@ -1,7 +1,11 @@
 package com.termux.app.ext.statusbar;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -154,6 +158,10 @@ public class StatusBarView extends LinearLayout {
                 segmentViews.container.setOnClickListener(v -> listener.onStatusBarSegmentClicked(segment));
                 segmentViews.container.setClickable(true);
                 segmentViews.container.setFocusable(false);
+                // A segment that can be clicked gets a rounded pressed state, so that the status bar has the
+                // same touch feedback as the other rows and buttons of the app.
+                segmentViews.container.setBackground(createSegmentBackground(
+                    getSegmentColor(segment, mForegroundColor, false)));
             }
         }
 
@@ -327,8 +335,22 @@ public class StatusBarView extends LinearLayout {
             container.addView(chart);
         }
 
-        container.setPadding(0, 0, 0, 0);
+        container.setPadding(dpToPx(4), 0, dpToPx(4), 0);
         return new SegmentViews(container, icon, text, chart);
+    }
+
+    /** @return The pressed background of a clickable segment, which is a rounded flash of the segment color. */
+    @NonNull
+    private StateListDrawable createSegmentBackground(int color) {
+        GradientDrawable pressed = new GradientDrawable();
+        pressed.setShape(GradientDrawable.RECTANGLE);
+        pressed.setCornerRadius(dpToPx(8));
+        pressed.setColor(ColorSchemeColors.withAlpha(color, 0.18f));
+
+        StateListDrawable background = new StateListDrawable();
+        background.addState(new int[]{android.R.attr.state_pressed}, pressed);
+        background.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
+        return background;
     }
 
     private int dpToPx(int dp) {

@@ -171,6 +171,7 @@
     <string name="action_search_settings">搜索设置</string>
     <string name="settings_search_summary">按名称或摘要查找这个 app 的设置项</string>
     <string name="settings_search_hint">搜索设置…</string>
+    <string name="settings_search_empty">没有匹配的设置项</string>
     <string name="action_reset_preference">恢复默认</string>
     <string name="msg_reset_preference_to_default">把这个设置恢复成默认值？会在 termux.properties 里把对应的那一行注释掉，app 就会重新使用默认值。</string>
 
@@ -286,11 +287,12 @@
             <string name="termux_keyboard_input_method_header">输入法</string>
 
                 <!-- Gboard CJK Workaround -->
-                <string name="termux_gboard_cjk_workaround_title">Gboard 中日韩键盘</string>
-                <string name="termux_gboard_cjk_workaround_off">Gboard 等输入法在终端视图中可能只显示 ASCII QWERTY 键盘，
-                    导致无法直接使用中文拼音等中日韩键盘。</string>
-                <string name="termux_gboard_cjk_workaround_on">Gboard 等输入法可以在终端视图中使用中文拼音等中日韩键盘。
-                    其他语言的联想会被停用，切换输入语言时键盘可能会重启一次。</string>
+                <string name="termux_gboard_cjk_workaround_title">输入法兼容模式</string>
+                <string name="termux_gboard_cjk_workaround_off">终端默认不上报文本框类型，Gboard 等输入法在终端视图中可能只显示
+                    ASCII QWERTY 键盘并隐藏语言切换键，无法输入中文、日文或韩文。</string>
+                <string name="termux_gboard_cjk_workaround_on">所有输入法（Gboard、搜狗、百度等）都按普通文本框处理，
+                    语言切换键与候选词保持可用，提交的文本逐字写入会话。部分输入法在英文下可能保留组合文本，
+                    字符在提交后才出现在终端。</string>
 
                 <!-- Enforce Char Based Input -->
                 <string name="termux_enforce_char_based_input_title">强制逐字符输入</string>
@@ -743,33 +745,31 @@
     <string name="termux_notification_exit_code_ignore_commands_summary">按设计会返回非 0 的命令，逗号分隔。</string>
     <string name="termux_notification_exit_code_ignore_commands_dialog_message">输入命令名，逗号分隔，例如 grep,test,diff。留空则所有命令都提示。</string>
 
+    <!-- Terminal tabs -->
+    <string name="termux_tab_close_label">&#215;</string>
+    <string name="termux_tab_close_description">关闭标签页</string>
+    <string name="termux_tab_new_description">新建标签页</string>
+    <string name="termux_tab_rename_title">重命名标签页</string>
+
     <!-- Terminal Menu Preferences -->
-    <string name="termux_terminal_menu_preferences_title">长按菜单</string>
-    <string name="termux_terminal_menu_preferences_summary">菜单项 · 选择浮条</string>
+    <string name="termux_ime_compatibility_header">硬件键盘与输入法</string>
+    <string name="termux_keyboard_compat_log_title">按键事件日志</string>
+    <string name="termux_keyboard_compat_log_summary">记录应用、终端视图与命令快捷键看到的按键事件，用于排查键盘不工作的问题。日志写入 ~/.termux/keyboard-compat.log。</string>
+    <string name="termux_command_shortcuts_header">命令快捷键</string>
+    <string name="termux_command_shortcuts_title">命令面板快捷键</string>
+    <string name="termux_command_shortcuts_summary">形如 search=Ctrl+Alt+F,palette=Ctrl+Shift+P；留空则取消该命令的快捷键。</string>
+    <string name="termux_mouse_right_click_title">鼠标右键</string>
+    <string name="termux_mouse_right_click_summary">自动：程序未开启鼠标跟踪时打开命令面板。</string>
+    <string name="termux_terminal_menu_preferences_title">命令面板</string>
+    <string name="termux_terminal_menu_preferences_summary">终端动作 · 选择浮条 · 鼠标右键</string>
 
     <string name="termux_terminal_menu_items_header">动作</string>
-    <string name="termux_terminal_menu_items_title">长按菜单项</string>
-    <string name="termux_terminal_menu_items_summary">长按终端时显示的项，顺序即显示顺序。</string>
+    <string name="termux_terminal_menu_items_title">命令面板中的终端动作</string>
+    <string name="termux_terminal_menu_items_summary">命令面板中显示的终端动作，顺序即显示顺序。</string>
     <string name="termux_terminal_menu_selection_items_title">文本选择浮条项</string>
     <string name="termux_terminal_menu_selection_items_summary">选字后显示在手柄上方的按钮，至少保留一项。</string>
     <string name="termux_terminal_menu_kill_process_label">杀掉进程</string>
 
-    <string name="termux_terminal_menu_appearance_header">外观</string>
-    <string name="termux_terminal_menu_font_size_title">字号（sp）</string>
-    <string name="termux_terminal_menu_font_size_summary">菜单对话框中各项的字号。</string>
-    <string name="termux_terminal_menu_corner_radius_title">圆角（dp，0 = 直角）</string>
-    <string name="termux_terminal_menu_corner_radius_summary">0 = TUI 窗口的直角，8 = Material 对话框风格。</string>
-    <string name="termux_terminal_menu_border_width_title">描边宽度（dp，0 = 无描边）</string>
-    <string name="termux_terminal_menu_border_width_summary">描边使用菜单的强调色。</string>
-    <string name="termux_terminal_menu_monospace_title">等宽字体</string>
-    <string name="termux_terminal_menu_monospace_off">菜单使用系统默认字体。</string>
-    <string name="termux_terminal_menu_monospace_on">菜单使用终端的等宽字体。</string>
-    <string name="termux_terminal_menu_show_icons_title">显示图标</string>
-    <string name="termux_terminal_menu_show_icons_off">各项只显示文字。</string>
-    <string name="termux_terminal_menu_show_icons_on">各项右侧显示一个小符号。</string>
-    <string name="termux_terminal_menu_background_color_title">背景颜色</string>
-    <string name="termux_terminal_menu_foreground_color_title">文字颜色</string>
-    <string name="termux_terminal_menu_accent_color_title">强调色</string>
 
     <!-- Ordered items preference (shared by the menu and the selection toolbar) -->
     <string name="termux_ordered_items_none">无</string>
@@ -837,4 +837,23 @@
     <string name="termux_notification_history_size_summary">只保存在内存里；列表为空时长按菜单里的「最近通知」项会自动隐藏。</string>
     <string name="notification_channel_name">终端通知</string>
     <string name="notification_channel_description">失败命令与终端程序发出的通知</string>
+
+    <!-- 扩展与命令 -->
+    <string name="command_new_named_session">新建命名会话…</string>
+    <string name="termux_extensions_page_disabled_title">该功能已停用</string>
+    <string name="termux_extensions_page_disabled_summary">在「扩展」页启用该扩展后即可使用。已安装到 $PREFIX/bin 的命令会保留，需自行删除。</string>
+    <string name="termux_search_extension_title">终端内搜索</string>
+    <string name="termux_search_extension_summary">在屏幕与回滚记录中查找文本</string>
+    <string name="termux_drawer_extension_title">会话抽屉</string>
+    <string name="termux_drawer_extension_summary">列出会话的抽屉与头部概要</string>
+    <string name="termux_split_extension_title">分屏</string>
+    <string name="termux_split_extension_summary">两个窗格与可拖拽的分隔条</string>
+    <string name="termux_builtin_vt_preferences_title">终端行为（核心）</string>
+    <string name="termux_builtin_vt_preferences_summary">剪贴板、滚动、鼠标与内边距</string>
+    <string name="termux_builtin_vt_notice_title">核心能力</string>
+    <string name="termux_builtin_vt_notice_summary">这些行为实现在终端内部，只能关闭，不能移除。</string>
+    <string name="termux_builtin_vt_behaviour_header">行为</string>
+    <string name="termux_volume_keys_preferences_title">音量键</string>
+    <string name="termux_volume_keys_preferences_summary">虚拟键 · 单按与长按动作</string>
+    <string name="termux_volume_key_actions_header">动作</string>
 </resources>

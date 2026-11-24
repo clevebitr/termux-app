@@ -15,7 +15,7 @@
 
 | § | 特性 | 配置 | 默认 |
 | --- | --- | --- | --- |
-| 1 | Gboard 等输入法可直接用中日韩键盘 | `gboard-cjk-workaround` | 关 |
+| 1 | 输入法兼容模式：Gboard 等所有输入法可用中日韩键盘并切换语言 | `gboard-cjk-workaround` | 关 |
 | 2 | extra keys 行配色跟随 Termux:Styling 主题 | `extra-keys-foreground/background/…`（设置页有 22 色色板） | 跟随配色方案 |
 | 3 | 整个 App 跟随配色方案（含状态栏/导航栏图标明暗） | `night-mode=color-scheme` | `system` |
 | 4 | 输入法 / 虚拟键盘配色的图形化设置页 | 设置 → Termux → 终端键盘 | — |
@@ -66,12 +66,11 @@
 `~/.termux/termux.properties`（改完执行 `termux-reload-settings`）：
 
 ```properties
-# 允许 Gboard 在终端视图里直接使用中文/日文/韩文键盘（本 fork 新增）
-# 原理：终端视图默认用 InputType.TYPE_NULL，Gboard 会把键盘强制成英文 QWERTY 并隐藏语言切换键；
-# 打开后改用 text class inputType，并监听 IME 语言切换（requestCursorUpdates）重启输入，
-# 同时用 TYPE_TEXT_VARIATION_NORMAL 让 Gboard 显示候选词。
-# 副作用：非 CJK 语言会退化为 visible-password 风格输入（无联想/候选），与
-# enforce-char-based-input=true 类似；依赖 Gboard 的行为，其他输入法表现未充分验证。
+# 打开「输入法兼容模式」，让所有输入法都能在终端视图里切换语言并使用中文/日文/韩文键盘（本 fork 新增）
+# 原理：终端视图默认用 InputType.TYPE_NULL，输入法会把键盘强制成英文 QWERTY 并隐藏语言切换键；
+# 打开后无论输入法上报什么语言标签，都把终端上报为普通文本框（text class + NO_SUGGESTIONS + NORMAL），
+# 语言切换键与候选词因此保持可用。接有硬件键盘且软键盘收起时仍上报 TYPE_NULL，物理按键保持直达。
+# 副作用：输入法使用文本框语义，部分输入法在英文下会保留组合文本，字符在提交后才到达终端。
 gboard-cjk-workaround=true
 
 # 部分三星键盘等需要字符级输入时打开
@@ -205,7 +204,7 @@ night-mode=color-scheme
 设置 → Termux → **Terminal Keyboard**（新页面）里现在可以直接调：
 
 * **Input Method** 分类
-  * `Gboard CJK Keyboards` = `gboard-cjk-workaround`
+  * `IME Compatibility Mode`（输入法兼容模式）= `gboard-cjk-workaround`
   * `Enforce Character Based Input` = `enforce-char-based-input`
   * `Ctrl+Space Workaround` = `ctrl-space-workaround`
 * **Extra Keys Colors** 分类（4 项，点进去是色板）
@@ -1239,52 +1238,45 @@ notification-accent-width = 4
 
 ## 21. 可配置的长按菜单 / 文本选择浮条 / `SEARCH`·`SPLIT_*` 虚拟键
 
-### 21.1 长按菜单改成可配置的自定义对话框（`terminal-menu-items`）
+### 21.1 终端动作可配并集成进命令面板（`terminal-menu-items`）
 
 上游长按文字 → 选字 → 系统 `ActionMode` 浮条（复制/粘贴/更多…）→ 点「更多…」才弹系统 context
-menu（一长串）。本 fork 把「更多…」那个菜单换成**自己画的对话框**：
+menu（一长串）。本 fork 曾把「更多」换成自绘对话框，现已**并入命令面板**：面板是终端动作的唯一列表，
+`terminal-menu-items` 决定其中**哪些终端动作、什么顺序**。
 
-* **样式**：直角、1dp 强调色描边、等宽字体、右侧小图标，背景/文字色默认取 `colors.properties`
-  （`theme:background` / `theme:foreground` / `theme:color4`），换 Termux:Styling 主题自动跟随。
-* **项与顺序可配**：`terminal-menu-items` 一条逗号列表，**顺序就是显示顺序**，不写就不显示。
-* **不可用的项自动隐藏**：`split-close` 只在已分屏时出现；`share-selected-text` 只在有选中文本时
-  出现；`autofill-*` 只在终端视图开启 autofill 时出现；`test-notification` 只在通知卡片开启时出现。
+* **项与顺序可配**：`terminal-menu-items` 一条逗号列表，顺序就是面板中的顺序；不在列表里的动作不显示。
+* **不可用的项自动隐藏**：`split-close` 只在已分屏时出现；`share-selected-text` 只在有选中文本时出现；
+  `autofill-*` 只在终端视图开启 autofill 时出现；`test-notification` 只在通知卡片开启时出现。
 * **`kill-process`** 的标题带会话 PID，会话已结束时置灰。
+* 面板在配置的动作之后追加「新建会话」「新建命名会话」「切换键盘」，并保证「设置」「帮助」始终可达。
+* 外观不再单独配置：面板跟随终端配色方案，使用与其它对话框相同的圆角令牌。
+  `terminal-menu-font-size`、`terminal-menu-corner-radius`、`terminal-menu-border-width`、
+  `terminal-menu-monospace`、`terminal-menu-show-icons` 与三个 `terminal-menu-*-color` 属性已废弃，设置页对应项已移除。
 
 ```properties
 # 默认值（13 项）
 terminal-menu-items = search,sessions,previous-command,next-command,split-vertical,split-horizontal,select-url,share-transcript,reset-terminal,kill-process,recent-notifications,settings,report
 
-# 全部可用 id（新增的靠后，默认不显示，需要就自己加）：
-#   search / sessions（打开会话抽屉）
+# 全部可用 id：
+#   search / sessions（打开会话抽屉）/ command-palette（在面板内无意义，会被跳过）
 #   previous-command / next-command
 #   split-vertical / split-horizontal / split-close
 #   select-url / share-transcript / share-selected-text
 #   autofill-username / autofill-password
 #   reset-terminal / kill-process / styling / keep-screen-on
 #   help / settings / report / test-notification
-
-# 样式
-terminal-menu-font-size = 13        # sp，8–24
-terminal-menu-corner-radius = 0     # dp，0 = 直角
-terminal-menu-border-width = 1      # dp，0 = 不描边
-terminal-menu-monospace = true      # 等宽字体
-terminal-menu-show-icons = true     # 每项右侧的符号
-terminal-menu-background-color =    # 空 = 配色 background 混 10% foreground
-terminal-menu-foreground-color =    # 空 = 配色 foreground
-terminal-menu-accent-color =        # 空 = theme:color4（描边 + 按下高亮）
+#   recent-notifications
 ```
 
-实现：`app/.../terminal/menu/TerminalMenuAction.java`（id ↔ 文案 ↔ 图标）、`TerminalMenuConfig.java`
-（解析）、`TerminalMenuDialog.java`（对话框）。入口统一到 `TermuxActivity.showTerminalMenu()`，
-由 `TerminalView.showTerminalContextMenu()` → `TerminalViewClient.onShowContextMenu()` 钩子触发，
-所以鼠标右键、菜单键、`Ctrl+Alt+M`、浮条「更多…」全都走同一套。**旧的系统 context menu
-（`onCreateContextMenu`）已删除。**
+实现：`ext/menu/TerminalMenuAction`（id ↔ 文案 ↔ 图标）、`TerminalMenuItems`（可见性/可用性纯函数）、
+`TerminalMenuConfig`（解析）、`commands/ShellCommandCatalog`（组装面板命令）。旧的自绘菜单对话框
+`TerminalMenuDialog` 已删除；右键「更多」、菜单键、`Ctrl+Alt+M`、多选浮条「更多…」、`F12` 与
+`Ctrl+Shift+P` 全部打开命令面板。
 
 ### 21.2 文本选择浮条可配（`selection-toolbar-items`）
 
 浮条仍然是系统的 `ActionMode`（位置、选择手柄、滚动都由系统管），但**显示哪些项、什么顺序**由属性
-决定，并且样式在主题里改成了直角 + 1dp 描边：
+决定，背景使用与行一致的圆角令牌 + 1dp 描边：
 
 ```properties
 selection-toolbar-items = copy,paste,more     # 默认；可用 id: copy / paste / more
@@ -1522,7 +1514,8 @@ notification-background-enabled = true
 * `app/.../notifications/RecentNotifications.java`：环形列表（容量裁剪、最新在前、可选点击动作）
 * `app/.../notifications/RecentNotificationsDialog.java`：列表对话框（跳命令 / 复制 / 清空）
 * `app/.../widget/TerminalDialogStyles.java`：菜单对话框与最近通知对话框共用的配色/描边/行背景/等宽文字
-  （M8.3 的 `TerminalMenuDialog` 已改为复用它，去掉了三份重复代码）
+  （M8.3 的 `TerminalMenuDialog` 已改为复用它，去掉了三份重复代码）。注：该对话框已于 2026-11-23 删除，
+  相关能力并入命令面板，见 §21.1；`TerminalDialogStyles` 仍服务于其它对话框
 * `TerminalNotificationManager`：`notify()` 里记录历史；不可见 + 后台开关 → 改发系统通知
 * `TermuxTerminalSessionActivityClient`：`onSessionFinished` / `onTitleChanged` / `onBell` 挂钩（卡片优先，未开启回退 toast）
 * 设置页：`termux_notification_preferences.xml` 新增「App 事件」「后台与历史」两个分类；
@@ -1538,7 +1531,7 @@ fork 新增的代码按功能分包，`TermuxActivity` 只做「视图装配 + �
 | 包 / 类 | 职责 |
 | --- | --- |
 | `app/.../notifications/` | 通知卡片全链路：`NotificationConfig`（属性）、`TerminalNotificationManager`（通道开关/历史/后台切换）、`ExitCodeNotifier`（失败命令）、`OscNotificationHandler`（OSC 9/99/777 + 限流 + 回报）、`AppEventNotifier`（App 事件）、`NotificationOverlayView` + `NotificationCardView`（渲染）、`RecentNotifications` + `RecentNotificationsDialog`（历史）、`BackgroundNotifier`（系统通知） |
-| `app/.../terminal/menu/` | `TerminalMenuConfig`（`terminal-menu-*` 属性）、`TerminalMenuAction`（id ↔ 文案 ↔ 图标）、`TerminalMenuDialog`（自定义样式的长按菜单） |
+| `app/.../ext/menu/` | `TerminalMenuConfig`（`terminal-menu-items` 等属性）、`TerminalMenuAction`（id ↔ 文案 ↔ 图标）；`TerminalMenuDialog` 已于 2026-11-23 删除，动作列表并入命令面板（§21.1） |
 | `app/.../terminal/` | `TerminalSearchController`（搜索栏）、`TerminalSplitScreenController`（分屏布局）、`TermuxShellIntegration`、四个 session/view client |
 | `app/.../statusbar/` | `StatusBarConfig` + `StatusBarMetrics` + `StatusBarView` + `SparklineView` + `StatusBarColors` + `StatusBarController` |
 | `app/.../properties/ForkProperties.java` | fork 自有属性的统一读取入口（`termux.properties` 直读 + 类型化 getter + 越界回退） |
@@ -2000,7 +1993,7 @@ terminal-emulator 236 个
 - `ShellCommand`：标题、分组、快捷键、可用性与执行闭包；
 - `ShellCommandCatalog`：复用终端菜单的可见性/可用性规则（`TerminalMenuItems`）生成命令，包含搜索、会话列表、上/下一条命令、左右/上下分屏、关闭分屏、重置终端、结束进程、新建会话、新建命名会话、切换键盘、设置、帮助、最近通知；
 - `ShellCommandHost`：窗口级动作的唯一执行入口，命令面板、会话抽屉按钮与会话新建按钮均调用它，因此同一动作只有一份实现；
-- `ShellCommandPalette`：可搜索对话框，按标题、分组或快捷键匹配，不区分大小写，回车执行首个可用项。
+- `ShellCommandPalette`：跟随终端配色方案的自绘对话框（与抽屉、终端菜单同源），搜索框作为头部，每行显示标题、分组与快捷键 chip；按标题、分组或快捷键匹配，不区分大小写，回车执行首个可用项；面板打开期间按下列出的快捷键可直接执行该命令。
 
 入口：
 
@@ -2010,6 +2003,18 @@ terminal-emulator 236 个
 | 会话抽屉 | 抽屉头部「命令面板」按钮 |
 | 终端长按/右键菜单 | 把 `command-palette` 加入 `terminal-menu-items`（默认列表由只读的共享库定义，因此需显式加入） |
 | 虚拟按键 | 在 `extra-keys` 中加入 `F12`（未按修饰键时打开面板） |
+
+面板内可直接使用的命令快捷键由 `command-shortcuts` 属性决定（见 §37.1），默认值：
+
+| 命令 | 快捷键 |
+| --- | --- |
+| 命令面板 | `Ctrl+Shift+P` |
+| 搜索 | `Ctrl+Alt+F` |
+| 切换软键盘 | `Ctrl+Alt+K` |
+| 新建会话 | `Ctrl+Alt+C` |
+
+`Ctrl+Alt+Up` / `Ctrl+Alt+Down` 是切换会话，不是滚动到上/下一条命令，默认不把它们标为命令快捷键；
+`Ctrl+Alt+M` 仍作为打开命令面板的固定组合保留。
 
 会话抽屉按钮与命令面板的一致性：抽屉的「设置」「新建会话」「切换键盘」按钮不再各自实现，而是与面板调用同一个
 `ShellCommandHost`；「新建会话」长按的命名会话也是面板里的 `new-named-session` 命令。会话列表项的长按（重命名）
@@ -2039,3 +2044,135 @@ terminal-emulator 236 个
 | shell 命令 | 已安装到 `$PREFIX/bin` 的脚本（如 `termux-backup`）保留，由用户自行决定是否删除 |
 
 之所以不删除已安装的命令：它们是用户环境的一部分，应用不应在开关切换时删除用户数据。
+
+## 35. 界面形状统一为 Material 3 圆角（2026-11-23）
+
+此前各表面的圆角语言不一致：终端菜单、命名对话框与通知卡片是方角 + 1dp 描边，命令面板是 16dp 圆角，
+平台对话框的圆角由 `shapeAppearanceOverlay` 指定但并不生效。现在统一到一套形状令牌：
+
+| 令牌 | 值 | 用途 |
+| --- | --- | --- |
+| `termux_dialog_corner_radius` | 16dp | 对话框与浮动窗口（终端菜单、命名对话框、通知历史、设置搜索、命令面板、平台对话框） |
+| `termux_row_corner_radius` | 12dp | 对话框内的行、通知卡片、抽屉会话行 |
+| `termux_chip_corner_radius` | 8dp | 快捷键 chip 等小标签 |
+
+对照表与影响：
+
+| 表面 | 变化 |
+| --- | --- |
+| 终端菜单、命名对话框、通知历史 | 改为 Material 3 圆角窗口，标题与按钮层级统一；窗口、滚动与按钮由共用的 `TerminalDialogBuilder` 绘制 |
+| 通知卡片 | 默认圆角由 0 改为 12dp；`notification-corner-radius` 仍可覆盖 |
+| 终端菜单 | 默认圆角由 0 改为 16dp；`terminal-menu-corner-radius` 仍可覆盖 |
+| 抽屉 | 会话行、选中底色与涟漪改为 12dp 圆角；当前会话的强调条改为 3dp 内缩胶囊（距左 6dp、上下各 8dp），列表左右各留 8dp 并去掉平台选择高亮；头部按钮补涟漪，底部两个按钮改为 Material 3 文字按钮 |
+| 状态栏 | 分段之间留 4dp 内距；可点击分段按下时有 8dp 圆角高亮 |
+| 命令面板 | 改为跟随终端配色方案的自绘对话框（背景、文字、强调色与 terminal menu 同源），窗口圆角使用令牌，列表高度随结果数收缩 |
+| 设置搜索 | 窗口圆角改用令牌，尺寸随屏幕高度收缩；输入框与行布局为 Material 3 |
+| 平台提示对话框 | 改用 `MaterialAlertDialogBuilder`（终止会话、URL 选择、会话数上限、风格未安装、备份恢复、扩展停用确认、长按复位等） |
+
+表面色仍取自终端配色方案，不随 Material 3 表面色映射：只有日夜模式跟随系统（终端内）或配色方案明暗
+（抽屉、状态栏等）。若要让 MD3 表面色跟随 `colors.properties`，需要运行期 theme overlay，仍属未决设计。
+
+两个可覆盖属性的默认值变化会影响自定义过 `corner-radius` 的用户：显式设置为其他值（含 0）时行为不变。
+
+## 36. 手势小横条与刘海适配（2026-11-23）
+
+两项系统界面适配，均以真机 `fullscreen`（默认 `true`）为前提：
+
+| 区域 | 行为 |
+| --- | --- |
+| 手势导航的小横条（导航栏） | 底部由根布局的 `fitsSystemWindows` 保留系统栏 inset，终端最后一行与额外键都在小横条上方，不会被覆盖；小横条区域显示终端背景色 |
+| 刘海 / 挖孔 | 仅全屏（`fullscreen=true`，状态栏隐藏）时使用 `shortEdges`，终端绘制到挖孔区域，顶部不再有黑带；非全屏时内容仍避开挖孔，状态栏图标不被摄像头遮挡 |
+
+实现要点：
+
+- 内边距仍由根布局的 `android:fitsSystemWindows` 处理。曾在 inset 监听器里显式 `setPadding`，但该方法每次调用都会 `requestLayout`，与键盘出现时的底部 margin 校正、`FullScreenWorkAround` 的高度补偿互相触发，导致额外键持续闪烁，已回退（详见 `app/DECISIONS.md` #22）。
+- `layoutInDisplayCutoutMode` 在 `setContentView()` 之前设置；`FLAG_FULLSCREEN` 保持原有调用时机。
+- `fullscreen` 是启动期属性，修改后需要重启应用（与既有的 `fullscreen`、主题等属性一致）。
+
+未真机验证：刘海填充、非全屏避让、键盘弹起时额外键与小横条的关系、`fullscreen=false` 时的状态栏图标。
+
+## 37. 命令快捷键与鼠标右键（2026-11-23）
+
+### 37.1 可自定义的命令快捷键（`command-shortcuts`）
+
+面板里显示的快捷键与终端实际处理的按键来自同一份配置，标签与行为不会再漂移：
+
+```properties
+# 默认值
+command-shortcuts = command-palette=Ctrl+Shift+P,search=Ctrl+Alt+F,toggle-keyboard=Ctrl+Alt+K,new-session=Ctrl+Alt+C
+```
+
+* 写成 `id=快捷键` 的逗号列表；未列出的命令保留默认值，写成 `id=` 则取消该命令的快捷键。
+* 可用 id 与 `terminal-menu-items` 的动作一致，另外加上 `new-session`、`new-named-session`、`toggle-keyboard`。
+* 快捷键在活动层拦截，因此终端视图、额外键与任何子视图有焦点时都生效；额外键的宏按键同样会被识别。
+* 快捷键建议带修饰键：`Ctrl`/`Alt`/`Shift` + 主键，主键可以是字母、`Up`/`Down`/`Enter`/`Tab`/`Space`/`Esc`/`PgUp`/`PgDn`/`Home`/`End`。
+* 设置路径：终端键盘页 →「命令快捷键」。
+
+### 37.2 鼠标右键（`mouse-right-click`）
+
+```properties
+mouse-right-click = auto     # auto（默认）| forward | palette
+```
+
+| 取值 | 行为 |
+| --- | --- |
+| `auto` | 程序开启鼠标跟踪（`DECSET 1000/1002/1003`）时转发给程序；否则打开命令面板 |
+| `forward` | 从不打开面板：程序跟踪时转发，未跟踪时这次点击被吞掉，不会向程序写入鼠标序列 |
+| `palette` | 始终打开命令面板，即使程序在跟踪鼠标 |
+
+设置路径：命令面板设置页（原「长按菜单」页）→「鼠标右键」。`forward` 适合接显示器用鼠标操作、
+不希望误触弹出面板的场景。
+
+### 37.3 键盘兼容（无选项）
+
+键盘兼容层不提供任何可调项，只遵循一条规则：**终端上报给输入法的类型由「软键盘是否可见」决定。**
+
+| 硬件键盘 | 软键盘 | 上报类型 | 结果 |
+| --- | --- | --- | --- |
+| 有 | 收起 | `TYPE_NULL` | 输入法不介入，Tab、Ctrl/Alt 组合键、方向键与字符全部直达终端，与桌面终端一致 |
+| 有 | 弹出 | `TYPE_CLASS_TEXT \| NO_SUGGESTIONS \| NORMAL` | 输入法显示悬浮栏与候选词，软键盘与物理键盘都能打拼音，提交文本经输入连接写入终端 |
+| 无 | 任意 | 上游逻辑（`gboard-cjk-workaround` 等属性算出的类型） | 与上游一致 |
+
+这样做的原因：输入法一旦把终端当作文本框，就会先把物理按键的按下事件收进自己，再以 `commitText` 提交文本，
+Tab 也会被一并收走。实测日志（`~/.termux/keyboard-compat.log`）中，Gboard 中文模式下应用只能看到按键的抬起
+事件，字母的按下事件全部缺失，因此任何"在应用层拦截 Tab"的做法都不可能生效。唯一有效的做法是让输入法在
+不需要它的时候不接管物理键盘。
+
+中文输入由软键盘触发，不需要额外开关：
+
+1. 需要输入中文时弹出软键盘（`Ctrl+Alt+K`、额外键的键盘键或命令面板的「切换键盘」；TUI 里点击终端不会弹出，
+   因为点击被当作鼠标事件转发给程序，需要点击也能弹出时设置 `mouse-tap-shows-keyboard=true`）；
+2. 软键盘弹出期间终端按文本框上报，输入法显示悬浮栏与候选词，软键盘与物理键盘都可用来打拼音；
+3. 收起软键盘后自动回到直通状态，物理按键重新直达终端。
+
+键盘接入或拔出、软键盘显示或隐藏时，应用都会重启输入连接，输入法因此重新读取类型，无需重启应用；软键盘弹出
+后还会再重启一次，避免输入法在弹出动画期间忽略重启而继续使用旧类型（表现为有键盘但没有悬浮栏与候选词）。若软键盘
+已收起而输入法仍在吞物理键（日志里只有 `action=up`），应用会检测到缺少按下事件并自动再重启一次。
+
+注意：软键盘可见期间物理键归输入法，`Tab` 也归它；需要 `Tab` 直达程序时先收起软键盘。Android 5.0
+与 6.0 读不到软键盘可见性，这两个版本上始终按文本框上报。完整设计见 `docs/KEYBOARD_COMPAT.md`。
+
+### 37.4 键盘诊断日志（`keyboard-compat-log`）
+
+```properties
+keyboard-compat-log = true   # 默认 false
+```
+
+打开后，`TermuxActivity.dispatchKeyEvent`、命令快捷键分发、`TerminalViewClient.onKeyDown`、`getInputType`
+以及输入法事件（`commitText`/`setComposingText`/`finishComposingText`/`deleteSurroundingText`）都会写入日志，
+用于判断按键与输入法文本走的是哪条路径：
+
+| 日志前缀 | 来源 |
+| --- | --- |
+| `[activity]` | 窗口级按键分发与命令快捷键命中 |
+| `[terminal-view]` | 终端视图收到的按键 |
+| `[ime]` | 上报的输入类型（`hardwareKeyboard`、`softKeyboardVisible`、`reported`）与输入法提交的文本 |
+
+排障判据：直通状态下每个按键都应有一条 `[terminal-view]`；若只有 `[activity]` 的 `action=up` 而没有按下事件、
+也没有 `[terminal-view]`，说明输入法正在接管物理键盘，此时 `[ime] getInputType` 的 `reported` 必然不是 `0x0`。
+日志除了 logcat 之外还写入 `~/.termux/keyboard-compat.log`（超过 128KB 自动重建），可直接在 Termux 里查看：
+
+```sh
+cat ~/.termux/keyboard-compat.log
+```
+硬件键盘兼容层的完整设计见 `docs/KEYBOARD_COMPAT.md`。

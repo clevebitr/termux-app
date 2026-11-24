@@ -13,13 +13,22 @@ import com.termux.terminal.TerminalEmulator;
 import com.termux.view.TerminalView;
 
 /**
- * The container of a terminal view, which forwards the secondary mouse button to the terminal program when
- * it tracks the mouse.
+ * The container of a terminal view, which decides what the secondary mouse button does.
  *
  * <p>Upstream always shows the terminal context menu for the secondary button, which is right for touch but
  * means that a program that enabled mouse tracking, like {@code vim}, {@code tmux} or {@code htop}, never
- * sees a right click on a desktop. The fork keeps the menu as the fallback and only forwards the button
- * while the emulator reports that the program asked for mouse events.</p>
+ * sees a right click on a desktop. The fork forwards the button while the emulator reports that the program
+ * asked for mouse events, and the `mouse-right-click` property decides what happens otherwise:</p>
+ *
+ * <ul>
+ *     <li>{@link SecondaryButtonBehaviour#AUTO}: forward while the program tracks the mouse, otherwise let the
+ *     terminal view show its context menu, which the client turns into the command palette;</li>
+ *     <li>{@link SecondaryButtonBehaviour#FORWARD}: never open the palette, so the click is swallowed when the
+ *     program does not track the mouse, which is what a desktop user who does not want a window to pop up on a
+ *     misclick expects;</li>
+ *     <li>{@link SecondaryButtonBehaviour#PALETTE}: always open the palette, even while the program tracks the
+ *     mouse.</li>
+ * </ul>
  *
  * <p>The fork cannot subclass {@code TerminalView}, since it is final in the read-only view module, so the
  * behaviour is added by a container that intercepts the event before the view sees it. The emulator and the
@@ -31,15 +40,55 @@ public class TermuxTerminalFrame extends FrameLayout {
     /** The button code of the right button in the x10/SGR mouse protocol. */
     private static final int MOUSE_RIGHT_BUTTON = 2;
 
+    /** What the secondary mouse button does, see the class documentation. */
+    public enum SecondaryButtonBehaviour {
+        AUTO,
+        FORWARD,
+        PALETTE
+    }
+
+    @NonNull
+    private SecondaryButtonBehaviour mBehaviour = SecondaryButtonBehaviour.AUTO;
+
     public TermuxTerminalFrame(@NonNull Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
+    }
+
+    /**
+     * Set what the secondary mouse button does, as the `mouse-right-click` property configures it.
+     *
+     * <p>Called by {@code TermuxActivity} when the properties are loaded and after the panes are created, so the
+     * container never reads the `termux.properties` file on a touch event.</p>
+     */
+    public void setSecondaryButtonBehaviour(@NonNull SecondaryButtonBehaviour behaviour) {
+        mBehaviour = behaviour;
     }
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
         TerminalView terminalView = findTerminalView();
-        if (terminalView != null && forwardSecondaryButton(terminalView, event)) return true;
-        return super.dispatchTouchEvent(event);
+        if (terminalView == null || !isSecondaryButton(event)) return super.dispatchTouchEvent(event);
+
+        switch (mBehaviour) {
+            case PALETTE:
+                // Let the terminal view show its context menu, which the client turns into the command palette.
+                return super.dispatchTouchEvent(event);
+            case FORWARD:
+                forwardSecondaryButton(terminalView, event);
+                // The palette is never opened in this mode, so the click is swallowed even when the program does
+                // not track the mouse and therefore ignores it.
+                return true;
+            case AUTO:
+            default:
+                if (forwardSecondaryButton(terminalView, event)) return true;
+                return super.dispatchTouchEvent(event);
+        }
+    }
+
+    /** @return Whether the event is a press of the secondary button of a mouse. */
+    private boolean isSecondaryButton(@NonNull MotionEvent event) {
+        return event.isFromSource(InputDevice.SOURCE_MOUSE)
+            && event.isButtonPressed(MotionEvent.BUTTON_SECONDARY);
     }
 
     private boolean forwardSecondaryButton(@NonNull TerminalView terminalView, @NonNull MotionEvent event) {

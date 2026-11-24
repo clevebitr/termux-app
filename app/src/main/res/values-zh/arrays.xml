@@ -95,4 +95,17 @@
             <item>none</item>
         </string-array>
 
+
+    <string-array name="termux_mouse_right_click_entries">
+        <item>自动（程序未跟踪鼠标时打开面板）</item>
+        <item>始终转发（从不打开面板）</item>
+        <item>始终打开面板</item>
+    </string-array>
+
+    <string-array name="termux_mouse_right_click_values">
+        <item>auto</item>
+        <item>forward</item>
+        <item>palette</item>
+    </string-array>
+
 </resources>

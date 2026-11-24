@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The background of the search bar, which is a sheet that hangs from the top edge of the terminal: the top
+     corners stay square because the bar touches the edge of the window, the bottom corners follow the dialog
+     corner token so that the bar reads as one surface with the dialogs. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/termuxActivityDrawerBackground" />
+    <corners
+        android:bottomLeftRadius="@dimen/termux_dialog_corner_radius"
+        android:bottomRightRadius="@dimen/termux_dialog_corner_radius" />
+</shape>

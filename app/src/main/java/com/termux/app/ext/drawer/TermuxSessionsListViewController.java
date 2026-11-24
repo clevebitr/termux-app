@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
@@ -21,6 +22,7 @@ import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
+import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalSession;
 
 import java.io.File;
@@ -38,6 +40,9 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
 
     final StyleSpan boldSpan = new StyleSpan(Typeface.BOLD);
     final StyleSpan italicSpan = new StyleSpan(Typeface.ITALIC);
+
+    /** The radius of the accent strip in dp, which is half of its 3dp width, so that it is a capsule. */
+    private static final float ACCENT_STRIP_RADIUS_DP = 1.5f;
 
     public TermuxSessionsListViewController(TermuxActivity activity, List<TermuxSession> sessionList,
                                             TerminalDrawerController drawerController) {
@@ -70,12 +75,21 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
         // The drawer follows the colors of the terminal color scheme, so the row background and the text
         // colors come from the activity instead of from the app theme. The accent strip marks the session
         // that is shown in the active pane, like the border of the active pane of the split screen.
-        sessionRowView.setBackground(mDrawerController.getSessionRowBackground());
+        sessionRowView.setBackground(mDrawerController.newSessionRowBackground());
 
         View accentView = sessionRowView.findViewById(R.id.session_accent);
         boolean isCurrentSession = sessionAtRow == mActivity.getCurrentSession();
-        accentView.setBackgroundColor(isCurrentSession
-            ? mDrawerController.getAccentColor() : Color.TRANSPARENT);
+        // The background is a state list, so the row of the session that is shown is tinted only when it is
+        // activated; without this the tint of the current session would never be drawn.
+        sessionRowView.setActivated(isCurrentSession);
+        // The accent strip marks the session that is shown in the active pane, like the border of the active
+        // pane of the split screen. It is a capsule: the radius is half of its width, so that both ends are round
+        // and the strip reads as a marker inside the rounded row instead of as the edge of the row.
+        GradientDrawable accentBackground = new GradientDrawable();
+        accentBackground.setShape(GradientDrawable.RECTANGLE);
+        accentBackground.setCornerRadius(ViewUtils.dpToPx(mActivity, ACCENT_STRIP_RADIUS_DP));
+        accentBackground.setColor(isCurrentSession ? mDrawerController.getAccentColor() : Color.TRANSPARENT);
+        accentView.setBackground(accentBackground);
 
         final int foregroundColor = mDrawerController.getForegroundColor();
         final int secondaryColor = mDrawerController.getSecondaryTextColor();

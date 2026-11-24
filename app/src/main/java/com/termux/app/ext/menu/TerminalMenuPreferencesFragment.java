@@ -17,12 +17,13 @@ import com.termux.app.fragments.settings.termux.PreferenceResetUtils;
 import com.termux.app.fragments.settings.termux.TermuxPropertyPreferenceDataStore;
 
 /**
- * The settings of the terminal context menu and of the floating text selection toolbar, which decide
- * which actions are shown, in which order and with which style.
+ * The settings of the terminal actions of the command palette and of the floating text selection toolbar,
+ * which decide which actions are shown and in which order.
  *
- * The preferences write the same `terminal-menu-*` and `selection-toolbar-items` properties to the
- * `termux.properties` file as the user can set in the file itself, so both can be mixed freely. The
- * changes are applied to the running activity when the settings screen is closed.
+ * <p>The preferences write the same `terminal-menu-items`, `selection-toolbar-items` and
+ * `mouse-right-click` properties to the `termux.properties` file as the user can set in the file itself, so
+ * both can be mixed freely. The changes are applied to the running activity when the settings screen is
+ * closed, since the configuration is reloaded by the activity.</p>
  */
 @Keep
 public class TerminalMenuPreferencesFragment extends PreferenceFragmentCompat {

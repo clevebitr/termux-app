@@ -266,3 +266,382 @@
 `builtin.vt` 只收纳「实现位于只读模块、只能关闭行为」的开关；可关闭的 fork 功能一律属于各自扩展。这条边界已写入 `BuiltinVtExtension` 的 KDoc 与 `docs/API_INDEX.md`。
 
 未验证：迁移后的四个内边距项与两个开关在真机上的读写、搜索能否在新页找到这些条目、长按复位是否正常，均未验证；本机 `:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest --rerun-tasks` 169 项中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。
+
+## 2026-11-23 — 真机启动崩溃：资源文件中的旧类名；补资源级守卫测试
+
+真机试机时启动即崩溃，无弹窗；崩溃日志从系统「分享」导出到 Download/OnePlus Share/crash_log.md 后定位。
+
+根因：资源文件里的类名是字符串，编译器不检查，包迁移后失效。
+- `activity_termux.xml` 第 34 行仍写 `com.termux.app.terminal.DrawerHandleView`，实际类已迁到 `com.termux.app.ext.drawer`；
+- 同一文件仍写 `com.termux.app.statusbar.StatusBarView`，实际已迁到 `com.termux.app.ext.statusbar`；
+- `termux_preferences.xml` 的通知页仍写 `com.termux.app.fragments.settings.termux.NotificationPreferencesFragment`，实际已迁到 `com.termux.app.ext.notifications`。
+
+崩溃栈：`setContentView(activity_termux)` → `InflateException` → `ClassNotFoundException: com.termux.app.terminal.DrawerHandleView`。前两处是启动崩溃，第三处是打开通知设置页时崩溃，后者的隐患被前者的崩溃掩盖了。
+
+迁移脚本的漏洞：批量改引用时只扫了 `**/*.java`，没有扫 `src/main/res/**/*.xml`；XML 里的自定义控件标签与 `app:fragment` 值同样是类名。
+
+修复与防线：
+1. 修正三处失效类名（6d203ab）。
+2. 新增守卫测试 `ResourceClassNameTest`：扫描 `src/main/res/layout`、`res/xml`、`res/menu` 下所有 XML，抽取 `com.termux.*` 形式的类名（末段首字母大写者），逐个 `Class.forName`，缺失即失败并列出文件。该测试在修复前的三条失效类名上确实失败，修复后通过。
+3. 约束：以后迁移包时，必须同时更新 `res/**/*.xml` 中的自定义控件标签与 `app:fragment`；`ResourceClassNameTest` 是这条约束的机器检查。
+
+代价与教训：此类错误编译与 169 项单测全绿也发现不了，只有真机 inflate 时才暴露，因此必须有资源级守卫。
+
+未验证：修复后的布局 inflate、通知设置页打开均未在真机上确认；本机 `:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest --rerun-tasks` 170 项（新增 1 项）中 1 项既有失败（FileReceiver + Robolectric 4.10/JDK 21）。
+
+## 2026-11-23 — 修正抽屉选中状态与配置即时生效
+
+真机反馈两项体验问题：抽屉会话选中状态不正确；部分配置改动需要重启 App 才生效。均已修复（3411203）。
+
+一、抽屉选中状态
+1. 行背景是 `StateListDrawable`，只在 `state_activated` 时叠加强调色，但适配器从未调用 `setActivated`，因此「当前会话行的底色」这条设计一直是死代码，只有 3dp 强调条在起作用。现在 `getView` 里按 `sessionAtRow == getCurrentSession()` 设置 `setActivated`。
+2. 切换会话后列表不刷新：`setCurrentSession` 只做 `attachSession`，没有通知适配器，强调条要等抽屉重新打开才更新。现在 `attachSession` 成功后调用 `termuxSessionListNotifyUpdated()`（转发到 `DrawerExtension.notifySessionsChanged()`）。
+
+二、配置改动即时生效
+1. 根因：`reloadProperties()` 里原本有抽屉/状态栏的重载调用，迁移时被清空，扩展的状态重载只剩 `reloadActivityStyling()` 与 `updateExtraKeysViewColors()` 两处；任何不经过这两处的配置重载都不会通知扩展。
+2. 现在把 `mExtensionManager.onReload()` 放进 `reloadProperties()`（所有配置重载的唯一入口），并删除 `reloadActivityStyling()` 里的重复调用，避免一次改动重载两遍。
+3. `ExtensionManager.start()` 改为先把扩展放进 running 集合再调用 `onEnable`。此前扩展在 `onEnable` 期间查询宿主时（状态栏 `applyLayout()` → 宿主重算内边距 → 查询状态栏配置）会被判为「未运行」，导致首次布局按「没有状态栏」计算，要等下一次重载才正确。失败时从 running 中移除，不会留下半启动状态。
+4. `DrawerExtension.onDisable()` 现在还清空会话列表的适配器，避免禁用后列表仍持有指向已释放控制器的适配器。
+
+未验证：抽屉选中行的底色、切换会话后强调条跟随、以及各扩展设置改动后的即时生效，均未在真机确认；本机 `:app:compileDebugJavaWithJavac` 通过、`:app:testDebugUnitTest --rerun-tasks` 170 项中 1 项既有失败；CI（PR #2）lint/单测/双 ABI 构建全部通过，Fork Build 已产出 `termux-app_fork-20261123-0426-testkey_arm64-v8a.apk`。
+
+## 2026-11-23 — 修正抽屉高亮与命名对话框，主题迁移 Material 3
+
+真机反馈四项，前三项为缺陷、第四项为主题改造，均已提交并通过 CI（b5e8de0、0e5854a）。
+
+一、抽屉「多个会话一起高亮」
+根因：`TerminalDrawerController` 只持有一个 `Drawable` 实例，所有行 `setBackground` 同一实例。Drawable 的状态保存在实例上，因此一行的 activated/ripple 状态会画到所有行上。修正为 `newSessionRowBackground()`：用 `getConstantState().newDrawable().mutate()` 为每行生成独立副本。同一处修复同时解决了长按多个行一起亮的问题（ripple 状态共享）。
+
+二、抽屉「只有侧边蓝条正常」
+根因：行背景是 `StateListDrawable`，只在 `state_activated` 时叠加强调色，但适配器从未调用 `setActivated`。现在 `getView` 按「是否当前会话」设置 `setActivated`，强调底色与 3dp 侧条同时生效；`setCurrentSession` 成功后立即刷新列表。
+
+三、设置会话名称对话框黑字
+根因：`renameSession` 走只读模块的 `TextInputDialogUtils`，它用裸 `AlertDialog` + `EditText`，不设置任何颜色，深色配色下文字与背景同色。新增 `app/widget/TerminalTextInputDialog`：文字色取当前会话的前景色、背景取背景色、提示色为前景的半透明、窗口背景用 `TerminalDialogStyles` 的方角 1dp 描边；替换会话重命名与新建命名会话两处调用，不再使用只读模块的对话框。附带移除了新建命名会话里未使用的「failsafe」按钮分支。
+
+四、Material 3 主题
+只读模块 `termux-shared` 的主题基类仍是 Material 2，因此 app 自己声明父主题，保持主题名不变：
+- `Theme.TermuxApp.Light/DagNight.DarkActionBar` → `Theme.Material3.Light` / `Theme.Material3.DayNight`（Material 1.12 没有 `DarkActionBar` 变体，非 `NoActionBar` 即带 ActionBar）；
+- 定义 MD3 颜色角色：`colorPrimary/OnPrimary/PrimaryContainer/OnPrimaryContainer`、`colorSecondary` 系列、`colorOutline`、链接色；
+- 新增 `ThemeOverlay.Termux.Dialog`（父 `ThemeOverlay.Material3.MaterialAlertDialog` + 0dp 圆角的 shape overlay），使平台与只读库的对话框也遵循 MD3 表面色，同时保留方角 tui 风格；
+- 终端活动主题保留原有窗口/抽屉/虚拟键属性。
+
+边界：`values-night` 中 app 只覆盖了 `Theme.TermuxActivity`，其余 DayNight 主题由 Material 3 自动切换；「全局跟随当前配色方案」目前只做到「按配色方案的明暗选择 DayNight 变体」，抽屉、对话框、状态栏等自分叉表面仍用配色方案的具体颜色。若要连 MD3 表面色也映射到配色方案，需要按配色方案生成 theme overlay（运行期 `applyStyle` 只能引用静态资源），属后续设计。
+
+未验证：行高亮是否只作用于当前会话、长按只亮一行、命名对话框在深色配色下的可读性、MD3 主题在设置页与各对话框中的观感，均需真机确认。CI：PR #2 的 lint/单测/双 ABI 构建全部通过；Fork Build 已产出 `termux-app_fork-20261123-0453-testkey_arm64-v8a.apk`。
+
+## 2026-11-23 — 命令面板 Material 3 重做与快捷键触发
+
+命令面板重做（886e940）：样式改为 Material 3，快捷键可真正触发命令，并修正了错误的快捷键标签。
+
+一、样式
+- 原实现是 `AlertDialog` + 裸 `EditText` + `android.R.layout.simple_list_item_1`，没有任何主题适配。
+- 新增 `res/layout/dialog_command_palette.xml`：`TextInputLayout`（FilledBox.Dense + clear_text 图标）作为头部，`ListView` 显示结果，空结果用独立提示文本。
+- 新增 `res/layout/item_command_palette.xml`：标题 + 分组两行，右侧快捷键 chip；新增 `bg_command_shortcut.xml`（`colorSurfaceVariant` 圆角）与 `bg_command_palette.xml`（`colorSurface` 16dp 圆角窗口背景）。
+- 全部颜色使用 MD3 主题属性（`colorOnSurface`/`colorOnSurfaceVariant`/`colorSurfaceVariant`/`colorSurface`），因此跟随 Material 3 的日/夜与配色方案明暗。
+- 不可用的命令不再隐藏而是降低不透明度到 0.45，避免列表在状态变化时跳动。
+
+二、快捷键
+- 新增 `commands/ShellCommandShortcut`：把 `Ctrl+Alt+F` 这类显示文本解析为修饰键 + 主键，提供 `matches(KeyEvent)` 与 `normalize`；无法解析的标签永不匹配，避免错误标签抢走终端的按键。
+- 面板打开期间按命令声明的快捷键即执行该命令（监听器装在输入框与列表上，因为焦点在输入框）。
+- 过滤按快捷键归一化后精确命中的命令排在最前。
+
+三、修正错误的快捷键标签
+原 `ShellCommandCatalog` 给「上/下一条命令」标注 `Ctrl+Alt+Up/Down`，但视图客户端里这两个组合实际是**切换会话**，标签是错的。现改为：
+- 搜索 `Ctrl+Alt+F`、切换键盘 `Ctrl+Alt+K`、新建会话 `Ctrl+Alt+C`（与视图客户端已有处理一致）；
+- 上/下一条命令不再标注快捷键。
+常量集中在 `ShellCommandCatalog.SHORTCUT_*` 并注明来源，避免标签与实现再次漂移。
+
+测试：新增 `ShellCommandShortcutTest` 5 项（修饰键精确匹配、按字符而非物理键匹配、命名单键、无法解析不匹配、归一化顺序），总测试数 170 → 175。
+
+未验证：面板在真机上的观感（圆角、chip、空状态、输入法弹出与列表高度）、快捷键在面板内触发、MD3 深色下的可读性，均未确认。CI：PR #2 lint/单测/双 ABI 构建全部通过；Fork Build 产出 `termux-app_fork-20261123-0521-testkey_arm64-v8a.apk`。
+
+## 2026-11-23 — UI 层形状统一为 Material 3 圆角
+
+按需求方三项决策执行 UI 层第一批优化：全部表面统一 Material 3 圆角；终端内对话框、设置页、抽屉、状态栏、命令面板全在范围内；MD3 表面色暂不跟随 `colors.properties`，仅日夜跟随。提交 1f0d811、c10a35c、c43fe8b、a2345f5、e39607c、70010a1、3db4815、12324f6、6d1ee61。
+
+一、形状令牌
+- 新增 `res/values/dimens.xml`：`termux_dialog_corner_radius`=16dp（对话框与浮动窗口，对应 MD3 large）、`termux_row_corner_radius`=12dp（行、卡片、抽屉会话行，对应 medium）、`termux_chip_corner_radius`=8dp、宽度/外边距/内距/按钮高度。
+- Java 侧另有 `TerminalDialogStyles.DIALOG_CORNER_DP`/`ROW_CORNER_DP`：终端菜单与通知配置的默认值在解析时没有 `Context`，只能读常量。两处来源会漂移，因此新增 `ShapeTokenTest` 读取 `dimens.xml` 与常量比对。
+- 默认圆角变更：`terminal-menu-corner-radius` 0 → 16dp，`notification-corner-radius` 0 → 12dp。显式设过值的用户不受影响；影响面已写入 `FORK.md` §35。
+
+二、对话框主题修正（踩坑）
+- 原实现只在 `ThemeOverlay.Termux.Dialog` 里设 `shapeAppearanceOverlay`，对对话框无效：Material 3 对话框（`MaterialAlertDialogBuilder`）的形状来自 `alertDialogStyle`（`MaterialAlertDialog.Material3`）的 `shapeAppearance`，`shapeAppearanceOverlay` 只被自身读取该属性的控件（如 `MaterialCardView`）使用。
+- 现改为覆盖 `alertDialogStyle` 为 `TermuxAlertDialogStyle`（parent `MaterialAlertDialog.Material3`，`shapeAppearance` 指向 `ShapeAppearance.Termux.Dialog`），并删除 `styles.xml` 中已无引用的旧 `TermuxAlertDialogStyle`（平台 `Theme.Material.Light.Dialog.Alert`）。
+
+三、共用构建器
+- 新增 `widget/TerminalDialogBuilder`：负责窗口背景（配色方案颜色 + 令牌圆角 + 1dp 强调色描边）、标题（18sp）、自动滚动正文（超过屏幕七成滚动）、右对齐文字按钮栏与宽度上限。终端菜单、命名对话框、通知历史迁入；`Style` 封装配色、圆角、字号与等宽字体。
+- 迁移中修正一处实现错误：构建器最初把窗口背景设为透明，正文没有背景，真机上将出现浮空文字；现由 `TerminalDialogStyles.createDialogBackgroundPx` 绘制窗口背景。
+
+四、其余表面
+- 设置搜索：新增 `dialog_settings_search.xml` 与 `item_settings_search.xml`，改为 Material 3 输入框（`TextInputLayout` FilledBox.Dense）+ 行布局 + 空状态；新增字符串 `settings_search_empty` 并补 `values-zh`。
+- 应用级对话框改用 `MaterialAlertDialogBuilder`：终止会话、URL 选择（含长按打开）、会话数上限、风格未安装、备份恢复确认、扩展级联停用、长按复位。
+- 偏好控件：`ColorPreference` 色板改用 12dp 圆角与主题 `colorPrimary`/`colorOutline` 描边，自定义颜色输入包 `TextInputLayout`；`OrderedItemsPreference` 行按下态改用令牌圆角 + `colorPrimary`，文字与分区标题取 `colorOnSurface`/`colorOnSurfaceVariant`。
+- 抽屉：会话行涟漪掩码与选中底色改为 12dp 圆角，列表左右 8dp 内距，强调条改圆头，头部两个 `ImageButton` 补 `selectableItemBackgroundBorderless`，底部按钮 parent 改 `Widget.Material3.Button.TextButton`。
+- 状态栏：分段 4dp 内距，可点击分段加 8dp 圆角按下态。
+- 命令面板：背景与 chip 改用令牌，行高 12dp，列表高度按屏幕高度收缩（键盘弹出后不再挤压输入框）。
+
+五、新增 API
+- `TerminalDialogStyles.themeColor(Context, attr, fallback)` 统一读取主题色，禁止再手写 `obtainStyledAttributes` 或硬编码颜色。
+- 已登记到 `docs/API_INDEX.md` §10，并在 §9 增加三条「不要重复实现」条目。
+
+未验证：本机无 `adb`，全部观感（圆角、描边、标题层级、按钮按下态、设置搜索与色板、键盘弹出后的面板高度）未在真机确认。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 177 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。`:app:lintDebug` 仍因 NDK 缺 `libc++_shared` 无法本地执行，lint 以 CI 为准。
+
+## 2026-11-23 — 抽屉胶囊条、扩展可用性与系统栏刘海适配
+
+按需求方四项反馈实施（提交 c917360、32d7c52、5b85fb5、8db2e1b、0a45190、91f9f0b），并附代码审查结论。
+
+一、扩展可用性（分屏禁用后命令面板仍有分屏项）
+- 根因：`TerminalMenuItems.State` 只有 `splitScreenEnabled`（分屏当前是否开启），没有「分屏扩展是否可运行」。扩展禁用后 `isSplitScreenEnabled()` 恒为 false，但 `SPLIT_VERTICAL`/`SPLIT_HORIZONTAL` 的可见性规则是 `default: true`，于是仍列出，点击后 `setSplitScreen()` 因扩展缺失直接返回，表现为无操作。
+- 修法：`State` 增加 `splitScreenAvailable`、`searchAvailable`、`sessionsDrawerAvailable`；`isVisible` 对 SEARCH、SESSIONS、SPLIT_VERTICAL/HORIZONTAL 按扩展可用性判定，SPLIT_CLOSE 另外要求分屏已开启。`TermuxActivity` 新增 `isSplitScreenAvailable()`/`isSearchAvailable()`/`isSessionsDrawerAvailable()`，菜单扩展与命令面板共用同一组判定，规则仍集中在 `TerminalMenuItems`。
+- 测试：`TerminalMenuItemsTest` 新增 2 项（扩展全禁用时上述动作全部隐藏而 SETTINGS/RESET 仍可见；分屏可用性与当前状态联合判定），共 10 项。
+
+二、抽屉选中胶囊条
+- 强调条由贴边整高改为 3dp 内缩胶囊：距行左缘 6dp、上下各 8dp、圆角 1.5dp（半径取宽度一半），与行 12dp 圆角背景配合；行最小高度 56dp，详情字号 11sp → 12sp，文字区内距 8dp。
+- 列表去掉平台选择高亮与默认分隔线（`listSelector` 透明、`divider` 置空），避免叠在圆角行背景上。
+
+三、系统栏手势条与刘海
+- 根布局不再使用 `android:fitsSystemWindows`，改由 `TermuxActivityRootView.WindowInsetsListener` 显式设置内边距：底部始终取导航栏/手势条 inset，终端底行与额外键不被手势小横条覆盖；顶部与左右在非全屏时取系统栏与挖孔 inset 的较大值，`fullscreen=true` 时取 0，让终端真正绘制到刘海区域。
+- 挖孔模式：新增 `applyWindowFlags()` 在 `setContentView()` 之前设置窗口属性——全屏时加 `FLAG_FULLSCREEN` 并置 `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`，非全屏使用默认模式（内容避开挖孔）；原 `FLAG_FULLSCREEN` 调用从 `setContentView` 之后移到此处。API 28 以下只设全屏标志。
+- 两者不能同时启用：若保留 `fitsSystemWindows` 又设内边距，会叠加两次，已写入监听器 KDoc 与 `docs/API_INDEX.md`。
+
+四、其余打磨
+- 命令面板与设置搜索的列表高度按结果数收缩（最多 8 行 / 6 行），上限仍为 360dp，小屏按屏幕高度收缩；命令面板的初始 360dp 列表在只有一两条结果时不再留大片空白。
+- 终端搜索条背景改为底部 16dp 圆的形状（顶部贴边保持方角），与对话框同一圆角令牌。
+- `TerminalDialogBuilder.dialogWidth()` 增加 200dp 下限，避免极窄窗口下用负宽度测量正文。
+
+五、审查结论（未处理项，待需求方定夺）
+1. 额外键中的特殊键（`SEARCH`、`DRAWER`、`SPLIT_VERTICAL/HORIZONTAL`、`SPLIT_CLOSE`）来自用户 `extra-keys` 属性，扩展禁用后仍显示且无动作。是否按扩展可用性过滤属于「用户自定义布局是否随扩展变化」的产品决策，本轮未动。
+2. 设置、帮助、报告页顶栏背景取自 `?attr/colorPrimaryDark`，在 Material 3 主题下等于 `colorPrimary`（红色），属 Material 2 的观感；改成 `colorSurface` 需同时确认标题与图标颜色，本轮未改。
+3. androidx.preference 没有 Material 3 变体，设置页仍用其默认 `preferenceTheme`。
+4. `TermuxInstaller` 的引导失败对话框仍是平台 `AlertDialog`：该路径在应用初始化失败时执行，不宜再依赖 Material 组件。
+
+未验证：本机无 `adb`，胶囊条观感、手势条留白、全屏刘海填充、非全屏避让、键盘弹起时额外键与手势条的关系、动态列表高度均未在真机确认。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 179 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。
+
+## 2026-11-23 — 回退显式 inset 内边距以修额外键闪烁，命令面板改为跟随配色方案
+
+真机反馈三项，均已处理。**本条修正 #21 中「根布局移除 fitsSystemWindows」的做法。**
+
+一、额外键闪烁（bug）
+- 现象：系统输入法未弹出时正常；输入法弹出、额外键向上让位后持续闪烁。
+- 根因：#21 在 `TermuxActivityRootView.WindowInsetsListener` 里对根视图调用 `setPadding()`。`View.setPadding()` 无论值是否变化都会 `requestLayout()`，而键盘弹出时 inset 在动画期间每帧都会重新分发，于是每帧都触发一次布局。根视图的布局又会推动两条既有机制重新计算：`TermuxActivityRootView.onGlobalLayout()` 的底部 margin 校正（按底部空间视图与可见窗口矩形之差设 margin）与 `FullScreenWorkAround` 的全屏高度补偿（按可见高度差设根视图 height）。三者互相触发，结果就是额外键在正确位置与偏移位置之间反复跳动。
+- 修法：回退为 `android:fitsSystemWindows="true"` 由框架应用内边距，`WindowInsetsListener` 恢复为只记录状态栏高度并调用 `v.onApplyWindowInsets(insets)`；`FLAG_FULLSCREEN` 也回到 `setContentView()` 之后的原调用位置，减少变量。刘海适配保留：`setDisplayCutoutMode()` 仍在 `setContentView()` 之前按 `fullscreen` 设置 `SHORT_EDGES`/`DEFAULT`。
+- 结论：手势条留白与刘海占满并不需要显式 inset 处理——`fitsSystemWindows` 已覆盖底部系统栏，全屏时状态栏 inset 为 0 且 `shortEdges` 允许窗口进入挖孔。这条经验写入 `docs/API_INDEX.md`：不要在 inset 监听器里 `setPadding`。
+
+二、命令面板跟随终端配色方案
+- 原实现是 `MaterialAlertDialogBuilder` + `TextInputLayout`，颜色来自 Material 3 主题，与抽屉、终端菜单的配色方案不同源。
+- 现改为与终端菜单同一套自绘路径：`TerminalDialogBuilder`（窗口背景取自配色方案、16dp 圆角、1dp 强调色描边）+ 程序化视图（搜索框、1dp 分隔线、标题/分组/快捷键 chip 的行、空状态），配色统一来自当前会话的 `mCurrentColors`（前景、背景、`color4` 强调色），强调色为 chip 底色与行按下态。
+- 行为不变：过滤规则仍是纯函数 `filter()`，回车执行首个可用项，面板内快捷键仍可触发；不可用命令降透明度而不隐藏。列表高度按结果数收缩（最多 8 行、上限 360dp）。
+- `TerminalDialogBuilder` 新增 `setScrollable(false)`：面板自带 `ListView`，不能再被外层 `ScrollView` 包一层，否则列表会被按全高测量并失去回收。
+- 删除因此失效的 `dialog_command_palette.xml`、`item_command_palette.xml`、`bg_command_palette.xml`、`bg_command_shortcut.xml`。
+
+三、抽屉会话卡片与上边界的间隙
+- 会话列表改为上下各 6dp 内距（`clipToPadding=false`），首行不再紧贴头部 1dp 分隔线，末行与底部按钮之间也留出同样的间隙。
+
+未验证：本机无 `adb`，闪烁是否消失、命令面板在深浅配色与彩色强调色下的可读性、chip 与按下态观感、抽屉首末行的间隙均未在真机确认。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 179 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。
+
+## 2026-11-23 — 命令面板接管终端动作，新增可配置快捷键与右键行为
+
+按需求方四项要求实施（提交 71708e0、4d39d05、7c0ed84、272248d），并附「面板即唯一入口」的取舍说明。
+
+一、命令面板搜索框加高
+- 内距由 16/12/16/8 改为四边 16dp，最小高度 56dp。原先底部只有 8dp，输入区域看起来像一条细条。
+
+二、通知卡片强调条改为内缩胶囊
+- `NotificationCardView` 之前用 `drawRect` 画一条贴边整高的横条。现改为 `drawRoundRect`：距卡片左缘 6dp、上下各内缩 8dp、圆角取宽度一半（3dp 宽的胶囊），内容起点同步右移。
+- 圆角与内缩量在卡片高度不足时按 `min(8dp, (height-width)/2)` 收缩，避免小尺寸卡片画出畸形圆角。
+
+三、命令面板接管「更多」菜单，旧对话框删除
+- 连上游行为：长按选字 → 浮条「更多」、硬件菜单键、鼠标右键都走 `TerminalView.showTerminalContextMenu()` → `TerminalViewClient.onShowContextMenu()`。此前它打开自绘的 `TerminalMenuDialog`；现在统一打开命令面板。
+- 删除 `TerminalMenuDialog`、`TerminalMenuItems.build()`/`TitleResolver`、`TerminalMenuExtension.showMenu()`，以及 8 个外观属性（`terminal-menu-font-size/-corner-radius/-border-width/-monospace/-show-icons/-background-color/-foreground-color/-accent-color`）与设置页对应项。`terminal-menu-items` 保留为新职责：决定面板里的**终端动作集合与顺序**。
+- 面板命令组装改为：按 `terminal-menu-items` 顺序加入可见动作（跳过 `command-palette` 自身），再追加新建会话/新建命名会话/切换键盘，最后保证「设置」「帮助」可达（否则用户把这两项从列表删掉后就没有入口）。
+- 扩展禁用时的回退：新增 `TerminalMenuConfig.defaults()`，`getTerminalMenuConfig()` 与 `TerminalMenuExtension` 的兜底配置改用它。此前兜底是空对象，扩展禁用会让选择浮条一个动作都没有，面板也丢光终端动作。
+
+四、快捷键自定义（`command-shortcuts`）
+- 新增 `CommandShortcuts`：解析 `id=快捷键` 逗号列表，未列出的命令保留默认，`id=` 取消快捷键，未知 id 记警告后忽略。默认 `command-palette=Ctrl+Shift+P,search=Ctrl+Alt+F,toggle-keyboard=Ctrl+Alt+K,new-session=Ctrl+Alt+C`。
+- 面板标签（`shortcutFor`）与按键分发（`matches`）读同一映射；`TermuxActivity.dispatchKeyEvent()` 先取快捷键再交给视图树，`TermuxTerminalViewClient.onKeyDown()` 也调用同一个 `handleCommandShortcut()`，因为额外键的宏按键直接调视图的 `onKeyDown`、绕过 Activity。
+- 视图客户端里原先硬编码的 `Ctrl+Alt+F/K/C` 分支已删除：用户把它们改绑后旧组合不能再生效。`Ctrl+Alt+M` 与未修饰的 `F12` 保留为打开面板的固定入口。
+- 设置项：终端键盘页新增「命令快捷键」文本框（写入 `command-shortcuts` 属性）。
+
+五、鼠标右键可配置（`mouse-right-click`）
+- 新增 `TermuxTerminalFrame.SecondaryButtonBehaviour`：`AUTO`（默认，程序跟踪鼠标时转发，否则开面板）、`FORWARD`（从不弹面板，未跟踪时吞掉点击）、`PALETTE`（始终弹面板）。
+- 之所以不让 `FORWARD` 在未跟踪时也调用 `sendMouseEvent`：`TerminalEmulator.sendMouseEvent()` 在 x10 模式下会直接向会话写 `ESC [ M` 序列，程序没请求鼠标时会收到乱码输入，因此未跟踪时选择吞掉而不是注入。
+- 值由 `TermuxActivity.reloadProperties()` 读取并注入两个窗格的 Frame，视图不在事件里读文件。设置项在命令面板页（原「长按菜单」页）。
+
+六、新增键与常量
+- 新增 `properties/ForkPropertyKeys`：`command-shortcuts`、`mouse-right-click`。只读模块没有这两个键，且共享库加载会过滤掉不在其列表内的键，所以只能经 `ForkProperties` 从文件读。已有 fork 键（`drawer-*`、`status-bar-*` 等）继续使用只读模块常量，不重复定义。
+- 顺带修复：`widget/TerminalTextInputDialog` 依赖 `ext/drawer/DrawerColorUtils` 的反向依赖已移除，改用 `TerminalDialogStyles.withAlpha`；选择浮条背景改为 12dp 圆角。
+
+测试：`TerminalMenuItemsTest` 8 项（删除已随对话框移除的 build 用例）、`TerminalMenuConfigTest` 12 项（删除外观用例，新增动作顺序与去重用例）、新增 `CommandShortcutsTest` 5 项（默认值、单项覆盖、空值取消、未知 id、动作改绑）。总测试 180 项。
+
+未验证：本机无 `adb`，以下均未真机确认——面板接管后「更多」浮条与菜单键是否都能打开、右键三种模式的实际表现（尤其 `FORWARD` 在 `vim`/`tmux` 与普通 shell 下）、`command-shortcuts` 改绑后面板标签与按键是否一致、额外键宏按键是否被正确识别、搜索框高度与通知卡片胶囊观感。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 180 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。
+
+## 2026-11-23 — 只读模块豁免：终端视图输入法编辑器信息钩子与 ime-input-type
+
+需求方在会话中书面批准修改只读模块 `terminal-view`，用于硬件键盘与输入法兼容（提交 8a1fc86 单独提交该模块，a5cba39 为 app 侧实现）。本条为该豁免的记录。
+
+一、只读模块改动（terminal-view，6 行）
+- `TerminalViewClient` 新增两个默认方法：`default int getInputType(int defaultInputType)` 与 `default int getImeOptions(int defaultImeOptions)`，默认原样返回。
+- `TerminalView.onCreateInputConnection()` 在算完现有 `inputType`/`imeOptions` 后追加两行赋值，把结果交给客户端覆盖。
+- 默认实现不改行为，未实现这两个方法的客户端（包括插件）行为与上游一致。
+
+二、动机
+- 上游在终端聚焦时上报 `TYPE_NULL` 或 `VISIBLE_PASSWORD`，Gboard 连接硬件键盘时不把终端视为普通文本框，因此不显示悬浮栏；在真正的 `EditText`（工具栏文本框）里能显示。
+- app 侧没有任何注入点能改变 `EditorInfo`：`TerminalView` 是 `final`，包装层拿不到输入法连接，Activity 也没有回调。只能由视图自己向客户端询问。
+
+三、app 侧实现
+- 新增 `terminal/ImeInputType` 枚举与 `ime-input-type` 属性（app 自有键，见 `ForkPropertyKeys`）：
+  - `auto`（默认）：沿用视图算出的类型，与上游一致；
+  - `text`：`TYPE_CLASS_TEXT | FLAG_NO_SUGGESTIONS | VARIATION_NORMAL`，让输入法按普通文本框处理，但不下发联想文本；
+  - `password`：旧的 `VISIBLE_PASSWORD` 变体；
+  - `none`：`TYPE_NULL`。
+- `TermuxTerminalViewClient` 实现 `getInputType`，读取 `TermuxActivity.getImeInputType()`；`onReloadProperties()` 已有 `restartInputConnection()`，属性变更后输入法会重新读取类型。
+- 设置页：终端键盘页新增「硬件键盘与输入法」分类，含 `ime-input-type` 列表项与 `keyboard-compat-log` 开关；中英文案同步。
+- 测试：新增 `ImeInputTypeTest` 6 项（未知值回退、取值解析、auto 透传、text/password 的类与变体、none）。
+
+四、同时落地的诊断与匹配加固（提交 a1b589e）
+- `ShellCommandShortcut.matches(String, KeyEvent)` 改用 `getUnicodeChar(0)`，并在字符为 0 时回退到物理键码比较（字母/数字），覆盖硬件键盘在修饰键下不报字符的情况。
+- `keyboard-compat-log=true` 时，`TermuxActivity.dispatchKeyEvent` 的命令快捷键分发与 `TermuxTerminalViewClient.onKeyDown` 统一输出 `action/code/unicode/ctrl/alt/shift/source/device`。
+
+五、设计文档
+- 完整分层设计（事件采集 / 统一路由 / IME 兼容 / 软硬件键盘共存 / 验收 / 风险）见 `docs/KEYBOARD_COMPAT.md`。
+
+未验证：本机无 `adb`。`ime-input-type=text` 时 Gboard 悬浮栏是否出现、组合文本是否残留、其他输入法（Samsung、Hacker's Keyboard）是否正常，以及 `keyboard-compat-log` 日志能否覆盖三条按键路径，均未真机确认。本机 `:terminal-view:compileDebugJavaWithJavac`、`:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest --rerun-tasks` 186 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。
+
+## 2026-11-23 — Tab 直通与输入法事件日志，TUI 的 IME 组合文本待定位
+
+真机反馈两项：lazyvim 中 Tab 不能插入空格（英文模式也一样）；pi 这类 TUI 仍没有 IME 支持。本轮先做可确定的修复与定位手段（提交 4a746db、f628c65）。
+
+一、Tab 直通
+- 现象推测：未修饰的 Tab 若未被终端视图消费，会落到窗口的焦点切换上；`ime-input-type=text` 把终端当作普通文本框后，输入法或框架更容易先取走 Tab。
+- 修法：`TermuxActivity.dispatchKeyEvent()` 先调用 `handleTerminalTab()`：仅当按下、无 Ctrl/Alt、且终端视图持有焦点时，直接把 Tab 交给 `TerminalView.handleKeyCode(KEYCODE_TAB, keyMod)`（Shift 用 `KEYMOD_SHIFT`，由 `KeyHandler` 转成反向制表符 `ESC [ Z`），并消费事件。搜索栏、额外键获得焦点时不拦截。
+- 日志：`keyboard-compat-log=true` 时会记录 `[activity] sent Tab to the terminal`，用于确认是否走到这一层。
+
+二、输入法事件日志
+- 新增只读模块钩子 `TerminalViewClient.onImeEvent(String)`（默认空实现），`TerminalView` 的输入连接在 `commitText`/`setComposingText`/`finishComposingText`/`deleteSurroundingText` 时回调。
+- app 侧把事件写入 `KeyboardCompatLog`，前缀 `[ime]`；配合 `[activity]`/`[terminal-view]` 即可区分按键与输入法文本各自走到哪一层。
+
+三、TUI 的 IME 支持（待定位）
+- `ime-input-type=text` 让输入法把终端当文本框，代价是输入法可能使用**组合文本**：英文在 `NO_SUGGESTIONS` 下多数直接提交，CJK 则会在候选词被选择前停留在 `setComposingText` 状态，TUI 收不到字符。这是输入法行为，不是终端丢输入。
+- 判断方法：在 pi 中输入一段中文后查看 `~/.termux/keyboard-compat.log`：
+  - 若只有 `[ime] setComposingText(...)` 而没有 `commitText(...)`，说明文本仍在组合状态；
+  - 若有 `commitText(...)` 但 `[terminal-view]` 没有对应按键，说明文本经输入连接进入，程序应已收到。
+- 可选后续方案（未实施）：为组合文本增加一个应用内浮层显示，或在 `text` 模式下提供一个「不组合」的变体；两者都需要真机确认输入法行为后再定。
+
+未验证：本机无 `adb`，Tab 在 lazyvim 中是否恢复、pi 是否收到提交文本、日志是否覆盖三条路径，均未真机确认。本机 `:terminal-view:compileDebugJavaWithJavac`、`:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest --rerun-tasks` 186 项、1 项既有失败（`FileReceiverActivityTest`）。
+
+## 2026-11-23 — 硬件键盘直通模式：物理按键不再经输入法转发
+
+真机日志（`~/.termux/keyboard-compat.log`，2026-11-23 18:26–18:37）定位到键盘兼容层的根因：输入类型为文本类（日志 `getInputType mode=auto, default=0x80001, reported=0x80001`，即 `TYPE_CLASS_TEXT|NO_SUGGESTIONS|NORMAL`，`gboard-cjk-workaround=true` 且输入法语言为中文）时，输入法会把物理按键收进自己，再以 `commitText` 逐字符提交。同一时段字母只出现在 `[activity]`，从不进入 `[terminal-view]`，随后是 `[ime] commitText("e")` 这类提交；而 Tab 由 `handleTerminalTab()` 直接写入 PTY（日志有 9 次 `sent Tab to the terminal`）。因此 Tab 本身并未丢失，是字符与按键分属两条通道、顺序无法保证，`vim` 插入模式与 node 写的 TUI 对顺序敏感，表现成「Tab 没有反应」。
+
+修法：新增 `ime-input-type=hardware`。接有物理键盘期间上报 `TYPE_NULL`，输入法不再接管物理按键，字符、Tab、Ctrl/Alt 组合键与方向键回到与桌面终端一致的单通道；未接键盘时回退到 `auto`。判断逻辑放在 `terminal/HardwareKeyboard.java`：先看 `Configuration.keyboard`（非 `KEYBOARD_NOKEYS` 即视为已连接），配置未报告时再枚举 `InputManager` 的输入设备，存在 `KEYBOARD_TYPE_ALPHABETIC` 也算已连接，避免蓝牙键盘刚连上、配置尚未更新的窗口。
+
+`TermuxActivity` 在 `onCreate` 记录状态并注册 `InputManager.InputDeviceListener`，`onConfigurationChanged` 与设备增删回调里比较状态，变化时对两个窗格调用 `TermuxTerminalViewClient.restartInputConnection()`；输入法只在创建输入连接时读取编辑器信息，不重启则新类型不生效。清单已声明 `keyboard|keyboardHidden` 为 `configChanges`，活动不会被重建，因此必须自行处理。
+
+Tab 直通顺带补齐：虚拟 SHIFT 锁定态（额外键栏）与事件自身的 Shift 合并，Shift+Tab 仍发送反向制表符；日志补充 `imeInputType` 与 `hardwareKeyboard` 两个字段，便于下次用日志判断当时的输入类型。
+
+代价与边界：`hardware` 模式下输入法不显示悬浮栏，物理键盘上的拼音候选不可用，中文需改用软键盘（仍经 `commitText` 送达）；需要悬浮栏或硬件键盘直接输入中文时仍用 `text`/`auto`。不改只读模块。
+
+测试：`ImeInputTypeTest` 扩至 8 项（新增 `hardware` 解析、按键接入与否的映射、其他模式忽略键盘状态），新增 `HardwareKeyboardTest` 2 项。本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 190 项、1 项既有失败（`FileReceiverActivityTest`，Robolectric 4.10 + JDK 21）。未验证：真机 Tab 在 lazyvim 插入模式的表现、`hardware` 模式下软键盘中文提交、键盘接入/拔出的自动切换，本机无 `adb`。
+
+## 2026-11-23 — 硬件键盘直通改为随软键盘切换，中文由软键盘触发
+
+`ime-input-type=hardware` 的初版在接有物理键盘时一律上报 `TYPE_NULL`，中文因此只能改用软键盘，且软键盘弹出后终端仍是 `TYPE_NULL`，Gboard 不会显示候选词与悬浮栏，实际无法输入中文。本次把「谁接管输入」收敛为一个直觉规则：**软键盘可见就是输入法在打字，不可见就是终端在收键**。
+
+映射（`ImeInputType.inputType(default, hardwareKeyboardAttached, softKeyboardVisible)`）：
+
+| 硬件键盘 | 软键盘 | 上报类型 | 效果 |
+| --- | --- | --- | --- |
+| 已连接 | 收起 | `TYPE_NULL` | 物理键直达终端，Tab/方向键/字符单通道，TUI 与 `vim` 正常 |
+| 已连接 | 弹出 | `TYPE_CLASS_TEXT\|NO_SUGGESTIONS\|NORMAL` | 输入法显示悬浮栏与候选词，软键盘与物理键盘都能打拼音，提交文本经输入连接写入终端 |
+| 未连接 | 任意 | 视图算出的类型（同 `auto`） | 只有软键盘可用，保留 CJK workaround |
+
+实现要点：
+- 软键盘可见性复用既有全局布局回调 `updateTerminalToolbarVisibilityForSoftKeyboardVisibility()`，在其中用 `KeyboardUtils.isSoftKeyboardVisible()` 读取（API 23+），与 `hide-extra-keys-when-soft-keyboard-hidden` 的工具栏逻辑互不影响；状态写入 `TermuxActivity.mIsSoftKeyboardVisible`，由 `TermuxTerminalViewClient.getInputType()` 读取。
+- 可见性变化且模式为 `hardware` 时，对两个窗格调用 `restartInputConnection()`，输入法重新读取编辑器信息。只在真正变化时重启，避免每次布局都触发；若某个输入法在重启时收起软键盘，会退化为直通状态，不构成循环。
+- Android 5.0/6.0 读不到软键盘可见性，这两个版本上 `hardware` 始终按文本框上报（等同 `text`），在 `TermuxTerminalViewClient` 中以 `Build.VERSION_CODES.M` 判断。
+- 同时修正上一轮引入的重复实现：删除 `terminal/HardwareKeyboard` 与其测试，改用只读模块已有的 `KeyboardUtils.isHardKeyboardConnected()`（`Configuration.keyboard` + `hardKeyboardHidden`），符合「已登记能力一律复用」的约束；`docs/API_INDEX.md` 记录复用关系。
+
+未采用的其他方案：按输入法子类型语言（CJK/非 CJK）自动切换——需要输入法 UI 才能切换语言，且 Samsung 等输入法的子类型上报不可靠；新增手动切换命令与快捷键——多一个需要记住的操作，而弹出软键盘本身就是「我要输入中文」的既有动作。
+
+测试：`ImeInputTypeTest` 9 项（`hardware` 收起为 `TYPE_NULL`、弹出为文本框、无硬件键盘时透传、其他模式忽略两个状态）。本机 `:app:compileDebugJavaWithJavac` 通过；`:app:testDebugUnitTest` 190 项、1 项既有失败（`FileReceiverActivityTest`）。未验证：真机上弹出/收起软键盘时输入类型是否即时切换、重启输入连接是否引起软键盘闪烁、拼音候选与提交是否正常，本机无 `adb`。
+
+## 2026-11-23 — 删除键盘兼容选项，收敛为「软键盘可见性」单一规则
+
+`ime-input-type` 引入后出现「怎么调设置都不管用、lazyvim 里 Tab 仍然无效」。真机日志（`~/.termux/keyboard-compat.log`，20:11–20:15）统计出决定性证据：353 行中 `action=up` 342 条、`action=down` 仅 11 条（只有 `DEL` 与 `ENTER`），`TAB` 一条也没有，`[terminal-view]` 与 `[ime]` 均为 0。即输入法在把终端当作文本编辑器时会取走物理键的**按下事件**（含 Tab），应用只收到抬起事件，文本随后以 `commitText` 回灌。
+
+由此得出的结论：任何在应用层拦截 Tab 的做法（`handleTerminalTab()`）在该状态下都收不到事件，方案必须从「上报的输入类型」入手。上一轮把 `hardware` 与软键盘可见性绑定是对的，错在把它做成选项：5 个取值互相干扰、设置是否生效无法从界面判断，反而掩盖了根因。
+
+本次按需求方确认的三项决定执行：
+1. **全删选项**：删除 `ime-input-type` 属性、`ImeInputType`、设置页列表项、5 个取值的中英文案与数组。
+2. **保留诊断日志**：`keyboard-compat-log` 与 `~/.termux/keyboard-compat.log` 保留，默认关闭，不改变行为。
+3. **删除 Tab 兜底**：删除 `TermuxActivity.handleTerminalTab()` 及其 `isTextInputFocused()`/`describeFocus()`，`dispatchKeyEvent` 只保留命令快捷键分发。
+
+最终只有一条规则，落在 `TermuxTerminalViewClient.resolveInputType(default, hardwareKeyboardAttached, softKeyboardVisible)`：
+
+| 硬件键盘 | 软键盘 | 上报类型 |
+| --- | --- | --- |
+| 有 | 收起 | `TYPE_NULL`（输入法不介入，物理键直达） |
+| 有 | 弹出 | `TYPE_CLASS_TEXT\|NO_SUGGESTIONS\|NORMAL`（悬浮栏与候选词可用，软/硬键盘都能打拼音） |
+| 无 | 任意 | 视图算出的类型（保留 `gboard-cjk-workaround`） |
+
+状态来源：`KeyboardUtils.isHardKeyboardConnected()` 与 `KeyboardUtils.isSoftKeyboardVisible()`；软键盘可见性在既有全局布局回调中读取，变化时与键盘接入/拔出、属性重载一样重启输入连接。Android 5.0/6.0 读不到软键盘可见性，按「可见」处理。同时删除与 `KeyboardUtils` 重复的 `HardwareKeyboard`。
+
+测试：删除 `ImeInputTypeTest`，新增 `TerminalInputTypeTest` 4 项（无硬件键盘透传、收起为 `TYPE_NULL`、可见为文本框、视图类型为 `TYPE_NULL` 时仍上报文本框）。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest` 184 项、1 项既有失败（`FileReceiverActivityTest`）。
+
+未验证：真机上 `cat -v` 按 Tab 是否输出 `^I`、lazyvim 插入模式是否恢复、软键盘弹出/收起时类型是否即时切换、重启输入连接是否引起闪烁。另需注意 LazyVim 默认把插入模式 `<Tab>` 映射给补全，判据应是 `^I` 是否到达程序而不是是否插入空格。
+
+## 2026-11-23 — Tab 属 LazyVim 补全映射；软键盘弹出后二次重启输入连接
+
+真机复核两项。
+
+一、Tab 在 lazyvim 不缩进与终端无关
+- `nvim --clean` 下 Tab 正常缩进，说明 `0x09` 已经完整到达程序；日志同时显示 27 次 `[terminal-view] action=down, code=KEYCODE_TAB` 与 `[ime] getInputType ... reported=0x0`。
+- LazyVim 的补全映射接管了插入模式的 `<Tab>`：nvim-cmp 的默认映射在补全菜单可见或有词在前时执行 `select_next_item`/`complete`，blink.cmp 若用 `super-tab` 预设则只做展开与选择，不会插入缩进。判据是 `:verbose imap <Tab>`。
+- 终端侧不再改动。用户侧两种改法：nvim-cmp 删除 `["<Tab>"]` 映射改用 `<C-n>`/`<C-p>`；blink.cmp 改用 `preset = "enter"` 或给 `<Tab>` 追加 `"fallback"`。
+- 记录为误判，已写入 `docs/KEYBOARD_COMPAT.md` §7.1。
+
+二、TUI 里拉不起 Gboard 悬浮窗，发现两个独立闸门
+1. 点击不弹软键盘：`TermuxTerminalViewClient.onSingleTapUp()` 在程序开启鼠标跟踪时把点击当作鼠标事件转发，不调用 `showSoftInput()`，除非 `mouse-tap-shows-keyboard=true`。node 写的 TUI 基本都开鼠标跟踪，因此点击拉不起键盘属于上游行为，不是本次回归。可用 `Ctrl+Alt+K`、额外键或命令面板「切换键盘」拉起，或显式打开该属性（代价是点击不再作为鼠标事件送达程序）。
+2. 输入类型没跟上（真实缺陷）：输入法在自己的窗口播放弹出动画期间可能忽略 `restartInput()`，随后继续使用弹出前读取的 `TYPE_NULL`，于是软键盘出来了但没有悬浮栏与候选词。证据：20:41:41 日志打出 `[ime] soft keyboard shown, restarting the input connections`，但该会话此后**没有**新的 `getInputType` 行，说明连接没有被重建。
+修法：`updateImePassthroughForSoftKeyboardVisibility()` 在软键盘变为可见时先立即重启一次，再在 200ms 后（`IME_RESTART_AFTER_SOFT_KEYBOARD_SHOWN_DELAY_MS`）重启第二次，并记录 `restarting the input connections after the soft keyboard was shown`；收起时只重启一次并取消待执行的二次重启，`onDestroy()` 里也取消。重启循环收敛为 `restartTerminalInputConnections()`，供硬件键盘变化与可见性变化共用。
+
+未验证：二次重启是否让悬浮栏与候选词在 pi 中出现、是否会与输入法的弹出动画互相干扰（个别输入法在重启时可能收起键盘）、`mouse-tap-shows-keyboard=true` 在 TUI 中的实际手感。本机无 `adb`；`:app:compileDebugJavaWithJavac` 通过，`:app:testDebugUnitTest` 184 项、1 项既有失败（`FileReceiverActivityTest`）。
+
+## 2026-11-23 — 键盘 P0 修复与窗格宿主抽象（标签页前置）
+
+键盘层复审后按需求方确认的顺序执行：先做键盘 P0 三项，再做窗格宿主抽象，作为标签页（M1）与递归分屏（M2）的前置。
+
+一、键盘 P0（提交 b43e778）
+1. `mPendingKeyDowns` 在 `onStop()` 清空：应用在按住某键时被切走，那条 down 的 up 永远不会到达，否则会长期抑制同一按键的兜底重启。
+2. 重启收敛为「判定翻转才触发」：新增 `mPhysicalKeyPassthroughForIme` 与 `updateImePassthroughState()`，判定为 `SDK >= M && 接有硬件键盘 && 软键盘收起`。硬件键盘接入/拔出、软键盘显示/隐藏只更新各自状态并调用该方法，因此「软键盘可见时接入键盘」这类不改变类型的事件不再重启两个窗格的输入连接。200ms 的二次重启只在判定变为「输入法接管」时排队。
+3. Android 5.0/6.0 读不到软键盘可见性，`TermuxTerminalViewClient.getInputType()` 改为直接返回视图算出的类型（上游行为），不再强制文本类。
+
+二、窗格宿主抽象（提交 07a5579）
+动机：`TermuxActivity` 2473 行中有 46 处直接引用 `mTerminalView`／`mTerminalViews[]`／`mActiveTerminalViewIndex`，布局 XML 硬编码两个 `TerminalView`，`ext.split` 只支持两窗格。标签页（tab = 1~2 窗格分组）与递归分屏都需要先把「哪个窗格显示哪个会话、哪个窗格是活动窗格」变成可替换的实现。
+
+新增 `terminal/layout/`：
+- `TerminalPaneHost`：`getPaneCount()`、`getViews()`、`getView(i)`/`setView(i, view)`、`getViewClient(i)`/`setViewClient(i, client)`、`getViewClients()`、`getActiveIndex()`/`setActiveIndex(i)`、`getInactiveIndex()`、`getInactiveView()`、`getSession(i)`、`findViewForSession(session)`。
+- `TwoPaneTerminalLayout`：当前实现，两个窗格、越界索引忽略、缺视图时返回 null。
+
+`TermuxActivity`：删除 `mTerminalViews`、`mTermuxTerminalViewClients`、`mActiveTerminalViewIndex`，改为 `mPanes`；`getTerminalViews()` 委托 `mPanes.getViews()`；`mTerminalView`／`mTermuxTerminalViewClient` 保留为活动窗格缓存，使单视图时代的调用点不用改。
+
+测试：`TwoPaneTerminalLayoutTest` 4 项（窗格数与默认活动项、活动项切换后的非活动索引、越界忽略、缺视图时空安全）。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过；`:app:testDebugUnitTest` 188 项、1 项既有失败（`FileReceiverActivityTest`）。
+
+遗留（已记入 `app/todo.md` §2.11）：用 `getActiveView()`/`getActiveSession()` 替代 `getView(getActiveIndex())`；去掉 `mTerminalView` 缓存；布局改为可注入工厂，以便 M2 换成 `TreeTerminalLayout`。
+
+未验证：真机上窗格切换、分屏拖动、活动窗格高亮与键盘/输入法行为是否与重构前一致（本机无 `adb`，行为应完全不变，属于纯重构）。
+
+## 2026-11-23 — 输入法兼容模式覆盖第三方输入法
+
+现象：软键盘可见时，在 node 写的 TUI 程序内无法切换输入语言，只能输入英文。此前修复的 `gboard-cjk-workaround` 未覆盖该场景，需求方现场为 Gboard + 未连接硬件键盘。
+
+根因：视图内部的中日韩判定依赖 `InputMethodManager.getCurrentInputMethodSubtype().getLanguageTag()`，语言变化时依赖 Gboard 调用 `InputConnection.requestCursorUpdates()` 触发重启。第三方输入法常在同一子类型内切换语言，不上报语言标签也不调用该接口；即使使用 Gboard，从英文切到中文时视图上报的是 `VISIBLE_PASSWORD`（该类型下语言切换键被隐藏），无法在终端内完成切换。应用层的 `resolveInputType()` 在无硬件键盘时直接透传视图类型，因此这条路径没有被覆盖。
+
+修改（app 侧，不改只读模块）：
+- `TermuxTerminalViewClient.resolveInputType()` 增加 `imeCompatibilityModeEnabled` 参数。接有硬件键盘时规则不变（软键盘收起为 `TYPE_NULL`，弹出为文本框）；无硬件键盘且兼容模式打开时一律上报 `TYPE_CLASS_TEXT | NO_SUGGESTIONS | NORMAL`，与输入法语言标签无关，也不再依赖软键盘可见性，因此切换语言不需要重启输入连接。
+- 兼容模式复用现有 `gboard-cjk-workaround` 属性（需求方选择「打开现有开关时对所有输入法生效」），设置页标题改为「输入法兼容模式」，中英文案同步更新。
+- 日志 `[ime] getInputType` 增加 `compatibilityMode` 字段。
+
+测试：`TerminalInputTypeTest` 扩至 6 项（无硬件键盘关闭开关时透传、开启时为文本框、变体与标志、硬件键盘收起为 `TYPE_NULL`、可见为文本框、视图类型为 `TYPE_NULL` 时仍为文本框）。本机 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources` 通过，`:app:testDebugUnitTest --tests com.termux.app.terminal.TerminalInputTypeTest` 6 项全绿。
+
+未验证：本机无 `adb`。真机上 Gboard 与第三方输入法（搜狗、百度）在 node TUI 内切换语言、英文组合文本是否延迟上屏、硬件键盘弹出软键盘时的行为、兼容模式开关切换后是否即时生效，均未真机确认。

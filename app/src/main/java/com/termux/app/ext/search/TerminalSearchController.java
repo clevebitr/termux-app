@@ -13,8 +13,8 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import android.app.AlertDialog;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.shared.view.KeyboardUtils;
@@ -235,7 +235,7 @@ public final class TerminalSearchController {
             return;
         }
 
-        new AlertDialog.Builder(mActivity)
+        new MaterialAlertDialogBuilder(mActivity)
             .setTitle(R.string.action_search_history_title)
             .setItems(history.toArray(new String[0]), (dialog, which) -> {
                 if (which < 0 || which >= history.size()) return;

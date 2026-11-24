@@ -482,11 +482,18 @@ public final class TerminalView extends View {
         // keyboard on Android TV (see https://github.com/termux/termux-app/issues/221).
         outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_FULLSCREEN;
 
+        // Let the client override the editor information, so that an application can present the terminal to the
+        // IME as a normal text editor, which is what makes the floating toolbar of an IME like Gboard appear
+        // while a hardware keyboard is connected. The defaults keep the values computed above.
+        outAttrs.inputType = mClient.getInputType(outAttrs.inputType);
+        outAttrs.imeOptions = mClient.getImeOptions(outAttrs.imeOptions);
+
         return new BaseInputConnection(this, true) {
 
             @Override
             public boolean finishComposingText() {
                 if (TERMINAL_VIEW_KEY_LOGGING_ENABLED) mClient.logInfo(LOG_TAG, "IME: finishComposingText()");
+                mClient.onImeEvent("finishComposingText");
                 super.finishComposingText();
 
                 sendTextToTerminal(getEditable());
@@ -508,10 +515,20 @@ public final class TerminalView extends View {
             }
 
             @Override
+            public boolean setComposingText(CharSequence text, int newCursorPosition) {
+                if (TERMINAL_VIEW_KEY_LOGGING_ENABLED) {
+                    mClient.logInfo(LOG_TAG, "IME: setComposingText(\"" + text + "\", " + newCursorPosition + ")");
+                }
+                mClient.onImeEvent("setComposingText(\"" + text + "\", " + newCursorPosition + ")");
+                return super.setComposingText(text, newCursorPosition);
+            }
+
+            @Override
             public boolean commitText(CharSequence text, int newCursorPosition) {
                 if (TERMINAL_VIEW_KEY_LOGGING_ENABLED) {
                     mClient.logInfo(LOG_TAG, "IME: commitText(\"" + text + "\", " + newCursorPosition + ")");
                 }
+                mClient.onImeEvent("commitText(\"" + text + "\", " + newCursorPosition + ")");
                 super.commitText(text, newCursorPosition);
 
                 if (mEmulator == null) return true;
@@ -532,6 +549,7 @@ public final class TerminalView extends View {
                 if (TERMINAL_VIEW_KEY_LOGGING_ENABLED) {
                     mClient.logInfo(LOG_TAG, "IME: deleteSurroundingText(" + leftLength + ", " + rightLength + ")");
                 }
+                mClient.onImeEvent("deleteSurroundingText(" + leftLength + ", " + rightLength + ")");
                 // The stock Samsung keyboard with 'Auto check spelling' enabled sends leftLength > 1.
                 KeyEvent deleteKey = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL);
                 for (int i = 0; i < leftLength; i++) sendKeyEvent(deleteKey);

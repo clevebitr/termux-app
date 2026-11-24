@@ -4,6 +4,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.util.StateSet;
@@ -22,6 +23,7 @@ import com.google.android.material.button.MaterialButton;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.app.properties.ForkProperties;
+import com.termux.app.widget.TerminalDialogStyles;
 import com.termux.shared.theme.NightMode;
 import com.termux.shared.theme.ThemeUtils;
 import com.termux.shared.view.ViewUtils;
@@ -156,16 +158,28 @@ public final class TerminalDrawerController {
         mSecondaryTextColor = DrawerColorUtils.withAlpha(mForegroundColor, 0xB3);
 
         // The row of the session that is shown in the terminal keeps a tint of the accent color, and the
-        // ripple of a pressed row is drawn on top of it within a mask, so that it is a rounded flash of the
-        // row instead of a block without a content.
+        // ripple of a pressed row is drawn on top of it within a mask. Both the content and the mask are
+        // rounded, so that the row follows the corner tokens of the app instead of filling the whole width
+        // of the drawer like a tui list item.
+        float cornerRadius = ViewUtils.dpToPx(mActivity, TerminalDialogStyles.ROW_CORNER_DP);
+
+        GradientDrawable activatedContent = new GradientDrawable();
+        activatedContent.setShape(GradientDrawable.RECTANGLE);
+        activatedContent.setCornerRadius(cornerRadius);
+        activatedContent.setColor(DrawerColorUtils.blend(mBackgroundColor, mAccentColor, 0.22f));
+
         StateListDrawable rowContent = new StateListDrawable();
-        rowContent.addState(new int[]{android.R.attr.state_activated},
-            new ColorDrawable(DrawerColorUtils.blend(mBackgroundColor, mAccentColor, 0.22f)));
+        rowContent.addState(new int[]{android.R.attr.state_activated}, activatedContent);
         rowContent.addState(StateSet.WILD_CARD, new ColorDrawable(Color.TRANSPARENT));
+
+        GradientDrawable rippleMask = new GradientDrawable();
+        rippleMask.setShape(GradientDrawable.RECTANGLE);
+        rippleMask.setCornerRadius(cornerRadius);
+        rippleMask.setColor(Color.WHITE);
 
         mSessionRowBackground = new RippleDrawable(
             ColorStateList.valueOf(DrawerColorUtils.withAlpha(mAccentColor, 0x33)),
-            rowContent, new ColorDrawable(Color.WHITE));
+            rowContent, rippleMask);
 
         applyColors();
     }
@@ -358,9 +372,20 @@ public final class TerminalDrawerController {
         return mAccentColor;
     }
 
-    /** @return The background of a session row, which tints the row of the current session when activated. */
+    /**
+     * @return A fresh copy of the background of a session row, which tints the row of the current session when it
+     *         is activated.
+     *
+     * <p>Every row needs its own instance: a drawable keeps the state of the view that last applied it, so a
+     * single instance shared by the rows would draw the activated tint and the ripple of one row on all of them.
+     * </p>
+     */
     @Nullable
-    public Drawable getSessionRowBackground() {
-        return mSessionRowBackground;
+    public Drawable newSessionRowBackground() {
+        Drawable template = mSessionRowBackground;
+        if (template == null) return null;
+
+        Drawable.ConstantState state = template.getConstantState();
+        return state != null ? state.newDrawable().mutate() : null;
     }
 }

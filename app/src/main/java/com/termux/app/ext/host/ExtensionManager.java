@@ -189,13 +189,22 @@ public final class ExtensionManager {
         }
     }
 
+    /**
+     * Start one extension.
+     *
+     * <p>The extension is marked as running before {@link Extension#onEnable} is called, because setting itself up
+     * may require the host to query it again, like a status bar that takes space from the terminal while its own
+     * view is being created. A failure removes it again, so a broken extension never stays in the running set.</p>
+     */
     private void start(@NonNull Extension extension) {
         if (running.containsKey(extension.id())) return;
+
+        running.put(extension.id(), extension);
         try {
             extension.onEnable(new Context(extension.id()));
-            running.put(extension.id(), extension);
             Logger.logInfo(LOG_TAG, "Started extension: " + extension.id());
         } catch (Throwable throwable) {
+            running.remove(extension.id());
             states.put(extension.id(), ExtensionState.FORCED_DISABLED);
             Logger.logStackTraceWithMessage(LOG_TAG, "Failed to start extension: " + extension.id(), throwable);
         }

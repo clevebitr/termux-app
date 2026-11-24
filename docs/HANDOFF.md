@@ -1,18 +1,20 @@
-# HANDOFF — 交接说明（2026-11-23）
+# HANDOFF — 交接说明（2026-11-24）
 
 > 本文件是会话交接点。新会话从这里开始，不必重读历史对话。
-> 当前目标：在真实应用 `app/` 内完成「代码与架构规范化 + 扩展化」，再继续功能开发。
-> `app_new/` 已冻结为原型，不作为交付对象（见根 `DECISIONS.md` 与 `app/DECISIONS.md`）。
+> 当前目标：在真实应用 `app/` 内完成「代码与架构规范化 + 扩展化」，再继续功能与界面打磨。
+> `app_new/` 已冻结为原型，不作为交付对象（见根 `DECISIONS.md` \#1）。
 
 ---
 
 ## 1. 一句话状态
 
-`app/` 的扩展 API 骨架、第一个扩展（备份）、终端菜单规则下沉、命令面板（含四个入口）与终端右键转发均已完成，
-并在 PR #1 上通过 CI（单元测试 + Lint + 双 ABI 构建 + 签名 APK）；扩展禁用语义已在 M-E1 改为「入口不可达 +
-运行时闸门」，菜单收敛已完成（抽屉按钮与面板共用 `ShellCommandHost`），X1 控制器拆分已完成第一轮（动作映射表 +
-抽屉控制器），`ext.statusbar`、`ext.menu`、`ext.notifications`、`ext.volumekeys`、`ext.search`、`ext.drawer` 与 `ext.split`
-已迁移，`builtin.vt` 核心行为页已交付（`TermuxActivity` 2100 行）；**代码侧只剩设备验证**。
+`app/` 的扩展化已完成主体：8 个功能扩展 + 1 个不可禁用的核心扩展、6 类贡献点、命令面板与菜单收敛、
+三个控制器（抽屉/搜索/分屏）与通知体系全部迁出 `TermuxActivity`。**UI 层第一批统一已完成**：形状令牌、
+共用对话框构建器、应用级对话框改 Material 3、抽屉/状态栏/命令面板/设置搜索的观感修正。
+第二批交互与系统界面打磨也已提交：扩展可用性门禁（分屏/搜索/抽屉）、抽屉胶囊强调条、
+全屏刘海适配；真机反馈的额外键闪烁已回退修复，命令面板改为跟随终端配色方案。
+第三批「面板接管终端动作」已提交：旧菜单对话框删除，右键可配置，命令快捷键可改绑，
+并完成 `docs/APP_ARCHITECTURE_REVIEW.md` §9 的分层复盘。目前仍处在真机验证与结构收尾阶段。
 
 ---
 
@@ -20,181 +22,206 @@
 
 | 项 | 值 |
 | --- | --- |
-| 交付基线 | `app/`（`com.termux`，83 个 Java 文件 18451 行） |
-| 只读模块 | `terminal-view/`、`terminal-emulator/`、`termux-shared/`（改动需另行书面豁免） |
-| 原型（冻结） | `app_new/`（Kotlin/Compose 外壳，27 个提交，仅作参考） |
-| 工作分支 | `refactor/app-extensions`（已推送，PR #1：`refactor: app 扩展 API 重构与命令面板`） |
-| PR 状态 | `OPEN` / `MERGEABLE`；Unit tests、Build（apt-android-5/7）、Fork Build（testkey）、Wrapper 校验全部 success |
-| 未提交 | `app_new/PLAN.md`（早于本会话的改动）；`app/PLAN.md`（`plan init` 按当前工作目录生成的空文件，需求方已明确不需要，未跟踪） |
-| 进度来源 | `app/todo.md`（`app/` 的代码进度与近期计划） |
+| 交付基线 | `app/`（`com.termux`） |
+| 只读模块 | `terminal-view/`、`terminal-emulator/`、`termux-shared/`（改动需书面豁免） |
+| 原型（冻结） | `app_new/`（Kotlin/Compose 外壳，仅作参考） |
+| 工作分支 | `refactor/app-extensions`（尚未合并到 `master`；UI 层优化追加 9 个提交） |
+| PR | #2 `fix: 修正迁移后资源文件中的失效类名`，OPEN |
+| CI | Validation / testing(lint+单测) / build(apt-android-5) / Fork Build 通过；`build (apt-android-7)` 一次因 **Maven 依赖瞬时 404** 失败（`javawriter`/`jsr305`），已重跑 |
+| 最新安装包 | `termux-app_fork-20261123-0521-testkey_arm64-v8a.apk`（UI 层改动尚未出包） |
+| 未提交 | `app_new/PLAN.md`（历史改动）、`app/PLAN.md`（plan 工具按 cwd 生成的空文件，需求方已明确不需要） |
+| UI 层优化提交 | `1f0d811` `c10a35c` `c43fe8b` `a2345f5` `e39607c` `70010a1` `3db4815` `12324f6` `6d1ee61` |
+| 交互与系统界面提交 | `c917360` `32d7c52` `5b85fb5` `8db2e1b` `0a45190` `91f9f0b` |
+| 真机反馈修复提交 | `55b3012`（闪烁）`f817e06`（面板配色）`3877f33`（抽屉间隙） |
+| 面板接管提交 | `71708e0`（搜索框）`4d39d05`（通知胶囊）`7c0ed84`（接管/快捷键/右键）`272248d`（分层修正） |
+| 键盘兼容提交 | `a1b589e`（快捷键匹配加固 + `keyboard-compat-log`）`8a1fc86`（只读模块钩子）`9b1173c`（删除 `ime-input-type`，收敛为软键盘可见性规则） |
 
 新会话的第一条命令：
 
 ```bash
 git checkout refactor/app-extensions
 git status --short          # 只应有 app_new/PLAN.md 与 app/PLAN.md
-read app/todo.md            # 进度与下一步在这里
+read app/todo.md            # 步骤级进度与下一步
+read docs/API_INDEX.md      # 已有 API，新增前必须查
 ```
 
 ---
 
-## 3. 已完成内容（按层次）
+## 3. 架构现状（`app/src/main/java/com/termux/app/`）
 
-### 3.1 治理与评估
-
-| 文件 | 内容 |
-| --- | --- |
-| `AGENTS.md` §3 | `app/` 可修改（2026-11-23 豁免）；交付目标为 `app/`；`app_new/` 降级原型 |
-| `DECISIONS.md` \#1 | 基线纠正的来龙去脉（早期 27 个提交误落在 `app_new/`） |
-| `app/DECISIONS.md` \#1–\#3 | 引用决策；扩展 API 方向；备份扩展与设置项可见性 |
-| `docs/APP_ARCHITECTURE_REVIEW.md` | `app/` 架构评估（综合 2.8/5、A-1…A-10 发现、扩展矩阵） |
-| `docs/EXTENSION_API.md` | 扩展化可行性与 API 设计；X0/X2 实施记录 |
-| `docs/UI_REVIEW.md`、`docs/ARCHITECTURE_REVIEW.md` | **仅适用于 `app_new/` 原型**，不要作为 `app/` 的依据 |
-
-### 3.2 扩展框架（`app/src/main/java/com/termux/app/ext/`）
+### 3.1 扩展框架 `ext/`
 
 ```
-ext/api/       Extension、ExtensionContext、ExtensionSettingsPage
-ext/host/      ExtensionSpec、ExtensionState、ExtensionStatus、
-               ExtensionGraph（依赖拓扑/缺依赖/依赖环/级联；纯 Java 可测）、
-               ExtensionHost（进程级唯一状态源：statuses/stateOf/isRunning/disabledIds/setEnabled）、
-               ExtensionPreferences（enabled.<id> 读写、设置项可见性）、
-               ExtensionManager（启动/停止、异常隔离、Activity 生命周期内持有）
-ext/ForkExtensions  本构建的扩展登记表（当前登记 backup）
-ext/backup/   BackupExtension、TermuxBackupUtils、BackupPreferencesFragment（含运行时闸门）
+ext/api/      Extension、ExtensionContext、ExtensionSettingsPage、ExtensionViewSlot、ExtensionLayoutHost
+ext/host/     ExtensionSpec、ExtensionState、ExtensionStatus、ExtensionGraph（纯 Java）、
+              ExtensionHost（唯一状态源 + find/findRunning 类型化查询 + slotOwner）、
+              ExtensionPreferences（enabled.<id> 读写、设置项可见性、空分类收起）、
+              ExtensionManager（生命周期 onEnable/onStart/onStop/onReload/onDisable，异常隔离）
+ext/ForkExtensions  本构建的扩展登记表
 ```
 
-- 状态存储：`SharedPreferences("termux-extensions")`，键 `enabled.<id>`；
-- 状态读取统一走 `ExtensionHost`，宿主、扩展设置页、设置搜索与页面闸门共用同一判断；
-- 设置页：`fragments/settings/termux/ExtensionsPreferencesFragment`（程序化构建），入口在 `termux_preferences.xml` 的「扩展」分类；
-- 接线：`TermuxActivity.setupExtensions()`（`onCreate` 末尾）、`onResume` 重新应用、`onDestroy` 释放；
-- 贡献点：`Extension.preferenceKeys()`（根设置页条目可见性）、`Extension.settingsPages()`（搜索索引页面表与页面归属）；
-- 禁用语义（需求方确认 A）：入口不可达 + 运行时闸门，已安装到 `$PREFIX/bin` 的脚本保留不删。
+贡献点共 6 类：`preferenceKeys()`、`settingsPages()`、`slots()`、`onStart()/onStop()/onReload()`、
+`ExtensionContext.requestExtensionLayout()`、`ExtensionHost.find/findRunning`。
 
-### 3.3 命令面板（`app/src/main/java/com/termux/app/commands/`）
+**禁用语义（需求方确认）**：入口不可达 + 运行时闸门；已安装到 `$PREFIX/bin` 的命令保留不删。
+
+### 3.2 已迁移的扩展（9 个）
+
+| 扩展 | 内容 | 宿主接口 |
+| --- | --- | --- |
+| `statusbar` | 状态栏 6 文件 2413 行 + 设置页 | `getConfig()`、`requestExtensionLayout()` |
+| `menu` | 终端菜单 4 文件 590 行 + 设置页 + 2 个偏好控件 | `showMenu()`、`getConfig()` |
+| `notifications` | 13 文件 2704 行 + 设置页 | 事件转发 + `getManager()` |
+| `volumekeys` | 音量键动作派发 + 设置页 | `perform(context, host, action, up)` |
+| `search` | 搜索控制器 449 行 | 显示/隐藏/刷新 |
+| `drawer` | 抽屉控制器、会话列表适配器、配置、把手、颜色工具、会话详情 + 4 个测试 | `openDrawer/closeDrawer/updateColors/notifySessionsChanged/onSessionsAvailable` |
+| `split` | 分屏控制器 214 行（改为只依赖 `Context`） | `setSplitScreen()` 编排仍在宿主 |
+| `backup` | 备份恢复 + 设置页 | 无 |
+| `builtin.vt` | **不可禁用的核心扩展**：OSC 52、悬停、滚动保持、4 个内边距收拢为独立页 | 无 |
+
+### 3.3 命令与菜单 `commands/`
 
 | 类 | 职责 |
 | --- | --- |
-| `ShellCommand` | 标题、分组、快捷键、可用性、执行闭包 |
-| `ShellCommandCatalog` | 复用 `TerminalMenuItems` 规则生成命令；执行仍走 `TermuxActivity.onTerminalMenuActionSelected` |
-| `ShellCommandPalette` | 可搜索对话框；`filter(...)` 为纯函数（4 项测试） |
+| `ShellCommand` | 面板条目（id、标题、分组、快捷键、可用性、执行闭包） |
+| `ShellCommandCatalog` | 由 `TerminalMenuItems` 规则生成命令；`SHORTCUT_*` 常量与视图客户端一致 |
+| `ShellCommandPalette` | **跟随终端配色方案的自绘面板**（`TerminalDialogBuilder` + 程序化视图），面板内可用快捷键触发命令 |
+| `ShellCommandShortcut` | `Ctrl+Alt+F` → 修饰键 + 主键，`matches`/`normalize`，无法解析永不匹配 |
+| `ShellCommandHost` | 窗口级动作唯一入口（面板、抽屉按钮、会话新建共用） |
+| `TerminalActionRunner` | 22 个 `TerminalMenuAction` → 宿主方法的映射表，`runTerminalActionRunnerTest` 3 项 |
 
-入口（`FORK.md` §33 有用户文档）：
+### 3.4 规模
 
-| 入口 | 位置 |
-| --- | --- |
-| `Ctrl+Shift+P` | `TermuxActivity.dispatchKeyEvent` |
-| 会话抽屉按钮 | `activity_termux.xml` 的 `palette_button` + `setSettingsButtonView()` |
-| 终端菜单项 `command-palette` | `TerminalMenuAction.COMMAND_PALETTE`；**默认菜单列表在只读模块内，需用户显式加入 `terminal-menu-items`** |
-| 虚拟键 `F12` | `TermuxTerminalViewClient.onKeyDown`（无修饰时拦截） |
-
-### 3.4 终端右键转发
-
-- `app/terminal/TermuxTerminalFrame extends FrameLayout` 包装 `TerminalView`（该视图在只读模块中是 `final`，不能继承）；
-- `dispatchTouchEvent` 中检测 `SOURCE_MOUSE + BUTTON_SECONDARY`：`mEmulator.isMouseTrackingActive()` 为真时用
-  `getColumnAndRow()` + `sendMouseEvent(2, col, row, pressed)` 转发并消费；否则交回视图弹 `TerminalMenuDialog`；
-- 布局 `activity_termux.xml`：`TerminalFrame` 包裹 `TerminalView`（id 不变），分屏布局参数仍作用在 pane 容器上。
-
-### 3.5 规则下沉
-
-- `app/terminal/menu/TerminalMenuItems`：`State` 快照 + `isVisible`/`isEnabled`/`build`，替代 `TermuxActivity` 里的
-  `switch` 过滤；8 项 JVM 测试。命令面板与终端菜单共用同一份规则。
+| 指标 | 会话初 | 现在 |
+| --- | --- | --- |
+| `TermuxActivity` | 2523 行 | **2099 行** |
+| `ext/` | 14 文件 1130 行 | **63 文件 10613 行** |
+| `terminal/` | 23 文件 5356 行 | 6 文件 |
+| 单元测试 | 159 项 / 32 类 | **180 项 / 36 类** |
 
 ---
 
-## 4. 关键踩坑与约束（新会话必读）
+## 4. 关键踩坑（新会话必读）
 
-1. **只读模块不能再改**：终端菜单默认项（`DEFAULT_IVALUE_TERMINAL_MENU_ITEMS`）与 `TerminalView` 都在只读模块内，
-   所以「面板菜单项默认可见」和「继承 `TerminalView`」都不可行，分别改为「属性显式加入」与「Frame 包装层」。
-2. **VT 级功能无法拆包**：OSC 52/133、焦点 1004、悬停、滚动保持等实现在只读模块内部，只能做 `builtin.vt` 属性开关。
-3. **本机构建限制**：`:app:assembleDebug` 在本机（Termux）失败于 NDK `unable to find library -lc++_shared`；
-   可用的本机验证命令是 `:app:compileDebugJavaWithJavac`、`:app:testDebugUnitTest`；完整构建以 CI 为准。
-4. **本机测试限制**：`FileReceiverActivityTest > testIsSharedTextAnUrl` 在 JDK 21 下因 Robolectric 4.10
-   `ShadowActivityThread.reset` 失败；CI（JDK 17）不复现。
-5. **本机仓库访问**：`repo.maven.apache.org` 返回 403，已在仓库外 `~/.gradle/init.d/mirror.gradle` 配置
-   阿里云镜像与 Robolectric 下载源，不进入仓库。
-6. **设置搜索索引只读 XML 页面**：扩展设置页是程序化构建，不在搜索结果中；新加 XML 页面需在
-   `Extension.settingsPages()` 声明归属（自动进入索引并参与禁用过滤），核心页则加入
+1. **资源文件里的类名不会被编译器检查**。包迁移后忘记改 `res/**/*.xml` 的自定义控件标签或 `app:fragment`，
+   编译与单测全绿，真机 inflate 时才 `ClassNotFoundException`。已补 `ResourceClassNameTest`；
+   本机 `:app:lintDebug` 跑不起来（NDK 缺 `libc++_shared`），**只有 CI 的 `testing` job 会跑 lint**。
+2. **迁移后测试必须加 `--rerun-tasks`**。增量执行时会漏跑迁移过的测试类（曾出现 121 vs 169 的假数字）。
+3. **XML 中的类名 / 新字符串的中文翻译**都会由 lint 报错：`MissingClass`、`MissingTranslation`。
+   新增用户可见字符串必须同时补 `values-zh/strings.xml`（`translatable="false"` 的除外）。
+4. **Drawable 实例不能在多行间共享**：状态保存在实例上，共享会让一行的 activated/ripple 画到所有行。
+   会话行背景现在每行 `getConstantState().newDrawable().mutate()`。
+5. **扩展启动顺序**：`ExtensionManager.start()` 先登记 running 再调用 `onEnable`，否则扩展在 `onEnable`
+   期间查询宿主会被判为「未运行」（状态栏内边距首帧算错）。
+6. **配置重载只有一个入口**：`reloadProperties()` 里调用 `mExtensionManager.onReload()`；
+   不要在别处再加按特性命名的重载钩子。
+7. **设置搜索只索引 XML 页面**：扩展通过 `settingsPages()` 声明后自动进入索引；核心页在
    `SettingsSearchIndex.CORE_PAGES`。
-7. **守卫测试**：`PreferenceResetSourceTest` 校验每个设置页安装长按复位监听，页面清单是「类名 → 路径」映射，
-   移动页面时要同步更新；`ExtensionRegistrySourceTest` 校验扩展声明的 key 存在于 `termux_preferences.xml`、
-   声明的页面源码调用 `isRunning(`、页面声明不重复。
+8. **本机构建限制**：`:app:assembleDebug` / `:app:lintDebug` 因 NDK `libc++_shared` 失败；
+   可用的是 `:app:compileDebugJavaWithJavac`、`:app:processDebugResources`、
+   `:app:testDebugUnitTest --rerun-tasks`。完整构建与 lint 以 CI 为准。
+9. **本机测试限制**：`FileReceiverActivityTest > testIsSharedTextAnUrl` 在 JDK 21 + Robolectric 4.10 下失败，
+   CI（JDK 17）不复现，属既有问题。
+10. **CI 偶发失败**：`build (apt-android-*)` 曾因 Maven 仓库瞬时 404 失败，用 `gh run rerun <id> --failed` 重跑。
+11. **`shapeAppearanceOverlay` 改不动对话框圆角**：Material 3 对话框的形状来自 `alertDialogStyle`
+    （`MaterialAlertDialog.Material3`）的 `shapeAppearance`，主题里的 `shapeAppearanceOverlay` 只被
+    `MaterialCardView` 这类自身读该属性的控件使用。要改对话框圆角必须覆盖 `alertDialogStyle`，
+    见 `ThemeOverlay.Termux.Dialog` 与 `TermuxAlertDialogStyle`。
+12. **形状令牌有两处来源**：`dimens.xml`（运行时）与 `TerminalDialogStyles` 的 Java 常量（无 `Context` 时的
+    配置默认值），`ShapeTokenTest` 守卫两者一致；只改一处会让终端菜单与 MD3 对话框圆角漂移。
 
 ---
 
-## 5. 未完成事项（按建议顺序）
+## 5. 真机试机结论（已验证）
 
-扩展闸门层（M-E1）已完成：唯一状态源 `ExtensionHost`、设置页贡献点 `Extension.settingsPages()`、搜索与导航
-过滤、页面运行时闸门、空分类收起与三项守卫测试，记录见 `app/DECISIONS.md` #4–#5。
-菜单收敛已完成：抽屉按钮与会话新建按钮改走 `ShellCommandHost`，面板新增 `new-named-session`，并修正了
-「切换键盘」命令的递归调用，记录见 `app/DECISIONS.md` #6。
-X1 控制器拆分已完成第一轮：动作分发改为 `TerminalActionRunner` 映射表（有 3 项 JVM 测试），抽屉逻辑迁入
-`TerminalDrawerController`，记录见 `app/DECISIONS.md` #7。
-`ext.statusbar` 已迁移（生命周期回调 + 包迁移 + 页面闸门 + 宿主单向查询），并新增 `docs/API_INDEX.md`，
-记录见 `app/DECISIONS.md` #8；`ext.menu` 已迁移（动作/规则/配置/对话框/设置页整体迁入，宿主转发），
-记录见 `app/DECISIONS.md` #9；`ext.volumekeys` 已迁移（动作派发与设置页迁入，状态机留在视图客户端），
-记录见 `app/DECISIONS.md` #10；视图槽位贡献点已就绪（`ExtensionViewSlot`、`ExtensionContext.view()`、
-`requestExtensionLayout()`），记录见 `app/DECISIONS.md` #11；`ext.notifications`、`ext.search`、`ext.drawer` 与 `ext.split` 已迁移，扩展查询统一为
-`ExtensionHost.find/findRunning`，`builtin.vt` 核心行为页已交付，记录见 #12–#15；
-迁移评估与后续顺序见 `docs/EXTENSION_API.md` §10。
-
-| 序 | 任务 | 要点 | 验收 |
-| --- | --- | --- | --- |
-| 5 | `builtin.vt` 开关页 | 仅属性开关（OSC52/133、1004、悬停、滚动保持、内边距） | 设置页明确标注「核心能力，仅可关闭行为」 |
-| 6 | 设备验证 | 无 `adb`，需出包后按 `FORK.md` §33 与验收矩阵逐项确认 | 记录到 PR 或 `FORK.md` |
-
-**设备验证重点**（未验证项）：禁用扩展后设置搜索不再出现其条目；禁用后直接进入功能页只显示停用说明；
-命令面板四个入口；虚拟键 `F12` 在 `extra-keys` 中的配置；右键在 `vim`/`tmux` 中的表现与 shell 中的菜单回退；
-分屏下右键坐标换算；抽屉按钮着色与暗色主题；扩展设置页开关后返回终端的即时生效。
+| 问题 | 状态 | 记录 |
+| --- | --- | --- |
+| 启动即崩溃（`DrawerHandleView` 类名失效） | 已修复 + 守卫测试 | `app/DECISIONS.md` #16 |
+| 抽屉多个会话行一起高亮、长按多项一起亮 | 已修复（共享 Drawable） | #18 |
+| 抽屉只有 3dp 侧条正常、切换会话后不刷新 | 已修复（`setActivated` + 主动刷新） | #17 #18 |
+| 重命名对话框黑字 | 已修复（`TerminalTextInputDialog` 按配色方案取色） | #18 |
+| 部分配置需重启 App 才生效 | 已修复（重载入口统一 + 启动顺序） | #17 |
 
 ---
 
-## 6. 新会话的操作约定
+## 6. 未验证（下次试机重点）
+
+- 9 个扩展的启用/禁用是否都即时生效、禁用后是否无残留视图与定时器；
+- 抽屉选中行底色是否只作用于当前会话、长按是否只亮一行；
+- UI 层第一批的观感：终端菜单/命名对话框/通知历史的圆角与标题层级、抽屉会话行圆角涟漪与强调条、
+  状态栏分段间距与按下态、命令面板在输入法弹出后的列表高度、设置搜索与色板、有序列表对话框；
+- 系统界面：额外键闪烁是否消失（键盘弹起/收起、切换输入法、`fullscreen` 开关各一次）、
+  手势小横条留白、全屏刘海是否真正填满、`fullscreen=false` 时状态栏与挖孔是否避让；
+- 命令面板在深色/浅色与彩色强调色配色下的可读性、chip 与行按下态、抽屉首末行间隙；
+- 面板接管：浮条「更多」、菜单键、右键三种模式（`auto`/`forward`/`palette`）是否都符合预期；
+- 快捷键：`command-shortcuts` 改绑后面板标签与按键是否一致、额外键宏按键是否被识别、取消快捷键是否真的不再拦截；
+- 键盘兼容：接有硬件键盘且软键盘收起时 `cat -v` 按 Tab 是否输出 `^I`，lazyvim 插入模式与 node TUI 的按键
+  顺序是否正常；弹出软键盘后中文（拼音）是否可输入、收起后是否恢复直通、重启输入连接是否引起软键盘闪烁；
+  `keyboard-compat-log=true` 的日志中 `reported=0x0` 与 `[terminal-view]` 按键行是否成对出现；
+- 扩展禁用门禁：分屏/搜索/抽屉动作从终端菜单与命令面板消失；
+- 命令面板内快捷键（`Ctrl+Alt+F/K/C`）在真机上的触发；
+- 分屏排列/拖拽/活动窗格边框/状态恢复；搜索条；右键转发在 `vim`/`tmux` 与分屏下的坐标；
+- OCR/设备侧一切 UI 行为（本机无 `adb`）。
+
+---
+
+## 7. 待决策（会阻塞下一步）
+
+1. ~~**风格边界**~~（2026-11-24 已决）：全部统一为 Material 3 圆角，终端内对话框也使用圆角；
+   1dp 强调色描边保留，可用 `terminal-menu-border-width=0` 关闭。
+2. **MD3 表面色与配色方案的深度映射**：目前只做到「按配色方案明暗切换 DayNight 变体」；抽屉、对话框、
+   状态栏等自绘表面直接用配色方案颜色。若要 MD3 表面色也跟随 `colors.properties`，需要设计运行期
+   theme overlay 方案（`applyStyle` 只能引用静态资源）。
+3. **OSC 133 / 焦点上报 1004 开关**：目前没有对应属性，需修改只读模块才能提供，属需求方豁免范围。
+4. **命令面板配色来源**：面板已改为跟随当前会话的配色方案（`f817e06`），若希望它跟随应用主题而非终端配色，
+   需要恢复 `MaterialAlertDialogBuilder` 版本（`DECISIONS.md` #22 记录了原因与差异）。
+5. **扩展禁用后的额外键**：`extra-keys` 属性里的 `SEARCH`/`DRAWER`/`SPLIT_*` 等特殊键在扩展禁用后仍显示但无动作，
+   是否随扩展可用性过滤需需求方决定（涉及改写用户自定义布局）。
+6. ~~`ime-input-type` 与只读模块钩子~~（已决）：需求方已书面豁免，`terminal-view` 新增
+   `getInputType`/`getImeOptions` 钩子，app 侧提供 `ime-input-type`（默认 `auto`），见 `app/DECISIONS.md` #24。
+7. **设置页顶栏配色**：设置/帮助/报告页的 Toolbar 取自 `?attr/colorPrimaryDark`（Material 3 下等于 `colorPrimary`），
+   是否改为 `colorSurface` 需先确定标题与图标的取色。
+
+---
+
+## 8. 操作约定
 
 - **提交**：`type: 一句话中文`（动词开头、无句号），一个提交一件事；`app/` 改动逐项单独提交。
-- **进度**：每完成一项即在 `app/todo.md` 勾选并补提交号，与代码改动分开提交；计划变化时同步本文件第 5 节。
-- **迁移一个功能为扩展**的标准步骤：
-  1. 新建 `app/ext/<name>/`，实现 `Extension`（`id`、标题、摘要、`preferenceKeys`、`onEnable`/`onDisable`）；
-  2. 迁移实现类到该包，更新 `termux_preferences.xml` 的 `app:fragment` 与 `SettingsSearchIndex`；
-  3. 在 `ForkExtensions.installed()` 登记；
-  4. 补 `ForkExtensionsTest` 类断言（唯一性/依赖/设置键）；
-  5. 若新增贡献点，先加接口再实现，不要为空占位。
-- **验证命令**（本机）：
+- **进度**：每完成一项在 `app/todo.md` 勾选并补提交号，与代码改动分开提交。
+- **新增代码前**：先查 `docs/API_INDEX.md`，已登记的能力一律复用，不得另写同义实现。
+- **迁移包时**：`git mv` 后必须同时更新 `res/**/*.xml` 中的类名（`ResourceClassNameTest` 会兜住）。
+
+### 验证命令（本机）
 
 ```bash
 ./gradlew :app:compileDebugJavaWithJavac
-./gradlew :app:testDebugUnitTest          # 期望：159 项，仅 FileReceiver 1 项失败
+./gradlew :app:processDebugResources
+./gradlew :app:testDebugUnitTest --rerun-tasks   # 期望：175 项，仅 FileReceiver 1 项既有失败
 ```
 
-- **CI 验证**（完整构建，推荐每个增量一次）：
+### CI 与出包
 
 ```bash
-git push -u origin <branch>
-gh pr create --base master --head <branch> --fill     # 触发 Unit tests + Build
-gh workflow run fork_build.yml --ref <branch> -f build_mode=testkey
-gh run list --branch <branch> --limit 6
+git push
+gh pr checks 2                                     # 期望：Validation/testing/build x2 pass
+gh workflow run fork_build.yml --ref refactor/app-extensions \
+  -f build_mode=testkey -f build_plugins=false      # 约 5 分钟
+gh release download fork-latest -p '*arm64-v8a.apk' -D ~/storage/downloads
 ```
 
----
-
-## 7. 文档索引
-
-| 文档 | 用途 | 是否适用于 `app/` |
-| --- | --- | --- |
-| `docs/APP_ARCHITECTURE_REVIEW.md` | `app/` 架构现状与发现 | 是 |
-| `docs/EXTENSION_API.md` | 扩展化方案与实施记录 | 是 |
-| `app/DECISIONS.md` | `app/` 模块决策（plan 工具维护） | 是 |
-| `app/todo.md` | `app/` 模块的代码进度与近期计划（跨会话续接的入口） | 是 |
-| `docs/API_INDEX.md` | 已有 API 与工具类索引，新增前必须查阅 | 是 |
-| `FORK.md` §33 | 命令面板与右键转发的用户文档 | 是 |
-| `FORK.md` §34 | 扩展管理与禁用语义的用户文档 | 是 |
-| `docs/DELIVERY_PLAN.md` | 旧里程碑计划（多为 `app_new` 时期） | 部分 |
-| `docs/UI_REVIEW.md`、`docs/ARCHITECTURE_REVIEW.md`、`docs/UPGRADE.md` | 主体面向 `app_new` 原型 | 否（仅参考设计结论） |
+`build (apt-android-*)` 若因依赖 404 失败：`gh run rerun <run-id> --failed`。
 
 ---
 
-## 8. 未验证声明
+## 9. 文档索引
 
-- 本交接文档只记录已完成与待办，不代表功能已在设备上验证；
-- CI 通过的是单元测试、Lint、双 ABI 构建与签名 APK 产出，界面手感与交互正确性仍需真机确认；
-- 本机 `assembleDebug` 未通过（NDK `libc++_shared` 缺失），该限制与本次改动无关。
+| 文档 | 用途 |
+| --- | --- |
+| `app/todo.md` | `app/` 代码进度与近期计划（步骤级，先读这个） |
+| `docs/API_INDEX.md` | 已有 API 索引与「不要重复实现」清单 |
+| `app/DECISIONS.md` | `app/` 的决策与踩坑（#1–#19，按时间追加） |
+| `docs/EXTENSION_API.md` | 扩展化方案、实施记录（§9.1 M-E1）、迁移评估（§10） |
+| `docs/APP_ARCHITECTURE_REVIEW.md` | `app/` 架构现状与发现（早期评估） |
+| `FORK.md` §33/§34 | 命令面板、右键转发、扩展管理与禁用语义的用户文档 |
+| `docs/KEYBOARD_COMPAT.md` | 硬件键盘与 IME 兼容层设计（含待批准的只读模块钩子） |
+| `docs/UI_REVIEW.md`、`docs/ARCHITECTURE_REVIEW.md`、`docs/UPGRADE.md` | 面向 `app_new` 原型，不作 `app/` 依据 |

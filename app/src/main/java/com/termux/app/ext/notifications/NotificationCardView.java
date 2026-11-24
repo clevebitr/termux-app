@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
@@ -111,6 +112,10 @@ public class NotificationCardView extends FrameLayout {
 
     private static final float CARD_PADDING_HORIZONTAL_DP = 10;
     private static final float CARD_PADDING_VERTICAL_DP = 7;
+    /** The margin between the accent bar and the rounded corner of the card, in dp. */
+    private static final float ACCENT_MARGIN_START_DP = 6;
+    /** The margin between the ends of the accent bar and the top and bottom edges of the card, in dp. */
+    private static final float ACCENT_MARGIN_VERTICAL_DP = 8;
     private static final float TITLE_TEXT_SIZE_SP = 13;
     private static final float BODY_TEXT_SIZE_SP = 12;
     private static final float META_TEXT_SIZE_SP = 10.5f;
@@ -134,6 +139,7 @@ public class NotificationCardView extends FrameLayout {
     /** The paint of the accent bar, which is drawn by the card itself instead of by a child view. */
     @NonNull
     private final Paint mAccentPaint = new Paint();
+    private final RectF mAccentRect = new RectF();
 
     @Nullable
     private TerminalNotification mNotification;
@@ -364,8 +370,9 @@ public class NotificationCardView extends FrameLayout {
         mAccentPaint.setColor(style.accentColor);
         mAccentPaint.setStyle(Paint.Style.FILL);
 
-        mContent.setPadding(style.accentWidthPx + dp(CARD_PADDING_HORIZONTAL_DP), dp(CARD_PADDING_VERTICAL_DP),
-            dp(2), dp(CARD_PADDING_VERTICAL_DP));
+        // The accent bar is inset from the edges of the card, so the content starts after the margin and the bar.
+        mContent.setPadding(dp(ACCENT_MARGIN_START_DP) + style.accentWidthPx + dp(CARD_PADDING_HORIZONTAL_DP),
+            dp(CARD_PADDING_VERTICAL_DP), dp(2), dp(CARD_PADDING_VERTICAL_DP));
 
         // The body and the details line are slightly smaller than the title, like in the cards of the tui
         // notification plugins, and are clamped so that they stay readable at small font sizes.
@@ -430,8 +437,16 @@ public class NotificationCardView extends FrameLayout {
         // The accent bar is drawn by the card instead of by a child view, since a child view with
         // `layout_height="match_parent"` would be measured with the `AT_MOST` spec of the card and
         // would then take the whole available height, which made the card fill the screen.
-        if (mAccentWidthPx > 0)
-            canvas.drawRect(0, 0, mAccentWidthPx, getHeight(), mAccentPaint);
+        if (mAccentWidthPx <= 0) return;
+
+        // The bar is a capsule inset from the edges of the card, like the marker of the row of the current
+        // session in the sessions drawer, instead of a bar that runs from the top to the bottom edge.
+        float inset = Math.min(dp(ACCENT_MARGIN_VERTICAL_DP),
+            Math.max(0, (getHeight() - mAccentWidthPx) / 2f));
+        float left = dp(ACCENT_MARGIN_START_DP);
+        float radius = mAccentWidthPx / 2f;
+        mAccentRect.set(left, inset, left + mAccentWidthPx, getHeight() - inset);
+        canvas.drawRoundRect(mAccentRect, radius, radius, mAccentPaint);
     }
 
     @Override

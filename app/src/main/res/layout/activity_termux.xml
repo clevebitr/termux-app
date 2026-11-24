@@ -4,8 +4,17 @@
     android:id="@+id/activity_termux_root_view"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <!-- The tab bar of the sessions, above the status bar and the terminal and outside the drawer, so that it stays
+         reachable while the sessions drawer is open. It is hidden until the activity creates the first tab, since it
+         only renders the state that the tab model holds. -->
+    <com.termux.app.terminal.tabs.TerminalTabBar
+        android:id="@+id/terminal_tab_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
 
     <RelativeLayout
         android:id="@+id/activity_termux_root_relative_layout"
@@ -24,7 +33,7 @@
              open drawer covers it, and it is flush with the edge of the screen, which is 3dp to the left of
              the content of this layout, hence the negative margin and the disabled clipping. It is hidden
              when the `drawer-open-mode` property selects the edge swipe only. -->
-        <com.termux.app.terminal.DrawerHandleView
+        <com.termux.app.ext.drawer.DrawerHandleView
             android:id="@+id/drawer_handle"
             android:layout_width="20dp"
             android:layout_height="120dp"
@@ -127,7 +136,7 @@
                  terminal is resized and has fewer rows instead of being covered or pushed over the
                  soft keyboard area. It is the last child of the content container, so that it is
                  drawn over the terminal when it is an overlay. -->
-            <com.termux.app.statusbar.StatusBarView
+            <com.termux.app.ext.statusbar.StatusBarView
                 android:id="@+id/status_bar_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -175,7 +184,7 @@
                         android:id="@+id/palette_button"
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:background="@null"
+                        android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="@string/action_command_palette"
                         android:src="@drawable/ic_pref_search"
                         app:tint="?attr/termuxActivityDrawerImageTint" />
@@ -184,7 +193,7 @@
                         android:id="@+id/settings_button"
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        android:background="@null"
+                        android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="@string/action_open_settings"
                         android:src="@drawable/ic_settings"
                         app:tint="?attr/termuxActivityDrawerImageTint" />
@@ -203,7 +212,7 @@
                             android:ellipsize="end"
                             android:singleLine="true"
                             android:text="@string/application_name"
-                            android:textSize="15sp"
+                            android:textSize="16sp"
                             android:textStyle="bold" />
 
                         <com.google.android.material.textview.MaterialTextView
@@ -212,7 +221,7 @@
                             android:layout_height="wrap_content"
                             android:ellipsize="middle"
                             android:singleLine="true"
-                            android:textSize="11sp"
+                            android:textSize="12sp"
                             android:visibility="gone"
                             tools:text="2 个会话 · nvim · ~/projects/termux" />
                     </LinearLayout>
@@ -232,7 +241,15 @@
                     android:layout_gravity="top"
                     android:layout_weight="1"
                     android:choiceMode="singleChoice"
-                    android:longClickable="true" />
+                    android:clipToPadding="false"
+                    android:divider="@null"
+                    android:dividerHeight="0dp"
+                    android:listSelector="@android:color/transparent"
+                    android:longClickable="true"
+                    android:paddingStart="8dp"
+                    android:paddingTop="6dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="6dp" />
 
                 <LinearLayout
                     style="?android:attr/buttonBarStyle"
@@ -287,7 +304,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_alignParentTop="true"
-            android:background="?attr/termuxActivityDrawerBackground"
+            android:background="@drawable/bg_terminal_search_bar"
             android:elevation="4dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"

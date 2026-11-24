@@ -1,7 +1,7 @@
 package com.termux.app;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
+
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -9,11 +9,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.res.Configuration;
 import android.graphics.Color;
+import android.hardware.input.InputManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -28,8 +31,12 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.R;
 import com.termux.app.api.file.FileReceiverActivity;
+import com.termux.app.commands.CommandShortcuts;
+import com.termux.app.commands.ShellCommand;
+import com.termux.app.commands.ShellCommandCatalog;
 import com.termux.app.ext.notifications.NotificationsExtension;
 import com.termux.app.ext.menu.TerminalMenuAction;
 import com.termux.app.ext.menu.TerminalMenuConfig;
@@ -41,7 +48,11 @@ import com.termux.app.ext.statusbar.StatusBarConfig;
 import com.termux.app.ext.drawer.DrawerExtension;
 import com.termux.app.ext.search.SearchExtension;
 import com.termux.app.ext.split.SplitScreenExtension;
+import com.termux.app.properties.ForkProperties;
+import com.termux.app.properties.ForkPropertyKeys;
+import com.termux.app.terminal.KeyboardCompatLog;
 import com.termux.app.terminal.TermuxActivityRootView;
+import com.termux.app.terminal.TermuxTerminalFrame;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
 import com.termux.shared.activities.ReportActivity;
@@ -68,6 +79,8 @@ import com.termux.app.ext.host.ExtensionHost;
 import com.termux.app.ext.host.ExtensionManager;
 import com.termux.app.ext.statusbar.StatusBarExtension;
 import com.termux.app.terminal.TermuxTerminalViewClient;
+import com.termux.app.terminal.layout.TerminalPaneHost;
+import com.termux.app.terminal.layout.TwoPaneTerminalLayout;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxUtils;
@@ -96,7 +109,11 @@ import androidx.viewpager.widget.ViewPager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Properties;
+import java.util.Set;
 import java.util.Objects;
 
 /**
@@ -167,21 +184,12 @@ public final class TermuxActivity extends AppCompatActivity
     private final FrameLayout[] mTerminalPaneContainers = new FrameLayout[2];
 
     /**
-     * The {@link TerminalView} of each pane. The view of the active pane is {@link #mTerminalView},
-     * which most of the activity operates on, so that the code that was written for a single
-     * terminal view keeps working with split screen.
+     * The panes of the terminal and which of them is active. The active pane is the one that receives the keyboard,
+     * the extra keys and the menus; its view and client are cached in {@link #mTerminalView} and
+     * {@link #mTermuxTerminalViewClient} so that the code that was written for a single terminal view keeps working.
      */
-    private final TerminalView[] mTerminalViews = new TerminalView[2];
-
-    /**
-     * The {@link TermuxTerminalViewClient} of each pane. Each view has its own client, since the
-     * callbacks of a view must act on the view that received the event, not on the active pane.
-     * The client of the active pane is {@link #mTermuxTerminalViewClient}.
-     */
-    private final TermuxTerminalViewClient[] mTermuxTerminalViewClients = new TermuxTerminalViewClient[2];
-
-    /** The index of the pane that is active, i.e. that receives the keyboard, extra keys and menus. */
-    private int mActiveTerminalViewIndex = 0;
+    @NonNull
+    private final TerminalPaneHost mPanes = new TwoPaneTerminalLayout();
 
     /**
      * The drawer of the sessions: its colors, its handle and the summary of the current session. Created with the
@@ -238,6 +246,70 @@ public final class TermuxActivity extends AppCompatActivity
      * activity. Replaces the switch that used to run the actions, so that the mapping is complete and testable.
      */
     private TerminalActionRunner mTerminalActionRunner;
+
+    /** The shortcuts of the palette commands, read from the `command-shortcuts` property. */
+    @NonNull
+    private CommandShortcuts mCommandShortcuts = CommandShortcuts.defaults();
+
+    /** What the secondary mouse button does, read from the `mouse-right-click` property. */
+    @NonNull
+    private TermuxTerminalFrame.SecondaryButtonBehaviour mSecondaryButtonBehaviour =
+        TermuxTerminalFrame.SecondaryButtonBehaviour.AUTO;
+
+    /** Whether the key events that the activity sees are logged, from `keyboard-compat-log`. */
+    private boolean mKeyboardCompatLog;
+
+    /**
+     * Whether a hardware keyboard was attached when the current input connections were created.
+     * The input connections are restarted when it changes, since the IME only reads the input type
+     * when it creates them.
+     */
+    private boolean mHardwareKeyboardAttached;
+
+    /**
+     * Whether the soft keyboard is visible as of the last layout pass, which decides whether the terminal is
+     * presented to the IME as a text editor or as an untyped editor. See
+     * {@link TermuxTerminalViewClient#getInputType(int)}.
+     */
+    private boolean mIsSoftKeyboardVisible;
+
+    /** Notified when an input device is added or removed, which is when a hardware keyboard may have changed. */
+    private InputManager.InputDeviceListener mInputDeviceListener;
+
+    /**
+     * How long to wait after the soft keyboard becomes visible before the input connections are restarted a
+     * second time. An IME may ignore the restart while its window is still animating in, and then keeps the input
+     * type it read before, which leaves the terminal without the IME toolbar and candidate view.
+     */
+    private static final long IME_RESTART_AFTER_SOFT_KEYBOARD_SHOWN_DELAY_MS = 200;
+
+    /**
+     * The key codes whose {@link KeyEvent#ACTION_DOWN} the activity saw and whose {@link KeyEvent#ACTION_UP} it has
+     * not seen yet. A key up without a recorded down means that the IME took the down event even though the
+     * terminal should be the input path, which is recovered from in {@link #trackKeyEventsForImeState(KeyEvent)}.
+     */
+    private final Set<Integer> mPendingKeyDowns = new HashSet<>();
+
+    /**
+     * Whether the physical keys are the input path as of the last restart of the input connections. The IME only
+     * reads the editor information when it creates the connection, so the connections are restarted when this
+     * decision changes, and not on every keyboard state change.
+     */
+    private boolean mPhysicalKeyPassthroughForIme;
+
+    /** When the input connections were last restarted because a key down was missing, to limit the restarts. */
+    private long mLastMissingKeyDownRestartMs;
+
+    /** The minimum time between two restarts that are caused by a missing key down event. */
+    private static final long MISSING_KEY_DOWN_RESTART_INTERVAL_MS = 2000;
+
+    /** Restarts the input connections again after the soft keyboard was shown, see the delay constant. */
+    private final Runnable mDelayedImeRestart = () -> {
+        if (mKeyboardCompatLog) {
+            KeyboardCompatLog.log("ime", "restarting the input connections after the soft keyboard was shown");
+        }
+        restartTerminalInputConnections();
+    };
 
     /**
      * If between onResume() and onStop(). Note that only one session is in the foreground of the terminal view at the
@@ -343,7 +415,12 @@ public final class TermuxActivity extends AppCompatActivity
 
         super.onCreate(savedInstanceState);
 
+        // The cutout mode is a window attribute, so it is set before the content view is created and measured.
+        setDisplayCutoutMode();
+
         setContentView(R.layout.activity_termux);
+
+        registerHardwareKeyboardWatcher();
 
         // Load termux shared preferences
         // This will also fail if TermuxConstants.TERMUX_PACKAGE_NAME does not equal applicationId
@@ -446,7 +523,7 @@ public final class TermuxActivity extends AppCompatActivity
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onStart();
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.onStart();
         }
 
@@ -475,7 +552,7 @@ public final class TermuxActivity extends AppCompatActivity
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onResume();
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.onResume();
         }
 
@@ -521,6 +598,10 @@ public final class TermuxActivity extends AppCompatActivity
 
         Logger.logDebug(LOG_TAG, "onStop");
 
+        // A key that was still held when the activity stopped never reports its up event, so the set would keep
+        // the stale down and suppress the recovery restart for the same key later.
+        mPendingKeyDowns.clear();
+
         if (mIsInvalidState) return;
 
         mIsVisible = false;
@@ -530,7 +611,7 @@ public final class TermuxActivity extends AppCompatActivity
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onStop();
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.onStop();
         }
 
@@ -544,6 +625,11 @@ public final class TermuxActivity extends AppCompatActivity
         super.onDestroy();
 
         Logger.logDebug(LOG_TAG, "onDestroy");
+
+        unregisterHardwareKeyboardWatcher();
+
+        View rootView = getTermuxActivityRootView();
+        if (rootView != null) rootView.removeCallbacks(mDelayedImeRestart);
 
         if (mIsInvalidState) return;
 
@@ -592,13 +678,13 @@ public final class TermuxActivity extends AppCompatActivity
         savedInstanceState.putBoolean(ARG_SPLIT_SCREEN_ENABLED, true);
         savedInstanceState.putInt(ARG_SPLIT_SCREEN_ORIENTATION, splitScreen.getOrientation());
         savedInstanceState.putFloat(ARG_SPLIT_SCREEN_PANE_RATIO, splitScreen.getPaneRatio());
-        savedInstanceState.putInt(ARG_SPLIT_SCREEN_ACTIVE_PANE, mActiveTerminalViewIndex);
+        savedInstanceState.putInt(ARG_SPLIT_SCREEN_ACTIVE_PANE, mPanes.getActiveIndex());
 
-        TerminalSession primarySession = mTerminalViews[0] != null ? mTerminalViews[0].getCurrentSession() : null;
+        TerminalSession primarySession = mPanes.getView(0) != null ? mPanes.getView(0).getCurrentSession() : null;
         if (primarySession != null)
             savedInstanceState.putString(ARG_SPLIT_SCREEN_PRIMARY_SESSION, primarySession.mHandle);
 
-        TerminalSession secondarySession = mTerminalViews[1] != null ? mTerminalViews[1].getCurrentSession() : null;
+        TerminalSession secondarySession = mPanes.getView(1) != null ? mPanes.getView(1).getCurrentSession() : null;
         if (secondarySession != null)
             savedInstanceState.putString(ARG_SPLIT_SCREEN_SECONDARY_SESSION, secondarySession.mHandle);
     }
@@ -636,7 +722,7 @@ public final class TermuxActivity extends AppCompatActivity
         // Show the primary session in the first pane, which attaches it to the active pane, and then the
         // secondary one in the other pane, so that the panes keep the order that they had.
         mTermuxTerminalSessionActivityClient.setCurrentSession(primarySession);
-        mTerminalViews[1].attachSession(secondarySession);
+        mPanes.getView(1).attachSession(secondarySession);
 
         SplitScreenExtension splitScreen = splitScreenExtension();
         if (splitScreen != null) splitScreen.setOrientation(mSavedSplitScreenOrientation);
@@ -748,10 +834,21 @@ public final class TermuxActivity extends AppCompatActivity
     private boolean reloadProperties() {
         mProperties.loadTermuxPropertiesFromDisk();
 
-        // The `drawer-open-mode` property is not part of the properties that the shared library parses,
-        // so it is read from the file, like the `status-bar-*` and `notification-*` ones.
+        // The fork specific properties, like the `drawer-*`, `status-bar-*`, `notification-*`, `terminal-menu-*`
+        // and `volume-*` ones, are not part of the properties that the shared library parses, so the extensions
+        // that own them are told to read the file again here, which is the only place every configuration reload
+        // goes through.
+        if (mExtensionManager != null) mExtensionManager.onReload();
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        // The shortcuts of the palette and the behaviour of the secondary mouse button belong to the host
+        // rather than to an extension, so they are read here, which is the single place every reload goes through.
+        Properties forkProperties = ForkProperties.readTermuxProperties();
+        mCommandShortcuts = CommandShortcuts.parse(forkProperties);
+        mSecondaryButtonBehaviour = parseSecondaryButtonBehaviour(forkProperties);
+        mKeyboardCompatLog = ForkProperties.getBoolean(forkProperties, ForkPropertyKeys.KEYBOARD_COMPAT_LOG, false);
+        applySecondaryButtonBehaviour();
+
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.onReloadProperties();
         }
 
@@ -761,6 +858,72 @@ public final class TermuxActivity extends AppCompatActivity
     }
 
 
+
+    /** @return The shortcuts of the palette commands, which the palette labels and the key handling share. */
+    @NonNull
+    public CommandShortcuts getCommandShortcuts() {
+        return mCommandShortcuts;
+    }
+
+    /** @return What the secondary mouse button does, read from the `mouse-right-click` property. */
+    @NonNull
+    public TermuxTerminalFrame.SecondaryButtonBehaviour getSecondaryButtonBehaviour() {
+        return mSecondaryButtonBehaviour;
+    }
+
+    /**
+     * Apply the configured secondary button behaviour to the terminal panes.
+     *
+     * <p>The panes do not exist yet when the properties are loaded before the content view is created, so the
+     * method tolerates a missing view; it is called again after the views are created.</p>
+     */
+    private void applySecondaryButtonBehaviour() {
+        for (int id : new int[]{R.id.terminal_frame, R.id.terminal_frame_2}) {
+            View view = findViewById(id);
+            if (view instanceof TermuxTerminalFrame)
+                ((TermuxTerminalFrame) view).setSecondaryButtonBehaviour(mSecondaryButtonBehaviour);
+        }
+    }
+
+    /** @return The behaviour of the secondary mouse button of the `mouse-right-click` property. */
+    @NonNull
+    private static TermuxTerminalFrame.SecondaryButtonBehaviour parseSecondaryButtonBehaviour(
+        @Nullable Properties properties) {
+        if (properties == null) return TermuxTerminalFrame.SecondaryButtonBehaviour.AUTO;
+
+        String value = ForkProperties.getString(properties, ForkPropertyKeys.MOUSE_RIGHT_CLICK, "auto");
+        if (value == null) return TermuxTerminalFrame.SecondaryButtonBehaviour.AUTO;
+
+        switch (value.trim().toLowerCase(Locale.ROOT)) {
+            case "forward":
+                return TermuxTerminalFrame.SecondaryButtonBehaviour.FORWARD;
+            case "palette":
+                return TermuxTerminalFrame.SecondaryButtonBehaviour.PALETTE;
+            default:
+                return TermuxTerminalFrame.SecondaryButtonBehaviour.AUTO;
+        }
+    }
+
+    /**
+     * 目的 — 让窗口在配置允许时使用刘海（display cutout）区域，避免全屏时顶部留下一条黑带。
+     *
+     * <p>行为 — `fullscreen=true` 时使用 {@code LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES}，终端可以绘制到位于
+     * 屏幕短边（顶部或底部）的挖孔区域；否则使用默认模式，内容避开挖孔，状态栏图标不被摄像头遮挡。</p>
+     *
+     * <p>约束 — 只能在 {@code onCreate()} 里、{@code setContentView()} 之前调用；属性变更需要重建 Activity
+     * 才生效。API 28 以下没有该属性，直接返回。内边距仍由根布局的 {@code fitsSystemWindows} 处理，
+     * 不在这里设 padding：在 inset 监听器里调 {@code setPadding} 会与键盘出现时的底部 margin 校正、
+     * 全屏高度补偿互相触发，导致额外键闪烁。</p>
+     */
+    private void setDisplayCutoutMode() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || mProperties == null) return;
+
+        WindowManager.LayoutParams attributes = getWindow().getAttributes();
+        attributes.layoutInDisplayCutoutMode = mProperties.isUsingFullScreen()
+            ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
+        getWindow().setAttributes(attributes);
+    }
 
     private void setActivityTheme() {
         // Update NightMode.APP_NIGHT_MODE. If the `night-mode` property is set to `color-scheme`,
@@ -820,13 +983,28 @@ public final class TermuxActivity extends AppCompatActivity
 
     /** @return The {@link TerminalView} of every pane, including the hidden secondary pane. */
     public TerminalView[] getTerminalViews() {
-        return mTerminalViews;
+        return mPanes.getViews();
     }
 
     /** @return Whether split screen is enabled, i.e. whether the secondary pane is visible. */
     public boolean isSplitScreenEnabled() {
         SplitScreenExtension splitScreen = splitScreenExtension();
         return splitScreen != null && splitScreen.isEnabled();
+    }
+
+    /** @return Whether the split screen extension is running, i.e. whether its actions can do anything. */
+    public boolean isSplitScreenAvailable() {
+        return splitScreenExtension() != null;
+    }
+
+    /** @return Whether the search extension is running, i.e. whether the search actions can do anything. */
+    public boolean isSearchAvailable() {
+        return searchExtension() != null;
+    }
+
+    /** @return Whether the sessions drawer extension is running, i.e. whether it can be opened. */
+    public boolean isSessionsDrawerAvailable() {
+        return drawerExtension() != null;
     }
 
     /**
@@ -860,7 +1038,7 @@ public final class TermuxActivity extends AppCompatActivity
                 splitScreen.setEnabled(false);
                 splitScreen.updateLayout();
                 setActiveTerminalPane(0);
-                splitScreen.updatePaneActiveStates(mActiveTerminalViewIndex);
+                splitScreen.updatePaneActiveStates(mPanes.getActiveIndex());
             }
             return;
         }
@@ -871,8 +1049,8 @@ public final class TermuxActivity extends AppCompatActivity
             return;
         }
 
-        TerminalSession primarySession = mTerminalViews[0].getCurrentSession();
-        TerminalSession secondarySession = mTerminalViews[1].getCurrentSession();
+        TerminalSession primarySession = mPanes.getView(0).getCurrentSession();
+        TerminalSession secondarySession = mPanes.getView(1).getCurrentSession();
         if (secondarySession == null || secondarySession == primarySession || !secondarySession.isRunning()) {
             // Show a different session in the secondary pane, or create a new one if there is none.
             secondarySession = findSessionForSecondaryPane(primarySession);
@@ -888,15 +1066,15 @@ public final class TermuxActivity extends AppCompatActivity
 
             // Attach the session to the secondary pane's view. The fonts and the font size have
             // already been applied to it, since they are applied to the view of every pane.
-            mTerminalViews[1].attachSession(secondarySession);
+            mPanes.getView(1).attachSession(secondarySession);
         }
 
         splitScreen.setEnabled(true);
         splitScreen.updateLayout();
-        splitScreen.updatePaneActiveStates(mActiveTerminalViewIndex);
+        splitScreen.updatePaneActiveStates(mPanes.getActiveIndex());
         // The secondary pane may have been running for a long time while it was hidden, so show its
         // current output right away instead of waiting for the next output of its session.
-        mTerminalViews[1].onScreenOutput();
+        mPanes.getView(1).onScreenOutput();
     }
 
     /**
@@ -904,21 +1082,21 @@ public final class TermuxActivity extends AppCompatActivity
      * and the context menu. Only the session of the active pane receives focus events.
      */
     public void setActiveTerminalPane(int index) {
-        if (index < 0 || index >= mTerminalViews.length) return;
+        if (index < 0 || index >= mPanes.getPaneCount()) return;
         SplitScreenExtension splitScreen = splitScreenExtension();
         if (splitScreen == null || !splitScreen.isEnabled()) index = 0;
-        if (index == mActiveTerminalViewIndex) return;
+        if (index == mPanes.getActiveIndex()) return;
 
         TerminalSession previousSession = getCurrentSession();
         // Clear the search highlights of the previously active pane, since the search bar operates
         // on the active pane only.
-        mTerminalViews[mActiveTerminalViewIndex].clearSearch();
+        mPanes.getView(mPanes.getActiveIndex()).clearSearch();
 
-        mActiveTerminalViewIndex = index;
-        mTerminalView = mTerminalViews[index];
-        mTermuxTerminalViewClient = mTermuxTerminalViewClients[index];
+        mPanes.setActiveIndex(index);
+        mTerminalView = mPanes.getView(index);
+        mTermuxTerminalViewClient = mPanes.getViewClient(index);
 
-        if (splitScreen != null) splitScreen.updatePaneActiveStates(mActiveTerminalViewIndex);
+        if (splitScreen != null) splitScreen.updatePaneActiveStates(mPanes.getActiveIndex());
 
         // Only the session of the active pane may report having window focus.
         if (previousSession != null && previousSession.getEmulator() != null)
@@ -941,7 +1119,7 @@ public final class TermuxActivity extends AppCompatActivity
 
     /** @return Whether the {@link TerminalView} of any pane has focus. */
     public boolean isAnyTerminalViewFocused() {
-        for (TerminalView terminalView : mTerminalViews) {
+        for (TerminalView terminalView : mPanes.getViews()) {
             if (terminalView != null && terminalView.hasFocus()) return true;
         }
         return false;
@@ -952,7 +1130,7 @@ public final class TermuxActivity extends AppCompatActivity
     public TerminalView getInactiveTerminalPaneView() {
         SplitScreenExtension splitScreen = splitScreenExtension();
         if (splitScreen == null || !splitScreen.isEnabled()) return null;
-        return mTerminalViews[1 - mActiveTerminalViewIndex];
+        return mPanes.getInactiveView();
     }
 
     /**
@@ -964,10 +1142,10 @@ public final class TermuxActivity extends AppCompatActivity
     public TerminalView getTerminalViewForSession(@Nullable TerminalSession session) {
         if (session == null) return null;
 
-        for (int i = 0; i < mTerminalViews.length; i++) {
+        for (int i = 0; i < mPanes.getPaneCount(); i++) {
             // The secondary pane is hidden when split screen is disabled, so it must not be redrawn.
             if (i != 0 && (splitScreenExtension() == null || !splitScreenExtension().isEnabled())) continue;
-            TerminalView terminalView = mTerminalViews[i];
+            TerminalView terminalView = mPanes.getView(i);
             if (terminalView != null && terminalView.getCurrentSession() == session) return terminalView;
         }
 
@@ -979,7 +1157,7 @@ public final class TermuxActivity extends AppCompatActivity
     public TerminalSession getInactiveTerminalPaneSession() {
         SplitScreenExtension splitScreen = splitScreenExtension();
         if (splitScreen == null || !splitScreen.isEnabled()) return null;
-        return mTerminalViews[1 - mActiveTerminalViewIndex].getCurrentSession();
+        return mPanes.getInactiveView().getCurrentSession();
     }
 
     /**
@@ -992,8 +1170,8 @@ public final class TermuxActivity extends AppCompatActivity
         SplitScreenExtension splitScreen = splitScreenExtension();
         if (splitScreen == null || !splitScreen.isEnabled()) return;
 
-        TerminalView activeView = mTerminalViews[mActiveTerminalViewIndex];
-        TerminalView inactiveView = mTerminalViews[1 - mActiveTerminalViewIndex];
+        TerminalView activeView = mPanes.getView(mPanes.getActiveIndex());
+        TerminalView inactiveView = mPanes.getInactiveView();
         TerminalSession activeSession = activeView.getCurrentSession();
         TerminalSession inactiveSession = inactiveView.getCurrentSession();
 
@@ -1198,12 +1376,12 @@ public final class TermuxActivity extends AppCompatActivity
     }
 
     /**
-     * Hook the system menu of the activity to show the terminal context menu instead, so that the
-     * hardware menu key opens it.
+     * Hook the system menu of the activity to show the command palette instead, so that the hardware menu key
+     * opens the palette, which now carries the actions of the old context menu.
      */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        showTerminalMenu();
+        showCommandPalette();
         return false;
     }
 
@@ -1214,18 +1392,7 @@ public final class TermuxActivity extends AppCompatActivity
     @NonNull
     public TerminalMenuConfig getTerminalMenuConfig() {
         TerminalMenuExtension extension = ExtensionHost.get(this).findRunning(TerminalMenuExtension.class);
-        return extension != null ? extension.getConfig() : new TerminalMenuConfig();
-    }
-
-    /**
-     * Show the terminal context menu, which is implemented by the terminal menu extension.
-     *
-     * <p>A disabled extension shows nothing, since the menu belongs to it; the long press, the right click and the
-     * hardware menu key then fall back to the default behaviour of the terminal view.</p>
-     */
-    public void showTerminalMenu() {
-        TerminalMenuExtension extension = ExtensionHost.get(this).findRunning(TerminalMenuExtension.class);
-        if (extension != null) extension.showMenu();
+        return extension != null ? extension.getConfig() : TerminalMenuConfig.defaults();
     }
 
     /** @return The manager of the notification cards and of the recent notifications, or {@code null}. */
@@ -1315,11 +1482,12 @@ public final class TermuxActivity extends AppCompatActivity
     }
 
     /**
-     * Open the command palette.
+     * Open the command palette, which is the single entry point of the terminal actions.
      *
-     * <p>The palette reuses the rules of the terminal context menu through {@link ShellCommandCatalog}, so
-     * that an action that is hidden or disabled in the menu is shown the same way here. The commands run
-     * through the existing action dispatcher, which keeps a single implementation per action.</p>
+     * <p>The terminal actions and their order come from the `terminal-menu-items` property, the visibility and
+     * enabled rules from {@link TerminalMenuItems}, and the shortcuts from {@link CommandShortcuts}, so that the
+     * palette, the text selection toolbar and the terminal keys cannot drift apart. The commands run through the
+     * existing action dispatcher, which keeps a single implementation per action.</p>
      */
     @Override
     public void showCommandPalette() {
@@ -1327,7 +1495,10 @@ public final class TermuxActivity extends AppCompatActivity
         if (session == null || mTerminalView == null) return;
 
         TerminalMenuItems.State state = new TerminalMenuItems.State(
+            isSplitScreenAvailable(),
             isSplitScreenEnabled(),
+            isSearchAvailable(),
+            isSessionsDrawerAvailable(),
             !DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText()),
             mTerminalView.isAutoFillEnabled(),
             getTerminalNotificationManager() != null && getTerminalNotificationManager().isEnabled(),
@@ -1336,27 +1507,255 @@ public final class TermuxActivity extends AppCompatActivity
                 && !getTerminalNotificationManager().getRecentNotifications().isEmpty(),
             session.isRunning());
 
-        List<com.termux.app.commands.ShellCommand> commands = ShellCommandCatalog.build(
-            this, state, action -> action.getTitle(this, session), mShellCommandHost);
-        ShellCommandPalette.show(this, commands);
+        List<ShellCommand> commands = ShellCommandCatalog.build(
+            this, getTerminalMenuConfig().menuItems, state, mCommandShortcuts, session, mShellCommandHost);
+        ShellCommandPalette.show(this, commands, session);
     }
 
     /**
-     * Open the command palette with Ctrl+Shift+P.
+     * Take the configured command shortcuts before the key reaches the terminal.
      *
-     * <p>Intercepted at the activity level so that the shortcut works whether the terminal view or another
-     * child has the focus; the combination is not used by common terminal programs, and the handler returns
-     * the event as handled only when the palette was actually shown.</p>
+     * <p>The activity sees the keys first, whether the terminal view or another child has the focus, so the
+     * shortcuts that the palette shows work from every entry point and can be changed with the
+     * `command-shortcuts` property without touching the key handling of the terminal view.</p>
      */
     @Override
     public boolean dispatchKeyEvent(@NonNull KeyEvent event) {
-        if (event.getAction() == KeyEvent.ACTION_DOWN
-            && event.isCtrlPressed() && event.isShiftPressed()
-            && event.getKeyCode() == KeyEvent.KEYCODE_P) {
+        trackKeyEventsForImeState(event);
+        if (handleCommandShortcut(event)) return true;
+        return super.dispatchKeyEvent(event);
+    }
+
+    /**
+     * Restart the input connections when a key up arrives without its key down.
+     *
+     * <p>The terminal is an untyped editor whenever the physical keys are the input path, so the activity sees the
+     * down and the up event of every key. An IME that still holds a text editor connection takes the down events
+     * and returns the text later, which leaves the activity with the up event only; restarting the connections
+     * makes the IME read the type that {@link TermuxTerminalViewClient#getInputType(int)} resolves again. This is
+     * the recovery for an IME that ignored the restart when the soft keyboard was hidden.</p>
+     */
+    private void trackKeyEventsForImeState(@NonNull KeyEvent event) {
+        int keyCode = event.getKeyCode();
+
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            mPendingKeyDowns.add(keyCode);
+            return;
+        }
+        if (event.getAction() != KeyEvent.ACTION_UP) return;
+        if (mPendingKeyDowns.remove(keyCode)) return;
+
+        // While the soft keyboard is visible the IME is the input path on purpose, so a missing down is expected.
+        if (mIsSoftKeyboardVisible || !mHardwareKeyboardAttached) return;
+
+        long now = SystemClock.uptimeMillis();
+        if (now - mLastMissingKeyDownRestartMs < MISSING_KEY_DOWN_RESTART_INTERVAL_MS) return;
+        mLastMissingKeyDownRestartMs = now;
+
+        if (mKeyboardCompatLog) {
+            KeyboardCompatLog.log("ime", "key up without its down, restarting the input connections");
+        }
+        restartTerminalInputConnections();
+    }
+
+    /**
+     * Recompute the input type state after the configuration changed.
+     *
+     * <p>The activity declares `keyboard` and `keyboardHidden` in its `configChanges`, so it survives a hardware
+     * keyboard being attached or detached and must update the input type itself.</p>
+     */
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        updateHardwareKeyboardState();
+    }
+
+    /**
+     * Record the current hardware keyboard state and listen for input devices being added or removed.
+     *
+     * <p>The configuration change covers most keyboards, but a keyboard that only the input service reports, like
+     * one that is still being paired, does not always change it.</p>
+     */
+    private void registerHardwareKeyboardWatcher() {
+        mHardwareKeyboardAttached = KeyboardUtils.isHardKeyboardConnected(this);
+
+        InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
+        if (inputManager == null) return;
+
+        mInputDeviceListener = new InputManager.InputDeviceListener() {
+            @Override
+            public void onInputDeviceAdded(int deviceId) {
+                updateHardwareKeyboardState();
+            }
+
+            @Override
+            public void onInputDeviceRemoved(int deviceId) {
+                updateHardwareKeyboardState();
+            }
+
+            @Override
+            public void onInputDeviceChanged(int deviceId) {
+                updateHardwareKeyboardState();
+            }
+        };
+        inputManager.registerInputDeviceListener(mInputDeviceListener, null);
+    }
+
+    /** Stop listening for input devices, since the listener holds a reference to this activity. */
+    private void unregisterHardwareKeyboardWatcher() {
+        if (mInputDeviceListener == null) return;
+
+        InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
+        if (inputManager != null) inputManager.unregisterInputDeviceListener(mInputDeviceListener);
+        mInputDeviceListener = null;
+    }
+
+    /**
+     * Record the hardware keyboard state after it was attached or detached and apply the resulting input type.
+     *
+     * <p>See {@link #updateImePassthroughState()} for when the input connections have to be restarted.</p>
+     */
+    private void updateHardwareKeyboardState() {
+        boolean attached = KeyboardUtils.isHardKeyboardConnected(this);
+        if (attached == mHardwareKeyboardAttached) return;
+
+        mHardwareKeyboardAttached = attached;
+        if (mKeyboardCompatLog) {
+            KeyboardCompatLog.log("ime", "hardware keyboard " + (attached ? "attached" : "detached"));
+        }
+
+        updateImePassthroughState();
+    }
+
+    /**
+     * Record the soft keyboard visibility and apply the resulting input type.
+     *
+     * <p>The terminal is an untyped editor while the soft keyboard is hidden, so that the physical keys reach the
+     * program directly, and a text editor while it is visible, so that the IME can show its toolbar and candidate
+     * view and compose CJK text. See {@link #updateImePassthroughState()}.</p>
+     */
+    private void updateImePassthroughForSoftKeyboardVisibility(boolean softKeyboardVisible) {
+        if (softKeyboardVisible == mIsSoftKeyboardVisible) return;
+        mIsSoftKeyboardVisible = softKeyboardVisible;
+
+        if (mKeyboardCompatLog) {
+            KeyboardCompatLog.log("ime", "soft keyboard " + (softKeyboardVisible ? "shown" : "hidden"));
+        }
+
+        updateImePassthroughState();
+    }
+
+    /**
+     * Restart the input connections when the decision about which of the terminal and the IME owns the physical
+     * keys changed.
+     *
+     * <p>The decision is {@link TermuxTerminalViewClient#resolveInputType(int, boolean, boolean, boolean)}: the
+     * physical keys belong to the terminal while a hardware keyboard is attached and the soft keyboard is hidden.
+     * Only a change of that decision needs a new input connection, since the IME reads the editor information only
+     * when it creates the connection, so a hardware keyboard that is attached while the soft keyboard is visible is
+     * a no-op. Without a hardware keyboard the type does not depend on the soft keyboard visibility, so the
+     * compatibility mode of the {@code gboard-cjk-workaround} property never restarts the connection here; toggling
+     * the property restarts it through {@code TermuxTerminalViewClient.onReloadProperties()}. Android 5.0 and 6.0 do
+     * not report the soft keyboard visibility, so the terminal keeps the type that the view computed there, which
+     * is what {@code TermuxTerminalViewClient.getInputType()} does.</p>
+     */
+    private void updateImePassthroughState() {
+        boolean passthrough = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+            && mHardwareKeyboardAttached && !mIsSoftKeyboardVisible;
+        if (passthrough == mPhysicalKeyPassthroughForIme) return;
+        mPhysicalKeyPassthroughForIme = passthrough;
+
+        if (mKeyboardCompatLog) {
+            KeyboardCompatLog.log("ime", "physical keys " + (passthrough ? "owned by the terminal" : "owned by the IME")
+                + ", restarting the input connections");
+        }
+
+        restartTerminalInputConnections();
+
+        // The IME may ignore the restart while its window is still animating in, so the type is applied again once
+        // the soft keyboard is ready.
+        View rootView = getTermuxActivityRootView();
+        if (rootView == null) return;
+        rootView.removeCallbacks(mDelayedImeRestart);
+        if (!passthrough)
+            rootView.postDelayed(mDelayedImeRestart, IME_RESTART_AFTER_SOFT_KEYBOARD_SHOWN_DELAY_MS);
+    }
+
+    /**
+     * Restart the input connections of both panes, so that the IME reads the input type that
+     * {@link TermuxTerminalViewClient#getInputType(int)} resolves for the current keyboard state.
+     */
+    private void restartTerminalInputConnections() {
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
+            if (viewClient != null) viewClient.restartInputConnection();
+        }
+    }
+
+    /**
+     * @return Whether the soft keyboard is visible as of the last layout pass, which decides whether the IME
+     *         takes over the input.
+     */
+    public boolean isSoftKeyboardVisibleForIme() {
+        return mIsSoftKeyboardVisible;
+    }
+
+    /** @return Whether key events are logged, as the `keyboard-compat-log` property configures it. */
+    public boolean isKeyboardCompatLogEnabled() {
+        return mKeyboardCompatLog;
+    }
+
+    /** @return The fields of {@code event} for the keyboard log, like the key code and the modifiers. */
+    @NonNull
+    public static String describeKeyEvent(@NonNull KeyEvent event) {
+        return "action=" + (event.getAction() == KeyEvent.ACTION_DOWN ? "down" : "up")
+            + ", code=" + KeyEvent.keyCodeToString(event.getKeyCode())
+            + ", unicode=" + event.getUnicodeChar(0)
+            + ", ctrl=" + event.isCtrlPressed()
+            + ", alt=" + event.isAltPressed()
+            + ", shift=" + event.isShiftPressed()
+            + ", source=0x" + Integer.toHexString(event.getSource())
+            + ", device=" + event.getDeviceId();
+    }
+
+    /**
+     * Run the command whose shortcut is {@code event}, if any.
+     *
+     * <p>Public because the extra keys send their key events directly to the terminal view, which bypasses the
+     * activity, so the view client asks the host to take the configured shortcut as well.</p>
+     *
+     * @return Whether the event was taken by a command, so that it is not sent to the terminal.
+     */
+    public boolean handleCommandShortcut(@NonNull KeyEvent event) {
+        if (mKeyboardCompatLog)
+            KeyboardCompatLog.log("activity", describeKeyEvent(event));
+
+        if (event.getAction() != KeyEvent.ACTION_DOWN || mShellCommandHost == null) return false;
+
+        if (mCommandShortcuts.matches(CommandShortcuts.ID_PALETTE, event)) {
             showCommandPalette();
             return true;
         }
-        return super.dispatchKeyEvent(event);
+        if (mCommandShortcuts.matches(ShellCommandCatalog.ID_TOGGLE_KEYBOARD, event)) {
+            mShellCommandHost.toggleSoftKeyboard();
+            return true;
+        }
+        if (mCommandShortcuts.matches(ShellCommandCatalog.ID_NEW_SESSION, event)) {
+            mShellCommandHost.addNewSession();
+            return true;
+        }
+        if (mCommandShortcuts.matches(ShellCommandCatalog.ID_NEW_NAMED_SESSION, event)) {
+            mShellCommandHost.addNamedSession();
+            return true;
+        }
+
+        for (TerminalMenuAction action : TerminalMenuAction.values()) {
+            if (!mCommandShortcuts.matches(action.getId(), event)) continue;
+            if (mKeyboardCompatLog) KeyboardCompatLog.log("activity", "matched action " + action.getId());
+            runTerminalMenuAction(action);
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -1391,15 +1790,15 @@ public final class TermuxActivity extends AppCompatActivity
         // Set termux terminal views, one for each pane, and their clients
         mTerminalPaneContainers[0] = findViewById(R.id.terminal_pane_0);
         mTerminalPaneContainers[1] = findViewById(R.id.terminal_pane_1);
-        mTerminalViews[0] = findViewById(R.id.terminal_view);
-        mTerminalViews[1] = findViewById(R.id.terminal_view_2);
+        mPanes.setView(0, findViewById(R.id.terminal_view));
+        mPanes.setView(1, findViewById(R.id.terminal_view_2));
 
-        for (int i = 0; i < mTerminalViews.length; i++) {
+        for (int i = 0; i < mPanes.getPaneCount(); i++) {
             final int paneIndex = i;
-            TerminalView terminalView = mTerminalViews[i];
+            TerminalView terminalView = mPanes.getView(i);
             TermuxTerminalViewClient viewClient =
                 new TermuxTerminalViewClient(this, terminalView, mTermuxTerminalSessionActivityClient);
-            mTermuxTerminalViewClients[i] = viewClient;
+            mPanes.setViewClient(i, viewClient);
             terminalView.setTerminalViewClient(viewClient);
             registerForContextMenu(terminalView);
 
@@ -1409,17 +1808,19 @@ public final class TermuxActivity extends AppCompatActivity
                 SplitScreenExtension splitScreen = splitScreenExtension();
                 if (event.getActionMasked() == MotionEvent.ACTION_DOWN
                     && splitScreen != null && splitScreen.isEnabled()
-                    && paneIndex != mActiveTerminalViewIndex)
+                    && paneIndex != mPanes.getActiveIndex())
                     setActiveTerminalPane(paneIndex);
                 return false;
             });
         }
 
-        mActiveTerminalViewIndex = 0;
-        mTerminalView = mTerminalViews[0];
-        mTermuxTerminalViewClient = mTermuxTerminalViewClients[0];
+        applySecondaryButtonBehaviour();
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        mPanes.setActiveIndex(0);
+        mTerminalView = mPanes.getView(0);
+        mTermuxTerminalViewClient = mPanes.getViewClient(0);
+
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.onCreate();
         }
 
@@ -1535,12 +1936,15 @@ public final class TermuxActivity extends AppCompatActivity
 
         boolean hideWhenSoftKeyboardIsHidden = mProperties.shouldHideExtraKeysWhenSoftKeyboardIsHidden();
 
-        Boolean isSoftKeyboardVisible = null;
-        if (hideWhenSoftKeyboardIsHidden && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // The soft keyboard visibility cannot be checked on android 7 and below, so the toolbar
-            // visibility is not updated based on it there.
-            isSoftKeyboardVisible = KeyboardUtils.isSoftKeyboardVisible(this) ? Boolean.TRUE : Boolean.FALSE;
+        // The soft keyboard visibility cannot be checked on android 7 and below, so it is treated as hidden there.
+        Boolean softKeyboardVisible = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            softKeyboardVisible = KeyboardUtils.isSoftKeyboardVisible(this) ? Boolean.TRUE : Boolean.FALSE;
+            updateImePassthroughForSoftKeyboardVisibility(softKeyboardVisible);
         }
+
+        Boolean isSoftKeyboardVisible = null;
+        if (hideWhenSoftKeyboardIsHidden) isSoftKeyboardVisible = softKeyboardVisible;
 
         if (!Objects.equals(isSoftKeyboardVisible, mIsSoftKeyboardVisibleForToolbar)) {
             // The soft keyboard visibility changed, so the user should have to toggle the toolbar again
@@ -1647,7 +2051,7 @@ public final class TermuxActivity extends AppCompatActivity
     private void showKillSessionDialog(TerminalSession session) {
         if (session == null) return;
 
-        final AlertDialog.Builder b = new AlertDialog.Builder(this);
+        final MaterialAlertDialogBuilder b = new MaterialAlertDialogBuilder(this);
         b.setIcon(android.R.drawable.ic_dialog_alert);
         b.setMessage(R.string.title_confirm_kill_process);
         b.setPositiveButton(android.R.string.yes, (dialog, id) -> {
@@ -1677,7 +2081,7 @@ public final class TermuxActivity extends AppCompatActivity
         } catch (ActivityNotFoundException | IllegalArgumentException e) {
             // The startActivity() call is not documented to throw IllegalArgumentException.
             // However, crash reporting shows that it sometimes does, so catch it here.
-            new AlertDialog.Builder(this).setMessage(getString(R.string.error_styling_not_installed))
+            new MaterialAlertDialogBuilder(this).setMessage(getString(R.string.error_styling_not_installed))
                 .setPositiveButton(R.string.action_styling_install,
                     (dialog, which) -> ActivityUtils.startActivity(this, new Intent(Intent.ACTION_VIEW, Uri.parse(TermuxConstants.TERMUX_STYLING_FDROID_PACKAGE_URL))))
                 .setNegativeButton(android.R.string.cancel, null).show();
@@ -2056,10 +2460,6 @@ public final class TermuxActivity extends AppCompatActivity
         setTerminalPadding();
         setTerminalToolbarHeight();
 
-        // Rebuild the status bar, since the `status-bar-*` properties may have changed, and apply the
-        // new position and overlay rules.
-        if (mExtensionManager != null) mExtensionManager.onReload();
-
         // Reload the `terminal-menu-*` and `selection-toolbar-items` properties.
 
         // Update the terminal toolbar visibility in case the `hide-extra-keys-when-soft-keyboard-hidden`
@@ -2072,7 +2472,7 @@ public final class TermuxActivity extends AppCompatActivity
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onReloadActivityStyling();
 
-        for (TermuxTerminalViewClient viewClient : mTermuxTerminalViewClients) {
+        for (TermuxTerminalViewClient viewClient : mPanes.getViewClients()) {
             if (viewClient != null) viewClient.onReloadActivityStyling();
         }
 

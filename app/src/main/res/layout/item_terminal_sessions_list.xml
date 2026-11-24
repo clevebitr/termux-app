@@ -2,14 +2,20 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:minHeight="56dp"
     android:orientation="horizontal">
 
-    <!-- The accent strip of the session that is shown in the active pane. Its color is set in code,
-         since it follows the accent color of the terminal color scheme. -->
+    <!-- The accent strip of the session that is shown in the active pane: a 3dp capsule that is inset from
+         the rounded background of the row, so that it reads as a marker instead of as the edge of the row.
+         Its color is set in code, since it follows the accent color of the terminal color scheme. -->
     <View
         android:id="@+id/session_accent"
         android:layout_width="3dp"
         android:layout_height="match_parent"
+        android:layout_marginStart="6dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
         android:background="@android:color/transparent" />
 
     <LinearLayout
@@ -18,9 +24,9 @@
         android:layout_weight="1"
         android:orientation="vertical"
         android:paddingStart="9dp"
-        android:paddingTop="6dp"
-        android:paddingEnd="6dp"
-        android:paddingBottom="6dp">
+        android:paddingTop="8dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="8dp">
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/session_title"
@@ -35,9 +41,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="middle"
-            android:paddingTop="2dip"
+            android:paddingTop="2dp"
             android:singleLine="true"
-            android:textSize="11sp" />
+            android:textSize="12sp" />
 
     </LinearLayout>
 

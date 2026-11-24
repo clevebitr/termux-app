@@ -98,6 +98,29 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        app:key="ime_compatibility"
+        app:title="@string/termux_ime_compatibility_header">
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:key="keyboard-compat-log"
+            app:summary="@string/termux_keyboard_compat_log_summary"
+            app:title="@string/termux_keyboard_compat_log_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="command_shortcuts"
+        app:title="@string/termux_command_shortcuts_header">
+
+        <EditTextPreference
+            app:key="command-shortcuts"
+            app:summary="@string/termux_command_shortcuts_summary"
+            app:title="@string/termux_command_shortcuts_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
         app:key="extra_keys_colors"
         app:title="@string/termux_extra_keys_colors_header"
         app:summary="@string/termux_extra_keys_colors_summary">

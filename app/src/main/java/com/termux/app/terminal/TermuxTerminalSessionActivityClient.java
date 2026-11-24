@@ -2,7 +2,6 @@ package com.termux.app.terminal;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -16,6 +15,7 @@ import android.widget.ListView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.R;
 import com.termux.app.ext.api.Extension;
 import com.termux.app.ext.host.ExtensionHost;
@@ -23,7 +23,7 @@ import com.termux.app.ext.notifications.NotificationsExtension;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.interact.ShareUtils;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
-import com.termux.shared.termux.interact.TextInputDialogUtils;
+import com.termux.app.widget.TerminalTextInputDialog;
 import com.termux.app.TermuxActivity;
 import com.termux.shared.termux.terminal.TermuxTerminalSessionClientBase;
 import com.termux.shared.termux.TermuxConstants;
@@ -499,6 +499,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         TerminalSession previousSession = mActivity.getCurrentSession();
 
         if (mActivity.getTerminalView().attachSession(session)) {
+            // The drawer marks the session that is shown, so its rows have to be redrawn when it changes.
+            termuxSessionListNotifyUpdated();
             // notify about switched session if not already displaying the session
             notifyOfSessionChange();
 
@@ -563,10 +565,11 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     public void renameSession(final TerminalSession sessionToRename) {
         if (sessionToRename == null) return;
 
-        TextInputDialogUtils.textInput(mActivity, R.string.title_rename_session, sessionToRename.mSessionName, R.string.action_rename_session_confirm, text -> {
-            renameSession(sessionToRename, text);
-            termuxSessionListNotifyUpdated();
-        }, -1, null, -1, null, null);
+        TerminalTextInputDialog.show(mActivity, sessionToRename, R.string.title_rename_session,
+            sessionToRename.mSessionName, R.string.action_rename_session_confirm, text -> {
+                renameSession(sessionToRename, text);
+                termuxSessionListNotifyUpdated();
+            });
     }
 
     private void renameSession(TerminalSession sessionToRename, String text) {
@@ -585,7 +588,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         if (service == null) return;
 
         if (service.getTermuxSessionsSize() >= MAX_SESSIONS) {
-            new AlertDialog.Builder(mActivity).setTitle(R.string.title_max_terminals_reached).setMessage(R.string.msg_max_terminals_reached)
+            new MaterialAlertDialogBuilder(mActivity).setTitle(R.string.title_max_terminals_reached).setMessage(R.string.msg_max_terminals_reached)
                 .setPositiveButton(android.R.string.ok, null).show();
         } else {
             TerminalSession currentSession = mActivity.getCurrentSession();

@@ -6,6 +6,7 @@ import androidx.annotation.Nullable;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.logger.Logger;
 import com.termux.app.properties.ForkProperties;
+import com.termux.app.widget.TerminalDialogStyles;
 import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 
 import java.util.ArrayList;
@@ -90,10 +91,10 @@ public final class NotificationConfig {
     public static final int MAX_FONT_SIZE_SP = 24;
 
     /**
-     * The radius of the corners of the cards in dp. The default is 0, since the cards look like part of
-     * the terminal with the square corners of a tui window instead of like material design cards.
+     * The radius of the corners of the cards in dp. The default is the medium corner radius of Material 3, so
+     * that the cards use the same rounding as the rows of the dialogs of the fork.
      */
-    public static final int DEFAULT_CORNER_RADIUS_DP = 0;
+    public static final int DEFAULT_CORNER_RADIUS_DP = TerminalDialogStyles.ROW_CORNER_DP;
     public static final int MIN_CORNER_RADIUS_DP = 0;
     public static final int MAX_CORNER_RADIUS_DP = 32;
 

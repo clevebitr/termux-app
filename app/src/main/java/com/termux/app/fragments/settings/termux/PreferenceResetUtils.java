@@ -2,7 +2,6 @@ package com.termux.app.fragments.settings.termux;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.view.GestureDetector;
@@ -18,6 +17,7 @@ import androidx.preference.PreferenceGroup;
 import androidx.preference.PreferenceGroupAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.R;
 import com.termux.shared.logger.Logger;
 
@@ -120,7 +120,7 @@ public final class PreferenceResetUtils {
         if (context == null) return;
 
         CharSequence title = preference.getTitle();
-        new AlertDialog.Builder(context)
+        new MaterialAlertDialogBuilder(context)
             .setTitle(title != null ? title : fragment.getString(R.string.action_reset_preference))
             .setMessage(R.string.msg_reset_preference_to_default)
             .setPositiveButton(R.string.action_reset_preference, (dialog, which) -> reset(fragment, preference))

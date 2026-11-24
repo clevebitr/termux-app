@@ -5,13 +5,13 @@ import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceScreen;
 import androidx.preference.SwitchPreferenceCompat;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.R;
 import com.termux.app.ext.api.Extension;
 import com.termux.app.ext.host.ExtensionHost;
@@ -97,7 +97,7 @@ public class ExtensionsPreferencesFragment extends PreferenceFragmentCompat {
 
     private void confirmCascade(@NonNull Context context, @NonNull Extension extension,
                                 @NonNull List<String> dependents, @NonNull ExtensionHost host) {
-        new AlertDialog.Builder(context)
+        new MaterialAlertDialogBuilder(context)
             .setTitle(R.string.termux_extensions_disable_title)
             .setMessage(getString(R.string.termux_extensions_disable_message,
                 getString(extension.titleRes()), dependents.size()))

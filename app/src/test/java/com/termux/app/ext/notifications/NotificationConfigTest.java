@@ -50,9 +50,9 @@ public class NotificationConfigTest {
         Assert.assertEquals(NotificationConfig.DEFAULT_DURATION_MS, config.durationMs);
         Assert.assertEquals(NotificationConfig.WIDTH_AUTO, config.widthDp);
         Assert.assertEquals(NotificationConfig.DEFAULT_FONT_SIZE_SP, config.fontSizeSp);
-        // The cards look like part of the terminal: square corners, flat, with a 1dp border and a
+        // The cards use the medium corner radius of Material 3, are flat, and have a 1dp border and a
         // 4dp accent bar, drawn with the monospace font of the terminal.
-        Assert.assertEquals(0, config.cornerRadiusDp);
+        Assert.assertEquals(NotificationConfig.DEFAULT_CORNER_RADIUS_DP, config.cornerRadiusDp);
         Assert.assertEquals(0, config.elevationDp);
         Assert.assertEquals(1, config.borderWidthDp);
         Assert.assertEquals(4, config.accentWidthDp);

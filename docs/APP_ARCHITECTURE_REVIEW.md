@@ -210,3 +210,82 @@
 
 Robolectric 需要下载 `android-all` 工件，本机已通过仓库外 `~/.gradle/init.d/mirror.gradle` 指向可达镜像；
 该配置不进入仓库。
+
+---
+
+## 9. 2026-11-23 复盘（扩展化与 UI 统一之后）
+
+本节是对 §0–§8 的重新评估，取代其中的度量数字；结论以本节为准。
+
+### 9.1 度量
+
+| 指标 | 扩展化之前 | 现在 |
+| --- | --- | --- |
+| `app/` Java 文件 | 124 | 120 |
+| `app/` Java 行数 | 18451 | 23451（新增扩展框架、面板、控件与测试支撑代码） |
+| 最大文件 | `TermuxActivity` 2447 行 / 124 方法 / 109 import | `TermuxActivity` 2235 行 / 137 方法 / 103 import |
+| 第二梯队 | `TermuxTerminalViewClient` 约 1100 行 | `TermuxTerminalViewClient` 1072、`TermuxService` 959、`TermuxTerminalSessionActivityClient` 785 |
+| 功能扩展 | 无（功能散在 Activity） | 9 个（`statusbar`、`menu`、`notifications`、`volumekeys`、`search`、`drawer`、`split`、`backup`、`builtin.vt`） |
+| 单元测试 | 136 项 | 180 项 / 36 类 |
+
+Activity 的方法数没有下降反而上升：拆分把状态与逻辑移进扩展，但宿主的公开方法（供扩展回调）增加了，
+行数下降 8.7%。这说明「拆分」改善的是**职责归属**，不是入口类的体量；体量问题需要另一套手段（见 9.4）。
+
+### 9.2 分层现状
+
+实际依赖方向（省略只读模块）：
+
+```
+fragments/settings  ──▶ ext/host, ext/api, properties, widget
+commands            ──▶ ext/menu（动作与规则）, widget, properties
+terminal (view/session clients) ──▶ commands, ext/*, widget
+ext/<feature>       ──▶ ext/api, ext/host, properties, widget, TermuxActivity, TermuxService
+ext/api, ext/host   ──▶ 无 app 内部依赖
+widget, properties  ──▶ 共享库
+```
+
+| 层 | 现状评价 |
+| --- | --- |
+| `ext/api` + `ext/host` | **健康**。契约（`Extension`、`ExtensionContext`、`ExtensionViewSlot`）与状态机（`ExtensionGraph`、`ExtensionHost`、`ExtensionManager`）只依赖共享库，可纯 JVM 测试；禁用语义只有一个判定入口（`findRunning`） |
+| `ext/<feature>` | **方向正确但未倒置**。扩展持有自己的状态、解析与控制器，宿主通过 `findRunning` 取用；代价是 13 个扩展类直接 import `TermuxActivity`/`TermuxService`，扩展层依赖宿主实现而不是宿主的窄接口 |
+| `commands` | **良好**。面板、抽屉按钮、快捷键共用 `ShellCommandHost` 与 `TerminalActionRunner`；目录、过滤、快捷键解析都是可测纯函数 |
+| `terminal` | **宿主适配层**。视图与会话客户端仍是最大的两个遗留类，负责把只读模块的事件转给扩展；可用性判定已收敛到 `TerminalMenuItems` |
+| `widget` | **新增的共享层**。形状令牌、`TerminalDialogBuilder`、主题色读取集中在这里；已移除唯一一处对 `ext.drawer` 的反向依赖 |
+| `fragments/settings` | **良好**。页面声明、搜索索引、长按复位、扩展闸门都有守卫测试 |
+| `properties` | **良好**。fork 自有属性统一从 `ForkProperties` 读，新增键集中在 `ForkPropertyKeys` |
+
+### 9.3 已解决的旧问题
+
+1. 「入口分散」：终端动作、会话、键盘、搜索、面板统一到面板与 `ShellCommandHost`，旧的菜单对话框已删除，
+   右键/菜单键/多选「更多」/快捷键都打开同一份命令列表。
+2. 「UI 不一致」：形状令牌 + 共用对话框构建器，终端内对话框与平台对话框使用同一圆角与同一套令牌。
+3. 「配置分散」：`reloadProperties()` 是唯一重载入口（扩展钩子 + 两个宿主属性），快捷键与右键行为也从这里读。
+4. 「规则不可测」：可见性/可用性、面板过滤、快捷键解析、属性解析都有纯 JVM 测试。
+
+### 9.4 仍存在的问题（按影响排序）
+
+1. **`TermuxActivity` 仍是上帝对象**（2235 行、137 方法）。拆分降低了逻辑密度，但没有减少宿主 API 面；
+   任何新交互仍会扩大它。建议：把「窗口/外观」与「动作派发」拆成两个宿主门面类
+   （`TerminalAppearanceHost`、`TerminalActionsHost`），Activity 只做装配与生命周期。
+2. **扩展依赖宿主实现**。13 个扩展类 import `TermuxActivity`。建议定义 `TerminalHost` 窄接口
+   （会话、面板、布局请求、Toast），由 Activity 实现；扩展只依赖接口，便于替换与测试。
+3. **`TerminalMenuItems.State` 与宿主耦合**。状态快照的构造仍在 Activity，语义扩展（新扩展可用性）需要改 Activity；
+   建议由 `TerminalHost` 提供 `snapshot()`。
+4. **测试集中在纯函数**。Activity、视图客户端、真实布局没有测试；形状与 insets 只能靠真机。
+   可引入 Robolectric 的 View 级金丝雀测试（对话框构建器、行背景状态、insets 计算）。
+5. **只剩一处跨层反向依赖的同类风险**：`ext/*` 与 `commands` 都可能再次直接 import 宿主，缺少静态守卫。
+   建议加一个源码扫描测试（类似 `ResourceClassNameTest`），限制 `ext/**` 只允许 import 白名单。
+
+### 9.5 建议的优先级
+
+| 优先级 | 动作 | 收益 |
+| --- | --- | --- |
+| P0 | `TerminalHost` 窄接口 + 源码导入守卫测试 | 把扩展层从 Activity 解耦，阻止继续恶化 |
+| P1 | 拆 `TerminalAppearanceHost`（窗口背景、状态栏配色、内边距、insets） | 直接缩小 Activity，缓解最大冲突点 |
+| P2 | 视图级 Robolectric 测试（对话框、抽屉行、状态栏分段） | 让观感改动有自动回归 |
+| P3 | `preferenceTheme` 与设置页顶栏配色统一（需先定设计） | 补齐最后一处 Material 2 观感 |
+
+### 9.6 未验证
+
+本节的分层判断基于源码与测试，不包含运行时剖析；Activity 的实际耦合度、扩展回调的耗时、视图重建开销均未测量，
+本机也没有 `adb` 与性能工具。

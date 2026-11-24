@@ -1,12 +1,13 @@
 package com.termux.app.terminal;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.media.AudioManager;
+import android.os.Build;
 import android.os.Environment;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.InputDevice;
@@ -17,6 +18,7 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.app.ext.host.ExtensionHost;
@@ -64,6 +66,10 @@ import java.util.Map;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
+
+    /** The input type that presents the terminal to the IME as a plain text editor. */
+    private static final int TEXT_EDITOR_INPUT_TYPE =
+        InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_NORMAL;
 
     final TermuxActivity mActivity;
 
@@ -165,8 +171,16 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
         setSessionShortcuts();
 
         // Restart the input connection so that the IME reloads the input attributes returned by
-        // TerminalView.onCreateInputConnection(), since properties like gboard-cjk-workaround may
-        // have changed.
+        // TerminalView.onCreateInputConnection(), since properties like gboard-cjk-workaround may have changed.
+        TerminalView terminalView = mTerminalView;
+        if (terminalView != null) terminalView.restartInputConnection();
+    }
+
+    /**
+     * Restart the input connection of the terminal view so that the IME reads the input type again, which is
+     * needed after a hardware keyboard was attached or detached or the soft keyboard was shown or hidden.
+     */
+    public void restartInputConnection() {
         TerminalView terminalView = mTerminalView;
         if (terminalView != null) terminalView.restartInputConnection();
     }
@@ -267,6 +281,62 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     }
 
     @Override
+    public void onImeEvent(@NonNull String message) {
+        if (mActivity.isKeyboardCompatLogEnabled()) KeyboardCompatLog.log("ime", message);
+    }
+
+    @Override
+    public int getInputType(int defaultInputType) {
+        // The soft keyboard visibility is read from the window insets, which android 5.0 and 6.0 do not report, so
+        // the type that the view computed is kept there, which is the upstream behaviour.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return defaultInputType;
+
+        boolean hardwareKeyboardAttached = KeyboardUtils.isHardKeyboardConnected(mActivity);
+        boolean softKeyboardVisible = mActivity.isSoftKeyboardVisibleForIme();
+        boolean imeCompatibilityModeEnabled = mActivity.getProperties().isGboardCjkWorkaroundEnabled();
+        int inputType = resolveInputType(defaultInputType, hardwareKeyboardAttached, softKeyboardVisible,
+            imeCompatibilityModeEnabled);
+
+        if (mActivity.isKeyboardCompatLogEnabled()) {
+            KeyboardCompatLog.log("ime", "getInputType hardwareKeyboard=" + hardwareKeyboardAttached
+                + ", softKeyboardVisible=" + softKeyboardVisible
+                + ", compatibilityMode=" + imeCompatibilityModeEnabled
+                + ", default=0x" + Integer.toHexString(defaultInputType)
+                + ", reported=0x" + Integer.toHexString(inputType));
+        }
+        return inputType;
+    }
+
+    /**
+     * Resolve the input type that the terminal reports to the IME.
+     *
+     * <p>Purpose - keep the IME out of the way of the physical keys, since an IME that treats the terminal as a
+     * text editor takes the key down events of the physical keyboard, including Tab, and returns them later as
+     * committed text. That breaks the key order that programs like `vim` and node TUIs depend on. The IME must
+     * still see a plain text editor whenever only the soft keyboard is typing, otherwise it hides the language
+     * switch and the candidate view and only the ASCII keyboard of the current language is reachable.</p>
+     *
+     * <p>Behavior - with a hardware keyboard the terminal is an untyped editor while the soft keyboard is hidden,
+     * so that the IME cannot take the physical keys, and a plain text editor while the soft keyboard is visible,
+     * so that the IME shows its toolbar and candidate view and can compose CJK text from the software and the
+     * physical keyboard. Without a hardware keyboard, the compatibility mode that the {@code gboard-cjk-workaround}
+     * property enables always reports a plain text editor, so that every IME, including the ones that switch the
+     * language inside their own UI and report no useful language tag, keeps its language switch; with the mode
+     * disabled the type that the terminal view computed is kept, which is the upstream behaviour.</p>
+     *
+     * <p>Constraint - the IME only reads the editor information when it creates the input connection, so the
+     * connections must be restarted when the state changes. See
+     * {@code TermuxActivity.updateImePassthroughState()} and {@code TermuxTerminalViewClient.onReloadProperties()}.</p>
+     */
+    static int resolveInputType(int defaultInputType, boolean hardwareKeyboardAttached, boolean softKeyboardVisible,
+                                boolean imeCompatibilityModeEnabled) {
+        if (hardwareKeyboardAttached)
+            return softKeyboardVisible ? TEXT_EDITOR_INPUT_TYPE : InputType.TYPE_NULL;
+
+        return imeCompatibilityModeEnabled ? TEXT_EDITOR_INPUT_TYPE : defaultInputType;
+    }
+
+    @Override
     public boolean shouldTouchDragSendMouseDrag() {
         return mActivity.getProperties().shouldTouchDragSendMouseDrag();
     }
@@ -315,6 +385,9 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     @SuppressLint("RtlHardcoded")
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent e, TerminalSession currentSession) {
+        if (mActivity.isKeyboardCompatLogEnabled())
+            KeyboardCompatLog.log("terminal-view", TermuxActivity.describeKeyEvent(e));
+
         // A virtual key in the extra keys row that sends F12 opens the command palette, so that the palette
         // is reachable without a hardware keyboard. The key is only taken when it was not combined, so that
         // a program can still bind a modified F12.
@@ -322,6 +395,10 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
             mActivity.showCommandPalette();
             return true;
         }
+
+        // The extra keys send their events directly to the view, which bypasses the activity, so the configured
+        // command shortcuts are taken here as well as in `TermuxActivity.dispatchKeyEvent()`.
+        if (mActivity.handleCommandShortcut(e)) return true;
 
         if (handleVirtualKeys(keyCode, e, true)) return true;
 
@@ -341,16 +418,10 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
                 mActivity.getDrawer().openDrawer(Gravity.LEFT);
             } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 mActivity.getDrawer().closeDrawers();
-            } else if (unicodeChar == 'k'/* keyboard */) {
-                onToggleSoftKeyboardRequest();
-            } else if (unicodeChar == 'f' /* find */) {
-                mActivity.showTerminalSearch();
-            } else if (unicodeChar == 'm'/* menu */) {
-                mActivity.showTerminalMenu();
+            } else if (unicodeChar == 'm'/* palette */) {
+                mActivity.showCommandPalette();
             } else if (unicodeChar == 'r'/* rename */) {
                 mTermuxTerminalSessionActivityClient.renameSession(currentSession);
-            } else if (unicodeChar == 'c'/* create */) {
-                mTermuxTerminalSessionActivityClient.addNewSession(false, null);
             } else if (unicodeChar == 'u' /* urls */) {
                 showUrlSelection();
             } else if (unicodeChar == 'v') {
@@ -595,13 +666,15 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     }
 
     /**
-     * Show the styled terminal context menu of the app instead of the system context menu, so that its
-     * items and their order can be configured with the `terminal-menu-items` property and it can be
-     * drawn with the colors of the termux color scheme.
+     * Show the command palette instead of the system context menu.
+     *
+     * <p>The palette carries the actions of the old context menu, in the order of the `terminal-menu-items`
+     * property, and follows the color scheme of the terminal, so the right click of a mouse and the "more"
+     * button of the text selection toolbar open the same list as the shortcut and the drawer button.</p>
      */
     @Override
     public boolean onShowContextMenu(@NonNull TerminalView view) {
-        mActivity.showTerminalMenu();
+        mActivity.showCommandPalette();
         return true;
     }
 
@@ -969,7 +1042,7 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
 
         LinkedHashSet<CharSequence> urlSet = TermuxUrlUtils.extractUrls(text);
         if (urlSet.isEmpty()) {
-            new AlertDialog.Builder(mActivity).setMessage(R.string.title_select_url_none_found).show();
+            new MaterialAlertDialogBuilder(mActivity).setMessage(R.string.title_select_url_none_found).show();
             return;
         }
 
@@ -977,7 +1050,7 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
         Collections.reverse(Arrays.asList(urls)); // Latest first.
 
         // Click to copy url to clipboard:
-        final AlertDialog dialog = new AlertDialog.Builder(mActivity).setItems(urls, (di, which) -> {
+        final androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(mActivity).setItems(urls, (di, which) -> {
             String url = (String) urls[which];
             ShareUtils.copyTextToClipboard(mActivity, url, mActivity.getString(R.string.msg_select_url_copied_to_clipboard));
         }).setTitle(R.string.title_select_url_dialog).create();
