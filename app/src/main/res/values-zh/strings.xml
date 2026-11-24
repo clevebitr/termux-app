@@ -169,11 +169,11 @@
     <string name="termux_preferences_category_advanced">高级</string>
     <string name="termux_preferences_summary_debugging">日志级别 · 插件</string>
     <string name="action_search_settings">搜索设置</string>
-    <string name="settings_search_summary">按名称或摘要查找这个 app 的设置项</string>
+    <string name="settings_search_summary">按名称或摘要查找本应用的设置项</string>
     <string name="settings_search_hint">搜索设置…</string>
     <string name="settings_search_empty">没有匹配的设置项</string>
     <string name="action_reset_preference">恢复默认</string>
-    <string name="msg_reset_preference_to_default">把这个设置恢复成默认值？会在 termux.properties 里把对应的那一行注释掉，app 就会重新使用默认值。</string>
+    <string name="msg_reset_preference_to_default">将该项恢复为默认值？这会在 termux.properties 中注释掉对应的行，应用随即重新使用默认值。</string>
 
         <!-- Debugging Preferences -->
         <string name="termux_debugging_preferences_title">调试</string>
@@ -189,7 +189,7 @@
                 <string name="termux_terminal_view_key_logging_enabled_title">终端视图按键日志</string>
                 <string name="termux_terminal_view_key_logging_enabled_off">日志中不会包含终端视图按键记录。（默认）</string>
                 <string name="termux_terminal_view_key_logging_enabled_on">Logcat 日志中会包含终端视图按键记录。
-                    这些日志非常啰嗦，正常情况下应保持关闭，否则会影响性能。</string>
+                    这些日志条目众多，正常情况下应保持关闭，否则会影响性能。</string>
 
                 <!-- Plugin Error Notifications -->
                 <string name="termux_plugin_error_notifications_enabled_title">插件错误通知</string>
@@ -245,14 +245,14 @@
                 <!-- Fullscreen Workaround -->
                 <string name="termux_appearance_fullscreen_workaround_title">全屏兼容处理</string>
                 <string name="termux_appearance_fullscreen_workaround_off">已停用。（默认）</string>
-                <string name="termux_appearance_fullscreen_workaround_on">已启用，会为终端额外增加内边距，尝试修复终端被绘制到
+                <string name="termux_appearance_fullscreen_workaround_on">已启用，为终端额外增加内边距，以缓解终端被绘制到
                     状态栏区域下方的问题。仅在同时启用全屏时生效。</string>
 
             <!-- Terminal Toolbar Category -->
             <string name="termux_appearance_toolbar_header">终端工具栏</string>
             <string name="termux_appearance_drawer_header">会话抽屉</string>
             <string name="termux_appearance_drawer_open_mode_title">打开方式</string>
-            <string name="termux_appearance_drawer_open_mode_summary">边缘把手、边缘滑动、两者都有或两者都不要</string>
+            <string name="termux_appearance_drawer_open_mode_summary">边缘把手、边缘滑动、两者兼有或均不使用</string>
             <string name="termux_appearance_drawer_handle_length_title">把手长度</string>
             <string name="termux_appearance_drawer_handle_length_summary">竖条长度（dp）</string>
             <string name="termux_appearance_drawer_handle_opacity_title">把手透明度</string>
@@ -275,7 +275,7 @@
 
                 <!-- Extra Keys Text All Caps -->
                 <string name="termux_appearance_extra_keys_text_all_caps_title">虚拟键盘字母大写</string>
-                <string name="termux_appearance_extra_keys_text_all_caps_off">按键文字按 `extra-keys` 属性里定义的原样显示。</string>
+                <string name="termux_appearance_extra_keys_text_all_caps_off">按键文字按 `extra-keys` 属性中定义的内容显示。</string>
                 <string name="termux_appearance_extra_keys_text_all_caps_on">按键文字自动转为大写。（默认）</string>
 
 
@@ -297,14 +297,14 @@
                 <!-- Enforce Char Based Input -->
                 <string name="termux_enforce_char_based_input_title">强制逐字符输入</string>
                 <string name="termux_enforce_char_based_input_off">输入法提交字符后立即发送到终端。（默认）</string>
-                <string name="termux_enforce_char_based_input_on">使用可见密码类输入类型，可修复部分键盘（如三星键盘）
-                    必须按回车才发送字符的问题。</string>
+                <string name="termux_enforce_char_based_input_on">使用可见密码类输入类型，可修复部分键盘（例如三星键盘）
+                    必须按回车键才发送字符的问题。</string>
 
                 <!-- Ctrl+Space Workaround -->
                 <string name="termux_ctrl_space_workaround_title">Ctrl+Space 兼容处理</string>
                 <string name="termux_ctrl_space_workaround_off">已停用。（默认）</string>
                 <string name="termux_ctrl_space_workaround_on">已启用，可修复部分 ROM 上 Ctrl+Space 无法切换输入法的问题，
-                    但在其他设备上可能反而失效。</string>
+                    但在其他设备上可能产生相反效果。</string>
 
             <!-- Key Behaviour Category -->
             <string name="termux_keyboard_key_behaviour_header">按键行为</string>
@@ -317,7 +317,7 @@
                 <!-- Volume Keys -->
                 <string name="termux_volume_keys_behaviour_title">音量键</string>
                 <string name="termux_volume_keys_behaviour_virtual">虚拟音量键（默认）</string>
-                <string name="termux_volume_keys_behaviour_volume">真实的音量键</string>
+                <string name="termux_volume_keys_behaviour_volume">实际音量键</string>
 
                 <!-- Volume Key Actions -->
                 <string name="termux_volume_up_action_title">音量加键（单击）</string>
@@ -328,7 +328,7 @@
                 <string name="termux_volume_down_send_keys_title">音量减键序列</string>
 
                 <string name="termux_volume_key_action_default">默认（Ctrl/Fn 虚拟键）</string>
-                <string name="termux_volume_key_action_none">无动作（吞掉按键）</string>
+                <string name="termux_volume_key_action_none">无动作（按键被忽略）</string>
                 <string name="termux_volume_key_action_volume">调整系统音量</string>
                 <string name="termux_volume_key_action_keyboard">显示/隐藏软键盘</string>
                 <string name="termux_volume_key_action_toggle_extra_keys">显示/隐藏虚拟键盘行</string>
@@ -339,13 +339,13 @@
                 <string name="termux_volume_key_action_prev_session">切换到上一个会话</string>
                 <string name="termux_volume_key_action_next_session">切换到下一个会话</string>
                 <string name="termux_volume_key_action_new_session">新建会话</string>
-                <string name="termux_volume_key_action_paste">粘贴剪贴板</string>
+                <string name="termux_volume_key_action_paste">粘贴剪贴板内容</string>
                 <string name="termux_volume_key_action_send_keys">发送按键序列</string>
 
-                <string name="termux_volume_key_send_keys_message">当对应动作为「发送按键序列」时，将要发给终端的按键。多个按键用\n空格分隔，键名与 `extra-keys` 属性一致，例如 ESC、TAB、PGUP、\nUP、F1 或 CTRL c。\n\n按键前可以加 CTRL、ALT、SHIFT 或 FN，只对紧随其后的一个按键\n生效，所以 \"CTRL c\" 是 Ctrl+C，而 \"CTRL c d\" 是 Ctrl+C 再跟一个 D。</string>
+                <string name="termux_volume_key_send_keys_message">当对应动作为「发送按键序列」时，将要发送给终端的按键。多个按键用\n空格分隔，键名与 `extra-keys` 属性一致，例如 ESC、TAB、PGUP、\nUP、F1 或 CTRL c。\n\n键名前可加 CTRL、ALT、SHIFT 或 FN，仅对紧随其后的一个按键\n生效，因此 \"CTRL c\" 为 Ctrl+C，而 \"CTRL c d\" 为 Ctrl+C 再跟一个 D。</string>
                 <string name="termux_volume_key_actions_reset_title">恢复音量键默认行为</string>
-                <string name="termux_volume_key_actions_reset_summary">把上面的音量键动作全部恢复为默认值，也就是恢复成官方 termux 的行为。
-                    只有上面的「音量键」选的是「虚拟音量键」时，这些动作才会生效。</string>
+                <string name="termux_volume_key_actions_reset_summary">将上述音量键动作全部恢复为默认值，即恢复为上游 Termux 的行为。
+                    仅当「音量键」取值为「虚拟音量键」时，这些动作才生效。</string>
                 <string name="termux_volume_key_actions_reset_done">音量键动作已恢复为默认值</string>
 
                 <!-- Soft Keyboard Toggle Behaviour -->
@@ -361,31 +361,31 @@
                 <!-- Hide Extra Keys When Soft Keyboard Hidden -->
                 <string name="termux_hide_extra_keys_when_soft_keyboard_hidden_title">软键盘隐藏时收起虚拟键盘</string>
                 <string name="termux_hide_extra_keys_when_soft_keyboard_hidden_off">软键盘隐藏时仍然显示额外按键行。（默认）</string>
-                <string name="termux_hide_extra_keys_when_soft_keyboard_hidden_on">软键盘隐藏时收起额外按键行，把这行还给终端；
-                    软键盘再次弹出时自动恢复。需要 Android 6 或更高版本。手动显示工具栏的优先，
+                <string name="termux_hide_extra_keys_when_soft_keyboard_hidden_on">软键盘隐藏时收起额外按键行，将该行空间归还终端；
+                    软键盘再次弹出时自动恢复。需要 Android 6 或更高版本。手动显示工具栏优先于该规则，
                     直到软键盘状态再次变化。</string>
 
                 <!-- Touch Drag Sends Mouse Drag -->
                 <string name="termux_touch_drag_sends_mouse_drag_title">手指拖拽按鼠标拖拽上报</string>
                 <string name="termux_touch_drag_sends_mouse_drag_off">手指拖拽会向使用鼠标跟踪的终端程序上报滚轮事件。（默认）</string>
-                <string name="termux_touch_drag_sends_mouse_drag_on">手指拖拽改为上报为鼠标指针拖拽，支持拖拽的程序
-                    （如在 TUI 里选择文本、调整窗格大小）可以处理它。此后使用鼠标跟踪的程序不会再
-                    收到拖拽产生的滚轮事件。</string>
+                <string name="termux_touch_drag_sends_mouse_drag_on">手指拖拽改为按鼠标指针拖拽上报，支持拖拽的程序
+                    （例如在 TUI 中选择文本、调整窗格大小）可以处理该事件。此后使用鼠标跟踪的程序
+                    不再收到拖拽产生的滚轮事件。</string>
 
                 <!-- Mouse Hover Sends Mouse Motion -->
                 <string name="termux_mouse_hover_sends_mouse_motion_title">鼠标悬停上报鼠标移动</string>
-                <string name="termux_mouse_hover_sends_mouse_motion_off">鼠标不按键移动不会上报给终端程序，即使程序用
-                    `DECSET 1003` 请求了。（默认）</string>
+                <string name="termux_mouse_hover_sends_mouse_motion_off">鼠标在未按下按键时的移动不会上报给终端程序，即使程序以
+                    `DECSET 1003` 请求该事件。（默认）</string>
                 <string name="termux_mouse_hover_sends_mouse_motion_on">鼠标悬停移动会上报给用 `DECSET 1003` 请求的
-                    终端程序，TUI 里的悬停反馈（悬停滚动条、链接、图表点）才有效。每个上报事件都会增加终端和程序的
-                    主线程开销，且只在格子变化时才上报。</string>
+                    终端程序，TUI 中的悬停反馈（悬停滚动条、链接、图表数据点）才能生效。每次上报都会增加终端与程序的
+                    主线程开销，因此仅在格子变化时上报。</string>
 
                 <!-- Mouse Tap Shows Keyboard -->
                 <string name="termux_mouse_tap_shows_keyboard_title">鼠标点按唤键盘</string>
                 <string name="termux_mouse_tap_shows_keyboard_off">鼠标点击以及鼠标跟踪生效时的点击会转发给终端，
-                    不会弹出软键盘。（默认）</string>
-                <string name="termux_mouse_tap_shows_keyboard_on">这些点击也会弹出软键盘，可能更方便，
-                    但可能与使用鼠标跟踪/点击的终端程序（如 TUI）冲突。</string>
+                    不弹出软键盘。（默认）</string>
+                <string name="termux_mouse_tap_shows_keyboard_on">这些点击同样弹出软键盘，便于输入，
+                    但可能与使用鼠标跟踪与点击的终端程序（例如 TUI）冲突。</string>
 
                 <!-- Disable Hardware Keyboard Shortcuts -->
                 <string name="termux_disable_hardware_keyboard_shortcuts_title">停用物理键盘快捷键</string>
@@ -398,15 +398,15 @@
 
                 <!-- Extra Keys Popup Hints -->
                 <string name="termux_extra_keys_popup_hints_title">上滑备用键提示</string>
-                <string name="termux_extra_keys_popup_hints_off">按键只显示主键名，不提示上滑会发送哪个键。</string>
-                <string name="termux_extra_keys_popup_hints_on">在按键右上角用小字显示上滑会发送的键，
-                    例如右箭头键右上角显示 END。（默认）</string>
+                <string name="termux_extra_keys_popup_hints_off">按键仅显示主键名，不提示上滑将发送的键。</string>
+                <string name="termux_extra_keys_popup_hints_on">在按键右上角以小字显示上滑将发送的键，
+                    例如右方向键右上角显示 END。（默认）</string>
 
                 <!-- Extra Keys Tile Background -->
                 <string name="termux_extra_keys_tile_background_title">按键块背景</string>
-                <string name="termux_extra_keys_tile_background_off">按键不加背景，和上游 Termux 一样只有文字。</string>
-                <string name="termux_extra_keys_tile_background_on">每个按键背后画一个圆角小块，
-                    类似 Gboard 的按键，颜色跟随配色方案。（默认）</string>
+                <string name="termux_extra_keys_tile_background_off">按键不绘制背景，与上游 Termux 一致，仅显示文字。</string>
+                <string name="termux_extra_keys_tile_background_on">每个按键绘制圆角块背景，
+                    样式接近 Gboard 的按键，颜色跟随配色方案。（默认）</string>
 
             <!-- Extra Keys Colors Category -->
             <string name="termux_extra_keys_colors_header">虚拟键盘配色</string>
@@ -421,8 +421,8 @@
                 <string name="termux_extra_keys_tile_active_background_color_title">按键块按下颜色</string>
                 <string name="termux_extra_keys_color_follow_theme">跟随配色方案（默认）</string>
                 <string name="termux_extra_keys_color_custom">自定义颜色</string>
-                <string name="termux_extra_keys_color_invalid">颜色 \"%1$s\" 无效，请使用 #RGB、
-                    #RRGGBB 或 #AARRGGBB 这类取值</string>
+                <string name="termux_extra_keys_color_invalid">取值 \"%1$s\" 无效，请使用 #RGB、
+                    #RRGGBB 或 #AARRGGBB 形式的颜色</string>
 
 
             <!-- Backup and Restore Preferences -->
@@ -430,29 +430,29 @@
         <string name="termux_backup_preferences_summary">备份 / 恢复环境</string>
 
             <string name="termux_backup_category_title">环境备份</string>
-            <string name="termux_backup_category_summary">会打包整个 $PREFIX 与 $HOME，卸载应用或换成其他签名的构建前
-                需要先做这个备份</string>
+            <string name="termux_backup_category_summary">备份包含完整的 $PREFIX 与 $HOME；卸载应用或更换为其他签名的构建前
+                应先执行该备份</string>
 
             <string name="termux_backup_now_title">立即备份</string>
-            <string name="termux_backup_now_summary">在 ~/storage/shared/Download 创建备份，并开一个新终端会话显示进度</string>
+            <string name="termux_backup_now_summary">在 ~/storage/shared/Download 中创建备份，并在新终端会话中显示进度</string>
 
             <string name="termux_restore_now_title">从备份恢复</string>
             <string name="termux_restore_now_summary">从设备上选择备份并覆盖 $PREFIX 与 $HOME。恢复前会先自动备份当前
                 环境。</string>
 
             <string name="termux_backup_install_commands_title">把脚本安装为命令</string>
-            <string name="termux_backup_install_commands_summary">复制到 $PREFIX/bin，之后随时可以在终端里直接用
+            <string name="termux_backup_install_commands_summary">复制到 $PREFIX/bin，之后可在终端中直接运行
                 `termux-backup` 与 `termux-restore`</string>
 
             <string name="termux_backup_started_toast">已在新终端会话中开始备份</string>
             <string name="termux_restore_started_toast">已在新终端会话中开始恢复</string>
             <string name="termux_backup_script_extract_failed_toast">提取 %1$s 脚本失败</string>
             <string name="termux_backup_script_run_failed_toast">运行 %1$s 脚本失败</string>
-            <string name="termux_backup_commands_installed_toast">现在可以在终端里直接运行 %1$s 与 %2$s 了</string>
-            <string name="termux_backup_commands_install_failed_toast">安装脚本失败，详情请看 logcat</string>
-            <string name="termux_restore_confirm_title">要恢复备份吗？</string>
+            <string name="termux_backup_commands_installed_toast">已安装：可在终端中直接运行 %1$s 与 %2$s</string>
+            <string name="termux_backup_commands_install_failed_toast">安装脚本失败，详情请查看 logcat</string>
+            <string name="termux_restore_confirm_title">确认恢复备份？</string>
             <string name="termux_restore_confirm_message">$PREFIX 与 $HOME 会被所选备份的内容覆盖，恢复前会先自动备份
-                当前环境。之后在终端里仍然可以取消恢复。</string>
+                当前环境。恢复开始后仍可在终端中取消。</string>
             <string name="termux_restore_confirm_positive">继续</string>
 
 
@@ -486,7 +486,7 @@
     <string name="action_search_history">最近搜索</string>
     <string name="action_search_history_title">最近搜索词</string>
     <string name="action_search_invalid_regex">正则无效</string>
-    <string name="action_search_history_empty">还没有最近的搜索</string>
+    <string name="action_search_history_empty">暂无最近搜索</string>
 
 
     <!-- Terminal View Preferences -->
@@ -500,34 +500,34 @@
                 <string name="termux_terminal_view_terminal_margin_adjustment_title">终端边距自适应</string>
                 <string name="termux_terminal_view_terminal_margin_adjustment_off">终端边距自适应将被停用。</string>
                 <string name="termux_terminal_view_terminal_margin_adjustment_on">终端边距自适应将被启用。
-                    它可以尝试修复软键盘遮挡部分额外按键行/终端视图的问题。
-                    如果它导致你的设备屏幕闪烁，请停用它。（默认）</string>
+                    该功能可缓解软键盘遮挡部分额外按键行或终端视图的问题；
+                    若屏幕出现闪烁，请停用该项。（默认）</string>
 
                 <!-- Switch Session on Swipe -->
                 <string name="termux_terminal_view_switch_session_on_swipe_title">左右滑动切换会话</string>
                 <string name="termux_terminal_view_switch_session_on_swipe_off">在终端上左右滑动不会切换会话。</string>
-                <string name="termux_terminal_view_switch_session_on_swipe_on">在终端上左右滑动会切换到上一个/下一个会话。
-                    选择文本时以及终端程序开启了鼠标跟踪时不会触发。（默认）</string>
+                <string name="termux_terminal_view_switch_session_on_swipe_on">在终端上左右滑动会切换到上一个或下一个会话。
+                    选择文本时以及终端程序开启鼠标跟踪时不触发。（默认）</string>
 
                 <!-- Shell History Sync -->
                 <string name="termux_terminal_view_shell_history_sync_title">保留命令历史</string>
-                <string name="termux_terminal_view_shell_history_sync_off">shell 只会在退出时把命令历史写入
-                    历史文件，所以 App 关闭时 shell 被直接杀掉，这个会话的历史就丢了。</string>
-                <string name="termux_terminal_view_shell_history_sync_on">每条命令执行完就把命令历史写入历史文件，
-                    所以关闭 App 也不会丢，同时开着的多个会话之间也能看到彼此的命令。只对启动时的 bash 会话生效，
-                    改完请新开一个会话并重启正在运行的会话。（默认）</string>
+                <string name="termux_terminal_view_shell_history_sync_off">shell 仅在退出时把命令历史写入
+                    历史文件；应用关闭时 shell 被直接终止，该会话的历史随即丢失。</string>
+                <string name="termux_terminal_view_shell_history_sync_on">每条命令执行后即把命令历史写入历史文件，
+                    因此关闭应用后历史不会丢失，同时打开的多个会话之间也能共享命令。仅对以 bash 启动的会话生效；
+                    修改后需新开会话，并重启正在运行的会话。（默认）</string>
 
                 <!-- Keep Scroll Position on Output -->
                 <string name="termux_terminal_view_keep_scroll_position_title">输出时保持滚动位置</string>
-                <string name="termux_terminal_view_keep_scroll_position_on">视图回滚到历史里以后，新输出不会把视图拽回底部，
-                    所以程序一直在写的时候也能翻历史看。手动滑回底部或输入/粘贴时才会回到底部。（默认）</string>
-                <string name="termux_terminal_view_keep_scroll_position_off">每来一行新输出就把视图拽回底部，
-                    所以只能在程序停下来的时候看历史。这是上游 App 的行为。</string>
+                <string name="termux_terminal_view_keep_scroll_position_on">视图滚动到历史记录后，新输出不会把视图拉回底部，
+                    因此在程序持续输出时仍可查看历史。手动滑回底部或输入、粘贴内容时才会回到底部。（默认）</string>
+                <string name="termux_terminal_view_keep_scroll_position_off">每收到一行新输出就把视图拉回底部，
+                    因此只能在程序停止输出时查看历史。这是上游应用的行为。</string>
 
             <!-- Padding Category -->
             <string name="termux_terminal_view_padding_header">终端内边距</string>
-            <string name="termux_terminal_view_padding_summary">单位 dp，0–100。让终端内容与窗口边缘留白，
-                类似 Windows Terminal 的 padding。底部虚拟键盘行与会话抽屉不受影响。</string>
+            <string name="termux_terminal_view_padding_summary">单位 dp，0–100，使终端内容与窗口边缘留白，
+                其作用等同于 Windows Terminal 的内边距。底部虚拟键盘行与会话抽屉不受影响。</string>
 
                 <!-- Terminal Padding Top -->
                 <string name="termux_terminal_view_padding_top_title">上边距</string>
@@ -547,7 +547,7 @@
                 <!-- OSC 52 Clipboard -->
                 <string name="termux_terminal_view_osc52_clipboard_title">OSC 52 剪贴板</string>
                 <string name="termux_terminal_view_osc52_clipboard_write">允许终端程序写入剪贴板（默认）</string>
-                <string name="termux_terminal_view_osc52_clipboard_read_write">允许终端程序读写剪贴板（较不安全，远程主机可能读到你复制的全部内容）</string>
+                <string name="termux_terminal_view_osc52_clipboard_read_write">允许终端程序读写剪贴板（安全性较低，远端主机可能读取全部剪贴板内容）</string>
                 <string name="termux_terminal_view_osc52_clipboard_off">忽略终端程序的 OSC 52 剪贴板请求</string>
 
             <!-- Shell Integration Category -->
@@ -556,10 +556,10 @@
             <string name="termux_terminal_view_shell_integration_install_summary">把 OSC 133 命令标记写入
                 ~/.bashrc（若存在 ~/.zshrc 也写入），之后可以跳转命令、点击右侧标记、看到失败的
                 命令。重开会话或执行 `source ~/.bashrc` 生效。</string>
-            <string name="termux_terminal_view_shell_integration_install_outdated_summary">已安装的 shell 集成是旧版本。重新安装一次，通知卡片才能显示执行的命令。</string>
+            <string name="termux_terminal_view_shell_integration_install_outdated_summary">已安装的 shell 集成版本较旧。重新安装后，通知卡片才能显示所执行的命令。</string>
             <string name="termux_terminal_view_shell_integration_uninstall_title">卸载 shell 集成</string>
-            <string name="termux_terminal_view_shell_integration_uninstall_summary">从 rc 文件里删除添加的
-                配置块和脚本，rc 文件的其它内容不动。</string>
+            <string name="termux_terminal_view_shell_integration_uninstall_summary">从 rc 文件中删除添加的
+                配置块与脚本，rc 文件的其余内容保持不变。</string>
 
             <!-- Shell Integration Messages -->
             <string name="msg_shell_integration_installed">shell 集成已安装。重开会话或执行
@@ -643,7 +643,7 @@
     <string name="termux_status_bar_segment_proxy">代理</string>
 
     <string name="termux_status_bar_segment_enabled_title">显示该段</string>
-    <string name="termux_status_bar_segment_enabled_on">该段在「显示的段」列表中时才会显示</string>
+    <string name="termux_status_bar_segment_enabled_on">该段仅在「显示的段」列表中出现时显示</string>
     <string name="termux_status_bar_segment_enabled_off">该段不显示</string>
     <string name="termux_status_bar_segment_format_title">格式</string>
     <string name="termux_status_bar_segment_clock_format_summary">Java SimpleDateFormat 模式，如 HH:mm:ss 或 E HH:mm</string>
@@ -702,26 +702,26 @@
 
     <string name="termux_notification_general_header">通用</string>
     <string name="termux_notification_enabled_title">显示通知卡片</string>
-    <string name="termux_notification_enabled_on">卡片显示在终端角落。长按终端 →「发送测试通知」可以检查外观。</string>
-    <string name="termux_notification_enabled_off">关闭时，失败命令只显示 App 原有的短 toast。</string>
+    <string name="termux_notification_enabled_on">卡片显示在终端角落。长按终端后选择「发送测试通知」即可检查外观。</string>
+    <string name="termux_notification_enabled_off">关闭时，失败命令仅显示应用原有的简短提示。</string>
     <string name="termux_notification_position_title">显示位置</string>
     <string name="termux_notification_duration_title">自动消失时间</string>
     <string name="termux_notification_max_visible_title">最大同时显示条数（1–8）</string>
-    <string name="termux_notification_max_visible_summary">超出时先关闭最旧的卡片。</string>
+    <string name="termux_notification_max_visible_summary">超出时先关闭最早显示的卡片。</string>
 
     <string name="termux_notification_appearance_header">外观</string>
     <string name="termux_notification_width_title">宽度（dp，0 = 自适应）</string>
-    <string name="termux_notification_width_summary">填 0 时卡片按内容自适应，上限 320dp。</string>
+    <string name="termux_notification_width_summary">取 0 时卡片宽度随内容自适应，上限 320dp。</string>
     <string name="termux_notification_font_size_title">字号（sp）</string>
     <string name="termux_notification_font_size_summary">命令行与详情行比标题分别小 1sp 与 2.5sp。</string>
     <string name="termux_notification_body_max_lines_title">命令行最多行数（1–6）</string>
     <string name="termux_notification_body_max_lines_summary">超出部分用省略号截断。</string>
     <string name="termux_notification_corner_radius_title">圆角（dp，0 = 直角）</string>
-    <string name="termux_notification_corner_radius_summary">0 = TUI 窗口的直角，8 = Material 卡片风格。</string>
+    <string name="termux_notification_corner_radius_summary">0 为 TUI 风格的直角，8 为 Material 卡片风格。</string>
     <string name="termux_notification_border_width_title">描边宽度（dp，0 = 无描边）</string>
     <string name="termux_notification_border_width_summary">描边使用卡片的强调色。</string>
     <string name="termux_notification_accent_width_title">左侧色条宽度（dp，0 = 无色条）</string>
-    <string name="termux_notification_accent_width_summary">色条画在卡片左边缘。</string>
+    <string name="termux_notification_accent_width_summary">色条绘制在卡片左边缘。</string>
     <string name="termux_notification_monospace_title">等宽字体</string>
     <string name="termux_notification_monospace_on">卡片使用终端的等宽字体。</string>
     <string name="termux_notification_monospace_off">卡片使用系统默认字体。</string>
@@ -738,12 +738,12 @@
     <string name="termux_notification_exit_code_enabled_off">忽略失败命令，等同于关闭卡片。</string>
     <string name="termux_notification_exit_code_show_cwd_title">显示工作目录</string>
     <string name="termux_notification_exit_code_show_session_title">显示会话名</string>
-    <string name="termux_notification_exit_code_show_session_summary">只有重命名过的会话才有名字。</string>
+    <string name="termux_notification_exit_code_show_session_summary">仅重命名过的会话具有名称。</string>
     <string name="termux_notification_exit_code_min_duration_title">最短耗时（秒）</string>
-    <string name="termux_notification_exit_code_min_duration_summary">只提示运行了至少这么久的命令。0 = 全部提示。</string>
+    <string name="termux_notification_exit_code_min_duration_summary">仅提示耗时不少于该值的命令。0 表示全部提示。</string>
     <string name="termux_notification_exit_code_ignore_commands_title">忽略的命令</string>
-    <string name="termux_notification_exit_code_ignore_commands_summary">按设计会返回非 0 的命令，逗号分隔。</string>
-    <string name="termux_notification_exit_code_ignore_commands_dialog_message">输入命令名，逗号分隔，例如 grep,test,diff。留空则所有命令都提示。</string>
+    <string name="termux_notification_exit_code_ignore_commands_summary">按设计会返回非 0 退出码的命令，逗号分隔。</string>
+    <string name="termux_notification_exit_code_ignore_commands_dialog_message">输入命令名，逗号分隔，例如 grep,test,diff；留空则提示所有命令。</string>
 
     <!-- Terminal tabs -->
     <string name="termux_tab_close_label">&#215;</string>
@@ -767,15 +767,15 @@
     <string name="termux_terminal_menu_items_title">命令面板中的终端动作</string>
     <string name="termux_terminal_menu_items_summary">命令面板中显示的终端动作，顺序即显示顺序。</string>
     <string name="termux_terminal_menu_selection_items_title">文本选择浮条项</string>
-    <string name="termux_terminal_menu_selection_items_summary">选字后显示在手柄上方的按钮，至少保留一项。</string>
-    <string name="termux_terminal_menu_kill_process_label">杀掉进程</string>
+    <string name="termux_terminal_menu_selection_items_summary">选中文本后在选择手柄上方显示的按钮，至少保留一项。</string>
+    <string name="termux_terminal_menu_kill_process_label">结束进程</string>
 
 
     <!-- Ordered items preference (shared by the menu and the selection toolbar) -->
     <string name="termux_ordered_items_none">无</string>
     <string name="termux_ordered_items_shown_header">已显示（按此顺序）</string>
-    <string name="termux_ordered_items_shown_empty">当前没有显示的项，点下面的一项添加。</string>
-    <string name="termux_ordered_items_hidden_header">未显示，点一下添加</string>
+    <string name="termux_ordered_items_shown_empty">当前没有已显示的项，点击下方条目添加。</string>
+    <string name="termux_ordered_items_hidden_header">未显示，点击添加</string>
     <string name="termux_ordered_items_hidden_empty">所有项都已显示。</string>
 
     <string name="termux_notification_position_top_end">右上角</string>
@@ -792,24 +792,24 @@
 
     <string name="termux_notification_osc_header">程序主动发送的通知（OSC 9 / 99 / 777）</string>
     <string name="termux_notification_osc_enabled_title">显示程序请求的通知</string>
-    <string name="termux_notification_osc_enabled_on">任何程序都可以打印 OSC 9 / 99 / 777 转义序列来弹卡片，比如构建脚本跑完后弹一条。printf 的例子见文档。</string>
+    <string name="termux_notification_osc_enabled_on">任何程序都可以输出 OSC 9 / 99 / 777 转义序列以显示卡片，例如构建脚本结束后显示一条通知。printf 示例见 FORK.md。</string>
     <string name="termux_notification_osc_enabled_off">请求通知的转义序列会被忽略。</string>
     <string name="termux_notification_osc_allow_app_title">允许的程序</string>
-    <string name="termux_notification_osc_allow_app_summary">程序用 OSC 99 的 f 键上报的名称，逗号分隔。留空 = 允许所有程序。</string>
+    <string name="termux_notification_osc_allow_app_summary">程序通过 OSC 99 的 f 键上报的名称，逗号分隔。留空表示允许所有程序。</string>
     <string name="termux_notification_osc_allow_app_dialog_message">输入程序名，逗号分隔，例如 nvim,build。留空或输入 * 表示允许所有程序。</string>
     <string name="termux_notification_osc_report_click_title">回报点击与关闭</string>
-    <string name="termux_notification_osc_report_click_on">当卡片被点击、按钮被点击或卡片关闭时，如果程序要求过，就告诉程序。</string>
+    <string name="termux_notification_osc_report_click_on">卡片、按钮被点击或卡片关闭时，若程序请求过回报，则向程序回报。</string>
     <string name="termux_notification_osc_report_click_off">完全不向程序回报通知的交互结果。</string>
     <string name="termux_notification_osc_icons_title">显示图标</string>
-    <string name="termux_notification_osc_icons_on">显示程序用 OSC 99 的 p=icon 负载发来的图标。</string>
-    <string name="termux_notification_osc_icons_off">图标数据会被解码但不显示。</string>
+    <string name="termux_notification_osc_icons_on">显示程序通过 OSC 99 的 p=icon 负载发来的图标。</string>
+    <string name="termux_notification_osc_icons_off">图标负载在终端层即被丢弃，不进行解码。</string>
     <string name="termux_notification_osc_rate_limit_title">每秒每个会话最多几条</string>
-    <string name="termux_notification_osc_rate_limit_summary">超出的通知直接丢弃，防止程序刷屏把终端卡住。0 = 不限。</string>
+    <string name="termux_notification_osc_rate_limit_summary">超出限额的通知直接丢弃，避免程序高频发送拖慢终端。0 表示不限。</string>
 
     <!-- Recent notifications and app events -->
     <string name="action_recent_notifications">最近通知</string>
     <string name="notification_history_title">最近通知</string>
-    <string name="notification_history_empty">App 启动以来还没有显示过通知。</string>
+    <string name="notification_history_empty">应用启动以来尚未显示过通知。</string>
     <string name="notification_history_clear">清空</string>
     <string name="msg_copied_to_clipboard">已复制到剪贴板</string>
     <string name="notification_event_session_exit_title">会话已退出</string>
@@ -821,39 +821,39 @@
 
     <string name="termux_notification_events_header">App 事件</string>
     <string name="termux_notification_events_enabled_title">把 App 事件显示成卡片</string>
-    <string name="termux_notification_events_enabled_on">下面勾选的事件会弹卡片，并且不再弹原来的 toast。</string>
-    <string name="termux_notification_events_enabled_off">App 事件只使用原有的 toast。</string>
+    <string name="termux_notification_events_enabled_on">勾选的事件显示为卡片，并不再显示原有提示。</string>
+    <string name="termux_notification_events_enabled_off">应用事件仅使用原有提示。</string>
     <string name="termux_notification_events_title">事件</string>
-    <string name="termux_notification_events_summary">勾选要显示成卡片的 App 事件。</string>
+    <string name="termux_notification_events_summary">勾选要显示为卡片的应用事件。</string>
     <string name="termux_notification_event_session_exit">会话退出</string>
     <string name="termux_notification_event_plugin_result">插件命令结束</string>
     <string name="termux_notification_event_title">会话标题变化</string>
     <string name="termux_notification_event_bell">程序响铃（bell）</string>
     <string name="termux_notification_background_header">后台与历史</string>
-    <string name="termux_notification_background_enabled_title">App 不在前台时发系统通知</string>
-    <string name="termux_notification_background_enabled_on">在后台时发到通知栏；不需要通知权限，因为 App 的 targetSdk 是 28。</string>
+    <string name="termux_notification_background_enabled_title">应用不在前台时发送系统通知</string>
+    <string name="termux_notification_background_enabled_on">在后台时发送到通知栏；因应用 targetSdk 为 28，不需要通知权限。</string>
     <string name="termux_notification_background_enabled_off">通知只在终端里以卡片形式显示。</string>
     <string name="termux_notification_history_size_title">保留的最近通知条数（0–200）</string>
-    <string name="termux_notification_history_size_summary">只保存在内存里；列表为空时长按菜单里的「最近通知」项会自动隐藏。</string>
+    <string name="termux_notification_history_size_summary">仅保存在内存中；列表为空时，长按菜单中的「最近通知」项会自动隐藏。</string>
     <string name="notification_channel_name">终端通知</string>
     <string name="notification_channel_description">失败命令与终端程序发出的通知</string>
 
     <!-- 扩展与命令 -->
     <string name="command_new_named_session">新建命名会话…</string>
     <string name="termux_extensions_page_disabled_title">该功能已停用</string>
-    <string name="termux_extensions_page_disabled_summary">在「扩展」页启用该扩展后即可使用。已安装到 $PREFIX/bin 的命令会保留，需自行删除。</string>
+    <string name="termux_extensions_page_disabled_summary">在「扩展」页启用该扩展后即可使用。已安装到 $PREFIX/bin 的命令会保留，需另行删除。</string>
     <string name="termux_search_extension_title">终端内搜索</string>
     <string name="termux_search_extension_summary">在屏幕与回滚记录中查找文本</string>
     <string name="termux_drawer_extension_title">会话抽屉</string>
-    <string name="termux_drawer_extension_summary">列出会话的抽屉与头部概要</string>
+    <string name="termux_drawer_extension_summary">列出会话的抽屉及其头部概要</string>
     <string name="termux_split_extension_title">分屏</string>
     <string name="termux_split_extension_summary">两个窗格与可拖拽的分隔条</string>
     <string name="termux_builtin_vt_preferences_title">终端行为（核心）</string>
     <string name="termux_builtin_vt_preferences_summary">剪贴板、滚动、鼠标与内边距</string>
     <string name="termux_builtin_vt_notice_title">核心能力</string>
-    <string name="termux_builtin_vt_notice_summary">这些行为实现在终端内部，只能关闭，不能移除。</string>
+    <string name="termux_builtin_vt_notice_summary">这些行为实现在终端内部，只能关闭，无法移除。</string>
     <string name="termux_builtin_vt_behaviour_header">行为</string>
     <string name="termux_volume_keys_preferences_title">音量键</string>
-    <string name="termux_volume_keys_preferences_summary">虚拟键 · 单按与长按动作</string>
+    <string name="termux_volume_keys_preferences_summary">虚拟键 · 单击与长按动作</string>
     <string name="termux_volume_key_actions_header">动作</string>
 </resources>

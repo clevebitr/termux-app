@@ -274,7 +274,7 @@
                 <string name="termux_appearance_extra_keys_style_arrows_only">Arrows only</string>
                 <string name="termux_appearance_extra_keys_style_arrows_all">Arrows and more</string>
                 <string name="termux_appearance_extra_keys_style_all">All symbols</string>
-                <string name="termux_appearance_extra_keys_style_none">None (just the key names)</string>
+                <string name="termux_appearance_extra_keys_style_none">None (key names only)</string>
 
                 <!-- Terminal Toolbar Height -->
                 <string name="termux_appearance_toolbar_height_title">Toolbar Height (%)</string>
@@ -551,7 +551,7 @@
                 <string name="termux_terminal_view_terminal_margin_adjustment_off">Terminal margin adjustment will be disabled.</string>
                 <string name="termux_terminal_view_terminal_margin_adjustment_on">Terminal margin adjustment will be enabled.
                     It should be enabled to try to fix the issue where soft keyboard covers part of extra keys/terminal view.
-                    If it causes screen flickering on your devices, then disable it. (Default)</string>
+                    If it causes screen flickering on your device, disable it. (Default)</string>
 
                 <!-- Switch Session on Swipe -->
                 <string name="termux_terminal_view_switch_session_on_swipe_title">Switch Session on Swipe</string>
@@ -605,7 +605,7 @@
                 <!-- OSC 52 Clipboard -->
                 <string name="termux_terminal_view_osc52_clipboard_title">OSC 52 Clipboard</string>
                 <string name="termux_terminal_view_osc52_clipboard_write">Terminal programs may write the clipboard (Default)</string>
-                <string name="termux_terminal_view_osc52_clipboard_read_write">Terminal programs may read and write the clipboard (Less secure, a remote shell could read everything you copied)</string>
+                <string name="termux_terminal_view_osc52_clipboard_read_write">Terminal programs may read and write the clipboard (less secure, since a remote shell could read the clipboard)</string>
                 <string name="termux_terminal_view_osc52_clipboard_off">Ignore OSC 52 clipboard requests from terminal programs</string>
 
             <!-- Shell Integration Category -->
@@ -863,7 +863,7 @@
     <string name="termux_notification_osc_icons_on">The icon that a program sends with the OSC 99 p=icon payload is shown in the card.</string>
     <string name="termux_notification_osc_icons_off">The icon data of programs is decoded but not shown.</string>
     <string name="termux_notification_osc_rate_limit_title">Maximum per second and session</string>
-    <string name="termux_notification_osc_rate_limit_summary">Additional notifications are dropped, so that a program that spams notifications cannot block the terminal. 0 disables the limit.</string>
+    <string name="termux_notification_osc_rate_limit_summary">Additional notifications are dropped, so that a program cannot block the terminal with a flood of notifications. 0 disables the limit.</string>
 
     <!-- Recent notifications and app events -->
     <string name="action_recent_notifications">Recent notifications</string>

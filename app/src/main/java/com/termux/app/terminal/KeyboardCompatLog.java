@@ -19,7 +19,7 @@ import java.util.Locale;
  * <p>行为 — 每行带时间戳与来源标签，追加写入；文件超过 128KB 时重建，避免无限增长。写入失败只记录一次警告，
  * 不影响输入。</p>
  *
- * <p>约束 — 只在诊断开关打开时调用；写入发生在按键路径上，因此保持同步小写入并吞掉 IOException。</p>
+ * <p>约束 — 只在诊断开关打开时调用；写入发生在按键路径上，因此保持同步小写入并捕获后忽略 IOException。</p>
  */
 public final class KeyboardCompatLog {
 
