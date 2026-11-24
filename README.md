@@ -6,14 +6,12 @@
 [![Join the Termux discord server](https://img.shields.io/discord/641256914684084234.svg?label=&logo=discord&logoColor=ffffff&color=5865F2)](https://discord.gg/HXpF69X)
 [![Termux library releases at Jitpack](https://jitpack.io/v/termux/termux-app.svg)](https://jitpack.io/#termux/termux-app)
 
->  **Vibe Coding Warning** ⚠️ 
->  This fork contains AI-generated code. Please review before use.
->  The features and behaviour changes added by this fork (terminal extras, settings screens, backup
->  and restore, italic font and OSC 8 hyperlinks, split screen, status bar, in-terminal notification
->  cards with `OSC 9/99/777` support, configurable long press menu, more) are listed in
->  [FORK.md](FORK.md), and how to build, sign and install it alongside the official plugins is
->  described in [FORK_BUILD.md](FORK_BUILD.md).
->  Forked from [Termux](https://github.com/termux/termux-app)
+> **This repository is a fork of Termux.**
+> The features that this fork adds to the upstream app are listed in [FORK.md](FORK.md). How the fork
+> is built, signed and installed alongside the official plugins is described in
+> [Building This Fork](#building-this-fork). The changes are produced with the assistance of AI tools,
+> so review them before relying on them.
+> Forked from [Termux](https://github.com/termux/termux-app)
 
 [Termux](https://termux.dev) is an Android terminal application and Linux environment.
 
@@ -33,6 +31,7 @@ Quick how-to about Termux package management is available at [Package Management
 - [Termux App and Plugins](#termux-app-and-plugins)
 - [Installation](#installation)
 - [Uninstallation](#uninstallation)
+- [Building This Fork](#building-this-fork)
 - [Important Links](#important-links)
 - [Debugging](#debugging)
 - [For Maintainers and Contributors](#for-maintainers-and-contributors)
@@ -140,6 +139,68 @@ To uninstall Termux completely, you must uninstall **any and all existing Termux
 Go to `Android Settings` -> `Applications` and then look for those apps. You can also use the search feature if it’s available on your device and search `termux` in the applications list.
 
 Even if you think you have not installed any of the plugins, it's strongly suggested to go through the application list in Android settings and double-check.
+##
+
+
+## Building This Fork
+
+### Local build
+
+The fork is built with the Gradle wrapper. It requires JDK 21, Android SDK platform 36 and NDK
+`29.0.14206865` (versions are declared in `gradle.properties`), and the bootstraps that
+`task downloadBootstraps` fetches.
+
+```sh
+./gradlew assembleDebug                   # app/build/outputs/apk/debug/*.apk
+./gradlew :app:testDebugUnitTest          # unit tests
+```
+
+### Signing
+
+Debug builds are signed with the public `app/testkey_untrusted.jks`, which is the key of the GitHub
+releases of the upstream app. Release builds can be signed with an own keystore: create a
+`signing.properties` file in the repository root (it is ignored by git) and run the release build.
+
+```properties
+storeFile=/absolute/path/to/keystore.jks
+storePassword=...
+keyAlias=...
+keyPassword=...
+```
+
+```sh
+TERMUX_APK_VERSION_TAG=my-fork-$(date +%Y%m%d) ./gradlew assembleRelease
+```
+
+Without that file the release build is left unsigned, as in the upstream app.
+
+### Coexistence with the official plugins
+
+All Termux apps declare `android:sharedUserId="com.termux"` and use the `signature` level permission
+`com.termux.sharedfiles.READ_WRITE` to communicate, so Android installs the app and the plugins only
+when every APK is signed with the same key, otherwise it fails with
+`INSTALL_FAILED_SHARED_USER_INCOMPATIBLE`. The package name has to stay `com.termux` as well, because
+the plugins and the bootstraps depend on it.
+
+Two options follow from that:
+
+- Build the app and the plugins you need from the repositories as debug APKs, all of which are signed
+  with the same public test key. The key is public, so this is only suitable for local use.
+- Sign the app and the plugins with an own keystore. Every plugin repository needs the same signing
+  configuration, either through `signing.properties` or through
+  `-Pandroid.injected.signing.*` arguments.
+
+Switching the signing key requires uninstalling the app and **all** plugins first, because Android
+refuses to replace an installed package with a differently signed one. Back up `$PREFIX` before
+uninstalling, for example with the `termux-backup` command described in [FORK.md](FORK.md).
+
+### Continuous integration
+
+The workflow `.github/workflows/fork_build.yml` builds the app and optionally the six plugin apps,
+verifies that every APK carries the same signing certificate and publishes the result as the
+`fork-latest` pre-release. Without the repository secrets `TERMUX_KEYSTORE_BASE64`,
+`TERMUX_KEYSTORE_PASSWORD`, `TERMUX_KEY_ALIAS` and `TERMUX_KEY_PASSWORD` it builds debug APKs with
+the public test key; with them it builds release APKs signed with that keystore.
 ##
 
 
