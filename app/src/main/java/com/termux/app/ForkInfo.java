@@ -27,9 +27,7 @@ public final class ForkInfo {
     /** The features of the fork, in the repository. */
     public static final String FEATURES_DOC_URL = REPOSITORY_URL + "/blob/master/FORK.md";
     /** How the fork is built and signed, in the repository. */
-    public static final String BUILD_DOC_URL = REPOSITORY_URL + "/blob/master/FORK_BUILD.md";
-    /** The summary of the features that is included in the release notes of every build. */
-    public static final String RELEASE_NOTES_DOC_URL = REPOSITORY_URL + "/blob/master/docs/FORK_RELEASE_NOTES.md";
+    public static final String BUILD_DOC_URL = REPOSITORY_URL + "/blob/master/README.md";
 
     private ForkInfo() {
     }
@@ -55,8 +53,6 @@ public final class ForkInfo {
         markdownString.append("\n\n### Documentation");
         markdownString.append("\n").append(MarkdownUtils.getLinkMarkdownString(
             "Features of the fork", FEATURES_DOC_URL));
-        markdownString.append("\n").append(MarkdownUtils.getLinkMarkdownString(
-            "Release notes", RELEASE_NOTES_DOC_URL));
         markdownString.append("\n").append(MarkdownUtils.getLinkMarkdownString(
             "Building and signing", BUILD_DOC_URL));
         markdownString.append("\n##\n");
